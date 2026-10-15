@@ -15,8 +15,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { diffReleases, sanityCheck, type ReleaseDiff, type SanityResult } from "./compare";
 import { emptyMirrorState, Mirror, type FetchLike, type FetchOutcome, type MirrorState } from "./mirror";
@@ -85,11 +84,6 @@ export async function runReleaseJob(options: RunReleaseJobOptions): Promise<JobR
   const dryRun = options.dryRun === true;
   const sink: ReleaseSink = localSink(outDir);
   const state = dryRun ? emptyMirrorState() : await loadMirrorState(outDir);
-  // A 304 is only usable with the body it confirms. A file whose body is not
-  // cached is fetched without validators, so the mirror cannot answer 304 for it.
-  for (const [url, file] of Object.entries(state.files)) {
-    if (!existsSync(cachedBodyPath(outDir, url))) Object.assign(file, { etag: null, lastModified: null });
-  }
   const mirror = new Mirror({
     policy: options.policy,
     baseUrl: options.baseUrl,
@@ -98,31 +92,48 @@ export async function runReleaseJob(options: RunReleaseJobOptions): Promise<JobR
     now: options.now,
     state,
   });
+  // A 304 is only usable with the body it confirms. A cached body counts only
+  // when the validators stored with it are the ones the state will send; any
+  // other file the job needs is fetched without validators, so the mirror
+  // cannot answer 304 for it. Another run's watch can move a URL's
+  // validators, and a failed write can leave an older body, so the two are
+  // compared rather than trusted.
+  const cached = new Map<string, string>();
+  const urls = [mirror.urlFor(options.termId), ...(options.subjects ?? []).map(subject => mirror.urlFor(options.termId, subject))];
+  for (const url of urls) {
+    const file = state.files[url];
+    if (file === undefined) continue;
+    const entry = await readCachedBody(outDir, url);
+    if (entry !== null && entry.etag === file.etag && entry.lastModified === file.lastModified) cached.set(url, entry.body);
+    else Object.assign(file, { etag: null, lastModified: null });
+  }
   // Every exit saves the request log and validators, including refusals,
   // errors and the watch's requests, so the next run honors the policy.
   try {
-    return await runWithMirror(options, mirror, sink);
+    return await runWithMirror(options, mirror, sink, cached);
   } finally {
     if (!dryRun) await saveMirrorState(outDir, mirror.state);
   }
 }
 
-async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink: ReleaseSink): Promise<JobReport> {
+async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink: ReleaseSink, cached: Map<string, string>): Promise<JobReport> {
   const now = options.now ?? Date.now;
   const { termId, outDir } = options;
   const dryRun = options.dryRun === true;
   const watchTerms = options.watchTerms === undefined ? ["fall-2027"] : options.watchTerms;
 
-  /** The body a 200 delivered, cached for a later 304; or the cached body that a 304 confirms. Null for any other outcome. */
+  /** The body a 200 delivered, cached with its validators for a later 304; or the cached body that a 304 confirms. Null for any other outcome. */
   const bodyOf = async (url: string, outcome: FetchOutcome): Promise<string | null> => {
     if (outcome.kind === "fetched") {
-      if (!dryRun) {
-        await mkdir(path.join(outDir, "bodies"), { recursive: true });
-        await writeFile(cachedBodyPath(outDir, url), outcome.body, "utf8");
-      }
+      if (!dryRun) await writeCachedBody(outDir, url, { etag: outcome.etag, lastModified: outcome.lastModified, body: outcome.body });
+      cached.set(url, outcome.body);
       return outcome.body;
     }
-    if (outcome.kind === "not-modified") return readFile(cachedBodyPath(outDir, url), "utf8");
+    if (outcome.kind === "not-modified") {
+      const body = cached.get(url);
+      if (body === undefined) throw new Error(`HTTP 304 for ${url}, but no cached body matches the validators sent`);
+      return body;
+    }
     return null;
   };
 
@@ -173,20 +184,26 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
   }
 
   // 2. Subject overlays, then build. A subject file that fails its own
-  //    schema check is dropped and reported; the term file's slice for that
-  //    subject stands.
+  //    schema check, or that the mirror no longer has, is dropped and
+  //    reported; the term file's slice for that subject stands. A subject the
+  //    run could not ask about (deferred or failed) uses its cached body, and
+  //    with none cached the run publishes nothing, since the term file's
+  //    slice may be older than the overlay already published.
   const termBody = await bodyOf(termUrl, termOutcome) as string;
   let body = termBody;
   if (subjects.length) {
     const requests = subjects.map(subject => ({ term: termId, subject }));
     const outcomes = await mirror.fetchFiles(requests);
     const overlays: Array<{ subject: string; body: string }> = [];
+    const unavailable: string[] = [];
     for (const { request, url, outcome } of outcomes) {
       record(url, outcome);
       const subject = request.subject as string;
-      const subjectBody = await bodyOf(url, outcome);
+      const notAsked = outcome.kind === "deferred" || outcome.kind === "error";
+      const subjectBody = notAsked ? cached.get(url) ?? null : await bodyOf(url, outcome);
       if (subjectBody === null) {
-        subjectReports.push({ subject, applied: false, detail: `not fetched: ${outcome.kind}` });
+        if (notAsked) unavailable.push(subject);
+        subjectReports.push({ subject, applied: false, detail: notAsked ? `not fetched (${outcome.kind}) and no cached body` : "HTTP 404: the mirror has no file for this subject" });
         continue;
       }
       const check = checkSubjectFile(subjectBody, termId, subject);
@@ -194,8 +211,11 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
         subjectReports.push({ subject, applied: false, detail: check.detail });
         continue;
       }
-      subjectReports.push({ subject, applied: true });
+      subjectReports.push({ subject, applied: true, ...(notAsked ? { detail: `from the cached body; the fetch was ${outcome.kind}` } : {}) });
       overlays.push({ subject, body: subjectBody });
+    }
+    if (unavailable.length) {
+      return { termId, outcome: "error", reason: "subject-unavailable", detail: `${unavailable.join(", ")}: not fetched and no cached body; the published release stays`, fetched, subjects: subjectReports, termWatch: await runWatch(), wrote: false };
     }
     if (overlays.length) body = overlaySubjects(termBody, overlays);
   }
@@ -334,9 +354,30 @@ function courseCounts(courses: Record<string, unknown>): { courses: number; with
   };
 }
 
+type CachedBody = { etag: string | null; lastModified: string | null; body: string };
+
 /** Where a fetched body is kept for a later 304, keyed by its URL. */
 function cachedBodyPath(outDir: string, url: string): string {
   return path.join(outDir, "bodies", `${createHash("sha256").update(url).digest("hex")}.json`);
+}
+
+/** Writes beside the target and renames, so a failed write never leaves a cut-off body under the real name. */
+async function writeCachedBody(outDir: string, url: string, entry: CachedBody): Promise<void> {
+  const file = cachedBodyPath(outDir, url);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(`${file}.tmp`, JSON.stringify(entry), "utf8");
+  await rename(`${file}.tmp`, file);
+}
+
+/** The cached body with the validators it was served under, or null when there is none or it is unreadable. */
+async function readCachedBody(outDir: string, url: string): Promise<CachedBody | null> {
+  try {
+    const entry = JSON.parse(await readFile(cachedBodyPath(outDir, url), "utf8")) as Partial<CachedBody>;
+    if (typeof entry.body !== "string" || entry.etag === undefined || entry.lastModified === undefined) return null;
+    return { etag: entry.etag, lastModified: entry.lastModified, body: entry.body };
+  } catch {
+    return null;
+  }
 }
 
 /** Fetch state lives beside the releases, so one-shot CLI runs keep their etags and budget. */
@@ -344,6 +385,11 @@ export async function loadMirrorState(outDir: string): Promise<MirrorState> {
   try {
     const parsed = JSON.parse(await readFile(path.join(outDir, "state.json"), "utf8")) as MirrorState;
     if (typeof parsed !== "object" || parsed === null || typeof parsed.files !== "object" || !Array.isArray(parsed.requests)) throw new Error("shape");
+    // State written before attemptedAt existed carries fetchedAt, the time of
+    // the last 200; the minimum interval runs from it until the next request.
+    for (const file of Object.values(parsed.files) as Array<MirrorState["files"][string] & { fetchedAt?: string }>) {
+      if (file.attemptedAt === undefined && file.fetchedAt !== undefined) file.attemptedAt = file.fetchedAt;
+    }
     return parsed;
   } catch {
     return emptyMirrorState();

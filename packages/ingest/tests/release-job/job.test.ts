@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { runReleaseJob } from "../../src/release-job/job";
@@ -332,8 +332,56 @@ describe("runReleaseJob, one run at a time", () => {
     expect(report.subjects.sort((a, b) => a.subject.localeCompare(b.subject))).toEqual([
       { subject: "BADS", applied: false, detail: "BADS.json: schema_version 1 is not 2" },
       { subject: "MATH", applied: true },
-      { subject: "NONE", applied: false, detail: "not fetched: absent" },
+      { subject: "NONE", applied: false, detail: "HTTP 404: the mirror has no file for this subject" },
     ]);
+  });
+
+  test("a watch that refetches another term's file does not leave that term a stale cached body", async () => {
+    const fall = (seats: number) => editTerm(raw => {
+      (raw as unknown as { term: string }).term = "2027 Fall";
+      raw.courses["MATH 1680"].sections[0].linked_sections[0].open_seats = seats;
+    });
+    files["/data/fall-2027.json"] = { body: fall(1), etag: '"f1"' };
+    expect((await job({ termId: "fall-2027" })).outcome).toBe("published");
+    files["/data/fall-2027.json"] = { body: fall(2), etag: '"f2"' };
+    expect((await job({ watchTerms: ["fall-2027"] })).termWatch[0]?.schemaOk).toBe(true);
+    const report = await job({ termId: "fall-2027" });
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["fetched"]);
+    expect(report.outcome).toBe("published");
+    expect(publishedCourses(report.file).get("MATH 1680")).toBe(2);
+  });
+
+  test("a subject the hourly budget defers is applied from its cached body", async () => {
+    let clock = Date.parse("2027-01-10T12:00:00Z");
+    const policy = { ...stubPolicy(stub.url), maxRequestsPerHour: 3 };
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ policy, now: () => clock, subjects: ["MATH"] })).outcome).toBe("published");
+    clock += 16 * 60_000;
+    const report = await job({ policy, now: () => clock, subjects: ["MATH"] });
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified", "deferred"]);
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: true, detail: "from the cached body; the fetch was deferred" }]);
+    expect(report.outcome).toBe("unchanged");
+  });
+
+  test("a deferred subject with no cached body publishes nothing", async () => {
+    const policy = { ...stubPolicy(stub.url), maxRequestsPerHour: 1 };
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    const report = await job({ policy, subjects: ["MATH"] });
+    expect(report.outcome).toBe("error");
+    expect(report.reason).toBe("subject-unavailable");
+    expect(existsSync(path.join(outDir, "pointers", "spring-2027.json"))).toBe(false);
+  });
+
+  test("state saved before attemptedAt existed still holds the minimum interval", async () => {
+    const clock = Date.parse("2027-01-10T12:00:00Z");
+    const url = `${stub.url}/data/spring-2027.json`;
+    const old = { files: { [url]: { etag: null, lastModified: null, fetchedAt: new Date(clock - 2 * 60_000).toISOString() } }, requests: [] };
+    writeFileSync(path.join(outDir, "state.json"), JSON.stringify(old));
+    const policy = { ...stubPolicy(stub.url), minIntervalMs: 15 * 60_000 };
+    const report = await job({ policy, now: () => clock });
+    expect(report.outcome).toBe("error");
+    expect(report.reason).toBe("deferred");
+    expect(stub.requests).toEqual([]);
   });
 
   test("a watched term that is the job's own term reuses the term fetch", async () => {
