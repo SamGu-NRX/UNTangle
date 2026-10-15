@@ -385,7 +385,7 @@ export function OtherCampusEmpty({ campusName, homeName }: { campusName: string;
         This {campusName} map shows buildings only. Your plan&rsquo;s classes are at {homeName}, so their walks are in Day.
       </p>
       <Link className="mv-link" href="/day">
-        Open Day
+        Day
       </Link>
     </div>
   );

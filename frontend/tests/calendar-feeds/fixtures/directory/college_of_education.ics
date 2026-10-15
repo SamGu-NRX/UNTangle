@@ -1,0 +1,27 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - College of Education
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161759Z
+UID:tag:localist.com\,2008:EventInstance_53010679323349
+DTSTART:20261110T170000Z
+DTEND:20261110T200000Z
+DESCRIPTION:TWU/UNT Education Fair\n\nTuesday\, November 10\, 2026 | 11:00 
+ am - 2:00 pm\n\nTWU Student Union at Hubbard Hall\, Southwest Ballroom\n\n
+  \n\nThe Texas Woman's University Career Connections Center invites you to
+  the TWU/UNT Education Fair (In-Person) scheduled for Tuesday\, November 1
+ 0\, 2026. This in-person fair will be held in the TWU Student Union at Hub
+ bard Hall Southwest Ballroom on the Denton campus.\n\n \n\nThe TWU/UNT Edu
+ cation Fair is FREE for all students. This is a great opportunity to brows
+ e various job opportunities and network with recruiters.
+GEO:33.226942;-97.129123
+LOCATION:Texas Woman's University Student Union\, Hubbard Hall Southwest Ba
+ llroom
+SUMMARY:TWU UNT Education Fair 
+URL;VALUE=URI:https://calendar.unt.edu/event/twu-unt-education-fair
+CATEGORIES:Fairs & Tradeshows
+END:VEVENT
+END:VCALENDAR

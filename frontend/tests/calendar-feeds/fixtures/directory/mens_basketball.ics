@@ -1,0 +1,34 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - Men’s Basketball
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T162209Z
+UID:tag:localist.com\,2008:EventInstance_54113665873854
+DTSTART:20261018T190000Z
+DTEND:20261018T210000Z
+DESCRIPTION:Watch the University of North Texas Men's Basketball Team take 
+ on Colorado in an exhibition match!
+LOCATION:Denver\, CO
+SUMMARY:UNT Men's Basketball vs Colorado (Exhibition)
+URL;VALUE=URI:https://calendar.unt.edu/event/unt-mens-basketball-vs-colorad
+ o-exhibition
+CATEGORIES:Athletics
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T162209Z
+UID:tag:localist.com\,2008:EventInstance_53998593655426
+DTSTART;VALUE=DATE:20261026
+DESCRIPTION:Watch as the University of North Texas Men's Basketball team ta
+ kes on Northwestern State in an exhibition match. Go Mean Green!\n\nSeason
+  Play Schedule Here
+GEO:33.208621;-97.154097
+LOCATION:Coliseum
+SUMMARY:UNT Men's Basketball vs Northwestern State (Exhibition)
+URL;VALUE=URI:https://calendar.unt.edu/event/unt-mens-basketball-vs-northwe
+ stern-state-exhibition
+CATEGORIES:Athletics
+END:VEVENT
+END:VCALENDAR

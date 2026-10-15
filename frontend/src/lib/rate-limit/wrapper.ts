@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { budgetWindowMs, budgets, trustedIpHeader, type Budget, type RouteClass } from "./config";
+import { authPathBudget, budgetWindowMs, budgets, trustedIpHeader, type Budget, type RouteClass } from "./config";
 import { clientIp } from "./ip";
 import type { RateLimitStore } from "./store";
 
@@ -23,23 +23,34 @@ export function createRateLimitWrapper({ store, session, secret, now = Date.now 
   return <Args extends unknown[]>(route: RouteClass, handler: Handler<Args>) =>
     async (request: Request, ...args: Args): Promise<Response> => {
       const budget: Budget = budgets[route];
-      const time = now();
-      const windowMs = budgetWindowMs(budget);
-      const window = Math.floor(time / windowMs);
+      let retryAfter = 60;
       let allowed: boolean;
       try {
         const userId = budget.user && (await session(request))?.user.id;
         const [caller, limit]: [string, number] = budget.user && userId
           ? [`user:${userId}`, budget.user]
           : [`ip:${clientIp(request, trustedIpHeader())}`, budget.ip];
+        // Session lookup may cross a window boundary. Count in the window where the hit happens.
+        const time = now();
+        const windowMs = budgetWindowMs(budget);
+        const window = Math.floor(time / windowMs);
+        retryAfter = Math.ceil(((window + 1) * windowMs - time) / 1000);
         allowed = (await store.hit(route, hash(caller), window, windowMs)) <= limit;
+        const path = new URL(request.url).pathname.replace(/^\/api\/auth/, "").replace(/\/+$/, "");
+        const sensitive = route === "auth" ? authPathBudget(path) : null;
+        if (allowed && sensitive) {
+          const sensitiveTime = now();
+          const sensitiveMs = budgetWindowMs(sensitive);
+          const counter = await store.hitLastRequest(`auth:${path}`, hash(caller), sensitiveTime, sensitiveMs, sensitive.ip);
+          retryAfter = Math.ceil((counter.expiresAt - sensitiveTime) / 1000);
+          allowed = counter.allowed;
+        }
       } catch (error) {
         console.error("Rate limiting unavailable", error);
         return Response.json({ error: "Abuse prevention unavailable. Try again later." },
           { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
       }
       if (allowed) return handler(request, ...args);
-      const retryAfter = Math.ceil(((window + 1) * windowMs - time) / 1000);
       return Response.json({ error: "Too many requests" },
         { status: 429, headers: { "Retry-After": String(retryAfter), "Cache-Control": "no-store" } });
     };

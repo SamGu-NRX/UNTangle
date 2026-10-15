@@ -8,6 +8,9 @@ export const supportedTerms = [{ id: "spring-2027", label: "2027 Spring" }] as c
 export const ttlMs = 15 * 60_000;
 export const retryMs = 60_000;
 export const timeoutMs = 15_000;
+// A cold proxy can fetch the term and subject sequentially, each with timeoutMs.
+// The extra 5 s lets it serialize and deliver its fallback; this margin is unmeasured.
+export const clientTimeoutMs = 2 * timeoutMs + 5_000;
 // The Spring 2027 term file is 16 MB. The cap is headroom over that, not a measurement.
 export const maxBytes = 64 * 1024 * 1024;
 

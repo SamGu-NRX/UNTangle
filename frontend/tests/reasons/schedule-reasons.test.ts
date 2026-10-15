@@ -142,6 +142,7 @@ const walkingRequest = () =>
       course("CHEM 2370", [section("c0", "CHEM 2370", [at("Mon", 600, 660, "LAB")]), section("c1", "CHEM 2370", [at("Mon", 840, 900)])]),
     ],
     { compact: 1, walking: 2 },
+    { walkingTime: legs({ "LANG>LANG": 0, "LANG>LAB": 960 }) },
   );
 
 // The winner is one day on campus with a 2-hour gap; the runner-up is two
@@ -258,6 +259,19 @@ describe("scheduleReasons", () => {
   });
 
   describe("unknown travel", () => {
+    test("an unroutable same-building transfer remains unknown in both cost and reasons", () => {
+      const req = request([
+        course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 540, 600, "ntdp")])]),
+        course("CHEM 2370", [section("c0", "CHEM 2370", [at("Mon", 600, 660, "ntdp")])]),
+      ], { walking: 1 }, { walkingTime: legs({}) });
+      expect(optimal(req)[0]).toMatchObject({ cost: 600, breakdown: { unknownWalks: 1, walkSeconds: 0 } });
+      expect(sentences(reasonsFor(req)[0])).toEqual(["1 walk between back-to-back classes has no known time."]);
+
+      const routable = { ...req, walkingTime: legs({ "ntdp>ntdp": 0 }) };
+      expect(optimal(routable)[0]).toMatchObject({ cost: 0, breakdown: { unknownWalks: 0, walkSeconds: 0 } });
+      expect(sentences(reasonsFor(routable)[0])).toEqual(["There is no travel between back-to-back classes."]);
+    });
+
     // MATH meets Mon to Wed in LANG; CHEM's c0 follows it in SCI (300 s),
     // c1 follows it in LAB (960 s) and in a building with no route.
     const atLeastRequest = (c1: Meeting[], c0: Meeting[] = [at("Mon", 600, 660, "SCI")], weights: Partial<OptWeights> = { walking: 2 }) =>

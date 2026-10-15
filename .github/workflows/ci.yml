@@ -1,11 +1,12 @@
 name: CI
 
 on:
-  # main is listed so a ruleset on main can require these checks on PRs into it.
+  # main is listed so a ruleset on main can require these checks; edge is the
+  # unreviewed integration branch, which runs its own copy of this file.
   pull_request:
-    branches: [alpha, main]
+    branches: [alpha, main, edge]
   push:
-    branches: [alpha, main]
+    branches: [alpha, main, edge]
   workflow_dispatch:
     inputs:
       run_live_postgres:
@@ -44,9 +45,9 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      # Every workspace package's typecheck script, through turbo.
       - name: Typecheck
-        run: bun --no-env-file x tsc --noEmit
-        working-directory: frontend
+        run: bun --no-env-file run typecheck
 
   lint:
     name: Lint
@@ -64,6 +65,7 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      # Every workspace package's lint script, through turbo.
       - name: Lint
         run: bun --no-env-file run lint
 
@@ -83,13 +85,13 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      # --isolate gives every test file a fresh global object: some suites share
-      # in-memory stores through module state, so without it runs interfere.
-      # The timeout must clear slow CI runners: the default 5s is too tight for
-      # the map routing and optimizer walk-cost tests.
+      # Every workspace package's test script, through turbo. frontend's script
+      # keeps --isolate (some suites share in-memory stores through module
+      # state, so without it runs interfere) and --timeout=20000 (the default
+      # 5s is too tight on CI runners for the map routing and optimizer
+      # walk-cost tests).
       - name: Unit tests
-        run: bun --no-env-file test --isolate --timeout=20000
-        working-directory: frontend
+        run: bun --no-env-file run test
 
   build:
     name: Build
@@ -158,5 +160,5 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Live Postgres tests
-        run: bun --no-env-file test --isolate tests/rate-limit/postgres-live.test.ts tests/auth/postgres-live.test.ts
+        run: bun --no-env-file test --isolate tests/rate-limit/postgres-live.test.ts tests/auth/postgres-live.test.ts tests/document-sync/postgres-live.test.ts
         working-directory: frontend

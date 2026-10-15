@@ -66,7 +66,7 @@ test("opaque ids are normalized only by the UNT boundary", () => {
   expect(() => normalizeUntCourseId("invalid")).toThrow("Invalid UNT course code");
 });
 
-test("all 656 bundled sources match the report and produce engine assessments", async () => {
+test("all 656 bundled sources produce engine assessments with current parse coverage", async () => {
   const directory = resolve(import.meta.dir, "../../../courses");
   const counts = { full: 0, partial: 0, unknown: 0 };
   const sources = new Map<string, string>();
@@ -93,6 +93,8 @@ test("all 656 bundled sources match the report and produce engine assessments", 
   expect(result.statuses.size).toBe(656);
   expect([...result.statuses.values()].some(course => course.status === "done" || course.status === "taking")).toBe(false);
   for (const entry of catalogEntries) if (parseUntPrerequisite(entry.prerequisites).coverage !== "full") {
-    expect(result.statuses.get(normalizeUntCourseId(entry.course_number))?.status).toBe("unknown");
+    // Major-conditioned clauses cannot override an independently unmet prerequisite.
+    const expected = ["CSCE2610", "MATH3000"].includes(entry.course_number) ? "locked" : "unknown";
+    expect(result.statuses.get(normalizeUntCourseId(entry.course_number))?.status).toBe(expected);
   }
 });

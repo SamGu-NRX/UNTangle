@@ -5,8 +5,9 @@
  * (HANDOFF §6): the same behaviours, through the v3 controls.
  *
  * Add four courses from Week's own search, one tap each; set preferences
- * (start after 9 AM, Thursdays off, a work block, 15 credits at most) and
- * read them back in the one-line summary; run Auto and walk its options
+ * in the Preferences popover (sun knob to 9 AM, Thursdays off, a work block
+ * painted on its grid, 15 credits at most) and read them back in the
+ * summary the Preferences button carries; run Auto and walk its options
  * one at a time; use one and undo it with ⌘Z; keep a section and check
  * Auto's options never move it; see options refresh when a setting changes
  * under them; hit an impossible case and apply its one-click fix; reload
@@ -77,6 +78,23 @@ for (const vp of [
     await page.keyboard.press("Escape");
     await page.waitForTimeout(phone ? 450 : 200);
   };
+  /** The Preferences popover on desktop, a sheet on phones; either way a dialog named Preferences. */
+  const prefsDialog = page.getByRole("dialog", { name: "Preferences" });
+  const openPrefs = async () => {
+    await main.getByRole("button", { name: /^Preferences/ }).click();
+    await prefsDialog.waitFor();
+    await page.waitForTimeout(phone ? 500 : 250);
+    return prefsDialog;
+  };
+  /** Escape closes an open leaning card before the popover, so press until the dialog is gone. */
+  const closePrefs = async () => {
+    for (let i = 0; i < 3 && (await prefsDialog.count()) > 0 && (await prefsDialog.isVisible()); i += 1) {
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(phone ? 450 : 250);
+    }
+  };
+  /** What the Preferences button describes itself with: only the choices that differ from the defaults. */
+  const prefSummary = async () => ((await page.locator("#pref-summary").textContent()) ?? "").trim();
   /** Phones open panels as a half-height sheet; drag it to the top detent, as a student would. */
   const expand = async () => {
     if (!phone) return;
@@ -135,35 +153,48 @@ for (const vp of [
   await axe(page, `${tag} week`);
 
   // Preferences: start after 9 AM, Thursdays off, a work block, 15 credits at most.
-  await main.getByRole("button", { name: /^Preferences/ }).click();
-  const prefs = panel("Preferences");
-  await prefs.waitFor();
-  await expand();
-  await prefs.getByRole("radio", { name: "9 AM" }).click();
-  await prefs.getByRole("group", { name: "Days off" }).getByRole("button", { name: "Thu" }).click();
-  await prefs.getByRole("button", { name: "Add a busy time" }).click();
-  await prefs.getByLabel("Name", { exact: true }).fill("Work");
-  await prefs.getByRole("group", { name: "Days", exact: true }).getByRole("button", { name: "Tue" }).click();
-  await prefs.getByLabel("From", { exact: true }).fill("13:00");
-  const to = prefs.getByLabel("To", { exact: true });
-  await to.fill("12:00");
-  await prefs.getByRole("button", { name: "Add", exact: true }).click();
+  const prefs = await openPrefs();
+  const sun = prefs.getByRole("slider", { name: "Earliest class start" });
+  await sun.focus();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  check(`${tag}: the sun knob sets the earliest start`, (await sun.getAttribute("aria-valuetext")) === "9 AM", await sun.getAttribute("aria-valuetext"));
+  await prefs.getByRole("button", { name: "Thursdays off" }).click();
+  // A work block painted on Tuesday, dragged upward from 5 PM to 1 PM: a backwards
+  // gesture still makes a block in the right order, never one that ends before it starts.
+  const paintGrid = prefs.getByRole("application");
+  await paintGrid.scrollIntoViewIfNeeded();
+  const box = await paintGrid.boundingBox();
+  const atMinute = (m) => box.y + ((m - 480) / 840) * box.height;
+  const tueX = box.x + 1.5 * (box.width / 5);
+  await page.mouse.move(tueX, atMinute(1005));
+  await page.mouse.down();
+  await page.mouse.move(tueX, atMinute(900), { steps: 5 });
+  await page.mouse.move(tueX, atMinute(785), { steps: 5 });
+  await page.mouse.up();
   check(
-    `${tag}: a busy time that ends before it starts is refused, and the form says why`,
-    (await prefs.getByText("Ends before it starts.").count()) === 1 && (await prefs.getByText(/^Work, Tue/).count()) === 0,
+    `${tag}: a busy time painted backwards is stored start before end`,
+    (await prefs.getByText("Tue, 1–5 PM", { exact: true }).count()) === 1,
   );
-  await to.fill("17:00");
-  await prefs.getByRole("button", { name: "Add", exact: true }).click();
-  check(`${tag}: work block added`, (await prefs.getByText("Work, Tue 1:00–5:00").count()) === 1);
-  await prefs.getByRole("radio", { name: "15" }).click();
+  const nameIt = prefs.getByRole("textbox", { name: "Name this busy time" });
+  await nameIt.fill("Work");
+  await nameIt.press("Enter");
+  // The ledger row under the grid; the painted block on the grid carries the name too.
+  const workRow = prefs.getByRole("listitem").filter({ hasText: "Tue, 1–5 PM" });
+  check(`${tag}: work block added`, (await workRow.count()) === 1 && ((await workRow.textContent()) ?? "").trim().startsWith("Work"), (await workRow.textContent()) ?? "");
+  // No limit, then down one step at a time: 21, 20, ... 15.
+  const lower = prefs.getByRole("button", { name: "Lower the credit limit" });
+  for (let i = 0; i < 7; i += 1) await lower.click();
+  check(`${tag}: credit limit set to 15`, (await prefs.getByText("At most 15 credits", { exact: true }).count()) === 1);
   await shot("02-preferences");
-  await closePanel();
-  const summary = (await main.getByRole("button", { name: /^Preferences/ }).textContent()) ?? "";
+  await closePrefs();
+  const summary = await prefSummary();
   check(
-    `${tag}: the Preferences line names only what changed`,
+    `${tag}: the Preferences summary names only what changed`,
     /Thursdays off/.test(summary) && /nothing before 9 AM/.test(summary) && /15 credits at most/.test(summary) && /work Tue 1:00–5:00/.test(summary) && !/short walks/i.test(summary),
     summary,
   );
+  check(`${tag}: the Preferences button counts the changes`, ((await main.getByRole("button", { name: /^Preferences/ }).textContent()) ?? "").includes("4"));
 
   await autoMeasured("first run", strip);
   const count = (await strip.locator('[data-part="count"]').textContent()) ?? "";
@@ -226,17 +257,20 @@ for (const vp of [
   await shot("04-kept-reoptimize");
 
   // A setting that changes under open options searches again; the strip says so and comes back.
-  await main.getByRole("button", { name: /^Preferences/ }).click();
-  await panel("Preferences").getByRole("button", { name: "Lunch break" }).click();
+  const lean = await openPrefs();
+  await lean.getByRole("button", { name: /^Short walks/ }).click();
+  const walks = lean.getByRole("slider", { name: "How much it matters" });
+  await walks.focus();
+  await page.keyboard.press("ArrowRight");
   await page.waitForFunction(() => /^\d of \d$/.test(document.querySelector('[aria-label="Other weeks Auto found"] [data-part="count"]')?.textContent?.trim() ?? ""), null, { timeout: 8000 }).catch(() => {});
   check(`${tag}: options refresh after a preference changes`, (await strip.count()) === 1 || (await nothing.count()) === 1);
-  await panel("Preferences").getByRole("button", { name: "Lunch break" }).click();
-  await closePanel();
+  await walks.focus();
+  await page.keyboard.press("ArrowLeft");
+  await closePrefs();
 
   // Impossible: Mondays off too, but the kept ANTH 1010 section meets on Mondays.
-  await main.getByRole("button", { name: /^Preferences/ }).click();
-  await panel("Preferences").getByRole("group", { name: "Days off" }).getByRole("button", { name: "Mon" }).click();
-  await closePanel();
+  await (await openPrefs()).getByRole("button", { name: "Mondays off" }).click();
+  await closePrefs();
   await strip.getByRole("button", { name: "Keep my week" }).click().catch(() => {});
   await autoMeasured("infeasible", nothing);
   const why = ((await nothing.textContent()) ?? "").trim();
@@ -261,7 +295,7 @@ for (const vp of [
   await page.locator('[data-event][data-key="ANTH 1010#0"]').click();
   check(`${tag}: the kept section persists across reload`, (await panel("ANTH 1010").getByRole("switch", { name: "Keep this section" }).getAttribute("aria-checked")) === "true");
   await closePanel();
-  const after = (await main.getByRole("button", { name: /^Preferences/ }).textContent()) ?? "";
+  const after = await prefSummary();
   check(`${tag}: preferences persist across reload`, /Thursdays/.test(after), after);
   await shot("07-after-reload");
   await ctx.close();

@@ -1,0 +1,1441 @@
+{
+  "schema_version": 2,
+  "term": "2027 Spring",
+  "updated_at": "2026-10-04T19:02:54.758921+00:00",
+  "note": "Partial scrape: only MATH 1680 was collected from the live cloud browser. Run class_scraper.py to resume all remaining courses.",
+  "_fixture": {
+    "source": "https://vsb.untgrades.app/data/spring-2027.json",
+    "sourceSnapshotSha256": "32e1e0adf4d64147252ea9768bd65790fc9298d1ea3c1193a7a0465359cc13ec",
+    "extraction": "Complete, unmodified MATH 1720 and CSCE 1030 records from the saved source snapshot.",
+    "normalizerCommit": "26e0df5c60bc03ff289ca26d806825d4ec4fec37",
+    "timestampPolicy": "Replay uses source updated_at as a fixed checkedAt fixture value; it does not claim a live check."
+  },
+  "courses": {
+    "MATH 1720": {
+      "course_code": "MATH 1720",
+      "status": "ok",
+      "message": "15 enrollment options in 2027 Spring",
+      "sections": [
+        {
+          "days_and_times": "Monday Wednesday 5:30PM to 6:50PM",
+          "days": "MW",
+          "start_time": "5:30PM",
+          "end_time": "6:50PM",
+          "room": "Chil 245",
+          "instructor": "None",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "310",
+          "class_number": "7139",
+          "open_seats": 48,
+          "total_seats": 48,
+          "class_numbers": [
+            "7139"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday 5:30PM to 6:50PM",
+              "days": "MW",
+              "start_time": "5:30PM",
+              "end_time": "6:50PM",
+              "room": "Chil 245",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "310",
+              "class_number": "7139",
+              "open_seats": 48,
+              "total_seats": 48
+            }
+          ],
+          "option": "1",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday 5:30PM to 6:50PM",
+              "days": "MW",
+              "start_time": "5:30PM",
+              "end_time": "6:50PM",
+              "room": "Chil 245",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "310",
+              "class_number": "7139"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday 1:00PM to 3:20PM",
+          "days": "MW",
+          "start_time": "1:00PM",
+          "end_time": "3:20PM",
+          "room": "FRLD 160",
+          "instructor": "Chanana,Poonam",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "501",
+          "class_number": "12733",
+          "open_seats": 55,
+          "total_seats": 55,
+          "class_numbers": [
+            "12733"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday 1:00PM to 3:20PM",
+              "days": "MW",
+              "start_time": "1:00PM",
+              "end_time": "3:20PM",
+              "room": "FRLD 160",
+              "instructor": "Chanana,Poonam",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "501",
+              "class_number": "12733",
+              "open_seats": 55,
+              "total_seats": 55
+            }
+          ],
+          "option": "2",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday 1:00PM to 3:20PM",
+              "days": "MW",
+              "start_time": "1:00PM",
+              "end_time": "3:20PM",
+              "room": "FRLD 160",
+              "instructor": "Chanana,Poonam",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "501",
+              "class_number": "12733"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+          "days": "MWF",
+          "start_time": "10:10AM",
+          "end_time": "11:00AM",
+          "room": "BLB 040",
+          "instructor": "Mann,Allen",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "720",
+          "class_number": "6065",
+          "open_seats": 39,
+          "total_seats": 39,
+          "class_numbers": [
+            "6065"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+              "days": "MWF",
+              "start_time": "10:10AM",
+              "end_time": "11:00AM",
+              "room": "BLB 040",
+              "instructor": "Mann,Allen",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "720",
+              "class_number": "6065",
+              "open_seats": 39,
+              "total_seats": 39
+            }
+          ],
+          "option": "3",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+              "days": "MWF",
+              "start_time": "10:10AM",
+              "end_time": "11:00AM",
+              "room": "BLB 040",
+              "instructor": "Mann,Allen",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "720",
+              "class_number": "6065"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+          "days": "MWF",
+          "start_time": "10:10AM",
+          "end_time": "11:00AM",
+          "room": "BLB 035",
+          "instructor": "Schwaighofer,Benjamin Aaron",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "721",
+          "class_number": "6432",
+          "open_seats": 39,
+          "total_seats": 39,
+          "class_numbers": [
+            "6432"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+              "days": "MWF",
+              "start_time": "10:10AM",
+              "end_time": "11:00AM",
+              "room": "BLB 035",
+              "instructor": "Schwaighofer,Benjamin Aaron",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "721",
+              "class_number": "6432",
+              "open_seats": 39,
+              "total_seats": 39
+            }
+          ],
+          "option": "4",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+              "days": "MWF",
+              "start_time": "10:10AM",
+              "end_time": "11:00AM",
+              "room": "BLB 035",
+              "instructor": "Schwaighofer,Benjamin Aaron",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "721",
+              "class_number": "6432"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+          "days": "MWF",
+          "start_time": "10:10AM",
+          "end_time": "11:00AM",
+          "room": "Matt 102",
+          "instructor": "Mandal,Shilpi",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "722",
+          "class_number": "13911",
+          "open_seats": 40,
+          "total_seats": 40,
+          "class_numbers": [
+            "13911"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+              "days": "MWF",
+              "start_time": "10:10AM",
+              "end_time": "11:00AM",
+              "room": "Matt 102",
+              "instructor": "Mandal,Shilpi",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "722",
+              "class_number": "13911",
+              "open_seats": 40,
+              "total_seats": 40
+            }
+          ],
+          "option": "5",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+              "days": "MWF",
+              "start_time": "10:10AM",
+              "end_time": "11:00AM",
+              "room": "Matt 102",
+              "instructor": "Mandal,Shilpi",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "722",
+              "class_number": "13911"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM \u2022 Tuesday Thursday 4:10PM to 5:00PM",
+          "days": "MWF",
+          "start_time": "10:10AM",
+          "end_time": "11:00AM",
+          "room": "Wh 116",
+          "instructor": "Fontenot,Kenzie",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "110 + 112",
+          "class_number": "6061+6198",
+          "open_seats": 60,
+          "total_seats": 60,
+          "class_numbers": [
+            "6061",
+            "6198"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+              "days": "MWF",
+              "start_time": "10:10AM",
+              "end_time": "11:00AM",
+              "room": "Wh 116",
+              "instructor": "Fontenot,Kenzie",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "110",
+              "class_number": "6061",
+              "open_seats": 60,
+              "total_seats": 60
+            },
+            {
+              "days_and_times": "Tuesday Thursday 4:10PM to 5:00PM",
+              "days": "TR",
+              "start_time": "4:10PM",
+              "end_time": "5:00PM",
+              "room": "Gate 049",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "112",
+              "class_number": "6198",
+              "open_seats": 30,
+              "total_seats": 30
+            }
+          ],
+          "option": "6",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+              "days": "MWF",
+              "start_time": "10:10AM",
+              "end_time": "11:00AM",
+              "room": "Wh 116",
+              "instructor": "Fontenot,Kenzie",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "110",
+              "class_number": "6061"
+            },
+            {
+              "days_and_times": "Tuesday Thursday 4:10PM to 5:00PM",
+              "days": "TR",
+              "start_time": "4:10PM",
+              "end_time": "5:00PM",
+              "room": "Gate 049",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "112",
+              "class_number": "6198"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM \u2022 Tuesday Thursday 3:00PM to 3:50PM",
+          "days": "MWF",
+          "start_time": "10:10AM",
+          "end_time": "11:00AM",
+          "room": "Wh 116",
+          "instructor": "Fontenot,Kenzie",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "110 + 111",
+          "class_number": "6061+6062",
+          "open_seats": 60,
+          "total_seats": 60,
+          "class_numbers": [
+            "6061",
+            "6062"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+              "days": "MWF",
+              "start_time": "10:10AM",
+              "end_time": "11:00AM",
+              "room": "Wh 116",
+              "instructor": "Fontenot,Kenzie",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "110",
+              "class_number": "6061",
+              "open_seats": 60,
+              "total_seats": 60
+            },
+            {
+              "days_and_times": "Tuesday Thursday 3:00PM to 3:50PM",
+              "days": "TR",
+              "start_time": "3:00PM",
+              "end_time": "3:50PM",
+              "room": "Wh 315",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "111",
+              "class_number": "6062",
+              "open_seats": 30,
+              "total_seats": 30
+            }
+          ],
+          "option": "7",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 10:10AM to 11:00AM",
+              "days": "MWF",
+              "start_time": "10:10AM",
+              "end_time": "11:00AM",
+              "room": "Wh 116",
+              "instructor": "Fontenot,Kenzie",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "110",
+              "class_number": "6061"
+            },
+            {
+              "days_and_times": "Tuesday Thursday 3:00PM to 3:50PM",
+              "days": "TR",
+              "start_time": "3:00PM",
+              "end_time": "3:50PM",
+              "room": "Wh 315",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "111",
+              "class_number": "6062"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 1:25PM to 2:15PM \u2022 Tuesday Thursday 1:50PM to 2:40PM",
+          "days": "MWF",
+          "start_time": "1:25PM",
+          "end_time": "2:15PM",
+          "room": "Matt 312",
+          "instructor": "Cohen,Jonathan Steven",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "120 + 122",
+          "class_number": "6064+6515",
+          "open_seats": 60,
+          "total_seats": 60,
+          "class_numbers": [
+            "6064",
+            "6515"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 1:25PM to 2:15PM",
+              "days": "MWF",
+              "start_time": "1:25PM",
+              "end_time": "2:15PM",
+              "room": "Matt 312",
+              "instructor": "Cohen,Jonathan Steven",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "120",
+              "class_number": "6064",
+              "open_seats": 60,
+              "total_seats": 60
+            },
+            {
+              "days_and_times": "Tuesday Thursday 1:50PM to 2:40PM",
+              "days": "TR",
+              "start_time": "1:50PM",
+              "end_time": "2:40PM",
+              "room": "Wh 315",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "122",
+              "class_number": "6515",
+              "open_seats": 30,
+              "total_seats": 30
+            }
+          ],
+          "option": "8",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 1:25PM to 2:15PM",
+              "days": "MWF",
+              "start_time": "1:25PM",
+              "end_time": "2:15PM",
+              "room": "Matt 312",
+              "instructor": "Cohen,Jonathan Steven",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "120",
+              "class_number": "6064"
+            },
+            {
+              "days_and_times": "Tuesday Thursday 1:50PM to 2:40PM",
+              "days": "TR",
+              "start_time": "1:50PM",
+              "end_time": "2:40PM",
+              "room": "Wh 315",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "122",
+              "class_number": "6515"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 1:25PM to 2:15PM \u2022 Tuesday Thursday 12:45PM to 1:35PM",
+          "days": "MWF",
+          "start_time": "1:25PM",
+          "end_time": "2:15PM",
+          "room": "Matt 312",
+          "instructor": "Cohen,Jonathan Steven",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "120 + 121",
+          "class_number": "6064+6210",
+          "open_seats": 60,
+          "total_seats": 60,
+          "class_numbers": [
+            "6064",
+            "6210"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 1:25PM to 2:15PM",
+              "days": "MWF",
+              "start_time": "1:25PM",
+              "end_time": "2:15PM",
+              "room": "Matt 312",
+              "instructor": "Cohen,Jonathan Steven",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "120",
+              "class_number": "6064",
+              "open_seats": 60,
+              "total_seats": 60
+            },
+            {
+              "days_and_times": "Tuesday Thursday 12:45PM to 1:35PM",
+              "days": "TR",
+              "start_time": "12:45PM",
+              "end_time": "1:35PM",
+              "room": "Phys 115",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "121",
+              "class_number": "6210",
+              "open_seats": 30,
+              "total_seats": 30
+            }
+          ],
+          "option": "9",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 1:25PM to 2:15PM",
+              "days": "MWF",
+              "start_time": "1:25PM",
+              "end_time": "2:15PM",
+              "room": "Matt 312",
+              "instructor": "Cohen,Jonathan Steven",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "120",
+              "class_number": "6064"
+            },
+            {
+              "days_and_times": "Tuesday Thursday 12:45PM to 1:35PM",
+              "days": "TR",
+              "start_time": "12:45PM",
+              "end_time": "1:35PM",
+              "room": "Phys 115",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "121",
+              "class_number": "6210"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 12:20PM to 1:10PM \u2022 Tuesday Thursday 10:20AM to 11:10AM",
+          "days": "MWF",
+          "start_time": "12:20PM",
+          "end_time": "1:10PM",
+          "room": "Gab 105",
+          "instructor": "Fontenot,Kenzie",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "130 + 132",
+          "class_number": "6516+10242",
+          "open_seats": 60,
+          "total_seats": 60,
+          "class_numbers": [
+            "6516",
+            "10242"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 12:20PM to 1:10PM",
+              "days": "MWF",
+              "start_time": "12:20PM",
+              "end_time": "1:10PM",
+              "room": "Gab 105",
+              "instructor": "Fontenot,Kenzie",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "130",
+              "class_number": "6516",
+              "open_seats": 60,
+              "total_seats": 60
+            },
+            {
+              "days_and_times": "Tuesday Thursday 10:20AM to 11:10AM",
+              "days": "TR",
+              "start_time": "10:20AM",
+              "end_time": "11:10AM",
+              "room": "Peb 219",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "132",
+              "class_number": "10242",
+              "open_seats": 30,
+              "total_seats": 30
+            }
+          ],
+          "option": "10",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 12:20PM to 1:10PM",
+              "days": "MWF",
+              "start_time": "12:20PM",
+              "end_time": "1:10PM",
+              "room": "Gab 105",
+              "instructor": "Fontenot,Kenzie",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "130",
+              "class_number": "6516"
+            },
+            {
+              "days_and_times": "Tuesday Thursday 10:20AM to 11:10AM",
+              "days": "TR",
+              "start_time": "10:20AM",
+              "end_time": "11:10AM",
+              "room": "Peb 219",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "132",
+              "class_number": "10242"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 12:20PM to 1:10PM \u2022 Tuesday Thursday 9:10AM to 10:00AM",
+          "days": "MWF",
+          "start_time": "12:20PM",
+          "end_time": "1:10PM",
+          "room": "Gab 105",
+          "instructor": "Fontenot,Kenzie",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "130 + 131",
+          "class_number": "6516+6517",
+          "open_seats": 60,
+          "total_seats": 60,
+          "class_numbers": [
+            "6516",
+            "6517"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 12:20PM to 1:10PM",
+              "days": "MWF",
+              "start_time": "12:20PM",
+              "end_time": "1:10PM",
+              "room": "Gab 105",
+              "instructor": "Fontenot,Kenzie",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "130",
+              "class_number": "6516",
+              "open_seats": 60,
+              "total_seats": 60
+            },
+            {
+              "days_and_times": "Tuesday Thursday 9:10AM to 10:00AM",
+              "days": "TR",
+              "start_time": "9:10AM",
+              "end_time": "10:00AM",
+              "room": "Phys 115",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "131",
+              "class_number": "6517",
+              "open_seats": 30,
+              "total_seats": 30
+            }
+          ],
+          "option": "11",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 12:20PM to 1:10PM",
+              "days": "MWF",
+              "start_time": "12:20PM",
+              "end_time": "1:10PM",
+              "room": "Gab 105",
+              "instructor": "Fontenot,Kenzie",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "130",
+              "class_number": "6516"
+            },
+            {
+              "days_and_times": "Tuesday Thursday 9:10AM to 10:00AM",
+              "days": "TR",
+              "start_time": "9:10AM",
+              "end_time": "10:00AM",
+              "room": "Phys 115",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "131",
+              "class_number": "6517"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 9:05AM to 9:55AM \u2022 Tuesday Thursday 9:10AM to 10:00AM",
+          "days": "MWF",
+          "start_time": "9:05AM",
+          "end_time": "9:55AM",
+          "room": "LIFE A419",
+          "instructor": "Naresh,Nirmala",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "140 + 142",
+          "class_number": "6931+6932",
+          "open_seats": 60,
+          "total_seats": 60,
+          "class_numbers": [
+            "6931",
+            "6932"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 9:05AM to 9:55AM",
+              "days": "MWF",
+              "start_time": "9:05AM",
+              "end_time": "9:55AM",
+              "room": "LIFE A419",
+              "instructor": "Naresh,Nirmala",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "140",
+              "class_number": "6931",
+              "open_seats": 60,
+              "total_seats": 60
+            },
+            {
+              "days_and_times": "Tuesday Thursday 9:10AM to 10:00AM",
+              "days": "TR",
+              "start_time": "9:10AM",
+              "end_time": "10:00AM",
+              "room": "Phys 112",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "142",
+              "class_number": "6932",
+              "open_seats": 34,
+              "total_seats": 34
+            }
+          ],
+          "option": "12",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 9:05AM to 9:55AM",
+              "days": "MWF",
+              "start_time": "9:05AM",
+              "end_time": "9:55AM",
+              "room": "LIFE A419",
+              "instructor": "Naresh,Nirmala",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "140",
+              "class_number": "6931"
+            },
+            {
+              "days_and_times": "Tuesday Thursday 9:10AM to 10:00AM",
+              "days": "TR",
+              "start_time": "9:10AM",
+              "end_time": "10:00AM",
+              "room": "Phys 112",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "142",
+              "class_number": "6932"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 9:05AM to 9:55AM \u2022 Tuesday Thursday 8:00AM to 8:50AM",
+          "days": "MWF",
+          "start_time": "9:05AM",
+          "end_time": "9:55AM",
+          "room": "LIFE A419",
+          "instructor": "Naresh,Nirmala",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "140 + 141",
+          "class_number": "6931+6941",
+          "open_seats": 60,
+          "total_seats": 60,
+          "class_numbers": [
+            "6931",
+            "6941"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 9:05AM to 9:55AM",
+              "days": "MWF",
+              "start_time": "9:05AM",
+              "end_time": "9:55AM",
+              "room": "LIFE A419",
+              "instructor": "Naresh,Nirmala",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "140",
+              "class_number": "6931",
+              "open_seats": 60,
+              "total_seats": 60
+            },
+            {
+              "days_and_times": "Tuesday Thursday 8:00AM to 8:50AM",
+              "days": "TR",
+              "start_time": "8:00AM",
+              "end_time": "8:50AM",
+              "room": "Col 047",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "141",
+              "class_number": "6941",
+              "open_seats": 30,
+              "total_seats": 30
+            }
+          ],
+          "option": "13",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 9:05AM to 9:55AM",
+              "days": "MWF",
+              "start_time": "9:05AM",
+              "end_time": "9:55AM",
+              "room": "LIFE A419",
+              "instructor": "Naresh,Nirmala",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "140",
+              "class_number": "6931"
+            },
+            {
+              "days_and_times": "Tuesday Thursday 8:00AM to 8:50AM",
+              "days": "TR",
+              "start_time": "8:00AM",
+              "end_time": "8:50AM",
+              "room": "Col 047",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "141",
+              "class_number": "6941"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 2:30PM to 3:20PM \u2022 Tuesday Thursday 1:50PM to 2:40PM",
+          "days": "MWF",
+          "start_time": "2:30PM",
+          "end_time": "3:20PM",
+          "room": "Cury 204",
+          "instructor": "Cohen,Jonathan Steven",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "150 + 151",
+          "class_number": "13121+13463",
+          "open_seats": 60,
+          "total_seats": 60,
+          "class_numbers": [
+            "13121",
+            "13463"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 2:30PM to 3:20PM",
+              "days": "MWF",
+              "start_time": "2:30PM",
+              "end_time": "3:20PM",
+              "room": "Cury 204",
+              "instructor": "Cohen,Jonathan Steven",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "150",
+              "class_number": "13121",
+              "open_seats": 60,
+              "total_seats": 60
+            },
+            {
+              "days_and_times": "Tuesday Thursday 1:50PM to 2:40PM",
+              "days": "TR",
+              "start_time": "1:50PM",
+              "end_time": "2:40PM",
+              "room": "Wh 321",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "151",
+              "class_number": "13463",
+              "open_seats": 34,
+              "total_seats": 34
+            }
+          ],
+          "option": "14",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 2:30PM to 3:20PM",
+              "days": "MWF",
+              "start_time": "2:30PM",
+              "end_time": "3:20PM",
+              "room": "Cury 204",
+              "instructor": "Cohen,Jonathan Steven",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "150",
+              "class_number": "13121"
+            },
+            {
+              "days_and_times": "Tuesday Thursday 1:50PM to 2:40PM",
+              "days": "TR",
+              "start_time": "1:50PM",
+              "end_time": "2:40PM",
+              "room": "Wh 321",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "151",
+              "class_number": "13463"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Monday Wednesday Friday 2:30PM to 3:20PM \u2022 Tuesday Thursday 3:00PM to 3:50PM",
+          "days": "MWF",
+          "start_time": "2:30PM",
+          "end_time": "3:20PM",
+          "room": "Cury 204",
+          "instructor": "Cohen,Jonathan Steven",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "150 + 152",
+          "class_number": "13121+13506",
+          "open_seats": 60,
+          "total_seats": 60,
+          "class_numbers": [
+            "13121",
+            "13506"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Monday Wednesday Friday 2:30PM to 3:20PM",
+              "days": "MWF",
+              "start_time": "2:30PM",
+              "end_time": "3:20PM",
+              "room": "Cury 204",
+              "instructor": "Cohen,Jonathan Steven",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "150",
+              "class_number": "13121",
+              "open_seats": 60,
+              "total_seats": 60
+            },
+            {
+              "days_and_times": "Tuesday Thursday 3:00PM to 3:50PM",
+              "days": "TR",
+              "start_time": "3:00PM",
+              "end_time": "3:50PM",
+              "room": "HKRY 252",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "152",
+              "class_number": "13506",
+              "open_seats": 34,
+              "total_seats": 34
+            }
+          ],
+          "option": "15",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Monday Wednesday Friday 2:30PM to 3:20PM",
+              "days": "MWF",
+              "start_time": "2:30PM",
+              "end_time": "3:20PM",
+              "room": "Cury 204",
+              "instructor": "Cohen,Jonathan Steven",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "150",
+              "class_number": "13121"
+            },
+            {
+              "days_and_times": "Tuesday Thursday 3:00PM to 3:50PM",
+              "days": "TR",
+              "start_time": "3:00PM",
+              "end_time": "3:50PM",
+              "room": "HKRY 252",
+              "instructor": "None",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "152",
+              "class_number": "13506"
+            }
+          ]
+        }
+      ],
+      "section_count": 15,
+      "fetched_at": "2026-10-04T15:51:08.878686+00:00"
+    },
+    "CSCE 1030": {
+      "course_code": "CSCE 1030",
+      "status": "ok",
+      "message": "6 enrollment options in 2027 Spring",
+      "sections": [
+        {
+          "days_and_times": "None \u2022 Tuesday 3:30PM to 6:20PM",
+          "days": "",
+          "start_time": "",
+          "end_time": "",
+          "room": "UNT Internet Course",
+          "instructor": "Shrestha,Pradhumna Lal",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "400 + 305",
+          "class_number": "2557+12090",
+          "open_seats": 300,
+          "total_seats": 300,
+          "class_numbers": [
+            "2557",
+            "12090"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "None",
+              "days": "",
+              "start_time": "",
+              "end_time": "",
+              "room": "UNT Internet Course",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "400",
+              "class_number": "2557",
+              "open_seats": 300,
+              "total_seats": 300
+            },
+            {
+              "days_and_times": "Tuesday 3:30PM to 6:20PM",
+              "days": "T",
+              "start_time": "3:30PM",
+              "end_time": "6:20PM",
+              "room": "NTDP F223",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "305",
+              "class_number": "12090",
+              "open_seats": 32,
+              "total_seats": 32
+            }
+          ],
+          "option": "1",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "None",
+              "days": "",
+              "start_time": "",
+              "end_time": "",
+              "room": "UNT Internet Course",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "400",
+              "class_number": "2557"
+            },
+            {
+              "days_and_times": "Tuesday 3:30PM to 6:20PM",
+              "days": "T",
+              "start_time": "3:30PM",
+              "end_time": "6:20PM",
+              "room": "NTDP F223",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "305",
+              "class_number": "12090"
+            }
+          ]
+        },
+        {
+          "days_and_times": "None \u2022 Monday 10:40AM to 1:30PM",
+          "days": "",
+          "start_time": "",
+          "end_time": "",
+          "room": "UNT Internet Course",
+          "instructor": "Shrestha,Pradhumna Lal",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "400 + 301",
+          "class_number": "2557+12139",
+          "open_seats": 300,
+          "total_seats": 300,
+          "class_numbers": [
+            "2557",
+            "12139"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "None",
+              "days": "",
+              "start_time": "",
+              "end_time": "",
+              "room": "UNT Internet Course",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "400",
+              "class_number": "2557",
+              "open_seats": 300,
+              "total_seats": 300
+            },
+            {
+              "days_and_times": "Monday 10:40AM to 1:30PM",
+              "days": "M",
+              "start_time": "10:40AM",
+              "end_time": "1:30PM",
+              "room": "NTDP F270",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "301",
+              "class_number": "12139",
+              "open_seats": 42,
+              "total_seats": 42
+            }
+          ],
+          "option": "2",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "None",
+              "days": "",
+              "start_time": "",
+              "end_time": "",
+              "room": "UNT Internet Course",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "400",
+              "class_number": "2557"
+            },
+            {
+              "days_and_times": "Monday 10:40AM to 1:30PM",
+              "days": "M",
+              "start_time": "10:40AM",
+              "end_time": "1:30PM",
+              "room": "NTDP F270",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "301",
+              "class_number": "12139"
+            }
+          ]
+        },
+        {
+          "days_and_times": "None \u2022 Monday 3:30PM to 6:20PM",
+          "days": "",
+          "start_time": "",
+          "end_time": "",
+          "room": "UNT Internet Course",
+          "instructor": "Shrestha,Pradhumna Lal",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "400 + 302",
+          "class_number": "2557+12042",
+          "open_seats": 300,
+          "total_seats": 300,
+          "class_numbers": [
+            "2557",
+            "12042"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "None",
+              "days": "",
+              "start_time": "",
+              "end_time": "",
+              "room": "UNT Internet Course",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "400",
+              "class_number": "2557",
+              "open_seats": 300,
+              "total_seats": 300
+            },
+            {
+              "days_and_times": "Monday 3:30PM to 6:20PM",
+              "days": "M",
+              "start_time": "3:30PM",
+              "end_time": "6:20PM",
+              "room": "NTDP F222",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "302",
+              "class_number": "12042",
+              "open_seats": 46,
+              "total_seats": 46
+            }
+          ],
+          "option": "3",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "None",
+              "days": "",
+              "start_time": "",
+              "end_time": "",
+              "room": "UNT Internet Course",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "400",
+              "class_number": "2557"
+            },
+            {
+              "days_and_times": "Monday 3:30PM to 6:20PM",
+              "days": "M",
+              "start_time": "3:30PM",
+              "end_time": "6:20PM",
+              "room": "NTDP F222",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "302",
+              "class_number": "12042"
+            }
+          ]
+        },
+        {
+          "days_and_times": "None \u2022 Friday 3:30PM to 6:20PM",
+          "days": "",
+          "start_time": "",
+          "end_time": "",
+          "room": "UNT Internet Course",
+          "instructor": "Shrestha,Pradhumna Lal",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "400 + 304",
+          "class_number": "2557+12089",
+          "open_seats": 300,
+          "total_seats": 300,
+          "class_numbers": [
+            "2557",
+            "12089"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "None",
+              "days": "",
+              "start_time": "",
+              "end_time": "",
+              "room": "UNT Internet Course",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "400",
+              "class_number": "2557",
+              "open_seats": 300,
+              "total_seats": 300
+            },
+            {
+              "days_and_times": "Friday 3:30PM to 6:20PM",
+              "days": "F",
+              "start_time": "3:30PM",
+              "end_time": "6:20PM",
+              "room": "NTDP F218",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "304",
+              "class_number": "12089",
+              "open_seats": 56,
+              "total_seats": 56
+            }
+          ],
+          "option": "4",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "None",
+              "days": "",
+              "start_time": "",
+              "end_time": "",
+              "room": "UNT Internet Course",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "400",
+              "class_number": "2557"
+            },
+            {
+              "days_and_times": "Friday 3:30PM to 6:20PM",
+              "days": "F",
+              "start_time": "3:30PM",
+              "end_time": "6:20PM",
+              "room": "NTDP F218",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "304",
+              "class_number": "12089"
+            }
+          ]
+        },
+        {
+          "days_and_times": "None \u2022 Wednesday 3:30PM to 6:20PM",
+          "days": "",
+          "start_time": "",
+          "end_time": "",
+          "room": "UNT Internet Course",
+          "instructor": "Shrestha,Pradhumna Lal",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "400 + 306",
+          "class_number": "2557+12093",
+          "open_seats": 300,
+          "total_seats": 300,
+          "class_numbers": [
+            "2557",
+            "12093"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "None",
+              "days": "",
+              "start_time": "",
+              "end_time": "",
+              "room": "UNT Internet Course",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "400",
+              "class_number": "2557",
+              "open_seats": 300,
+              "total_seats": 300
+            },
+            {
+              "days_and_times": "Wednesday 3:30PM to 6:20PM",
+              "days": "W",
+              "start_time": "3:30PM",
+              "end_time": "6:20PM",
+              "room": "NTDP F210",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "306",
+              "class_number": "12093",
+              "open_seats": 24,
+              "total_seats": 24
+            }
+          ],
+          "option": "5",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "None",
+              "days": "",
+              "start_time": "",
+              "end_time": "",
+              "room": "UNT Internet Course",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "400",
+              "class_number": "2557"
+            },
+            {
+              "days_and_times": "Wednesday 3:30PM to 6:20PM",
+              "days": "W",
+              "start_time": "3:30PM",
+              "end_time": "6:20PM",
+              "room": "NTDP F210",
+              "instructor": "Shrestha,Pradhumna Lal",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "306",
+              "class_number": "12093"
+            }
+          ]
+        },
+        {
+          "days_and_times": "Tuesday Thursday 2:00PM to 3:20PM \u2022 Thursday 11:00AM to 1:50PM",
+          "days": "TR",
+          "start_time": "2:00PM",
+          "end_time": "3:20PM",
+          "room": "FRLD 224",
+          "instructor": "Gooranorimi,Hadiseh",
+          "meeting_dates": "01/11/2027 - 05/07/2027",
+          "section": "501 + 551",
+          "class_number": "12783+12808",
+          "open_seats": 48,
+          "total_seats": 48,
+          "class_numbers": [
+            "12783",
+            "12808"
+          ],
+          "linked_sections": [
+            {
+              "days_and_times": "Tuesday Thursday 2:00PM to 3:20PM",
+              "days": "TR",
+              "start_time": "2:00PM",
+              "end_time": "3:20PM",
+              "room": "FRLD 224",
+              "instructor": "Gooranorimi,Hadiseh",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "501",
+              "class_number": "12783",
+              "open_seats": 48,
+              "total_seats": 48
+            },
+            {
+              "days_and_times": "Thursday 11:00AM to 1:50PM",
+              "days": "R",
+              "start_time": "11:00AM",
+              "end_time": "1:50PM",
+              "room": "FRLD 224",
+              "instructor": "Gooranorimi,Hadiseh",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "551",
+              "class_number": "12808",
+              "open_seats": 48,
+              "total_seats": 48
+            }
+          ],
+          "option": "6",
+          "component": "Enrollment option",
+          "status": "Open",
+          "session": "Regular Academic Session",
+          "meetings": [
+            {
+              "days_and_times": "Tuesday Thursday 2:00PM to 3:20PM",
+              "days": "TR",
+              "start_time": "2:00PM",
+              "end_time": "3:20PM",
+              "room": "FRLD 224",
+              "instructor": "Gooranorimi,Hadiseh",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "501",
+              "class_number": "12783"
+            },
+            {
+              "days_and_times": "Thursday 11:00AM to 1:50PM",
+              "days": "R",
+              "start_time": "11:00AM",
+              "end_time": "1:50PM",
+              "room": "FRLD 224",
+              "instructor": "Gooranorimi,Hadiseh",
+              "meeting_dates": "01/11/2027 - 05/07/2027",
+              "section": "551",
+              "class_number": "12808"
+            }
+          ]
+        }
+      ],
+      "section_count": 6,
+      "fetched_at": "2026-10-04T15:13:27.084171+00:00"
+    }
+  }
+}

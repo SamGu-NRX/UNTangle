@@ -341,14 +341,12 @@ export function prepare(
   for (let a = 0; a < buildingCount; a += 1) {
     checkDeadline();
     for (let b = 0; b < buildingCount; b += 1) {
-      if (a === b) continue;
       const seconds = walkSeconds(request.walkingTime, buildingIds[a], buildingIds[b]);
       walk[a * buildingCount + b] = seconds === null ? -1 : seconds;
     }
   }
   const bufferMinutes = constraints.walking?.bufferMinutes ?? null;
   const walkOf = (from: number, to: number): number | null => {
-    if (from >= 0 && from === to) return 0;
     if (from < 0 || to < 0) return null;
     const seconds = walk[from * buildingCount + to];
     return seconds < 0 ? null : seconds;
@@ -361,7 +359,7 @@ export function prepare(
    */
   const tightPair = (prev: PreparedMeeting, next: PreparedMeeting) =>
     bufferMinutes !== null &&
-    !(prev.building >= 0 && prev.building === next.building) &&
+    !(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0) &&
     next.start - prev.end < globalMinDuration &&
     !transferFits(prev, next, walkOf(prev.building, next.building), bufferMinutes);
 
