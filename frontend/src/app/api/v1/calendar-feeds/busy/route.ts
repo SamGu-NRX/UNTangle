@@ -9,7 +9,16 @@ import { parseCalendarFeed } from "@/lib/calendar-feeds/parse";
 import { busyFromFeed, OccurrenceBudgetError, type BusyOccurrence } from "@/lib/calendar-feeds/busy";
 import { serializeBusy } from "@/lib/calendar-feeds/busy-serialize";
 import { TOO_MANY_EVENTS_MESSAGE } from "@/lib/calendar-feeds/preview";
-import { feedKeyFromEnv, FeedSealError, openFeedUrl, sealFeedUrl, type FeedOwner } from "@/lib/calendar-feeds/seal";
+import {
+  feedKeyFromEnv,
+  FeedSealError,
+  guestCookie,
+  guestIdFrom,
+  newGuestId,
+  openFeedToken,
+  sealFeedUrl,
+  tokenKind,
+} from "@/lib/calendar-feeds/seal";
 import { validateCalendarUrl } from "@/lib/calendar-feeds/ssrf";
 import type { ParseRange } from "@/lib/calendar-feeds/types";
 
@@ -48,11 +57,13 @@ type BusyBody = {
  *
  * Request: `{ url | sealedUrl, seal?, rangeStart?, rangeEnd?, termStart?,
  * termEnd? }`. `sealedUrl` is a token this route returned earlier for the
- * same account (or for a guest, to any guest), and refreshes a connected
- * calendar without its address ever leaving the server again; a guest's
- * token sent by a signed-in student comes back sealed for the account as
- * `sealedUrl`. `seal: true` with a `url` adds `sealedUrl` to the response,
- * sealed for the caller (lib/calendar-feeds/seal.ts). The
+ * same account (for a guest, the same browser: its HttpOnly guest cookie),
+ * and refreshes a connected calendar without its address ever leaving the
+ * server again. A guest's refresh, and a guest token sent by a student who
+ * signed in on that browser, come back sealed again as `sealedUrl`. `seal:
+ * true` with a `url` adds `sealedUrl` to the response, sealed for the caller
+ * (lib/calendar-feeds/seal.ts); for a guest the response sets the guest
+ * cookie when the browser has none. The
  * range is half-open. termStart and termEnd (inclusive ISO dates) scope the
  * pieces to the planning term; with a term and no range, the range is the
  * whole term in America/Chicago, and a given range must cover the term.
@@ -86,7 +97,9 @@ type BusyBody = {
  */
 async function busyHandler(request: Request) {
   const session = await getServerSession(request);
-  const owner: FeedOwner = session?.user?.id ? { kind: "user", id: session.user.id } : { kind: "guest" };
+  const userId = session?.user?.id ?? null;
+  // The browser's guest id, from its HttpOnly cookie: what a guest's token is sealed to.
+  const cookieGuest = guestIdFrom(request.headers.get("cookie"));
 
   let body: BusyBody | null = null;
   try {
@@ -117,22 +130,33 @@ async function busyHandler(request: Request) {
   }
   let url: string;
   let sealedUrl: string | undefined;
+  // Set when this response names the browser's guest id: a new one, or the same one with its lifetime renewed.
+  let guestId: string | null = null;
   try {
     const key = sealed || body.seal ? feedKeyFromEnv() : null;
     if (sealed) {
-      ({ url, sealedUrl } = openForCaller(body.sealedUrl as string, owner, key));
+      const opened = openForCaller(body.sealedUrl as string, userId, cookieGuest, key);
+      url = opened.url;
+      sealedUrl = opened.sealedUrl;
+      guestId = opened.guestId;
     } else {
       url = body.url as string;
-      if (body.seal) sealedUrl = sealFeedUrl(url, owner, key);
+      if (body.seal) {
+        if (userId) sealedUrl = sealFeedUrl(url, { kind: "user", id: userId }, key);
+        else {
+          guestId = cookieGuest ?? newGuestId();
+          sealedUrl = sealFeedUrl(url, { kind: "guest", id: guestId }, key);
+        }
+      }
     }
   } catch (error) {
     if (!(error instanceof FeedSealError)) throw error;
     if (error.kind === "not-configured") {
       return NextResponse.json({ error: "Calendars can't be connected on this server", code: "CALENDARS_UNAVAILABLE" }, { status: 503 });
     }
-    // Without a session, a token that isn't a guest's is most likely an account's whose session ended:
-    // signing in again opens it, while pasting the address as a guest would seal it for the wrong owner.
-    if (owner.kind === "guest" && error.kind === "unreadable") {
+    // Without a session, an account's token most likely means the session ended: signing in again opens it,
+    // while pasting the address as a guest would seal it for the wrong owner.
+    if (!userId && tokenKind(body.sealedUrl as string) === "user") {
       return NextResponse.json({ error: "Sign in to refresh this calendar", code: "CALENDAR_SIGN_IN" }, { status: 401 });
     }
     return NextResponse.json({ error: "Connect this calendar again", code: "CALENDAR_RECONNECT" }, { status: 422 });
@@ -173,32 +197,40 @@ async function busyHandler(request: Request) {
   if (json === null) {
     return NextResponse.json({ error: TOO_MANY_EVENTS_MESSAGE }, { status: 422 });
   }
-  return new NextResponse(json, { status: 200, headers: { "content-type": "application/json" } });
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (guestId) headers["set-cookie"] = guestCookie(guestId);
+  return new NextResponse(json, { status: 200, headers });
 }
 
 /**
- * The address in a sealed token, for whoever is asking. A signed-in student
- * may hold a guest's token: one connected before signing in, which a later
- * move of guest preferences into the account carries over. Any guest can open
- * a guest token, so opening it for the account gives nothing away; it comes
- * back sealed for the account (`sealedUrl`), and the client keeps that one.
- * A guest's own token comes back sealed again with a new issue time.
+ * The address in a sealed token, for whoever is asking, and the token to keep
+ * from here on.
+ *
+ * - An account's token opens for its account only.
+ * - A guest's token opens only on the browser it was sealed to (the request
+ *   carries that browser's guest cookie), within its lifetimes. A guest's
+ *   refresh hands back a fresh token with the same first issue time, so the
+ *   90-day lifetime holds however often it is refreshed.
+ * - A signed-in student on that same browser may hold a guest token, carried
+ *   over from guest preferences at sign-in. It opens with the cookie, within
+ *   its lifetimes, and comes back sealed for the account. A copy of the
+ *   token sent from any other browser opens for nobody.
  */
-function openForCaller(token: string, owner: FeedOwner, key: Buffer | null): { url: string; sealedUrl?: string } {
-  try {
-    const url = openFeedUrl(token, owner, key);
-    // A guest's token expires (GUEST_TOKEN_MAX_AGE_MS), so every refresh hands back a fresh one.
-    return owner.kind === "guest" ? { url, sealedUrl: sealFeedUrl(url, owner, key) } : { url };
-  } catch (error) {
-    if (owner.kind !== "user" || !(error instanceof FeedSealError) || error.kind !== "unreadable") throw error;
-    let url: string;
-    try {
-      url = openFeedUrl(token, { kind: "guest" }, key);
-    } catch {
-      throw error;
-    }
-    return { url, sealedUrl: sealFeedUrl(url, owner, key) };
+function openForCaller(
+  token: string,
+  userId: string | null,
+  cookieGuest: string | null,
+  key: Buffer | null,
+): { url: string; sealedUrl?: string; guestId: string | null } {
+  if (tokenKind(token) === "user") {
+    if (!userId) throw new FeedSealError("unreadable");
+    return { url: openFeedToken(token, { kind: "user", id: userId }, key).url, guestId: null };
   }
+  if (!cookieGuest) throw new FeedSealError("unreadable");
+  const guest = { kind: "guest" as const, id: cookieGuest };
+  const opened = openFeedToken(token, guest, key);
+  if (userId) return { url: opened.url, sealedUrl: sealFeedUrl(opened.url, { kind: "user", id: userId }, key), guestId: null };
+  return { url: opened.url, sealedUrl: sealFeedUrl(opened.url, guest, key, Date.now(), opened.firstIssued), guestId: cookieGuest };
 }
 
 /**

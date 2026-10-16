@@ -235,7 +235,8 @@ export const ScheduleBodySchema = z
 
 /**
  * A connected calendar's address as the server sealed it (AES-256-GCM,
- * frontend/src/lib/calendar-feeds/seal.ts): `cf1.<key id>.<iv>.<ciphertext>`.
+ * frontend/src/lib/calendar-feeds/seal.ts): `cf1.<key id>.<iv>.<ciphertext>`
+ * for an account's, `cg1.` for a guest's.
  * A private feed address is a password, so a document never holds the
  * address itself, and this pattern can't match one.
  */
@@ -243,7 +244,7 @@ export const SealedFeedUrlSchema = z
   .string()
   // A 2,048-character address of 4-byte characters, sealed and base64url'd, with room to spare.
   .max(12_000)
-  .regex(/^cf1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, "A calendar address is stored only sealed.");
+  .regex(/^c[fg]1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, "A calendar address is stored only sealed.");
 
 /** Most calendars one student connects, and most busy dates one calendar holds for a term. */
 export const MAX_CALENDARS = 8;

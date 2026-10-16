@@ -305,7 +305,7 @@ Fetching an unchanged file today doesn't mean its seat counts were true today. W
 | RateMyProfessors | a link only | nothing | no fetching or storing |
 | Syllabi | reviewed host list, robots-aware, conditional requests | hashes, short quotes, locators, extractor version | public by Texas Education Code 51.974; no bulk crawl until permissions are recorded |
 | Degree plans and policy | curated from official pages | reviewed releases in `data/` | every value cites its page and date |
-| Calendar feeds | the existing SSRF-safe fetcher; 30-minute starting interval for directory feeds; a student's connected calendar is read again when Week opens and it is over 6 hours old | dated busy slots in the `preferences` document (Postgres when signed in, the device for a guest) | private feed URLs are encrypted (AES-256-GCM under `CALENDAR_FEED_KEY`, sealed to their owner) and never logged; only the sealed token is stored |
+| Calendar feeds | the existing SSRF-safe fetcher; 30-minute starting interval for directory feeds; a student's connected calendar is read again when Week opens and it is over 6 hours old | dated busy slots in the `preferences` document (Postgres when signed in, the device for a guest) | private feed URLs are encrypted (AES-256-GCM under `CALENDAR_FEED_KEY`, sealed to the account, or for a guest to the browser's HttpOnly cookie, for at most 90 days) and never logged; only the sealed token is stored |
 | Campus map (OSM) | the existing geodata kit | versioned static graphs | keep ODbL attribution |
 
 Feature rules that follow from evidence:

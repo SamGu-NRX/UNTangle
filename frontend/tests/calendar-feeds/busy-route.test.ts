@@ -53,12 +53,19 @@ beforeAll(async () => {
 const TINY_ICS =
   "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:x@t\r\nSUMMARY:Tiny event\r\nDTSTART:20260115T140000Z\r\nDTEND:20260115T150000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
 
-function busyRequest(body: unknown, ip = "192.0.2.77"): Request {
+function busyRequest(body: unknown, ip = "192.0.2.77", cookie?: string): Request {
   return new Request("http://localhost:3000/api/v1/calendar-feeds/busy", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-real-ip": ip },
+    headers: { "content-type": "application/json", "x-real-ip": ip, ...(cookie ? { cookie } : {}) },
     body: JSON.stringify(body),
   });
+}
+
+/** The guest cookie a response set, as the browser sends it back ("name=value"). */
+function cookieFrom(response: Response): string {
+  const set = response.headers.get("set-cookie");
+  if (!set) throw new Error("The response set no cookie.");
+  return set.split(";")[0];
 }
 
 const VALID_BODY = {
@@ -530,43 +537,83 @@ describe("sealed addresses", () => {
       expect(fetchStub).toHaveBeenCalledTimes(0);
     }));
 
-  test("a guest's token refreshed by a signed-in student comes back sealed for the account", async () =>
-    withKey(KEY, async () => {
-      setSession(null);
-      const { sealedUrl: guestToken } = await (await POST(busyRequest({ ...VALID_BODY, seal: true }, "192.0.2.95"))).json();
-      setSession({ user: { id: "user-signed-in-later" } });
-      const upgraded = await POST(busyRequest({ sealedUrl: guestToken, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.95"));
-      expect(upgraded.status).toBe(200);
-      const { sealedUrl: accountToken } = await upgraded.json();
-      expect(accountToken).toMatch(/^cf1\./);
-      expect(accountToken).not.toBe(guestToken);
-      // The new token is the account's: it opens for the account and for no guest.
-      expect((await POST(busyRequest({ sealedUrl: accountToken, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.95"))).status).toBe(200);
-      setSession(null);
-      expect((await POST(busyRequest({ sealedUrl: accountToken, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.95"))).status).toBe(401);
-    }));
+  const refresh = (sealedUrl: string) => ({ sealedUrl, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd });
 
-  test("a guest's token opens for guests, and each refresh hands back a fresh one", async () =>
+  test("a guest's token is sealed to the browser's HttpOnly cookie, and refreshes on that browser only", async () =>
     withKey(KEY, async () => {
       setSession(null);
-      const { sealedUrl } = await (await POST(busyRequest({ ...VALID_BODY, seal: true }, "192.0.2.92"))).json();
-      const refreshed = await POST(busyRequest({ sealedUrl, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.92"));
+      const connected = await POST(busyRequest({ ...VALID_BODY, seal: true }, "192.0.2.92"));
+      const setCookie = connected.headers.get("set-cookie") ?? "";
+      expect(setCookie).toMatch(/^untangle-calendar-guest=[A-Za-z0-9_-]{22,}; Path=\/api\/v1\/calendar-feeds; Max-Age=7776000; HttpOnly; Secure; SameSite=Lax$/);
+      const cookie = cookieFrom(connected);
+      const { sealedUrl } = await connected.json();
+      expect(sealedUrl).toMatch(/^cg1\./);
+
+      // The same browser: a fresh token comes back, and the cookie's lifetime is renewed.
+      const refreshed = await POST(busyRequest(refresh(sealedUrl), "192.0.2.92", cookie));
       expect(refreshed.status).toBe(200);
+      expect(cookieFrom(refreshed)).toBe(cookie);
       const fresh = (await refreshed.json()).sealedUrl;
-      expect(fresh).toMatch(/^cf1\./);
+      expect(fresh).toMatch(/^cg1\./);
       expect(fresh).not.toBe(sealedUrl);
+
+      // A copy of the token from the browser's storage, sent without the cookie or with another browser's.
+      fetchStub.mockClear();
+      for (const copied of [undefined, "untangle-calendar-guest=BBBBBBBBBBBBBBBBBBBBBB"]) {
+        const stolen = await POST(busyRequest(refresh(sealedUrl), "192.0.2.92", copied));
+        expect(stolen.status).toBe(422);
+        expect((await stolen.json()).code).toBe("CALENDAR_RECONNECT");
+      }
+      expect(fetchStub).toHaveBeenCalledTimes(0);
     }));
 
-  test("a guest's token sealed over 30 days ago asks to reconnect", async () =>
+  test("a guest who signs in on the same browser gets the token sealed for the account; a copy elsewhere doesn't", async () =>
     withKey(KEY, async () => {
       setSession(null);
-      const { sealFeedUrl, GUEST_TOKEN_MAX_AGE_MS } = await import("@/lib/calendar-feeds/seal");
-      const old = sealFeedUrl(VALID_BODY.url, { kind: "guest" }, Buffer.from(KEY, "base64"), Date.now() - GUEST_TOKEN_MAX_AGE_MS - 60_000);
+      const connected = await POST(busyRequest({ ...VALID_BODY, seal: true }, "192.0.2.95"));
+      const cookie = cookieFrom(connected);
+      const { sealedUrl: guestToken } = await connected.json();
+
+      setSession({ user: { id: "user-signed-in-later" } });
+      const elsewhere = await POST(busyRequest(refresh(guestToken), "192.0.2.95"));
+      expect(elsewhere.status).toBe(422);
+      const converted = await POST(busyRequest(refresh(guestToken), "192.0.2.95", cookie));
+      expect(converted.status).toBe(200);
+      const { sealedUrl: accountToken } = await converted.json();
+      expect(accountToken).toMatch(/^cf1\./);
+      // The account's token opens for the account, and without a session asks to sign in.
+      expect((await POST(busyRequest(refresh(accountToken), "192.0.2.95"))).status).toBe(200);
+      setSession(null);
+      expect((await POST(busyRequest(refresh(accountToken), "192.0.2.95", cookie))).status).toBe(401);
+    }));
+
+  test("a guest token past 30 days, or a line of them past 90, asks to reconnect, and neither converts", async () =>
+    withKey(KEY, async () => {
+      const { sealFeedUrl, openFeedToken, GUEST_TOKEN_MAX_AGE_MS, GUEST_TOKEN_LIFETIME_MS } = await import("@/lib/calendar-feeds/seal");
+      const key = Buffer.from(KEY, "base64");
+      const id = "CCCCCCCCCCCCCCCCCCCCCC";
+      const cookie = `untangle-calendar-guest=${id}`;
+      const day = 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      const stale = sealFeedUrl(VALID_BODY.url, { kind: "guest", id }, key, now - GUEST_TOKEN_MAX_AGE_MS - 60_000);
+      const old = sealFeedUrl(VALID_BODY.url, { kind: "guest", id }, key, now - day, now - GUEST_TOKEN_LIFETIME_MS - 60_000);
+      const late = sealFeedUrl(VALID_BODY.url, { kind: "guest", id }, key, now - day, now - GUEST_TOKEN_LIFETIME_MS + 10 * day);
       fetchStub.mockClear();
-      const response = await POST(busyRequest({ sealedUrl: old, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.96"));
-      expect(response.status).toBe(422);
-      expect((await response.json()).code).toBe("CALENDAR_RECONNECT");
+      for (const session of [null, { user: { id: "user-late" } }]) {
+        setSession(session);
+        for (const token of [stale, old]) {
+          const response = await POST(busyRequest(refresh(token), "192.0.2.96", cookie));
+          expect(response.status).toBe(422);
+          expect((await response.json()).code).toBe("CALENDAR_RECONNECT");
+        }
+      }
       expect(fetchStub).toHaveBeenCalledTimes(0);
+      // Inside both limits, a guest refresh keeps the first issue time, so the 90 days still run from it.
+      setSession(null);
+      const refreshed = await POST(busyRequest(refresh(late), "192.0.2.96", cookie));
+      expect(refreshed.status).toBe(200);
+      const { sealedUrl } = await refreshed.json();
+      expect(openFeedToken(sealedUrl, { kind: "guest", id }, key).firstIssued).toBe(openFeedToken(late, { kind: "guest", id }, key).firstIssued);
     }));
 
   test("without a key, sealing answers 503 and fetches nothing", async () =>

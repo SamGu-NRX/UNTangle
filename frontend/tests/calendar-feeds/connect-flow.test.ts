@@ -53,12 +53,25 @@ const TERM = { id: "spring-2027", label: "Spring 2027", start: "2027-01-11", end
 let routes: { preview: (request: Request) => Promise<Response>; busy: (request: Request) => Promise<Response> };
 let address = 0;
 /** The browser's fetch, answered by the real route handlers. Each call gets its own address bucket. */
-const browserFetch = async (input: string, init?: RequestInit) => {
-  const request = new Request(`http://localhost:3000${input}`, { ...init, headers: { ...init?.headers, "x-real-ip": `192.0.2.${(address += 1) % 250}` } });
-  if (input === "/api/calendar-feeds/preview") return routes.preview(request);
-  if (input === "/api/v1/calendar-feeds/busy") return routes.busy(request);
-  throw new Error(`Unexpected request to ${input}`);
-};
+/**
+ * A browser's fetch, answered by the real route handlers. Each browser keeps
+ * the cookie the routes set and sends it back, as a real one does; each call
+ * gets its own address bucket.
+ */
+function browser() {
+  let cookie: string | null = null;
+  return async (input: string, init?: RequestInit) => {
+    const headers = { ...init?.headers, "x-real-ip": `192.0.2.${(address += 1) % 250}`, ...(cookie ? { cookie } : {}) };
+    const request = new Request(`http://localhost:3000${input}`, { ...init, headers });
+    const response =
+      input === "/api/calendar-feeds/preview" ? await routes.preview(request) : input === "/api/v1/calendar-feeds/busy" ? await routes.busy(request) : null;
+    if (!response) throw new Error(`Unexpected request to ${input}`);
+    const set = response.headers.get("set-cookie");
+    if (set) cookie = set.split(";")[0];
+    return response;
+  };
+}
+let browserFetch = browser();
 
 const logged: string[] = [];
 const originalConsole = { log: console.log, info: console.info, warn: console.warn, error: console.error, debug: console.debug };
@@ -72,6 +85,7 @@ beforeAll(async () => {
 beforeEach(() => {
   process.env.CALENDAR_FEED_KEY = Buffer.alloc(32, 11).toString("base64");
   signIn({ user: { id: "student-1" } });
+  browserFetch = browser();
   fetched.length = 0;
   logged.length = 0;
   for (const method of ["log", "info", "warn", "error", "debug"] as const) {
@@ -132,12 +146,15 @@ describe("connecting a calendar", () => {
     expect(fetched).toHaveLength(2);
   });
 
-  test("a guest connects too, and a guest's sealed address refreshes for guests", async () => {
+  test("a guest connects too, and the calendar refreshes on that browser and on no other", async () => {
     signIn(null);
     const { connectFeed, refreshCalendar } = await client();
     const connected = await connectFeed(WORK_URL, "Work", TERM, { fetchImpl: browserFetch });
     if (!connected.ok) throw new Error(connected.problem.message);
-    expect((await refreshCalendar(connected.value, TERM, { fetchImpl: browserFetch })).ok).toBe(true);
+    const refreshed = await refreshCalendar(connected.value, TERM, { fetchImpl: browserFetch });
+    expect(refreshed.ok).toBe(true);
+    // Someone who copied the guest's stored preferences has the token but not the browser's HttpOnly cookie.
+    expect(await refreshCalendar(connected.value, TERM, { fetchImpl: browser() })).toMatchObject({ ok: false, problem: { kind: "reconnect" } });
   });
 
   test("an unreachable feed says so in words the student can act on", async () => {

@@ -23,7 +23,7 @@ const SECRET = "private-5e1f0c8a9b7d6e4f3a2b1c0d9e8f7a6b";
 const WORK_URL = `https://calendar.google.com/calendar/ical/student%40my.unt.edu/${SECRET}/basic.ics`;
 const KEY = Buffer.alloc(32, 21);
 
-function workCalendar(owner: { kind: "user"; id: string } | { kind: "guest" }, countAllDay = false): ConnectedCalendar {
+function workCalendar(owner: { kind: "user" | "guest"; id: string }, countAllDay = false): ConnectedCalendar {
   const raw = readFileSync(join(import.meta.dir, "../calendar-feeds/fixtures/work-shifts-spring-2027.ics"), "utf8");
   const term = { start: "2027-01-11", end: "2027-05-07" };
   const pieces = busyFromFeed(parseCalendarFeed(raw, { start: "2027-01-11T00:00:00", end: "2027-05-08T00:00:00" }), term);
@@ -147,7 +147,7 @@ describe("a guest", () => {
   test("keeps the calendar on this device across a reload, sealed", async () => {
     const first = await mount();
     await waitFor(() => first.get().preferencesReady, "guest preferences read");
-    const calendar = workCalendar({ kind: "guest" }, true);
+    const calendar = workCalendar({ kind: "guest", id: "AAAAAAAAAAAAAAAAAAAAAA" }, true);
     await first.run((p) => p.setSchedulePreferences(addCalendar(calendar)));
     expect(server.puts).toEqual([]);
     expect(JSON.stringify({ ...window.localStorage })).not.toContain(SECRET);

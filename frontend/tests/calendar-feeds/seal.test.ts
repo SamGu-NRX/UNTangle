@@ -1,11 +1,24 @@
 import { describe, expect, test } from "bun:test";
-import { CALENDAR_FEED_KEY_ENV, feedKeyFromEnv, FeedSealError, GUEST_TOKEN_MAX_AGE_MS, openFeedUrl, sealFeedUrl } from "@/lib/calendar-feeds/seal";
+import {
+  CALENDAR_FEED_KEY_ENV,
+  feedKeyFromEnv,
+  FeedSealError,
+  GUEST_TOKEN_LIFETIME_MS,
+  GUEST_TOKEN_MAX_AGE_MS,
+  guestIdFrom,
+  openFeedToken,
+  openFeedUrl,
+  sealFeedUrl,
+  tokenKind,
+} from "@/lib/calendar-feeds/seal";
 import { SealedFeedUrlSchema } from "../../../packages/contracts/src/documents";
 
 const KEY = Buffer.alloc(32, 7);
 const OTHER_KEY = Buffer.alloc(32, 9);
 const SECRET_URL = "https://calendar.google.com/calendar/ical/student%40unt.edu/private-9f2c7f6a1d84b0e3a51c02bb77d4e5f1/basic.ics";
 const student = { kind: "user", id: "student-1" } as const;
+const browser = { kind: "guest", id: "AAAAAAAAAAAAAAAAAAAAAA" } as const;
+const otherBrowser = { kind: "guest", id: "BBBBBBBBBBBBBBBBBBBBBB" } as const;
 
 const failure = (open: () => unknown) => {
   try {
@@ -36,8 +49,21 @@ describe("sealing a feed address", () => {
   test("another account, or a guest, can't open a student's token", () => {
     const token = sealFeedUrl(SECRET_URL, student, KEY);
     expect(failure(() => openFeedUrl(token, { kind: "user", id: "student-2" }, KEY))).toBe("unreadable");
-    expect(failure(() => openFeedUrl(token, { kind: "guest" }, KEY))).toBe("unreadable");
-    expect(failure(() => openFeedUrl(sealFeedUrl(SECRET_URL, { kind: "guest" }, KEY), student, KEY))).toBe("unreadable");
+    expect(failure(() => openFeedUrl(token, browser, KEY))).toBe("unreadable");
+    expect(failure(() => openFeedUrl(sealFeedUrl(SECRET_URL, browser, KEY), student, KEY))).toBe("unreadable");
+  });
+
+  test("a guest's token opens only on the browser it was sealed to", () => {
+    const token = sealFeedUrl(SECRET_URL, browser, KEY);
+    expect(tokenKind(token)).toBe("guest");
+    expect(openFeedUrl(token, browser, KEY)).toBe(SECRET_URL);
+    expect(failure(() => openFeedUrl(token, otherBrowser, KEY))).toBe("unreadable");
+  });
+
+  test("the guest id comes only from a well-formed cookie", () => {
+    expect(guestIdFrom(`a=1; untangle-calendar-guest=${browser.id}; b=2`)).toBe(browser.id);
+    expect(guestIdFrom("untangle-calendar-guest=short")).toBeNull();
+    expect(guestIdFrom(null)).toBeNull();
   });
 
   test("a changed token is refused", () => {
@@ -65,9 +91,20 @@ describe("how long a token opens", () => {
   const day = 24 * 60 * 60 * 1000;
 
   test("a guest's token stops opening 30 days after it was sealed", () => {
-    const token = sealFeedUrl(SECRET_URL, { kind: "guest" }, KEY, issued);
-    expect(openFeedUrl(token, { kind: "guest" }, KEY, issued + 29 * day)).toBe(SECRET_URL);
-    expect(failure(() => openFeedUrl(token, { kind: "guest" }, KEY, issued + GUEST_TOKEN_MAX_AGE_MS + 1000))).toBe("expired");
+    const token = sealFeedUrl(SECRET_URL, browser, KEY, issued);
+    expect(openFeedUrl(token, browser, KEY, issued + 29 * day)).toBe(SECRET_URL);
+    expect(failure(() => openFeedUrl(token, browser, KEY, issued + GUEST_TOKEN_MAX_AGE_MS + 1000))).toBe("expired");
+  });
+
+  test("resealing keeps the first issue time, so a line of guest tokens stops 90 days after it began", () => {
+    let token = sealFeedUrl(SECRET_URL, browser, KEY, issued);
+    // Refreshed every 20 days, as a guest using Week would.
+    for (let at = issued + 20 * day; at < issued + GUEST_TOKEN_LIFETIME_MS; at += 20 * day) {
+      const opened = openFeedToken(token, browser, KEY, at);
+      expect(opened.firstIssued).toBe(issued);
+      token = sealFeedUrl(opened.url, browser, KEY, at, opened.firstIssued);
+    }
+    expect(failure(() => openFeedUrl(token, browser, KEY, issued + GUEST_TOKEN_LIFETIME_MS + 1000))).toBe("expired");
   });
 
   test("an account's token keeps opening for its account", () => {

@@ -16,9 +16,17 @@ encrypted and never logged. So the address is never stored as written,
 anywhere:
 
 - `seal.ts`: AES-256-GCM under `CALENDAR_FEED_KEY` (32 random bytes in
-  base64), with the owner (`user:<id>`, or any guest) as associated data, so
-  a token from one account's document opens for no other. A token sealed
-  under a key the server no longer has fails as `other-key`.
+  base64), with the owner as associated data, so a token opens for its owner
+  only. A signed-in student's owner is the account (`user:<id>`). A guest's
+  is the browser (`guest:<id>`): a random id in the `untangle-calendar-guest`
+  cookie, HttpOnly, Secure, SameSite=Lax and sent only to these routes, which
+  the busy route sets the first time a guest connects. A token copied out of
+  a guest's localStorage opens nowhere without that cookie. A guest token
+  stops opening 30 days after it was issued and 90 days after the first in
+  its line; each guest refresh reseals it with the first issue time kept. A
+  guest token sent with that cookie by a student who signed in on the same
+  browser comes back sealed for the account, within the same limits. A
+  token sealed under a key the server no longer has fails as `other-key`.
 - The busy route seals on request (`seal: true` with a `url`) and refreshes
   from a token (`sealedUrl`). The preview route never takes a token: event
   titles leave the server only for someone holding the address itself.
