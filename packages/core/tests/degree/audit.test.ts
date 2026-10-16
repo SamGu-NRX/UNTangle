@@ -518,3 +518,40 @@ describe("review round nine: mixed completed and planned credit in hours details
     expect(result.requirements[0]!.detail).toContain("planned credit hours unknown");
   });
 });
+
+
+describe("review round eleven: mixed planned options claim their completed members", () => {
+  test("an accepted lecture/lab option claims its completed member for later core areas", () => {
+    const core: ProgramData = {
+      ...base,
+      oneCourseOneArea: true,
+      requirements: [
+        {
+          kind: "hours",
+          name: "Component Area Option A",
+          hours: 6,
+          citation,
+          options: [{ must: ["CSCE 2110"] }, { must: ["CSCE 3110", "CSCE 3115"] }],
+        },
+        {
+          kind: "choose",
+          name: "Later component area",
+          count: 1,
+          citation,
+          options: [{ must: ["CSCE 3110"] }, { must: ["CSCE 4100"] }],
+        },
+      ],
+    };
+    // A completed lecture paired with its in-progress lab: the second option
+    // mixes one finished course with one live course.
+    const result = auditProgram(core, [course("CSCE 2110", "A"), course("CSCE 3110", "B+"), inProgressCourse("CSCE 3115")]);
+    // The hours node accepts the pair in the planned pass: 3 completed hours
+    // from the standalone course plus the lab's 3 planned hours.
+    expect(result.requirements[0]!.status).toBe("inProgress");
+    expect(result.requirements[0]!.detail).toContain("1 course, 3/6 hours");
+    expect(result.requirements[0]!.detail).toContain("3 planned");
+    // One course, one area: accepting the pair also spends the completed
+    // lecture, so the later area cannot count it again.
+    expect(result.requirements[1]!.status).toBe("unsatisfied");
+  });
+});

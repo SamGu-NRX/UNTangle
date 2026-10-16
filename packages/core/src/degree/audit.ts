@@ -191,11 +191,13 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
         // all completed and unclaimed is taken (and claims them) until the
         // hours are met. A course claimed here cannot satisfy a later node,
         // which is how the catalog's double-dip rule behaves. When the node is
-        // Each counted option claims its in-progress codes into the same
-        // allocation, so a live course contributes planned hours to exactly one
-        // area, and a node already satisfied by completed work claims nothing
-        // further. The planned amount is reported whenever any live credit was
-        // counted: completed and planned hours mix without hiding the live term.
+        // short, a planned pass accepts options whose members are completed or
+        // in progress; accepting one claims EVERY member into the allocation —
+        // a completed lecture paired with its live lab is spent in this area
+        // even though only the lab contributes planned hours. A node already
+        // satisfied by completed work claims nothing further. The planned
+        // amount is reported whenever any live credit was counted: completed
+        // and planned hours mix without hiding the live term.
         let courses = 0;
         let credits = 0;
         let unknownCredits = false;
@@ -217,12 +219,15 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
           for (const option of node.options) {
             if (plannedCredits >= node.hours - credits) break;
             if (!option.must.every((code) => (completed.has(code) || inProgress.has(code)) && !allocation.used.has(code))) continue;
+            // Claim every member of an accepted planned option: only the
+            // in-progress members count toward planned hours, but the completed
+            // members are spent here and cannot feed a later core area.
+            option.must.forEach((code) => allocation.used.add(code));
             for (const code of option.must) {
               if (!inProgress.has(code)) continue;
               const value = creditsByCode.get(code);
               if (value === undefined) plannedUnknown = true;
               else plannedCredits += value;
-              allocation.used.add(code);
             }
           }
         }
