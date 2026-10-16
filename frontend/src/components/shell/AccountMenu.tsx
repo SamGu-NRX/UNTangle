@@ -157,6 +157,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
         open={ask !== null}
         onOpenChange={(open) => (open ? undefined : setAsk(null))}
         role="alertdialog"
+        focusTitle
         title={view?.kind === "unsynced" ? "Some changes haven't synced" : view?.saved ? "Signing out removes your saved schedules" : "Signing out removes your work from before you signed in"}
         description={view?.kind === "unsynced" ? "Sync now, or sign out and discard them?" : view ? removalLine(view) : undefined}
         footer={

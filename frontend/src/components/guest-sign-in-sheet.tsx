@@ -62,6 +62,7 @@ function Sheet({ signIn, open }: { signIn: GuestSignIn; open: boolean }) {
           : "Your account has different values for these. Choose which to keep."
       }
       width={520}
+      focusTitle
       footer={
         asksSchedule ? (
           <>
@@ -77,7 +78,9 @@ function Sheet({ signIn, open }: { signIn: GuestSignIn; open: boolean }) {
     >
       {signIn.questions.length > 0 || signIn.preferences === "ask" ? (
         <div className="sync-questions">
-          {asksSchedule ? <p className="guest-sign-in__lead">Your account and this browser also differ here:</p> : null}
+          {asksSchedule ? (
+            <p className="guest-sign-in__lead">Your account and this browser also differ here. These answers apply whichever schedule you keep.</p>
+          ) : null}
           {signIn.questions.map((question) => (
             <Question
               key={questionKey(question)}

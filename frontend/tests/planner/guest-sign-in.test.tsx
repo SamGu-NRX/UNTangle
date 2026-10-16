@@ -129,6 +129,8 @@ describe("the plan, by guest-sync.md's table", () => {
     await waitFor(() => sheet() !== null, "the sheet");
     expect(sheet()?.textContent).toContain("You made a schedule before signing in");
     expect(sheet()?.textContent).toContain("2 courses differ from your saved schedule.");
+    // Like a sheet, it opens on its heading, so the student reads the question before reaching a button.
+    expect(document.activeElement?.textContent).toBe("You made a schedule before signing in");
     // Nothing is written or cleared while the student decides.
     expect(server.putsStarted).toBe(0);
     expect(guestCleared()).toBe(false);
@@ -172,6 +174,9 @@ describe("the academic record and preferences", () => {
     await waitFor(() => sheet() !== null, "the sheet");
     expect(sheet()?.textContent).toContain("You made changes before signing in");
     expect([...document.querySelectorAll(".sync-question legend")].map((legend) => legend.textContent)).toEqual(["CSCE 1030", "Major"]);
+    // Both sides are done; each says where its "done" comes from.
+    const options = [...document.querySelectorAll(".sync-question")][0].querySelectorAll(".sync-question__option");
+    expect([...options].map((option) => option.textContent)).toEqual([`DoneYour account`, `Done in ${row.term} with an ${row.grade}This browser`]);
     expect(guestCleared()).toBe(false);
 
     // This browser's CSCE 1030 (with its transcript row); the account's major.

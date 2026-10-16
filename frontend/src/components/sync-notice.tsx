@@ -25,10 +25,20 @@ const subject = {
   preferences: { name: "Your preferences", deleted: "Your preferences were" },
 } as const;
 
+const article = (grade: string) => (/^[AEFHILMNORSX]/.test(grade) ? "an" : "a");
+
+/**
+ * One side of a course question in the student's terms: where the status
+ * came from (a transcript row and its grade, or the student's own mark), so
+ * two sides that are both "done" still read differently.
+ */
 function courseFact(facts: CourseFacts): string {
-  if (facts.manualCredit) return "Done (your credit mark)";
-  if (facts.status === "completed") return "Done";
-  if (facts.status === "inProgress") return "Taking now";
+  if (facts.manualCredit) return "Marked done by you";
+  const row = facts.records.filter((record) => !record.duplicateExcluded).at(-1);
+  if (facts.status === "completed") {
+    return row?.grade ? `Done in ${row.term} with ${article(row.grade)} ${row.grade}` : row ? `Done in ${row.term}` : "Done";
+  }
+  if (facts.status === "inProgress") return row ? `Taking now in ${row.term}` : "Taking now";
   return "Not taken";
 }
 

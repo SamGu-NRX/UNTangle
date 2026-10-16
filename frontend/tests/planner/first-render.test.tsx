@@ -350,6 +350,7 @@ test("signing out names the saved schedules only this browser keeps, and keeps t
   expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain(
     "1 saved schedule is kept only on this browser. Export it from Schedules to keep a copy.",
   );
+  expect(document.activeElement?.textContent).toBe("Signing out removes your saved schedules");
   await planner.run(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
   expect(pushes).toEqual([]);
   expect(planner.get().isRegistered).toBe(true);
