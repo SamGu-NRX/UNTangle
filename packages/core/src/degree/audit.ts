@@ -442,8 +442,18 @@ function evaluatePolicy(policy: PolicyNode, courses: AuditCourse[], context: Sco
       const inScope = p.courseScope ? coursesInScope(p.courseScope, courses, context) : courses;
       const total = sum(inScope.filter((course) => !course.inProgress));
       if (total === null) return { ...detail, detail: `${policy.quote} — completed hours include unknown credit values; cannot verify.` };
-      const planned = sum(inScope.filter((course) => course.inProgress)) ?? 0;
-      return { ...detail, status: total >= p.hours ? "satisfied" : "unsatisfied", detail: `${total} completed hours of ${p.hours}${planned > 0 ? ` (${planned} in progress)` : ""}` };
+      // Planned credit never satisfies a policy — the verdict comes from the
+      // completed total — but the note must not guess either: known in-progress
+      // credits accumulate into the note and a missing credit value is flagged,
+      // the same convention the hours nodes use.
+      let planned = 0;
+      let plannedUnknown = false;
+      for (const course of inScope) {
+        if (!course.inProgress) continue;
+        if (course.credits === null) plannedUnknown = true;
+        else planned += course.credits;
+      }
+      return { ...detail, status: total >= p.hours ? "satisfied" : "unsatisfied", detail: `${total} completed hours of ${p.hours}${planned > 0 ? ` (${planned} in progress)` : ""}${plannedUnknown ? " (some in-progress credit hours unknown)" : ""}` };
     }
     case "advancedHours": {
       const advanced = completed.filter((course) => levelOf(course.code) >= 3000);

@@ -555,3 +555,32 @@ describe("review round eleven: mixed planned options claim their completed membe
     expect(result.requirements[1]!.status).toBe("unsatisfied");
   });
 });
+
+
+describe("review round twelve: totalHours policies surface unknown planned credit", () => {
+  test("a totalHours policy reports unknown in-progress credit values instead of a silent zero", () => {
+    const degree: ProgramData = {
+      ...base,
+      requirements: [{
+        kind: "policy",
+        name: "Total hours: 120",
+        citation,
+        quote: "Students must complete at least 120 semester credit hours.",
+        policy: { type: "totalHours", hours: 120 },
+      }],
+    };
+    // One finished course, one live course with known credits, and one live
+    // course whose credit hours the record does not state.
+    const result = auditProgram(degree, [
+      course("MATH 1710", "B"),
+      inProgressCourse("CSCE 2110"),
+      inProgressCourse("CSCE 3115", null),
+    ]);
+    expect(result.policies[0]!.status).toBe("unsatisfied");
+    // Completed hours are exact; known planned credit still counts in the note.
+    expect(result.policies[0]!.detail).toContain("3 completed hours of 120");
+    expect(result.policies[0]!.detail).toContain("(3 in progress)");
+    // The unknown planned contribution is flagged, not discarded.
+    expect(result.policies[0]!.detail).toContain("some in-progress credit hours unknown");
+  });
+});
