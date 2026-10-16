@@ -10,13 +10,17 @@ import { click, installDom, mount, removeDom } from "./ui/dom";
 // CSS modules have no loader under bun test: each class name is its own key.
 mock.module("@/components/schedules-library/library.module.css", () => ({ default: new Proxy({}, { get: (_, key) => String(key) }) }));
 
+// The stub replaces the provider module for this file only: bun keeps a module mock for the rest of
+// the run, so afterAll puts the real module back for the files that mount the real provider.
+const realPlanner = { ...(await import("@/components/planner-provider")) };
 let plannerValue: Record<string, unknown> = {};
-mock.module("@/components/planner-provider", () => ({ usePlanner: () => plannerValue }));
+mock.module("@/components/planner-provider", () => ({ ...realPlanner, usePlanner: () => plannerValue }));
 
 beforeAll(() => {
   installDom();
 });
 afterAll(() => {
+  mock.module("@/components/planner-provider", () => realPlanner);
   removeDom();
 });
 
