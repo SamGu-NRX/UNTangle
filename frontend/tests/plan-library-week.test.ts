@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { clockText, compareRows, gridDays, overlayBlocks, plannedSections, sectionChanges, spokenClock, usesSampleSections, weekBlocks, weekStats, type PlannedSection } from "@/lib/plan-library/week";
+import { clockText, compareRows, gridDays, overlayBlocks, plannedCredits, plannedSections, sectionChanges, sectionGrid, spokenClock, usesSampleSections, weekBlocks, weekStats, type PlannedSection } from "@/lib/plan-library/week";
 import { getInitialPlannerState } from "@/lib/planner";
 import { sampleCatalog } from "@/lib/planner-sections";
 import type { WalkingTime } from "@/lib/planner-walking";
@@ -89,7 +89,8 @@ describe("a week's figures", () => {
 
 describe("comparing Main (A) with Fridays off (B)", () => {
   test("each row judges B against A", () => {
-    expect(compareRows(weekStats(main, travel), weekStats(fridaysOff, travel))).toEqual([
+    expect(compareRows({ ...weekStats(main, travel), credits: 12 }, { ...weekStats(fridaysOff, travel), credits: 12 })).toEqual([
+      { label: "Credits", a: "12", b: "12", verdict: "same" },
       { label: "Days on campus", a: "5", b: "4", verdict: "better" },
       { label: "First class", a: "9:00", b: "9:30", verdict: "better" },
       { label: "Last class ends", a: "1:50", b: "4:50", verdict: "worse" },
@@ -99,8 +100,8 @@ describe("comparing Main (A) with Fridays off (B)", () => {
   });
 
   test("an unknown side judges nothing", () => {
-    const unknown = { days: 3, first: null, last: null, walkMinutes: null, tightWalks: null };
-    const rows = compareRows(weekStats(main, travel), unknown);
+    const unknown = { days: 3, first: null, last: null, walkMinutes: null, tightWalks: null, credits: 12 };
+    const rows = compareRows({ ...weekStats(main, travel), credits: 12 }, unknown).slice(1);
     expect(rows.map((row) => row.verdict)).toEqual(["better", "same", "same", "same", "same"]);
     expect(rows[1].b).toBe("None");
     expect(rows[3].b).toBe("Unknown");
@@ -218,5 +219,51 @@ describe("the grid's days", () => {
     expect(gridDays(sunday)).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri", "Sun"]);
     const both = weekBlocks([...main, ...meets("MUEN 1000", "001", ["Sat", "Sun"], "14:00", "15:50", "MU")]);
     expect(gridDays(both)).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+  });
+});
+
+describe("credits in the compare table", () => {
+  const taking = (codes: string[]) => {
+    const initial = getInitialPlannerState();
+    return { ...initial, courseStatuses: { ...initial.courseStatuses, ...Object.fromEntries(codes.map((code) => [code, "inProgress" as const])) } };
+  };
+
+  test("a plan's planned credits: every course it plans, placed or not", () => {
+    // Each of these is 3 credits in the bundled catalog.
+    expect(plannedCredits(taking([]))).toBe(0);
+    expect(plannedCredits(taking(["ANTH 1010", "ENGL 1310"]))).toBe(6);
+    expect(plannedCredits(taking(["ANTH 1010", "ENGL 1310", "MATH 1710", "BIOL 1710"]))).toBe(12);
+  });
+
+  test("the first row is each plan's credits, shown and never judged", () => {
+    const week = weekStats(main, travel);
+    const [credits] = compareRows({ ...week, credits: 12 }, { ...week, credits: 15 });
+    expect(credits).toEqual({ label: "Credits", a: "12", b: "15", verdict: "unjudged" });
+    expect(compareRows({ ...week, credits: 9 }, { ...week, credits: 9 })[0]).toEqual({ label: "Credits", a: "9", b: "9", verdict: "same" });
+  });
+});
+
+describe("sections across three plans", () => {
+  test("a row per course that differs anywhere, a cell per plan; the rest are shared", () => {
+    const third = [
+      ...meets("CSCE 2110", "001", ["Mon", "Wed", "Fri"], "09:00", "09:50", "GAB"),
+      ...meets("MATH 2700", "004", ["Tue", "Thu"], "11:00", "12:20", "CURY"),
+      ...meets("PHYS 2220", "002", ["Mon", "Wed"], "11:00", "11:50", "PHYS"),
+    ];
+    expect(sectionGrid([sectionsOf(main), sectionsOf(fridaysOff), sectionsOf(third)])).toEqual({
+      rows: [
+        { code: "CSCE 2110", cells: ["MWF 9:00", "TR 9:30", "MWF 9:00"] },
+        { code: "CSCE 2610", cells: ["TR 12:30", "TR 12:30", null] },
+        { code: "MATH 2700", cells: ["MWF 10:00", "MW 3:30", "TR 11:00"] },
+      ],
+      same: ["PHYS 2220"],
+    });
+  });
+
+  test("with two plans it says what sectionChanges says", () => {
+    const grid = sectionGrid([sectionsOf(main), sectionsOf(fridaysOff)]);
+    const { changes, same } = sectionChanges(sectionsOf(main), sectionsOf(fridaysOff));
+    expect(grid.rows.map(({ code, cells: [from, to] }) => ({ code, from, to }))).toEqual(changes);
+    expect(grid.same).toEqual(same);
   });
 });

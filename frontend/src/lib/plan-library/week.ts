@@ -1,6 +1,6 @@
 import { assignColors, type Hue } from "@/lib/course-colors";
 import { transferFit } from "@/lib/map-itinerary";
-import { buildScheduleEvents, normalizePlannerState, resolveSectionPlan } from "@/lib/planner";
+import { buildScheduleEvents, normalizePlannerState, resolveSectionPlan, summarizeCredits } from "@/lib/planner";
 import { backToBackPairs, scheduleEventsOf, type SectionCatalog } from "@/lib/planner-sections";
 import { isShuttleLeg, plannerTravelTime, type WalkingTimeFn } from "@/lib/planner-walking";
 import type { ClassDay, PlannerState, ScheduleEvent } from "@/lib/types";
@@ -137,16 +137,29 @@ export function weekStats(events: readonly ScheduleEvent[], travel: WalkingTimeF
   };
 }
 
-export type Verdict = "better" | "worse" | "same";
+/** A plan's figures for the compare table: its week, and the credits it plans. */
+export type PlanFigures = WeekStats & { credits: number };
+
+/**
+ * Credits a saved plan schedules this term: its planned courses, as Courses
+ * counts them (summarizeCredits), whether or not a section is placed yet.
+ */
+export function plannedCredits(state: PlannerState): number {
+  return summarizeCredits(normalizePlannerState(state));
+}
+
+/** "unjudged": a figure that is shown but has no better direction, such as credits. */
+export type Verdict = "better" | "worse" | "same" | "unjudged";
 export type CompareRow = { label: string; a: string; b: string; verdict: Verdict };
 
 /**
  * B against A, row by row. Which way is better is a starting value with no
  * data behind it: fewer days, a later first class, an earlier last class,
  * less walking and fewer tight walks. A row with an unknown side says so
- * and judges nothing.
+ * and judges nothing. Credits come first and are never judged: more is not
+ * better or worse, only different.
  */
-export function compareRows(a: WeekStats, b: WeekStats): CompareRow[] {
+export function compareRows(a: PlanFigures, b: PlanFigures): CompareRow[] {
   const judge = (x: number | null, y: number | null, lowerIsBetter: boolean): Verdict => {
     if (x === null || y === null || x === y) return "same";
     return (y < x) === lowerIsBetter ? "better" : "worse";
@@ -154,6 +167,7 @@ export function compareRows(a: WeekStats, b: WeekStats): CompareRow[] {
   const clock = (n: number | null) => (n === null ? "None" : clockText(n));
   const known = (n: number | null, unit = "") => (n === null ? "Unknown" : `${n}${unit}`);
   return [
+    { label: "Credits", a: String(a.credits), b: String(b.credits), verdict: a.credits === b.credits ? "same" : "unjudged" },
     { label: "Days on campus", a: String(a.days), b: String(b.days), verdict: judge(a.days, b.days, true) },
     { label: "First class", a: clock(a.first), b: clock(b.first), verdict: judge(a.first, b.first, false) },
     { label: "Last class ends", a: clock(a.last), b: clock(b.last), verdict: judge(a.last, b.last, true) },
@@ -202,23 +216,34 @@ function sectionText(section: PlannedSection): string {
   return section.blocks.length ? meetsText(section.blocks) : "No set time";
 }
 
+/**
+ * Sections across several plans, the first being the one the others are
+ * read against: a row for each course whose section is not the same in
+ * all of them (a cell is null where that plan doesn't have the course), and
+ * the courses every plan shares exactly. With two plans it says what
+ * `sectionChanges` says, as cells.
+ */
+export function sectionGrid(plans: ReadonlyArray<readonly PlannedSection[]>): { rows: Array<{ code: string; cells: Array<string | null> }>; same: string[] } {
+  const maps = plans.map((plan) => new Map(plan.map((section) => [section.code, section])));
+  const codes = [...new Set(maps.flatMap((map) => [...map.keys()]))].sort((x, y) => x.localeCompare(y));
+  const rows: Array<{ code: string; cells: Array<string | null> }> = [];
+  const same: string[] = [];
+  for (const code of codes) {
+    const sections = maps.map((map) => map.get(code));
+    const first = sections[0];
+    if (first && sections.every((section) => section?.sectionId === first.sectionId)) same.push(code);
+    else rows.push({ code, cells: sections.map((section) => (section ? sectionText(section) : null)) });
+  }
+  return { rows, same };
+}
+
 /** Courses whose section differs, or that only one schedule has; and the courses both share exactly. */
 export function sectionChanges(
   a: readonly PlannedSection[],
   b: readonly PlannedSection[],
 ): { changes: SectionChange[]; same: string[] } {
-  const left = new Map(a.map((section) => [section.code, section]));
-  const right = new Map(b.map((section) => [section.code, section]));
-  const codes = [...new Set([...left.keys(), ...right.keys()])].sort((x, y) => x.localeCompare(y));
-  const changes: SectionChange[] = [];
-  const same: string[] = [];
-  for (const code of codes) {
-    const x = left.get(code);
-    const y = right.get(code);
-    if (x && y && x.sectionId === y.sectionId) same.push(code);
-    else changes.push({ code, from: x ? sectionText(x) : null, to: y ? sectionText(y) : null });
-  }
-  return { changes, same };
+  const { rows, same } = sectionGrid([a, b]);
+  return { changes: rows.map(({ code, cells: [from, to] }) => ({ code, from, to })), same };
 }
 
 const WEEKDAYS: readonly ClassDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
