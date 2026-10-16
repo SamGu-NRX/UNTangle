@@ -226,7 +226,8 @@
     min-height: 48px;
   }
   .chips,
-  .filterRow {
+  .filterRow,
+  .finalsLine {
     row-gap: 16px;
   }
 }
@@ -942,11 +943,49 @@
   font-size: 13px;
   color: var(--ink-2);
 }
+.pill {
+  /* A control, not text: a long press opens nothing and selects nothing. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.pill:disabled {
+  /* Week is previewing another week: the pills describe it but can't open a panel. */
+  opacity: 0.6;
+  cursor: default;
+}
 .pill .code {
   font-size: 12px;
 }
+.pillTime {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+/* A final that overlaps another, outlined around the course's tint: attention while the time is
+   projected and can still move (a check), danger once UNT has published it (a conflict). */
+.pill[data-clash="check"] {
+  box-shadow: inset 3px 0 0 var(--c), inset 0 0 0 1.5px var(--attention);
+  color: var(--attention);
+}
+.pill[data-clash="conflict"] {
+  box-shadow: inset 3px 0 0 var(--c), inset 0 0 0 1.5px var(--danger);
+  color: var(--danger);
+}
 .tag {
   margin-left: auto;
+}
+/* On a phone a one-line finals pill is about 170px, so only one fit in a 330px row; code over time fits three. */
+@media (max-width: 480px) {
+  .finalsLine .pill {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 1px;
+    height: auto;
+    padding: 5px 10px;
+    line-height: 1.2;
+  }
 }
 
 /* An empty week: the grid fades toward a card in its middle, rather than being cut by a box. */
@@ -1149,6 +1188,29 @@
   font-size: 13px;
   color: var(--danger);
 }
+/* An overlap of projected finals: a check, not yet a conflict. */
+.check {
+  font-size: 13px;
+  color: var(--attention);
+}
+
+/* The selected course's final, in its panel. */
+.final {
+  display: grid;
+  gap: 4px;
+}
+.final .clash,
+.final .check {
+  margin: 0;
+  font-size: 14px;
+}
+.finalWhen {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
 
 .reasons {
   display: grid;
@@ -1235,6 +1297,41 @@
   margin: 0;
   font-size: 15px;
   font-weight: 650;
+}
+/* What the last action in this part did (ExportSheet.tsx); a failure in the danger color, with its words. */
+.exportNote {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+.exportNote[data-failed] {
+  color: var(--danger);
+}
+/* The share link, to select and copy by hand when the browser refuses. */
+.exportSelect {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+  color: var(--ink);
+  font: 400 14px/1 var(--font-ui);
+}
+.exportSelect:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+@media (pointer: coarse) {
+  .exportSelect {
+    min-height: 44px;
+    font-size: 16px;
+  }
+}
+/* Kept in the page so it announces when filled; empty, it takes back the section's grid gap. */
+.exportNote:empty {
+  margin-top: -10px;
 }
 .exportHead > :first-child {
   width: 18px;

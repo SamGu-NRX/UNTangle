@@ -161,7 +161,7 @@ export function weekOf(picks: Picks): GuestWeek {
   return {
     events,
     blocks,
-    colors: weekColors(blocks),
+    colors: weekColors(blocks.map((block) => block.code)),
     stats: weekStats(events),
     credits: codes.reduce((sum, code) => sum + (courseByCode(code)?.creditHours ?? 0), 0),
   };

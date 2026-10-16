@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button, IconButton } from "@/components/ui/Button";
 import { ContextPanel } from "@/components/ui/ContextPanel";
 import { AlertGlyph, BookGlyph, SearchGlyph, ShareGlyph, SlidersGlyph, TrayIn, Undo } from "@/components/ui/icons";
@@ -13,10 +13,11 @@ import { assignColors } from "@/lib/course-colors";
 import type { Day, Section } from "@/lib/sections";
 import { calendarBands, calendarBlockedTimes, weekdayCount } from "@/lib/calendar-busy";
 import type { BlockedTime, SchedulePreferences, WeekDay } from "@/lib/types";
-import { answerFor, describeAlternative, type AnswerCourse } from "./answer";
+import { answerFor, describeAlternative, timeLeanOf, type AnswerCourse } from "./answer";
 import styles from "./builder.module.css";
 import { hasNoSetTime, isTimed, meetingsOverlap, meetTogether } from "./conflicts";
 import { ExportSheet } from "./ExportSheet";
+import { examLongDay, examStart, examTimes, finalsClashCount, weekFinals, type WeekFinal } from "./finals";
 import type { BuilderHost } from "./host";
 import { BrowsePanel, totalCount } from "./CombinationsList";
 import { BrowseStrip, NoticeStrip, OptionsStrip } from "./OptionsStrip";
@@ -28,7 +29,7 @@ import { SearchPanel } from "./SearchPanel";
 import { restoreSetup, setupChanged } from "./setup";
 import { SetupAuto, type SetupClose } from "./SetupAuto";
 import type { SharedWeek } from "./share";
-import { andList, dayLetters, eventsOf, optionName, optionTitle, placeEvents, sectionLabel, walksOf } from "./week";
+import { andList, dayLetters, eventsOf, optionName, optionTitle, placeEvents, sectionLabel, unknownWalksOf, walksOf } from "./week";
 import { WeekGrid, type Busy, type Ghost, type Outline } from "./WeekGrid";
 
 export type SearchRequest = { nonce: number; query: string };
@@ -155,19 +156,30 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       ]
     : placed;
 
+  const finals = host.finals ?? null;
   const now = useMemo(() => {
     const events = eventsOf(placed);
-    return { events, walks: walksOf(events, host.walk), sections: placed };
+    const exams = finals ? weekFinals(placed, finals) : [];
+    return { events, walks: walksOf(events, host.walk), unknownWalks: unknownWalksOf(events, host.walk), sections: placed, finals: exams, finalsClashes: finalsClashCount(exams) };
     // `placed` is rebuilt every render; its ids say when it changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(current), host.walk]);
+  }, [JSON.stringify(current), host.walk, finals]);
   const shownKey = JSON.stringify(shownSections.map((section) => section.id).sort());
   const shown = useMemo(() => {
     const events = eventsOf(shownSections);
-    return { events, walks: walksOf(events, host.walk), sections: shownSections, placements: placeEvents(events) };
+    const exams = finals ? weekFinals(shownSections, finals) : [];
+    return {
+      events,
+      walks: walksOf(events, host.walk),
+      unknownWalks: unknownWalksOf(events, host.walk),
+      sections: shownSections,
+      placements: placeEvents(events),
+      finals: exams,
+      finalsClashes: finalsClashCount(exams),
+    };
     // `shownSections` is rebuilt every render; `shownKey` names its sections.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shownKey, host.walk]);
+  }, [shownKey, host.walk, finals]);
 
   // Every course that can be drawn keeps its hue as others come and go (lib/course-colors.ts).
   const colorCodes = [...new Set([...host.courses.map((course) => course.code), ...shownSections.map((s) => s.courseCode), ...(preview ? [preview.courseCode] : [])])].join("|");
@@ -518,14 +530,22 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     state: course.state === "none" ? "pick" : course.state,
     note: course.note,
   }));
-  const answer = answerFor({ courses: answerCourses, events: now.events, walks: now.walks, preferences: answerPreferences, termLabel: host.term.label });
+  const answer = answerFor({
+    courses: answerCourses,
+    events: now.events,
+    walks: now.walks,
+    preferences: answerPreferences,
+    termLabel: host.term.label,
+    finals: now.finals,
+  });
   const summary = preferenceSummary(host.preferences, host.defaults);
   const prefCount = changedCount(host.preferences, host.defaults);
   const noSetTime = shownSections.filter(hasNoSetTime);
   const running = feed.status === "running";
   const firstAnswerPending = running && (strip?.kind !== "options" || strip.shown.length === 0);
   const identical = previewMap !== undefined && same(Object.fromEntries(Object.entries(current).filter(([code]) => code in previewMap)), previewMap) && strip?.kind === "options";
-  const sentence = identical ? "Your week is already the best Auto found." : describeAlternative(now, shown);
+  const lean = timeLeanOf(host.preferences);
+  const sentence = identical ? "Your week is already the best Auto found." : describeAlternative(now, shown, lean);
   // Browse all previews on every hover, tens of times a minute: the grid changes without motion.
   const instant = keyboard.current || (strip?.kind === "options" && strip.instant) || strip?.kind === "browse";
   const exit = exiting.current;
@@ -615,7 +635,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
             browseRow
               ? yours
                 ? "This is your week."
-                : describeAlternative(now, shown)
+                : describeAlternative(now, shown, lean)
               : browse.infeasible
                 ? "Nothing fits these preferences. The list says what to change."
                 : browse.timedOut
@@ -778,7 +798,9 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
           toast({ message: "Added a busy time. Auto keeps it free.", action: { label: "Undo", onClick: () => host.setPreferences((p) => removeBusySpan(p, id, start, end, newBusyId)) } });
         }}
         footer={
-          noSetTime.length > 0 || host.provenance === "sample" ? (
+          noSetTime.length > 0 || host.provenance === "sample" || (finals && shown.finals.some((entry) => entry.exam.kind === "known")) ? (
+            <>
+            {noSetTime.length > 0 || host.provenance === "sample" ? (
             <div className={styles.gridFoot}>
               {noSetTime.length > 0 ? (
                 <>
@@ -804,6 +826,17 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
                 </span>
               ) : null}
             </div>
+            ) : null}
+            {finals && shown.finals.some((entry) => entry.exam.kind === "known") ? (
+              <FinalsLine
+                list={shown.finals}
+                projected={finals.projected}
+                hueOf={hueOf}
+                disabled={previewing}
+                onOpen={(code) => openPanel({ kind: "event", code })}
+              />
+            ) : null}
+            </>
           ) : null
         }
         empty={
@@ -836,9 +869,10 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         open={panel !== null}
         onClose={closePanel}
         title={panelTitle}
-        // On a phone the list's sheet shows its title and a Close button, and opening it focuses the title
-        // (BottomSheet's opening focus): a long list mustn't leave dragging as the only way out.
-        heading={panel?.kind === "browse" ? panelTitle : undefined}
+        // On a phone these sheets show their title (the class's code, the option, the list) and a Close button, and opening
+        // one focuses the title (BottomSheet's opening focus): a long sheet mustn't leave dragging as the only way out.
+        // Find courses starts with its search field instead.
+        heading={panel?.kind === "browse" || panel?.kind === "event" || panel?.kind === "option" ? panelTitle : undefined}
         returnFocus={() => trigger.current}
       >
         {panel?.kind === "search" ? (
@@ -861,6 +895,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
               host.edits.remove(selectedCourse.code);
               toast({ message: `Removed ${selectedCourse.code}`, action: undoAction });
             }}
+            finals={finals}
           />
         ) : panel?.kind === "option" && strip?.kind === "options" ? (
           <OptionDetails
@@ -868,6 +903,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
             option={shown}
             label={optionTitle(strip.index)}
             reasons={previewMap ? feed.explain(previewMap) : []}
+            lean={lean}
             onUse={applyShown}
             canUse={!identical && !feed.stale && !running}
           />
@@ -937,6 +973,69 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         scheduleName={scheduleName}
         onOpenWeek={openWeek}
       />
+    </div>
+  );
+}
+
+/**
+ * The week's finals, one pill per course under the grid, beside No set time
+ * and in the same shape: the course and when its final starts, or "Not
+ * known". A pill whose final overlaps another is outlined: attention for a
+ * projected time, which can still move, danger for a published one. The
+ * day, the full time and the overlap are in its accessible name, which
+ * starts with the pill's visible words, and in the course's panel, which the
+ * pill opens.
+ */
+function FinalsLine({
+  list,
+  projected,
+  hueOf,
+  disabled,
+  onOpen,
+}: {
+  list: readonly WeekFinal[];
+  projected: { label: string; source: string } | null;
+  hueOf: (code: string) => number;
+  disabled: boolean;
+  onOpen: (code: string) => void;
+}) {
+  const labelId = useId();
+  return (
+    <div className={`${styles.gridFoot} ${styles.finalsLine}`} role="group" aria-labelledby={labelId} data-finals="">
+      <span id={labelId} className={styles.label}>
+        Finals
+      </span>
+      {projected ? (
+        // Beside the label, so it reads as the whole line's, and kept on phones (the sample tag hides there):
+        // it is the only place the line says its times may move.
+        <ProvenanceTag source={projected.source}>{projected.label}</ProvenanceTag>
+      ) : null}
+      {list.map(({ courseCode, exam, clashesWith }) => {
+        const clash = clashesWith.length > 0;
+        const name =
+          exam.kind === "known"
+            ? `${courseCode} ${examStart(exam.exam)}, final on ${examLongDay(exam.exam)}, ${examTimes(exam.exam)}${clash ? `, overlaps ${andList(clashesWith)}` : ""}`
+            : `${courseCode} Not known: open it to see why its final time isn't known.`;
+        return (
+          <button
+            key={courseCode}
+            type="button"
+            className={styles.pill}
+            data-hue={hueOf(courseCode)}
+            data-clash={clash ? (exam.kind === "known" && exam.projected ? "check" : "conflict") : undefined}
+            disabled={disabled}
+            aria-label={name}
+            onClick={() => onOpen(courseCode)}
+          >
+            <span className={styles.code}>{courseCode}</span>
+            {/* The outline's color isn't the only sign of an overlap: the glyph marks it too. */}
+            <span className={styles.pillTime}>
+              {clash ? <AlertGlyph size={14} /> : null}
+              {exam.kind === "known" ? examStart(exam.exam) : "Not known"}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

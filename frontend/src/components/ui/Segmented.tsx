@@ -105,7 +105,7 @@ export function Segmented<V extends string>({
           onClick={(event) => move(i, event.detail === 0)}
           onKeyDown={(event) => onKeyDown(event, i)}
         >
-          {option.label}
+          <span className="ui-seg__label">{option.label}</span>
         </button>
       ))}
     </div>

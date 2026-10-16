@@ -52,6 +52,13 @@ export type ScheduleReasonsInput = {
    * entry are skipped.
    */
   instructorGradeHistory?: Readonly<Record<string, CourseHistory>>;
+  /**
+   * Compare with the next alternative ("than option 2"), including the ways
+   * this one is worse (trade-offs). Default true. False states facts about
+   * this alternative alone, for a caller that already compares it with
+   * something the student can see.
+   */
+  compareWithNext?: boolean;
   /** Most preference and grade reasons to return; default 3. Seat warnings come on top of these. */
   maxReasons?: number;
 };

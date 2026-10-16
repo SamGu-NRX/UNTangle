@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildCourseModel, type CourseRowModel } from "@/components/courses/model/course-model";
+import { snapshotOf } from "@/components/courses/model/plan-edits";
+import { untProfile } from "@/components/courses/school";
 import { usePlanner } from "@/components/planner-provider";
-import type { BrowseFeed, BuilderEdits, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
+import type { BrowseFeed, BuilderEdits, BuilderFinals, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
 import type { Identity } from "@/components/schedule/preferences-store";
 import { loadedIdentity, markSetupSeen, setupDue } from "@/components/schedule/setup-store";
 import { isStale, requestKey } from "@/components/schedule/run-state";
@@ -12,20 +15,20 @@ import { toast } from "@/components/ui/Toast";
 import type { Brand } from "@/lib/brand";
 import { calendarsToRefresh, currentProblems, withReading, type RefreshProblem } from "@/lib/calendar-busy";
 import { checkFeed, connectFeed, refreshCalendar, type FeedTerm } from "@/lib/calendar-feeds/client";
-import type { RelaxSuggestion } from "@/lib/optimizer/types";
+import { examOf, FINALS_SOURCE, PROJECTED_FINALS_NOTE, unknownExamSentence } from "@/lib/final-exams";
+import type { Explanation, RelaxSuggestion } from "@/lib/optimizer/types";
 import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
 import {
   buildOptimizeRequest,
   defaultSchedulePreferences,
   getCoreCoursesForMajor,
   getCourseByCode,
-  getMissingPrerequisites,
   getPlanningTermCourseCodes,
   takeFromAutoRun,
   type PlannedCourse,
 } from "@/lib/planner";
 import { findOption, optionIdLabel, planningTerm, sectionRef, termDates } from "@/lib/planner-sections";
-import { isShuttleLeg, plannerTravelTime } from "@/lib/planner-walking";
+import { weekTravel } from "@/lib/planner-walking";
 import { findClassNumber } from "@/lib/sections/client";
 import { optionReasons } from "./option-reasons";
 import { courses as catalog } from "@/lib/seed-data";
@@ -41,6 +44,26 @@ type Snapshot = {
   locks: Record<string, string | undefined>;
   autoPlanned: Record<string, boolean>;
 };
+
+/** Finals from UNT's rule (lib/final-exams.ts), the same ones Auto checks. */
+const finals: BuilderFinals = {
+  examOf: (section) => {
+    const exam = examOf(section);
+    return exam.kind === "known" ? exam : { kind: "unknown", note: unknownExamSentence(section, exam.reason) };
+  },
+  projected: PROJECTED_FINALS_NOTE ? { label: "Projected", source: PROJECTED_FINALS_NOTE } : null,
+};
+
+/**
+ * The explanation's sentence, plus where its finals come from when they are
+ * part of why nothing fits and their times are projected.
+ */
+function infeasibleSentence(explanation: Explanation): string {
+  const finals = explanation.members.some((member) => member.kind === "exams");
+  return finals && FINALS_SOURCE.projected
+    ? `${explanation.sentence} Those finals are projected from UNT's ${FINALS_SOURCE.term} schedule.`
+    : explanation.sentence;
+}
 
 /** Undo steps kept per visit. More than anyone presses; a bound, not a rule. */
 const HISTORY = 50;
@@ -76,6 +99,29 @@ function noteFor(course: PlannedCourse): { state: WeekCourse["state"]; note?: st
       return { state: "none", note: `${course.code} isn't offered in ${planningTerm.label}.` };
     case "no-data":
       return { state: "none", note: `There are no ${planningTerm.label} sections for ${course.code}.` };
+  }
+}
+
+/**
+ * A search hit's status for a course the student hasn't done, planned or
+ * started, from Courses' row for it: a rule UNTangle can't read, or one that
+ * needs consent, is "check" (check with an advisor), never "locked". A
+ * course Courses has no row for is one nobody can vouch for, so it is
+ * "check" too. Courses also knows a course is in progress from a transcript
+ * row written another way ("csce1040"), which Week's own check misses.
+ */
+export function requirementStatus(row: Pick<CourseRowModel, "status"> | undefined): "available" | "locked" | "check" | "done" | "taking" {
+  if (!row) return "check";
+  switch (row.status) {
+    case "locked":
+    case "check":
+    case "taking":
+      return row.status;
+    case "done":
+    case "covered":
+      return "done";
+    default:
+      return "available";
   }
 }
 
@@ -411,7 +457,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     infeasible:
       result?.status === "infeasible"
         ? {
-            sentence: result.explanation.sentence,
+            sentence: infeasibleSentence(result.explanation),
             fixes: fixesFor(result.explanation.suggestions),
           }
         : result?.status === "timeout" && result.schedules.length === 0 && run.status === "done"
@@ -445,7 +491,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     stale: isStale(browseRun, inputKey),
     infeasible:
       listed?.status === "infeasible"
-        ? { sentence: listed.explanation.sentence, fixes: fixesFor(listed.explanation.suggestions) }
+        ? { sentence: infeasibleSentence(listed.explanation), fixes: fixesFor(listed.explanation.suggestions) }
         : null,
     timedOut: listed?.status === "timeout",
     error: browseRun.error,
@@ -453,6 +499,16 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     close: closeBrowse,
   };
 
+  // Courses' own model, so a course reads the same in Week's search as in Courses (CoursesView builds it from the
+  // same three fields). Built on the first search after a change, not on every visit to Week.
+  const courseRows = useMemo(
+    () => {
+      let rows: ReadonlyMap<string, CourseRowModel> | null = null;
+      return () => (rows ??= buildCourseModel(untProfile(), snapshotOf(plannerState)).rows);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plannerState.courseStatuses, plannerState.transcriptRecords, plannerState.coursePlan],
+  );
   const hitFor = useCallback(
     (code: string, title: string): SearchHit => {
       const status = plannerState.courseStatuses[code];
@@ -466,12 +522,10 @@ export function useUntangleHost(brand: Brand): BuilderHost {
               ? "taking"
               : status === "inProgress"
                 ? "planned"
-                : getMissingPrerequisites(code, plannerState.courseStatuses, plannerState.transcriptRecords).length > 0
-                  ? "locked"
-                  : "available",
+                : requirementStatus(courseRows().get(code)),
       };
     },
-    [plannerState.courseStatuses, plannerState.transcriptRecords, takingNow],
+    [courseRows, plannerState.courseStatuses, takingNow],
   );
 
   const search = useMemo<BuilderHost["search"]>(
@@ -531,12 +585,6 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     [problems],
   );
 
-  const walk = useCallback((from: string, to: string) => {
-    const time = plannerTravelTime(from, to);
-    // Whole seconds, as the optimizer rounds them (walkSeconds in lib/optimizer/score.ts), so Week and Auto agree at the boundary.
-    return time.seconds === null ? null : { seconds: Math.round(time.seconds), shuttle: isShuttleLeg(from, to) };
-  }, []);
-
   return {
     brand: { id: brand.id, primaryLabel: brand.primaryLabel, primaryShort: brand.primaryShort, suggestions: brand.suggestions },
     term: { id: planningTerm.id, label: planningTerm.label },
@@ -548,11 +596,12 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     preferencesReady,
     // The setup speaks of Auto by name; the standalone builder's button is called something else.
     setup: brand.id === "untangle" ? setup : null,
-    walk,
+    walk: weekTravel,
     search,
     edits,
     optimizer,
     browse,
+    finals,
     find,
     calendars: calendarHost,
     printHref: "/schedule/print",

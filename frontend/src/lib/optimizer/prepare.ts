@@ -1,10 +1,11 @@
 /**
  * Turns a request into the search's static data: the candidate sections of
  * each course after every check that needs only the section itself, and the
- * pairs of sections that can never be in one schedule together.
+ * pairs of sections that can never be in one schedule together (overlapping
+ * classes, overlapping finals, or a walk that can never fit).
  *
  * Nothing here can drop a section that some valid schedule uses, with one
- * deliberate exception: a section whose meetings and buildings are identical
+ * deliberate exception: a section whose meetings, buildings and final are identical
  * to a cheaper one of the same course (a "twin") is dropped, because the
  * cheaper twin always ranks ahead of it (see `dropTwins`). The browse list
  * keeps twins (`keepTwins`), since it lists every section.
@@ -18,6 +19,7 @@ import {
   type OptBlockedTime,
   type OptCourse,
   type OptDateRange,
+  type OptExam,
   type OptimizeRequest,
   type OptMeeting,
   type OptSection,
@@ -157,6 +159,13 @@ export function validateRequest(request: OptimizeRequest, checkDeadline: () => v
         throw new OptimizerInputError(`section ${section.id} belongs to ${section.courseCode}, listed under ${course.code}`);
       }
       if (section.meetings.length === 0) throw new OptimizerInputError(`section ${section.id} has no meetings`);
+      const exam = section.exam;
+      if (exam !== undefined && exam !== null) {
+        if (dayNumber(exam.date) === null) throw new OptimizerInputError(`section ${section.id} has an exam on ${JSON.stringify(exam.date)}; expected a real YYYY-MM-DD date`);
+        if (!isInteger(exam.start, 0, 24 * 60) || !isInteger(exam.end, 0, 24 * 60) || exam.end <= exam.start) {
+          throw new OptimizerInputError(`section ${section.id} has an exam with invalid times ${exam.start}-${exam.end}`);
+        }
+      }
       for (const meeting of section.meetings) {
         if ((steps++ & 127) === 0) checkDeadline();
         meetings.push(meeting);
@@ -232,6 +241,11 @@ export function validateRequest(request: OptimizeRequest, checkDeadline: () => v
   }
   const k = request.k ?? 3;
   if (!isInteger(k, 1, 20)) throw new OptimizerInputError(`k must be an integer 1..20, got ${k}`);
+}
+
+/** Two known finals on the same date that share a minute. An unknown final clashes with nothing. */
+function examsClash(a: OptExam | null | undefined, b: OptExam | null | undefined): boolean {
+  return !!a && !!b && a.date === b.date && a.start < b.end && b.start < a.end;
 }
 
 /** Same day, overlapping times, and a week both run in. Date-disjoint meetings never conflict. */
@@ -633,12 +647,13 @@ export function prepare(
 }
 
 /**
- * Two sections can never be chosen together when any of their meetings
- * conflict, or when, merged, a back-to-back pair across them breaks the
- * walking check with a break too short for any other class to sit in
- * between (so the pair stays back-to-back in every schedule).
+ * Two sections can never be chosen together when their finals overlap, when
+ * any of their meetings conflict, or when, merged, a back-to-back pair
+ * across them breaks the walking check with a break too short for any other
+ * class to sit in between (so the pair stays back-to-back in every schedule).
  */
 function incompatible(a: Candidate, b: Candidate, tightPair: (prev: PreparedMeeting, next: PreparedMeeting) => boolean): boolean {
+  if (examsClash(a.section.exam, b.section.exam)) return true;
   for (const ma of a.meetings) {
     for (const mb of b.meetings) {
       if (overlaps(ma, mb)) return true;
@@ -653,22 +668,25 @@ function incompatible(a: Candidate, b: Candidate, tightPair: (prev: PreparedMeet
 }
 
 /**
- * Of sections with identical meetings in identical buildings, keep the one
- * with the lowest (self cost, most instructor evidence, id). Every other
- * cost term and every hard constraint depend only on meetings and
- * buildings, and the diversity rule only on meeting times, so the kept twin
- * is at least as good in every schedule and wins the tie-break: the dropped
- * twin can never be returned at any rank. Twins share meetings, so their
- * schedules differ only by the twin's own evidence contribution; the
- * stronger one wins every comparison, and equal contributions fall back to
- * the id as before. When neither the walking weight nor the walking check
- * is on, buildings affect nothing, so sections with the same times are
- * twins regardless of room.
+ * Of sections with identical meetings in identical buildings and the same
+ * final, keep the one with the lowest (self cost, most instructor evidence,
+ * id). Every other cost term and every hard constraint depend only on
+ * meetings, buildings and the final, and the diversity rule only on meeting
+ * times, so the kept twin is at least as good in every schedule and wins the
+ * tie-break: the dropped twin can never be returned at any rank. Twins share
+ * meetings, so their schedules differ only by the twin's own evidence
+ * contribution; the stronger one wins every comparison, and equal
+ * contributions fall back to the id as before. When neither the walking
+ * weight nor the walking check is on, buildings affect nothing, so sections
+ * with the same times and final are twins regardless of room.
  */
 function dropTwins(candidates: Candidate[], walkingMatters: boolean): Candidate[] {
   const best = new Map<string, Candidate>();
   for (const candidate of candidates) {
-    const key = walkingMatters ? fullSignatureOf(candidate.section.meetings) : timeSignatureOf(candidate.section.meetings);
+    // Without a final the key is the meetings' alone, as it was before finals were checked.
+    const exam = candidate.section.exam;
+    const examKey = exam ? `#${exam.date}/${exam.start}-${exam.end}` : "";
+    const key = (walkingMatters ? fullSignatureOf(candidate.section.meetings) : timeSignatureOf(candidate.section.meetings)) + examKey;
     const current = best.get(key);
     if (
       !current ||
