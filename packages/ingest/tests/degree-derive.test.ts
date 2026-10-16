@@ -14,18 +14,18 @@ const dataDir = path.resolve(import.meta.dir, "../data/catalog/unt-2026-27");
 describe("parseCourseListText", () => {
   test("extracts subject/number codes and titles from catalog bullets", () => {
     const parsed = parseCourseListText("MATH 1710 - Calculus I");
-    expect(parsed.courses).toEqual([{ code: "MATH 1710", title: "Calculus I" }]);
-    expect(parsed.connector).toBeNull();
+    expect(parsed).toEqual([{ courses: [{ code: "MATH 1710", title: "Calculus I" }], connector: null }]);
   });
 
   test("reads a trailing conjunction printed in the title", () => {
     const parsed = parseCourseListText("CSCE 1030 - Computer Science I and/or");
-    expect(parsed.courses).toEqual([{ code: "CSCE 1030", title: "Computer Science I" }]);
-    expect(parsed.connector).toBe("or");
+    expect(parsed).toEqual([{ courses: [{ code: "CSCE 1030", title: "Computer Science I" }], connector: "or" }]);
   });
 
   test("unknown trailing text is not a connector", () => {
-    expect(parseCourseListText("CSCE 1030 - Computer Science I (preferred)").connector).toBeNull();
+    expect(parseCourseListText("CSCE 1030 - Computer Science I (preferred)")).toEqual([
+      { courses: [{ code: "CSCE 1030", title: "Computer Science I (preferred)" }], connector: null },
+    ]);
   });
 });
 
@@ -180,5 +180,41 @@ describe("derived requirement trees on the captured catalog pages", () => {
       };
       for (const node of program.requirements) walk(node as never);
     }
+  });
+});
+
+describe("review round nine: connectors between a bullet's own courses", () => {
+  test("an internal or splits one bullet into two alternatives", () => {
+    const pieces = parseCourseListText("HIST 2610 - United States History to 1865 or HIST 2620 - United States History Since 1865");
+    expect(pieces).toEqual([
+      { courses: [{ code: "HIST 2610", title: "United States History to 1865" }], connector: "or" },
+      { courses: [{ code: "HIST 2620", title: "United States History Since 1865" }], connector: null },
+    ]);
+    const items = pieces.map((piece) => ({ type: "courseGroup" as const, courses: piece.courses, connector: piece.connector }));
+    const units = parseUnits(items);
+    expect(units).toEqual([
+      { must: ["HIST 2610"], either: [], orBefore: false },
+      { must: ["HIST 2620"], either: [], orBefore: true },
+    ]);
+    // The or-joined unit extends the first slot's alternatives: one course of
+    // the bullet satisfies it, not both.
+    expect(allSlots(units)).toEqual([{ alternatives: [{ must: ["HIST 2610"] }, { must: ["HIST 2620"] }] }]);
+  });
+
+  test("an internal and/or reads as or", () => {
+    const pieces = parseCourseListText("CSCE 1030 - Computer Science I and/or CSCE 1035 - Computer Science II");
+    expect(pieces.map((piece) => piece.connector)).toEqual(["or", null]);
+  });
+
+  test("an internal and keeps one required combination", () => {
+    const pieces = parseCourseListText("CHEM 1410 - General Chemistry I and CHEM 1430 - Laboratory Connections");
+    expect(pieces.map((piece) => piece.connector)).toEqual(["and", null]);
+    const items = pieces.map((piece) => ({ type: "courseGroup" as const, courses: piece.courses, connector: piece.connector }));
+    expect(parseUnits(items)).toEqual([{ must: ["CHEM 1410", "CHEM 1430"], either: [], orBefore: false }]);
+  });
+
+  test("an and followed by prose stays inside the title", () => {
+    const pieces = parseCourseListText("BIOL 2041 - Microbiology and Laboratory Procedures");
+    expect(pieces).toEqual([{ courses: [{ code: "BIOL 2041", title: "Microbiology and Laboratory Procedures" }], connector: null }]);
   });
 });

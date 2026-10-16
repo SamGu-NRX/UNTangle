@@ -85,7 +85,7 @@ describe("minGrade policy against a C floor", () => {
   });
 });
 
-const inProgressCourse = (code: string, credits = 3): AuditCourse => ({ code, grade: null, credits, sourceKind: "unt", inProgress: true });
+const inProgressCourse = (code: string, credits: number | null = 3): AuditCourse => ({ code, grade: null, credits, sourceKind: "unt", inProgress: true });
 
 const base = { id: "synthetic-scopes", name: "Synthetic scopes", catalogId: "catoid-test", sourceUrl: "https://example.test/synthetic", coreSharedCourses: [] };
 
@@ -398,3 +398,73 @@ describe("review round eight: planned allocation and scoped hour totals", () => 
   });
 });
 
+
+describe("review round nine: mixed completed and planned credit in hours details", () => {
+  test("an allocated node with completed and planned hours reports the planned amount", () => {
+    const mixed: ProgramData = {
+      ...base,
+      oneCourseOneArea: true,
+      requirements: [{
+        kind: "hours",
+        name: "Component Area Option A",
+        hours: 6,
+        citation,
+        options: [{ must: ["PHIL 2510"] }, { must: ["PHIL 2500"] }],
+      }],
+    };
+    const result = auditProgram(mixed, [course("PHIL 2510", "A"), inProgressCourse("PHIL 2500")]);
+    expect(result.requirements[0]!.status).toBe("inProgress");
+    expect(result.requirements[0]!.detail).toContain("3/6 hours");
+    expect(result.requirements[0]!.detail).toContain(", 3 planned");
+  });
+
+  test("the non-allocated node shows the same planned amount", () => {
+    const mixed: ProgramData = {
+      ...base,
+      requirements: [{
+        kind: "hours",
+        name: "Component Area Option A",
+        hours: 6,
+        citation,
+        options: [{ must: ["PHIL 2510"] }, { must: ["PHIL 2500"] }],
+      }],
+    };
+    const result = auditProgram(mixed, [course("PHIL 2510", "A"), inProgressCourse("PHIL 2500")]);
+    expect(result.requirements[0]!.status).toBe("inProgress");
+    expect(result.requirements[0]!.detail).toContain("3/6 hours");
+    expect(result.requirements[0]!.detail).toContain(", 3 planned");
+  });
+
+  test("a node satisfied by completed hours reports no planned amount", () => {
+    const done: ProgramData = {
+      ...base,
+      oneCourseOneArea: true,
+      requirements: [{
+        kind: "hours",
+        name: "Component Area Option A",
+        hours: 3,
+        citation,
+        options: [{ must: ["PHIL 2510"] }, { must: ["PHIL 2500"] }],
+      }],
+    };
+    const result = auditProgram(done, [course("PHIL 2510", "A"), inProgressCourse("PHIL 2500")]);
+    expect(result.requirements[0]!.status).toBe("satisfied");
+    expect(result.requirements[0]!.detail).not.toContain("planned");
+  });
+
+  test("planned hours with unknown credit values are surfaced, not hidden", () => {
+    const mixed: ProgramData = {
+      ...base,
+      requirements: [{
+        kind: "hours",
+        name: "Component Area Option A",
+        hours: 6,
+        citation,
+        options: [{ must: ["PHIL 2510"] }, { must: ["PHIL 2500"] }],
+      }],
+    };
+    const result = auditProgram(mixed, [course("PHIL 2510", "A"), inProgressCourse("PHIL 2500", null)]);
+    expect(result.requirements[0]!.status).toBe("inProgress");
+    expect(result.requirements[0]!.detail).toContain("planned credit hours unknown");
+  });
+});

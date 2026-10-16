@@ -191,10 +191,11 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
         // all completed and unclaimed is taken (and claims them) until the
         // hours are met. A course claimed here cannot satisfy a later node,
         // which is how the catalog's double-dip rule behaves. When the node is
-        // still short, in-progress rows plan the remaining hours: each counted
-        // option claims its in-progress codes into the same allocation, so a
-        // live course contributes planned hours to exactly one area, and a
-        // node already satisfied by completed work claims nothing further.
+        // Each counted option claims its in-progress codes into the same
+        // allocation, so a live course contributes planned hours to exactly one
+        // area, and a node already satisfied by completed work claims nothing
+        // further. The planned amount is reported whenever any live credit was
+        // counted: completed and planned hours mix without hiding the live term.
         let courses = 0;
         let credits = 0;
         let unknownCredits = false;
@@ -225,7 +226,7 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
             }
           }
         }
-        const detail = `${courses} course${courses === 1 ? "" : "s"}, ${credits}/${node.hours} hours${unknownCredits ? " (some credit hours unknown)" : ""}${plannedCredits > credits ? `, ${plannedCredits} planned` : ""}`;
+        const detail = `${courses} course${courses === 1 ? "" : "s"}, ${credits}/${node.hours} hours${unknownCredits ? " (some credit hours unknown)" : ""}${plannedCredits > 0 ? `, ${plannedCredits} planned` : ""}${plannedUnknown ? " (planned credit hours unknown)" : ""}`;
         const status = credits >= node.hours ? "satisfied" : plannedCredits > credits || plannedUnknown || courses > 0 ? "inProgress" : "unsatisfied";
         return { name: node.name, status, detail, citation: cite };
       }
@@ -236,20 +237,6 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
       // the node in progress instead of unsatisfied. Each counted option claims
       // its in-progress codes in a node-local set, so one live course cannot
       // contribute planned hours to two overlapping options.
-      let plannedTotal = 0;
-      let plannedUnknown = false;
-      const plannedUsed = new Set<string>();
-      for (const option of node.options) {
-        if (plannedTotal >= node.hours) break;
-        if (!option.must.every((code) => (completed.has(code) || inProgress.has(code)) && !plannedUsed.has(code))) continue;
-        for (const code of option.must) {
-          if (!inProgress.has(code)) continue;
-          const value = creditsByCode.get(code);
-          if (value === undefined) plannedUnknown = true;
-          else plannedTotal += value;
-          plannedUsed.add(code);
-        }
-      }
       let total = 0;
       let unknownCredits = false;
       for (const code of usedCodes) {
@@ -257,7 +244,27 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
         if (value === undefined) unknownCredits = true;
         else total += value;
       }
-      const detail = `${covered} course${covered === 1 ? "" : "s"}, ${total}/${node.hours} hours${unknownCredits ? " (some credit hours unknown)" : ""}${plannedTotal > total ? `, ${plannedTotal} planned` : ""}`;
+      // Planned coverage only fills a node the completed hours have not met —
+      // a satisfied node reports no planned hours — and the detail exposes the
+      // planned amount whenever any in-progress credit was counted, so a mix
+      // of completed and planned hours does not hide the live term.
+      let plannedTotal = 0;
+      let plannedUnknown = false;
+      const plannedUsed = new Set<string>();
+      if (total < node.hours) {
+        for (const option of node.options) {
+          if (plannedTotal >= node.hours - total) break;
+          if (!option.must.every((code) => (completed.has(code) || inProgress.has(code)) && !plannedUsed.has(code))) continue;
+          for (const code of option.must) {
+            if (!inProgress.has(code)) continue;
+            const value = creditsByCode.get(code);
+            if (value === undefined) plannedUnknown = true;
+            else plannedTotal += value;
+            plannedUsed.add(code);
+          }
+        }
+      }
+      const detail = `${covered} course${covered === 1 ? "" : "s"}, ${total}/${node.hours} hours${unknownCredits ? " (some credit hours unknown)" : ""}${plannedTotal > 0 ? `, ${plannedTotal} planned` : ""}${plannedUnknown ? " (planned credit hours unknown)" : ""}`;
       const status = total >= node.hours ? "satisfied" : plannedTotal > total || plannedUnknown || covered > 0 ? "inProgress" : "unsatisfied";
       return { name: node.name, status, detail, citation: cite };
     }

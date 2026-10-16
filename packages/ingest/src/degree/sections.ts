@@ -7,11 +7,15 @@ import { parseHtml, isElement, hasClass, type HtmlElement, type HtmlNode } from 
  * extraction here stays a faithful, testable view of the page.
  *
  * Course lists keep the catalog's own option structure:
- * - a `courseGroup` is one bullet's courses in order; a bullet holding several
- *   courses ("CHEM 1410 ... and CHEM 1430 ...") requires all of them together;
+ * - a `courseGroup` is one conjunction-free run of a bullet's courses; the
+ *   conjunctions printed between a bullet's own courses split it into several
+ *   groups ("A 1000 ... or B 1000 ..." becomes two groups tied by "or"), so
+ *   parseUnits sees the alternatives the catalog prints. A bullet joined by
+ *   "and" still requires its courses together, because "and" merges the runs
+ *   into one unit;
  * - the conjunction that ties a bullet to the next one — a standalone marker
  *   bullet ("or", "and", "with either") or the trailing conjunction printed in
- *   the course title ("... and/or") — is preserved as `connector`.
+ *   the course title ("... and/or") — is preserved as the last group's `connector`.
  */
 
 export type CourseRef = { code: string; title: string };
@@ -50,29 +54,53 @@ export function normalizeConnector(raw: string): string | null {
   return null;
 }
 
+/** One courseGroup-worthy run: this bullet's courses plus the conjunction
+ * tying the run to the next one. */
+export type CourseGroupPiece = { courses: CourseRef[]; connector: string | null };
+
 /**
- * Splits one bullet's text into course segments on conjunctions that are
+ * Splits one bullet's text into course pieces on conjunctions that are
  * followed by another course. A conjunction followed by a course IS the
- * catalog's option structure ("A and B", "A or B"); one followed by other
- * text ("Procedures and Manuals") belongs to the title and must stay.
+ * catalog's option structure ("A and B", "A or B"): each conjunction closes
+ * the current piece and starts the next, so "A or B" parses as two groups
+ * tied by "or" — alternatives — while "A and B" parses as two groups tied by
+ * "and", which parseUnits merges into one required combination. A conjunction
+ * followed by other text ("Procedures and Manuals") belongs to the title and
+ * stays inside it.
  */
-export function parseCourseListText(text: string): { courses: CourseRef[]; connector: string | null } {
+export function parseCourseListText(text: string): CourseGroupPiece[] {
   const segments = text.split(COURSE_LOOKAHEAD_SPLIT);
-  const courses: CourseRef[] = [];
-  let lastConnector: string | null = null;
-  // split() interleaves segments and captured separators: [seg, sep, seg, ...]
-  for (let i = 0; i < segments.length; i += 2) {
+  const pieces: CourseGroupPiece[] = [];
+  let current: CourseRef[] = [];
+  let pending: string | null = null;
+  let trailing: string | null = null;
+  for (let i = 0; i < segments.length; i += 1) {
+    if (i % 2 === 1) {
+      pending = normalizeConnector(segments[i]);
+      continue;
+    }
     const match = COURSE_PATTERN.exec(segments[i].trim());
     if (!match) continue;
+    if (pending !== null) {
+      pieces.push({ courses: current, connector: pending });
+      current = [];
+      pending = null;
+    }
     // A conjunction printed at the very end of the bullet is never followed by
     // a course, so the lookahead does not split it off; it sits in the title.
     const connectorMatch = TRAILING_CONNECTOR.exec(match[3]);
     const title = connectorMatch ? match[3].replace(TRAILING_CONNECTOR, "").trim() : match[3].trim();
-    if (connectorMatch) lastConnector = normalizeConnector(connectorMatch[1]);
-    courses.push({ code: `${match[1]} ${match[2]}`, title });
+    if (connectorMatch) trailing = normalizeConnector(connectorMatch[1]);
+    current.push({ code: `${match[1]} ${match[2]}`, title });
   }
-  const lastSeparator = segments.length % 2 === 0 ? normalizeConnector(segments[segments.length - 1]) : null;
-  return { courses, connector: courses.length > 0 ? (lastSeparator ?? lastConnector) : null };
+  if (current.length > 0) {
+    // A split whose array ends on a captured separator (the conjunction's
+    // follow-on never parsed as a course) reads as the bullet's trailing
+    // conjunction, as does one printed in the last title.
+    const bulletConnector = (segments.length % 2 === 0 ? normalizeConnector(segments[segments.length - 1]) : null) ?? trailing;
+    pieces.push({ courses: current, connector: bulletConnector });
+  }
+  return pieces;
 }
 
 /** Walks the element tree in document order, collecting flow items. */
@@ -142,7 +170,7 @@ function collectList(list: HtmlElement, out: FlowItem[]): void {
       if (MARKER_PATTERN.test(ownText)) out.push({ type: "marker", text: ownText.toLowerCase() });
       else if (COURSE_PATTERN.test(ownText) || /[A-Z]{3,5}\s?\d{4}/.test(ownText)) {
         const parsed = parseCourseListText(ownText);
-        if (parsed.courses.length > 0) out.push({ type: "courseGroup", courses: parsed.courses, connector: parsed.connector });
+        if (parsed.length > 0) for (const piece of parsed) out.push({ type: "courseGroup", courses: piece.courses, connector: piece.connector });
         else out.push({ type: "paragraph", text: ownText });
       } else out.push({ type: "paragraph", text: ownText });
     }

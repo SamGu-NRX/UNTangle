@@ -4,7 +4,7 @@
 export const DEGREE_DATA = {
   "catalogId": "catoid-40",
   "catalogYear": "2026-2027",
-  "builtAt": "2026-10-15T21:18:52.158Z",
+  "builtAt": "2026-10-16T00:02:54.873Z",
   "pages": [
     {
       "file": "cs-bs.html",
