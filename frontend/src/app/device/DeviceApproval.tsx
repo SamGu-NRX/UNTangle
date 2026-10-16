@@ -15,6 +15,13 @@ type Grant = {
   scheduleId: string | null;
 };
 
+/**
+ * The only schedule id an extension grant can be used with: the extension
+ * routes refuse every other (MAIN_SCHEDULE_ROLE in server/extension/main-schedule.ts,
+ * which approval-dom.test.tsx pins this to). It means the student's Main.
+ */
+export const EXTENSION_SCHEDULE_ID = "main";
+
 class RequestError extends Error {
   constructor(public status: number, public retryAfterSeconds: number | null = null, public errorCode: string | null = null) {
     super("Device request failed");
@@ -223,13 +230,17 @@ export function DeviceApproval({ initialUserCode = "" }: { initialUserCode?: str
           <p className={styles.client}>{grant.clientKind === "mobile" ? "UNTangle mobile app" : "UNTangle browser extension"}</p>
           <p>Compare this code with the one in your app or extension.</p>
           <p className={styles.code}>{grant.userCode}</p>
+          {grant.clientKind === "extension" && grant.scheduleId !== EXTENSION_SCHEDULE_ID
+            // Approving would grant nothing the extension can use, so the page offers no approval.
+            ? <p role="alert" className={styles.error}>UNTangle can&apos;t connect this request. In the extension, select Sign in again to get a new code.</p>
+            : <>
           <p>Only approve if you started this request and both codes match.</p>
           <div className={styles.permissions}>
             <h2 className={styles.subtitle}>What this device can do</h2>
             {grant.clientKind === "mobile" ? <p>Read and change your saved plans and preferences</p> : <>
-              <p>View the selected schedule</p>
-              <p>Add a section after you confirm</p>
-              <p className={styles.identifier}>Schedule identifier: {grant.scheduleId ?? "No schedule selected"}</p>
+              {/* The grant's schedule id is the Main role, "main", whatever the term: the student's Main for each term they add to. */}
+              <p>See your Main schedule in UNTangle</p>
+              <p>Add sections to Main after you confirm each one</p>
             </>}
             <p>It cannot change your password or delete your account.</p>
           </div>
@@ -263,6 +274,7 @@ export function DeviceApproval({ initialUserCode = "" }: { initialUserCode?: str
                 <Button variant="ink" size="lg" disabled={busy} onClick={() => { setCodeSent(false); setOtp(""); setError(""); setMessage(""); }}>Change email</Button>
               </div>
             </form>}
+          </>}
           <Button variant="ink" size="lg" disabled={busy} onClick={() => { setGrant(null); setError(""); setMessage(""); }}>Use a different device code</Button>
         </div>
       )}

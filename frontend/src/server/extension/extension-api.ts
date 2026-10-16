@@ -48,6 +48,14 @@ export const extensionPreviewSchema = z.strictObject({
   unknownReason: extensionUnknownReasonSchema.optional(),
   /** The section is already in Main. */
   inSchedule: z.boolean().optional(),
+  /**
+   * Set only when the class search's term is one UNTangle doesn't plan: the
+   * terms it does plan, as students say them ("Spring 2027"). The reason
+   * stays schedule-unavailable, which builds without this field already
+   * understand, so this is the only thing that tells the panel the term
+   * apart from an outage.
+   */
+  plannedTerms: z.array(text(40)).min(1).max(4).optional(),
 });
 
 /** The extension's AddOptionCommand, in its exact five-key wire shape. */

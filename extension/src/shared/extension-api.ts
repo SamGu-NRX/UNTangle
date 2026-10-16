@@ -46,6 +46,13 @@ export interface Preview {
   grades?: PreviewGrades;
   /** The section is already in Main. */
   inSchedule?: boolean;
+  /**
+   * Set only when the class search's term is one UNTangle doesn't plan: the
+   * terms it does plan, "Spring 2027". It comes with unknownReason
+   * schedule-unavailable, which an outage sends too, so it is what tells the
+   * two apart.
+   */
+  plannedTerms?: string[];
 }
 export interface AddOptionCommand {
   command: "add-option";
@@ -113,7 +120,8 @@ function hasValidLayoutFields(x: Record<string, unknown>): boolean {
     && (x.clashes === undefined || isList(x.clashes, 12, isClash))
     && (x.unknownReason === undefined || x.unknownReason === "no-set-time" || x.unknownReason === "schedule-time-missing" || x.unknownReason === "schedule-unavailable")
     && (x.grades === undefined || isGrades(x.grades))
-    && (x.inSchedule === undefined || typeof x.inSchedule === "boolean");
+    && (x.inSchedule === undefined || typeof x.inSchedule === "boolean")
+    && (x.plannedTerms === undefined || (Array.isArray(x.plannedTerms) && x.plannedTerms.length > 0 && isList(x.plannedTerms, 4, term => isText(term, 40))));
 }
 export function isPreview(x: unknown): x is Preview {
   return isRecord(x) && isId(x.scheduleId) && isId(x.optionId) && isRevision(x.revision) && typeof x.title === "string" && x.title.length <= 160 && (x.conflict === "clear" || x.conflict === "conflict" || x.conflict === "unknown") && Array.isArray(x.details) && x.details.length <= 30 && x.details.every(s => typeof s === "string" && s.length <= 500) && hasValidLayoutFields(x);
