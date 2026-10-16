@@ -392,6 +392,15 @@ async function main() {
     await onScreen(restartedPanel, "preview", "Foundations of Computing");
     step("rejection, load failure, a lapsed grant discarding its add, sign-out with revocation and a new grant each show their own panel state");
 
+    // An account with no Main can't take an add, so the panel says why and offers none.
+    await knobs({ noMain: true });
+    await propose(restartedPage, restartedPanel, "SSR_CLSRCH_R2", "no Main schedule");
+    if (await restartedPanel.locator("#confirm").count()) throw new Error("The panel offered an add that UNTangle refuses without a Main schedule");
+    if ((await restartedPanel.locator("#view").innerText()).match(/no Main schedule/g)?.length !== 1) throw new Error("The no-Main reason should show once, as the verdict");
+    await shootPanel(restartedPanel, "no-main");
+    await knobs({ noMain: false });
+    step("an account with no Main sees why and gets no add that would fail");
+
     const transcript = await context.newPage(); await transcript.goto(`${MOCK}/transcript`);
     if (await transcript.locator("[data-unt-row]").count()) throw new Error("Content script ran outside class search");
     step("ALL ASSERTIONS PASSED: device sign-in with a matching code, refresh before use, markers, private panel, stale preview, restart replay, sign-out with revocation and every panel state");

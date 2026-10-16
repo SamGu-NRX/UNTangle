@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import styles from "./device.module.css";
+import { isUntEmail, untEmailRequirementMessage } from "@/lib/unt-auth";
 import { deviceGrantDetails, deviceScopes } from "../../../../packages/contracts/src/device-grant";
 
 type Account = { id: string; email: string };
@@ -81,6 +82,8 @@ export function DeviceApproval({ initialUserCode = "" }: { initialUserCode?: str
   const [account, setAccount] = useState<Account | null>(null);
   const [sessionState, setSessionState] = useState<"loading" | "ready" | "error">("loading");
   const [email, setEmail] = useState("");
+  // The server refuses a non-UNT address with a 400 the page can't tell from a network failure, so check first.
+  const [emailError, setEmailError] = useState("");
   const [otp, setOtp] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [message, setMessage] = useState("");
@@ -138,6 +141,10 @@ export function DeviceApproval({ initialUserCode = "" }: { initialUserCode?: str
 
   function sendEmailCode(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
+    if (!isUntEmail(email)) {
+      setEmailError(untEmailRequirementMessage());
+      return;
+    }
     void run(async () => {
       await post("/api/auth/email-otp/send-verification-otp", { email: email.trim(), type: "sign-in" });
       setCodeSent(true);
@@ -198,7 +205,9 @@ export function DeviceApproval({ initialUserCode = "" }: { initialUserCode?: str
       </h1>
       {result ? (
         <p role="status">{result === "approved"
-          ? "Return to the app. Your device has 60 seconds to finish connecting. If it doesn't connect, start again in the app."
+          ? grant?.clientKind === "extension"
+            ? "Go back to myUNT class search. The extension finishes signing in within 60 seconds. If it doesn't, select Sign in in the extension again."
+            : "Return to the app. Your device has 60 seconds to finish connecting. If it doesn't connect, start again in the app."
           : "This device wasn't connected. You can close this page."}</p>
       ) : !grant ? (
         <form className={styles.stack} onSubmit={inspect}>
@@ -239,7 +248,7 @@ export function DeviceApproval({ initialUserCode = "" }: { initialUserCode?: str
             </div>
             : !codeSent ? <form className={styles.stack} onSubmit={sendEmailCode}>
               <p>Sign in to choose whether to connect this device.</p>
-              <TextField label="Email" name="email" type="email" autoComplete="email" autoCapitalize="none" value={email} onChange={(event) => setEmail(event.target.value)} required disabled={busy} />
+              <TextField label="UNT email" name="email" type="email" autoComplete="email" autoCapitalize="none" value={email} onChange={(event) => { setEmail(event.target.value); setEmailError(""); }} required disabled={busy} help="Your @unt.edu or @my.unt.edu address." error={emailError || undefined} />
               <Button type="submit" size="lg" disabled={busy}>Send sign-in code</Button>
             </form>
             : <form className={styles.stack} onSubmit={signIn}>

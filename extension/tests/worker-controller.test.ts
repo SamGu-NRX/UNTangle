@@ -57,6 +57,19 @@ test("a page proposal returns no private preview and never sends a command", asy
   expect(f.sent).toEqual([]);
   expect((await state(worker)).preview?.preview.details).toEqual(["Work on Tuesday"]);
 });
+test("choosing the section already on screen checks it again", async () => {
+  const f = fixture();
+  let calls = 0;
+  f.api.preview = async () => { calls++; return calls === 1 ? { ...projection, conflict: "unknown", unknownReason: "schedule-unavailable", revision: 0 } : projection; };
+  const worker = f.make();
+  await worker.start();
+  expect((await state(worker)).preview?.preview.conflict).toBe("unknown");
+  // Reopening the panel alone keeps the check it has.
+  expect((await state(worker)).preview?.preview.conflict).toBe("unknown");
+  await worker.handle({ type: "proposal/request", ref });
+  expect((await state(worker)).preview?.preview).toMatchObject({ conflict: "clear", revision: 1 });
+  expect(calls).toBe(2);
+});
 test("only the displayed preview id can confirm, and storage already holds the exact command at send", async () => {
   const f = fixture();
   const worker = f.make();

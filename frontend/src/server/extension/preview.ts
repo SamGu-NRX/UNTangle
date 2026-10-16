@@ -36,16 +36,29 @@ function wordTime(minutes: number): string {
   return `${twelveHour}:${String(minutes % 60).padStart(2, "0")} ${period}`;
 }
 
-const wordMeeting = (meeting: Meeting) => ({
-  days: meeting.day ?? "Mon",
-  time: meeting.day && meeting.startMinutes !== null && meeting.endMinutes !== null
-    ? `${wordTime(meeting.startMinutes)} to ${wordTime(meeting.endMinutes)}`
-    : null,
-  // The guard bounds a room line at 40 characters; a longer room stays out rather than breaking the preview.
-  room: meeting.room && meeting.room.length <= 40 ? meeting.room : meeting.room ? null : null,
-});
+const wordRange = (start: number, end: number) => `${wordTime(start)} to ${wordTime(end)}`;
 
-const wordRoom = (meeting: Meeting) => (meeting.room && meeting.room.length <= 40 ? ` in ${meeting.room}` : "");
+/**
+ * The section's meetings as the panel lists them: meetings that share a time
+ * and room become one row, "Mon Wed Fri", the way the extension's
+ * PreviewMeeting documents its days. A meeting with no day (an online or To Be
+ * Arranged one) says so instead of borrowing a weekday.
+ */
+function wordMeetings(meetings: Meeting[]) {
+  const rows: { days: string[]; time: string | null; room: string | null }[] = [];
+  for (const meeting of meetings) {
+    const time = meeting.day && meeting.startMinutes !== null && meeting.endMinutes !== null
+      ? wordRange(meeting.startMinutes, meeting.endMinutes)
+      : null;
+    // The guard bounds a room line at 40 characters; a longer room stays out rather than breaking the preview.
+    const room = meeting.room && meeting.room.length <= 40 ? meeting.room : null;
+    const day = meeting.day ?? "No set day";
+    const same = rows.find((row) => row.time === time && row.room === room);
+    if (!same) rows.push({ days: [day], time, room });
+    else if (!same.days.includes(day)) same.days.push(day);
+  }
+  return rows.slice(0, 8).map((row) => ({ days: row.days.join(" "), time: row.time, room: row.room }));
+}
 
 /** One busy interval: a day plus a start and end in minutes after midnight. */
 type Interval = { day: Day; start: number; end: number };
@@ -58,14 +71,30 @@ const timedMeetings = (meetings: Meeting[]): Interval[] =>
 
 const overlaps = (a: Interval, b: Interval) => a.day === b.day && a.start < b.end && b.start < a.end;
 
-const wordOverlap = (a: Interval, b: Interval): string => {
-  const start = Math.max(a.start, b.start);
-  const end = Math.min(a.end, b.end);
-  return `${a.day} ${wordTime(start)} to ${wordTime(end)}`;
-};
+/** The overlap of two intervals on the same day. */
+const overlapOf = (a: Interval, b: Interval): Interval => ({ day: a.day, start: Math.max(a.start, b.start), end: Math.min(a.end, b.end) });
+
+/**
+ * One clash per course or busy block and overlap time, its days joined: a MWF
+ * section against a MWF class is one clash on "Mon Wed Fri", not three.
+ */
+function groupClashes(found: { kind: "course" | "busy"; name: string; overlap: Interval }[]): ExtensionPreviewClash[] {
+  const groups: { kind: "course" | "busy"; name: string; start: number; end: number; days: Day[] }[] = [];
+  for (const { kind, name, overlap } of found) {
+    const same = groups.find((group) => group.kind === kind && group.name === name && group.start === overlap.start && group.end === overlap.end);
+    if (!same) groups.push({ kind, name, start: overlap.start, end: overlap.end, days: [overlap.day] });
+    else if (!same.days.includes(overlap.day)) same.days.push(overlap.day);
+  }
+  return groups.map((group) => ({ kind: group.kind, name: clamp(group.name, 80), when: clamp(`${group.days.join(" ")} ${wordRange(group.start, group.end)}`, 80) }));
+}
 
 const clamp = (value: string, max: number) => (value.length <= max ? value : `${value.slice(0, max - 1)}…`);
 
+/**
+ * An unknown preview's first detail line says why nothing was compared; the
+ * panel shows it as the verdict. Every unknown branch below starts its details
+ * with that reason.
+ */
 export function buildPreview(input: PreviewInput): ExtensionPreview {
   const { scheduleId, term, classNumber, sections, schedule, blocked } = input;
   const revision = schedule?.revision ?? 0;
@@ -94,9 +123,9 @@ export function buildPreview(input: PreviewInput): ExtensionPreview {
     return extensionPreviewSchema.parse({
       scheduleId, optionId: extensionOptionId(resolved) ?? optionIdFromClassNumber(classNumber), revision,
       title: resolved.courseCode, conflict: "unknown", unknownReason: "schedule-unavailable",
-      details: ["Main is not in your UNTangle account yet. Sign in and save a schedule first."],
+      details: ["Your UNTangle account has no Main schedule yet, so there is nothing to check this section against or add it to."],
       section: clamp(resolved.sectionCode, 12),
-      meetings: resolved.meetings.slice(0, 8).map(wordMeeting),
+      meetings: wordMeetings(resolved.meetings),
     });
   }
   if (schedule.body.termId !== term) {
@@ -105,7 +134,7 @@ export function buildPreview(input: PreviewInput): ExtensionPreview {
       title: resolved.courseCode, conflict: "unknown", unknownReason: "schedule-unavailable",
       details: [`Main is for ${schedule.body.termId}; this class search is ${term}.`],
       section: clamp(resolved.sectionCode, 12),
-      meetings: resolved.meetings.slice(0, 8).map(wordMeeting),
+      meetings: wordMeetings(resolved.meetings),
     });
   }
 
@@ -120,7 +149,7 @@ export function buildPreview(input: PreviewInput): ExtensionPreview {
       scheduleId, optionId, revision, title: resolved.courseCode,
       conflict: "unknown", unknownReason: "no-set-time", details,
       section: clamp(resolved.sectionCode, 12),
-      meetings: resolved.meetings.slice(0, 8).map(wordMeeting),
+      meetings: wordMeetings(resolved.meetings),
       inSchedule,
     });
   }
@@ -137,7 +166,7 @@ export function buildPreview(input: PreviewInput): ExtensionPreview {
         scheduleId, optionId, revision, title: resolved.courseCode,
         conflict: "unknown", unknownReason: "schedule-time-missing", details,
         section: clamp(resolved.sectionCode, 12),
-        meetings: resolved.meetings.slice(0, 8).map(wordMeeting),
+        meetings: wordMeetings(resolved.meetings),
         inSchedule,
       });
     }
@@ -147,62 +176,47 @@ export function buildPreview(input: PreviewInput): ExtensionPreview {
         scheduleId, optionId, revision, title: resolved.courseCode,
         conflict: "unknown", unknownReason: "schedule-time-missing", details,
         section: clamp(resolved.sectionCode, 12),
-        meetings: resolved.meetings.slice(0, 8).map(wordMeeting),
+        meetings: wordMeetings(resolved.meetings),
         inSchedule,
       });
     }
   }
 
   // Overlaps with the other picks in Main, then with the student's calendar busy blocks.
-  const clashes: ExtensionPreviewClash[] = [];
+  const found: { kind: "course" | "busy"; name: string; overlap: Interval }[] = [];
   for (const [code, pickId] of Object.entries(schedule.body.selectedSections)) {
     if (pickId === resolved.id) continue;
     const picked = sections.find((section) => section.id === pickId);
     if (!picked) continue;
     for (const optionInterval of optionIntervals) {
-      for (const pickedInterval of timedMeetings(picked.meetings)) {
-        if (overlaps(optionInterval, pickedInterval)) {
-          clashes.push({ kind: "course", name: clamp(code, 80), when: clamp(wordOverlap(optionInterval, pickedInterval), 80) });
-          break;
-        }
-      }
+      const hit = timedMeetings(picked.meetings).find((pickedInterval) => overlaps(optionInterval, pickedInterval));
+      if (hit) found.push({ kind: "course", name: code, overlap: overlapOf(optionInterval, hit) });
     }
   }
   for (const block of blocked) {
+    const busy = { day: block.day, start: block.start, end: block.end };
     for (const optionInterval of optionIntervals) {
-      if (overlaps(optionInterval, { day: block.day, start: block.start, end: block.end })) {
-        clashes.push({
-          kind: "busy",
-          name: clamp(block.label, 80),
-          when: clamp(wordOverlap(optionInterval, { day: block.day, start: block.start, end: block.end }), 80),
-        });
+      if (overlaps(optionInterval, busy)) {
+        found.push({ kind: "busy", name: block.label, overlap: overlapOf(optionInterval, busy) });
         break;
       }
     }
   }
+  const clashes = groupClashes(found);
 
-  const meeting = resolved.meetings.find((value) => value.day !== null && value.startMinutes !== null);
-  details.push(
-    resolved.meetings.length && meeting
-      ? clamp(`Meets ${wordMeeting(meeting).days} ${wordMeeting(meeting).time}${wordRoom(meeting)}.`, 500)
-      : "No set meeting times.",
-  );
+  // Meetings and clashes are their own fields; the details carry only what
+  // nothing else in the preview says.
   details.push(resolved.seats.open !== null && resolved.seats.total !== null
     ? `${resolved.seats.open} of ${resolved.seats.total} seats open.`
     : "Seat availability unknown.");
   if (inSchedule) details.push("Already in Main.");
-  for (const clash of clashes) {
-    details.push(clash.kind === "course"
-      ? `Conflicts with ${clash.name} on ${clash.when}.`
-      : `Conflicts with your busy time ${clash.name} on ${clash.when}.`);
-  }
 
   return extensionPreviewSchema.parse({
     scheduleId, optionId, revision, title: resolved.courseCode,
     conflict: clashes.length ? "conflict" : "clear",
     details: details.slice(0, 30),
     section: clamp(resolved.sectionCode, 12),
-    meetings: resolved.meetings.slice(0, 8).map(wordMeeting),
+    meetings: wordMeetings(resolved.meetings),
     clashes: clashes.slice(0, 12),
     inSchedule,
   });

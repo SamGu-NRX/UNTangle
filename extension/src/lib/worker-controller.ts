@@ -257,6 +257,10 @@ export class WorkerController {
       }
     }
     if (request.type === "proposal/request") {
+      // A marker click always gets a fresh check, even for the section on
+      // screen: Main may have changed since, and a preview with no add on
+      // offer would otherwise stay until another section is chosen.
+      this.preview = null;
       await this.store.set("proposed-section", request.ref);
       return { proposed: true };
     }

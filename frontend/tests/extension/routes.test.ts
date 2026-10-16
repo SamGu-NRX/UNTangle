@@ -172,29 +172,52 @@ describe("extension previews", () => {
     expect(withBusy.clashes).toEqual([{ kind: "busy", name: "Work shift", when: "Tue 9:35 AM to 10:00 AM" }]);
   });
 
+  test("a Mon Wed Fri section is one meeting row, and its clash with a Mon Wed Fri class is one clash", async () => {
+    const mwf = (courseCode: string, classNumber: string, start: number, end: number, room: string) =>
+      section(courseCode, "001", [classNumber], (["Mon", "Wed", "Fri"] as const).map((day) => meeting({ day, startMinutes: start, endMinutes: end, room })));
+    const math = mwf("MATH 1680", "9000", 805, 855, "Wh 316");
+    const engl = mwf("ENGL 1310", "5907", 805, 855, "Wh 214");
+    const h = setup({ sections: [math, engl], scheduleBody: scheduleBody({ courses: ["MATH 1680"], selectedSections: { "MATH 1680": math.id } }) });
+    const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl(term, "5907")));
+    expect(preview.meetings).toEqual([{ days: "Mon Wed Fri", time: "1:25 PM to 2:15 PM", room: "Wh 214" }]);
+    expect(preview.clashes).toEqual([{ kind: "course", name: "MATH 1680", when: "Mon Wed Fri 1:25 PM to 2:15 PM" }]);
+    // The meetings and clashes are their own fields, so the details don't repeat them.
+    expect(preview.details).toEqual(["3 of 40 seats open."]);
+  });
+
+  test("an online section with no meeting day is never listed on Monday", async () => {
+    const online = section("ENGL 1310", "401", ["1397"], [meeting({ day: null, startMinutes: null, endMinutes: null, room: "UNT Internet Course" })]);
+    const h = setup({ sections: [csce1030, online], scheduleBody: scheduleBody() });
+    const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl(term, "1397")));
+    expect(preview.meetings).toEqual([{ days: "No set day", time: null, room: "UNT Internet Course" }]);
+  });
+
   test("unknown verdicts name why: missing section, no schedule, term mismatch, TBA, stale pick", async () => {
     const hMissing = setup({ sections, scheduleBody: null });
     const noSchedule = await readPreview(await hMissing.preview(await hMissing.issue()));
     expect(noSchedule.conflict).toBe("unknown");
     expect(noSchedule.unknownReason).toBe("schedule-unavailable");
-    expect(noSchedule.details.join(" ")).toContain("Sign in");
+    expect(noSchedule.details[0]).toContain("no Main schedule");
 
     const hNotFound = setup({ sections, scheduleBody: null });
     const unknownClass = await readPreview(await hNotFound.preview(await hNotFound.issue(), hNotFound.previewUrl(term, "99999")));
     expect(unknownClass.conflict).toBe("unknown");
     expect(unknownClass.unknownReason).toBe("schedule-unavailable");
-    expect(unknownClass.details.join(" ")).toContain("99999");
+    expect(unknownClass.details[0]).toContain("99999");
 
     const hTerm = setup({ sections, scheduleBody: scheduleBody({ termId: "fall-2027" }) });
     const otherTerm = await readPreview(await hTerm.preview(await hTerm.issue()));
     expect(otherTerm.conflict).toBe("unknown");
     expect(otherTerm.unknownReason).toBe("schedule-unavailable");
-    expect(otherTerm.details.join(" ")).toContain("fall-2027");
+    expect(otherTerm.details[0]).toContain("fall-2027");
 
     const hTba = setup({ sections, scheduleBody: scheduleBody() });
     const tba = await readPreview(await hTba.preview(await hTba.issue(), hTba.previewUrl(term, "30100")));
     expect(tba.conflict).toBe("unknown");
     expect(tba.unknownReason).toBe("no-set-time");
+    expect(tba.details[0]).toContain("To Be Arranged");
+    // A meeting with no day says so; it never borrows a weekday.
+    expect(tba.meetings).toEqual([{ days: "No set day", time: null, room: "F151" }]);
 
     const hStale = setup({
       sections,
@@ -203,12 +226,13 @@ describe("extension previews", () => {
     const stalePick = await readPreview(await hStale.preview(await hStale.issue()));
     expect(stalePick.conflict).toBe("unknown");
     expect(stalePick.unknownReason).toBe("schedule-time-missing");
-    expect(stalePick.details.join(" ")).toContain("MATH 2000");
+    expect(stalePick.details[0]).toContain("MATH 2000");
 
     const hDown = setup({ sections: null, scheduleBody: null });
     const down = await readPreview(await hDown.preview(await hDown.issue()));
     expect(down.conflict).toBe("unknown");
     expect(down.unknownReason).toBe("schedule-unavailable");
+    expect(down.details[0]).toContain("Section data is unavailable");
   });
 
   test("a section already picked in Main says so", async () => {
