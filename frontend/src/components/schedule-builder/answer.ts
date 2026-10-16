@@ -5,6 +5,7 @@
  * Pure, so the wording has one tested answer.
  */
 import type { Day } from "@/lib/sections";
+import { examLongDay, type WeekFinal } from "./finals";
 import type { SchedulePreferences } from "@/lib/types";
 import { meetTogether } from "./conflicts";
 import { andList, clashes, clock, clockWithSuffix, DAY_NAME, DAY_ORDER, shortDate, type GridEvent, type WalkLeg } from "./week";
@@ -28,9 +29,11 @@ export type AnswerCourse = {
 };
 
 /**
- * The first that applies: loading, a clash, a course that needs a pick, a
- * tight or late walk, a broken preference, or the all-clear. Null when the
- * week is empty (the grid shows its own empty state).
+ * The first that applies: loading, a clash, overlapping finals, a course
+ * that needs a pick, a tight or late walk, a broken preference, or the
+ * all-clear. Finals come before a pick because the overlap is between
+ * sections already on the week, which the student can act on at once. Null when the week is empty (the grid shows its own empty
+ * state).
  */
 export function answerFor(input: {
   courses: readonly AnswerCourse[];
@@ -38,6 +41,8 @@ export function answerFor(input: {
   walks: readonly WalkLeg[];
   preferences: SchedulePreferences;
   termLabel: string;
+  /** The week's finals (finals.ts); absent when the host has none. */
+  finals?: readonly WeekFinal[];
 }): Answer | null {
   const { courses, events, walks, preferences } = input;
   if (courses.length === 0) return null;
@@ -50,6 +55,16 @@ export function answerFor(input: {
     if (!b) continue;
     const days = new Set(events.filter((x) => x.courseCode === a.courseCode && events.some((y) => y.courseCode === b.courseCode && clashes(x, y))).map((x) => x.day));
     return { tone: "danger", text: `${a.courseCode} overlaps ${b.courseCode} on ${dayNames(days)}.`, action: "fix" };
+  }
+
+  const final = input.finals?.find((entry) => entry.clashesWith.length > 0);
+  if (final && final.exam.kind === "known") {
+    // A projected time can still move when UNT publishes the term's finals, so it is a check, not a conflict.
+    return {
+      tone: final.exam.projected ? "attention" : "danger",
+      text: `${final.courseCode} and ${final.clashesWith[0]} finals overlap on ${examLongDay(final.exam.exam)}.`,
+      action: "fix",
+    };
   }
 
   const pick = courses.find((course) => course.state === "pick");
@@ -156,8 +171,8 @@ function whereTo(now: readonly GridEvent[], next: readonly GridEvent[]): string 
  * end at 4:50."). When one course moves, the gain says which.
  */
 export function describeAlternative(
-  now: { events: readonly GridEvent[]; walks: readonly WalkLeg[] },
-  next: { events: readonly GridEvent[]; walks: readonly WalkLeg[] },
+  now: { events: readonly GridEvent[]; walks: readonly WalkLeg[]; finalsClashes?: number },
+  next: { events: readonly GridEvent[]; walks: readonly WalkLeg[]; finalsClashes?: number },
 ): string {
   const a = figuresOf(now.events, now.walks);
   const b = figuresOf(next.events, next.walks);
@@ -166,6 +181,9 @@ export function describeAlternative(
 
   const gains: string[] = [];
   if (b.clashes < a.clashes) gains.push(b.clashes === 0 ? "Fixes the overlap" : "Has fewer overlaps");
+  const finalsNow = now.finalsClashes ?? 0;
+  const finalsNext = next.finalsClashes ?? 0;
+  if (finalsNext < finalsNow) gains.push(finalsNext === 0 ? "Fixes the overlapping finals" : "Has fewer overlapping finals");
   if (freed.length > 0) gains.push(`Frees ${dayNames(freed)}`);
   // The walk to PHYS 2220 on Monday and Wednesday is one walk to the student, so count destinations.
   const badTo = (walks: readonly WalkLeg[]) => new Set(walks.filter((w) => w.kind !== "ok").map((w) => w.toCourse)).size;
@@ -176,6 +194,7 @@ export function describeAlternative(
 
   const costs: string[] = [];
   if (b.clashes > a.clashes) costs.push("two classes overlap");
+  if (finalsNext > finalsNow) costs.push("two finals overlap");
   if (added.length > 0) costs.push(`adds ${dayNames(added)}`);
   const later = DAY_ORDER.filter((day) => a.endOf.has(day) && (b.endOf.get(day) ?? -Infinity) - a.endOf.get(day)! >= NOTICE_MIN);
   if (later.length > 0) {

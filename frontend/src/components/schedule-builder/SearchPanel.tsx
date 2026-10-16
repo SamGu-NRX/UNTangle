@@ -235,6 +235,7 @@ export function SearchPanel({ host, query, onQuery, week, onPlace, onPreview, au
                         highlightId={found?.state === "found" ? found.sectionId : null}
                         onPlace={onPlace}
                         onPreview={onPreview}
+                        finals={host.finals}
                       />
                     )}
                   </div>
