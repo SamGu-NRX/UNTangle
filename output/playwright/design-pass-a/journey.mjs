@@ -371,7 +371,7 @@ async function plansCompareRestore(page, size) {
   const table = page.getByRole("table").first();
   await table.waitFor();
   const labels = await table.locator("tbody th").allInnerTexts();
-  check(size, "library: the comparison has each plan's credits and the five figures", JSON.stringify(labels) === JSON.stringify(["Credits", "Days on campus", "First class", "Last class ends", "Walking a week", "Tight walks"]), JSON.stringify(labels));
+  check(size, "library: the comparison has each plan's credits and the five figures", JSON.stringify(labels) === JSON.stringify(["Credits", "Days on campus", "First class", "Last class ends", "Walking a week", "Tight or late walks"]), JSON.stringify(labels));
   check(size, "library: A, Both and B are one segmented control", (await page.getByRole("radiogroup", { name: "Show" }).getByRole("radio").count()) === 3);
   // The import and the claimed credit differ: #37's field-level comparison sits one step away.
   await page.getByRole("button", { name: /^More differences/ }).click();

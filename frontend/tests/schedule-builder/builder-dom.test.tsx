@@ -198,6 +198,128 @@ describe("Week", () => {
     await view.unmount();
   });
 
+  test("Auto's sentence and Details follow the student's time of day", async () => {
+    // Option 1 moves CSCE 2110 from 2:00 to 9:00, so the week starts at 9:00 instead of 10:00.
+    const week = [course(csceLate), course(math)];
+    const option1 = { "CSCE 2110": csce.id, "MATH 2700": math.id };
+    const cases = [
+      { mornings: 4, sentence: "Starts at 9:00 instead of 10:00 by moving CSCE 2110 to 9:00.", firstClass: "better" },
+      // With no lean, the week ending at 10:50 instead of 2:50 is the gain, and the earlier start the cost.
+      { mornings: 0, sentence: "Ends by 10:50, but Monday, Wednesday and Friday start at 9:00.", firstClass: "worse" },
+    ];
+    for (const { mornings, sentence, firstClass } of cases) {
+      const leaning = { ...preferences, weights: { ...preferences.weights, mornings } };
+      const start = host(week);
+      const view = await render({ ...start.value, preferences: leaning });
+      await click(buttons(view.container, /^Auto/)[0]);
+      await view.update({ ...host(week, { runId: 1, status: "done", options: [option1] }).value, preferences: leaning });
+      // The strip keeps course codes whole with a no-break space.
+      // The strip's text is its count, the sentence, then its buttons.
+      expect(view.container.querySelector('[aria-label="Other weeks Auto found"]')!.textContent?.replace(/\u00a0/g, " ")).toBe(`1 of 1${sentence}DetailsUse this`);
+      await click(buttons(view.container, /^Details$/)[0]);
+      const row = [...document.querySelectorAll("aside tr")].find((tr) => tr.querySelector("th")?.textContent === "First class")!;
+      expect(row.querySelectorAll("td")[1].getAttribute("data-change")).toBe(firstClass);
+      await view.unmount();
+    }
+  });
+
+  test("on a phone a class's sheet and an option's Details sheet have their title and a Close button", async () => {
+    const realMatch = window.matchMedia;
+    // The phone layout (PHONE_QUERY in use-media-query.ts); everything else stays as happy-dom answers.
+    const phoneList = (media: string) =>
+      ({ matches: true, media, onchange: null, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false }) as unknown as MediaQueryList;
+    window.matchMedia = ((query: string) => (query === "(max-width: 759px)" ? phoneList(query) : realMatch.call(window, query))) as typeof window.matchMedia;
+    try {
+      const week = [course(csceLate), course(math)];
+      const view = await render(host(week).value);
+      await click(view.container.querySelector('[data-key="CSCE 2110#0"]')!);
+      let sheet = document.querySelector<HTMLElement>('[role="dialog"]')!;
+      expect(sheet.querySelector("h2")?.textContent).toBe("CSCE 2110");
+      expect(buttons(sheet, /^Close CSCE 2110$/)).toHaveLength(1);
+      await click(buttons(sheet, /^Close CSCE 2110$/)[0]);
+
+      await click(buttons(view.container, /^Auto/)[0]);
+      await view.update(host(week, { runId: 1, status: "done", options: [{ "CSCE 2110": csce.id, "MATH 2700": math.id }] }).value);
+      await click(buttons(view.container, /^Details$/)[0]);
+      sheet = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].at(-1)!;
+      expect(sheet.querySelector("h2")?.textContent).toBe("Option 1 next to your week");
+      expect(buttons(sheet, /^Close Option 1 next to your week$/)).toHaveLength(1);
+      await view.unmount();
+    } finally {
+      window.matchMedia = realMatch;
+    }
+  });
+
+  test("on a phone, Export says inside its sheet when the browser blocks copying, where a toast couldn't show", async () => {
+    const realMatch = window.matchMedia;
+    const phoneList = (media: string) =>
+      ({ matches: true, media, onchange: null, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false }) as unknown as MediaQueryList;
+    window.matchMedia = ((query: string) => (query === "(max-width: 759px)" ? phoneList(query) : realMatch.call(window, query))) as typeof window.matchMedia;
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    // The refusal Safari gives a write it doesn't allow.
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => Promise.reject(new DOMException("Not allowed", "NotAllowedError")) } });
+    try {
+      const numbered = section({ courseCode: "CSCE 2110", sectionCode: "001", classNumbers: ["12345"], meetings: [meeting({ day: "Mon", at: "9:00", until: "9:50" })] });
+      const view = await render(host([course(numbered)]).value);
+      await click(buttons(view.container, /^Export$/)[0]);
+      const sheet = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].at(-1)!;
+      await click(buttons(sheet, /^Copy all 1$/)[0]);
+      const { act } = await import("react");
+      await act(async () => {
+        await Bun.sleep(0);
+      });
+      const alert = sheet.querySelector('[role="alert"]');
+      expect(alert?.textContent).toBe("This browser blocked copying. Select the text and copy it instead.");
+      // Said beside the control that failed, in the class numbers part.
+      expect(alert?.closest("section")?.querySelector("h3")?.textContent).toContain("Class numbers for myUNT");
+      expect(document.querySelector(".ui-toast")).toBeNull();
+      await view.unmount();
+    } finally {
+      window.matchMedia = realMatch;
+      if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
+      else delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+  });
+
+  test("Export says a picture downloaded, and shows the share link to select when copying is blocked", async () => {
+    // A canvas that draws nothing and hands back an empty PNG, as tests/schedule-builder/week-png-dom.test.ts does.
+    const context = new Proxy({} as Record<string | symbol, unknown>, { get: () => () => {}, set: () => true });
+    const canvas = { width: 0, height: 0, getContext: () => context, toBlob: (done: (blob: Blob) => void) => done(new Blob()) };
+    const createElement = document.createElement.bind(document);
+    document.createElement = ((tag: string) => (tag === "canvas" ? canvas : createElement(tag))) as typeof document.createElement;
+    Object.defineProperty(document, "fonts", { value: { ready: Promise.resolve() }, configurable: true });
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => Promise.reject(new DOMException("Not allowed", "NotAllowedError")) } });
+    const { act } = await import("react");
+    try {
+      const view = await render(host([course(csce)]).value);
+      await click(buttons(view.container, /^Export$/)[0]);
+      const sheet = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].at(-1)!;
+      const part = (title: string) => [...sheet.querySelectorAll("section")].find((section) => section.querySelector("h3")?.textContent?.includes(title))!;
+
+      await click(buttons(sheet, /^Download \.png$/)[0]);
+      await act(async () => {
+        await Bun.sleep(0);
+      });
+      expect(part("Picture of the week").querySelector('[role="status"]')?.textContent).toBe("Downloaded a picture of your week");
+
+      await click(buttons(sheet, /^Copy share link$/)[0]);
+      await act(async () => {
+        await Bun.sleep(0);
+      });
+      const share = part("Share and back up");
+      expect(share.querySelector('[role="alert"]')?.textContent).toBe("This browser blocked copying. Select the link and copy it instead.");
+      const link = share.querySelector<HTMLInputElement>('input[aria-label="Share link"]');
+      expect(link?.readOnly).toBe(true);
+      expect(link?.value.startsWith("http://localhost/schedule?week=")).toBe(true);
+      await view.unmount();
+    } finally {
+      document.createElement = createElement;
+      if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
+      else delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+  });
+
   test("a result from settings that changed since can't be used", async () => {
     const week = [course(csce), course(math)];
     const view = await render(host(week).value);

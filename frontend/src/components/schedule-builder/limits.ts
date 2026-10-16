@@ -215,7 +215,8 @@ export const LEANS: Record<LeanKey, Lean> = {
     says: ["Uses whichever days fit best.", "Breaks ties toward fewer days.", "Favors fewer days on campus.", "Strongly favors fewer days on campus.", "Fits classes into as few days as it can."],
   },
   compact: {
-    title: "Short gaps",
+    // The words of Set up Auto's slider for this lean (SetupAuto.tsx, ShapePane), so its summary names what the student set.
+    title: "Time between classes",
     min: 0,
     max: 4,
     ends: ["Doesn't matter", "Back-to-back"],

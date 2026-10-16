@@ -6,6 +6,7 @@ import { CONNECT_PATH, OPEN_CONNECT_EVENT } from "@/components/connect/open-conn
 import { usePlanner } from "@/components/planner-provider";
 import { asksForMajor, LENS_HREF } from "@/components/shell/routes";
 import { useShell, useShellSearch, type ShellSearchProvider } from "@/components/shell/shell-context";
+import { Button } from "@/components/ui/Button";
 import { ContextPanel } from "@/components/ui/ContextPanel";
 import { ChevronDown } from "@/components/ui/icons";
 import { SearchTrigger } from "@/components/ui/SearchField";
@@ -33,6 +34,8 @@ import { untProfile } from "./school";
 import { TermTray } from "./TermTray";
 
 const INSTRUCTOR_ITEM = "instructor:";
+/** The groups that hold the student's own record, which show with or without a major. */
+const OWN_RECORD: ReadonlySet<GroupKey> = new Set(["taking", "done"]);
 const without = (list: readonly string[], id: string) => list.filter((value) => value !== id);
 /** A row's other place: the same course in the tray or in its group. */
 const otherPlace = (key: string) =>
@@ -90,7 +93,8 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
   const major = getMajorById(plannerState.selectedMajor) ?? null;
   // Every department's courses, one step away; by default the groups list the degree's.
   const [wide, setWide] = useState(false);
-  const groups = useMemo(() => buildGroups(model, major, wide), [model, major, wide]);
+  // Without a major the whole catalog is in scope, and hundreds of rules read as warnings; only the student's own record shows.
+  const groups = useMemo(() => buildGroups(model, major, wide).filter((group) => major || OWN_RECORD.has(group.key)), [model, major, wide]);
   const hasDepartment = Boolean(major && major.department !== "—");
   const trayRows = useMemo(() => [...model.rows.values()].filter((row) => row.inPlan).sort((a, b) => a.id.localeCompare(b.id)), [model]);
   // A course keeps its color while it stays in the tray (lib/course-colors.ts).
@@ -624,6 +628,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
               weekHref={LENS_HREF.week}
               more={autoInTray > 0 ? [{ id: "clear-auto", label: `Remove the ${autoInTray === 1 ? "course" : `${autoInTray} courses`} Auto added`, onSelect: clearAutoPlan, destructive: true }] : []}
             />
+            {major ? null : <ChooseMajor term={term} onChoose={() => setDegreeOpen(true)} />}
             <CourseGroups
               groups={groups}
               model={model}
@@ -714,6 +719,25 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
         }}
       />
     </CourseNavigationContext.Provider>
+  );
+}
+
+/**
+ * In place of the catalog before a major is chosen: what choosing one
+ * shows, and the one way to do it. The groups list a degree's courses; with
+ * no degree they would list every department's, most of them as rules to check.
+ */
+function ChooseMajor({ term, onChoose }: { term: string; onChoose: () => void }) {
+  return (
+    <section className={styles.noMajor} aria-labelledby="no-major-title">
+      <h2 className={styles.noMajorTitle} id="no-major-title">
+        See your degree&apos;s courses
+      </h2>
+      <p className={styles.noMajorText}>Choose your major, and Courses lists what you can take in {term}, what comes later, and what to check with an advisor.</p>
+      <Button variant="secondary" aria-haspopup="dialog" onClick={onChoose}>
+        Choose your major
+      </Button>
+    </section>
   );
 }
 

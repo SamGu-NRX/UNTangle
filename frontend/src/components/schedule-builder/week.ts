@@ -197,21 +197,12 @@ const covers = (outer: Dates, inner: Dates) =>
  * two share.
  */
 export function walksOf(events: readonly GridEvent[], walk: WalkFn): WalkLeg[] {
-  const legs: WalkLeg[] = [];
-  const ordered = [...events].sort((a, b) => dayIndex(a.day) - dayIndex(b.day) || a.start - b.start);
-  for (const next of ordered) {
-    const earlierClasses = ordered.filter((event) => event.day === next.day && event.end <= next.start && meetTogether(next.day, event.dates, next.dates));
-    for (const before of earlierClasses) {
-      const shared: Dates = { start: later(before.dates.start, next.dates.start), end: earlier(before.dates.end, next.dates.end) };
-      const hidden = earlierClasses.some(
-        (other) => other !== before && (other.end > before.end || (other.end === before.end && other.key < before.key)) && covers(other.dates, shared),
-      );
-      if (hidden || next.start - before.end > WALK_GAP_MAX) continue;
-      if (!before.building || !next.building || before.building === next.building) continue;
-      const time = walk(before.building, next.building);
-      if (!time) continue;
-      const gapSeconds = (next.start - before.end) * 60;
-      legs.push({
+  return walkPairs(events).flatMap(({ before, next, from, to }): WalkLeg[] => {
+    const time = walk(from, to);
+    if (!time) return [];
+    const gapSeconds = (next.start - before.end) * 60;
+    return [
+      {
         day: next.day,
         fromKey: before.key,
         toKey: next.key,
@@ -222,10 +213,39 @@ export function walksOf(events: readonly GridEvent[], walk: WalkFn): WalkLeg[] {
         seconds: time.seconds,
         shuttle: time.shuttle,
         kind: time.seconds > gapSeconds ? "late" : time.seconds + TIGHT_BUFFER * 60 >= gapSeconds ? "tight" : "ok",
-      });
+      },
+    ];
+  });
+}
+
+/**
+ * The walks `walksOf` leaves out because `walk` has no time for them (a
+ * building that isn't on the campus map), so a total can say it is
+ * incomplete instead of counting them as no walking at all.
+ */
+export function unknownWalksOf(events: readonly GridEvent[], walk: WalkFn): number {
+  return walkPairs(events).filter(({ from, to }) => !walk(from, to)).length;
+}
+
+type WalkPair = { before: GridEvent; next: GridEvent; from: string; to: string };
+
+/** The consecutive classes `walksOf` describes, each pair in two different buildings, both known. */
+function walkPairs(events: readonly GridEvent[]): WalkPair[] {
+  const pairs: WalkPair[] = [];
+  const ordered = [...events].sort((a, b) => dayIndex(a.day) - dayIndex(b.day) || a.start - b.start);
+  for (const next of ordered) {
+    const earlierClasses = ordered.filter((event) => event.day === next.day && event.end <= next.start && meetTogether(next.day, event.dates, next.dates));
+    for (const before of earlierClasses) {
+      const shared: Dates = { start: later(before.dates.start, next.dates.start), end: earlier(before.dates.end, next.dates.end) };
+      const hidden = earlierClasses.some(
+        (other) => other !== before && (other.end > before.end || (other.end === before.end && other.key < before.key)) && covers(other.dates, shared),
+      );
+      if (hidden || next.start - before.end > WALK_GAP_MAX) continue;
+      if (!before.building || !next.building || before.building === next.building) continue;
+      pairs.push({ before, next, from: before.building, to: next.building });
     }
   }
-  return legs;
+  return pairs;
 }
 
 /** Hours shown: 8 a.m. to at least 5 p.m., widened to whole hours around every class and busy time. */

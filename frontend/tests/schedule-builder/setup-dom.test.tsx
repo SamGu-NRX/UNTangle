@@ -122,6 +122,9 @@ describe("Set up Auto, step by step", () => {
     expect(text).toContain("Thursdays off");
     expect(text).toContain("No class before 10 AM");
     expect(button("Change Fewer days on campus, now A lot")).toBeTruthy();
+    // The gaps card is named as the slider the student moved was.
+    expect(button("Change Time between classes, now Some")).toBeTruthy();
+    expect(text).not.toContain("Short gaps");
     expect(latest).toEqual({
       constraints: { ...START.constraints, daysOff: ["Thu"], earliestStart: 600 },
       weights: { mornings: 0, evenings: 4, fewerDays: 3, walking: 4, rating: 2, compact: 2 },

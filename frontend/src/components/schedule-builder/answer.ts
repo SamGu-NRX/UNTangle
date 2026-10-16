@@ -8,6 +8,7 @@ import type { Day } from "@/lib/sections";
 import { examLongDay, type WeekFinal } from "./finals";
 import type { SchedulePreferences } from "@/lib/types";
 import { meetTogether } from "./conflicts";
+import { leanOf } from "./limits";
 import { andList, clashes, clock, clockWithSuffix, DAY_NAME, DAY_ORDER, shortDate, type GridEvent, type WalkLeg } from "./week";
 
 const dayNames = (days: Iterable<Day>) => andList(DAY_ORDER.filter((day) => [...days].includes(day)).map((day) => DAY_NAME[day]));
@@ -154,6 +155,24 @@ export function figuresOf(events: readonly GridEvent[], walks: readonly WalkLeg[
   };
 }
 
+/**
+ * Which way the student leans on time of day (Set up Auto's first question,
+ * Preferences' Time of day). Auto's lean terms (lib/optimizer/score.ts) pull
+ * a morning lean's starts earlier and an afternoon lean's ends later, so for
+ * that student those are gains, never costs.
+ */
+export type TimeLean = "mornings" | "afternoons" | null;
+
+export function timeLeanOf(preferences: SchedulePreferences): TimeLean {
+  const lean = leanOf(preferences.weights, "time");
+  return lean < 0 ? "mornings" : lean > 0 ? "afternoons" : null;
+}
+
+/** Minutes `next`'s first class improves on `now`'s: later for most students, earlier for a morning lean. Negative is worse. */
+export const startGain = (now: number, next: number, lean: TimeLean) => (lean === "mornings" ? now - next : next - now);
+/** Minutes `next`'s last class improves on `now`'s: earlier for most students, later for an afternoon lean. Negative is worse. */
+export const endGain = (now: number, next: number, lean: TimeLean) => (lean === "afternoons" ? next - now : now - next);
+
 /** Under this many minutes, an earlier or later time isn't worth a sentence. */
 const NOTICE_MIN = 30;
 
@@ -168,11 +187,14 @@ function whereTo(now: readonly GridEvent[], next: readonly GridEvent[]): string 
 /**
  * One sentence on how an alternative differs from the current week: its
  * best gain, then its worst cost ("Frees Friday, but Monday and Wednesday
- * end at 4:50."). When one course moves, the gain says which.
+ * end at 4:50."). When one course moves, the gain says which. Earlier
+ * starts and later ends follow the student's time-of-day lean: what they
+ * asked for is never named as a cost.
  */
 export function describeAlternative(
-  now: { events: readonly GridEvent[]; walks: readonly WalkLeg[]; finalsClashes?: number },
-  next: { events: readonly GridEvent[]; walks: readonly WalkLeg[]; finalsClashes?: number },
+  now: { events: readonly GridEvent[]; walks: readonly WalkLeg[]; finalsClashes?: number; unknownWalks?: number },
+  next: { events: readonly GridEvent[]; walks: readonly WalkLeg[]; finalsClashes?: number; unknownWalks?: number },
+  lean: TimeLean = null,
 ): string {
   const a = figuresOf(now.events, now.walks);
   const b = figuresOf(next.events, next.walks);
@@ -188,23 +210,27 @@ export function describeAlternative(
   // The walk to PHYS 2220 on Monday and Wednesday is one walk to the student, so count destinations.
   const badTo = (walks: readonly WalkLeg[]) => new Set(walks.filter((w) => w.kind !== "ok").map((w) => w.toCourse)).size;
   if (b.badWalks < a.badWalks) gains.push(b.badWalks === 0 ? (badTo(now.walks) === 1 ? "Removes the tight walk" : "Removes the tight walks") : "Has fewer tight walks");
-  if (a.first !== null && b.first !== null && b.first - a.first >= NOTICE_MIN) gains.push(`Starts at ${clock(b.first)} instead of ${clock(a.first)}`);
-  if (a.last !== null && b.last !== null && a.last - b.last >= NOTICE_MIN) gains.push(`Ends by ${clock(b.last)}`);
-  if (a.walkMinutes - b.walkMinutes >= 5) gains.push(`Walks ${a.walkMinutes - b.walkMinutes} minutes less a week`);
+  if (a.first !== null && b.first !== null && startGain(a.first, b.first, lean) >= NOTICE_MIN) gains.push(`Starts at ${clock(b.first)} instead of ${clock(a.first)}`);
+  if (a.last !== null && b.last !== null && endGain(a.last, b.last, lean) >= NOTICE_MIN) {
+    gains.push(lean === "afternoons" ? `Ends at ${clock(b.last)} instead of ${clock(a.last)}` : `Ends by ${clock(b.last)}`);
+  }
+  // A walk with no known time on either side leaves the totals incomplete, so no difference between them is claimed.
+  const walkingKnown = (now.unknownWalks ?? 0) === 0 && (next.unknownWalks ?? 0) === 0;
+  if (walkingKnown && a.walkMinutes - b.walkMinutes >= 5) gains.push(`Walks ${a.walkMinutes - b.walkMinutes} minutes less a week`);
 
   const costs: string[] = [];
   if (b.clashes > a.clashes) costs.push("two classes overlap");
   if (finalsNext > finalsNow) costs.push("two finals overlap");
   if (added.length > 0) costs.push(`adds ${dayNames(added)}`);
   const later = DAY_ORDER.filter((day) => a.endOf.has(day) && (b.endOf.get(day) ?? -Infinity) - a.endOf.get(day)! >= NOTICE_MIN);
-  if (later.length > 0) {
+  if (later.length > 0 && lean !== "afternoons") {
     const latest = Math.max(...later.map((day) => b.endOf.get(day)!));
     const days = later.filter((day) => b.endOf.get(day) === latest);
     // "Wednesday ends", "Tuesday and Thursday end".
     costs.push(`${dayNames(days)} ${days.length === 1 ? "ends" : "end"} at ${clock(latest)}`);
   }
   const earlier = DAY_ORDER.filter((day) => a.startOf.has(day) && a.startOf.get(day)! - (b.startOf.get(day) ?? Infinity) >= NOTICE_MIN);
-  if (earlier.length > 0) {
+  if (earlier.length > 0 && lean !== "mornings") {
     const earliest = Math.min(...earlier.map((day) => b.startOf.get(day)!));
     const days = earlier.filter((day) => b.startOf.get(day) === earliest);
     costs.push(`${dayNames(days)} ${days.length === 1 ? "starts" : "start"} at ${clock(earliest)}`);

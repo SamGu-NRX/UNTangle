@@ -15,7 +15,7 @@ import { createPortal } from "react-dom";
 import { useBackToClose } from "./back-close";
 import { cx } from "./cx";
 import { keyboardFocused } from "./input-source";
-import { FOCUSABLE, useModalLayer } from "./modal-layer";
+import { FOCUSABLE, setSheetTop, useModalLayer } from "./modal-layer";
 import {
   BOUNCE_VELOCITY,
   DRAG_HYSTERESIS,
@@ -226,10 +226,17 @@ export function BottomSheet({
   }, [open, modal, initialFocus]);
 
   useModalLayer(modal && open, rootRef, {
+    kind: "sheet",
     onEscape: dismissible ? requestClose : undefined,
     initialFocus: initialFocus ?? defaultFocus,
     returnFocus,
   });
+  // Where the sheet's top edge rests at this detent, for the toast that waits above it (modal-layer.ts, Toast.tsx).
+  // After the layer's own effect, which pushes the layer this records on.
+  const restingTop = viewportHeight - (heights[index] ?? 0);
+  useEffect(() => {
+    if (modal && open && viewportHeight > 0 && rootRef.current) setSheetTop(rootRef.current, restingTop);
+  }, [modal, open, viewportHeight, restingTop]);
 
   // Reset to the opening detent each time the sheet opens.
   useEffect(() => {

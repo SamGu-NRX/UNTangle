@@ -335,8 +335,15 @@ for (const failure of ["rejects", "returns an error"] as const) {
     expect(planner.get().isRegistered).toBe(true);
 
     resetSignOut();
-    const retry = [...document.querySelectorAll<HTMLButtonElement>(".ui-toast__action")].find((el) => el.textContent === "Try again");
-    expect(retry).toBeDefined();
+    // The warning stays open after the failure, and the page under it (the toast too) is inert: the toast says
+    // what happened but offers Try again only once the warning is closed.
+    const retryButton = () => [...document.querySelectorAll<HTMLButtonElement>(".ui-toast__action")].find((el) => el.textContent === "Try again");
+    expect(retryButton()).toBeUndefined();
+    await planner.run(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    await waitFor(() => retryButton() !== undefined, "Try again once the warning closes");
+    const retry = retryButton();
     await planner.run(() => retry!.click());
     await waitFor(() => pushes.length === 1, "signed out");
     expect(pushes).toEqual(["/"]);

@@ -195,6 +195,14 @@ describe("scheduleReasons", () => {
     expect(first.map((reason) => reason.kind)).toEqual(["comparison", "trade-off"]);
   });
 
+  test("without the next option, the same schedule gets facts about itself on each stated preference, strongest first", () => {
+    // Week's Details: the student sees option 1 beside their own week, maybe never option 2.
+    const [first] = reasonsFor(rankedFirstRequest({ fewerDays: 3, compact: 1 }), { compareWithNext: false });
+    expect(sentences(first)).toEqual(["Your classes fall on Monday.", "Time between classes adds up to 120 minutes."]);
+    expect(first.some((reason) => reason.kind === "comparison" || reason.kind === "trade-off")).toBe(false);
+    expect(sentences(first).join(" ")).not.toContain("option");
+  });
+
   test("reasons rank by weight times the optimizer's cost per unit times the difference", () => {
     // 3 x 3600 for a day beats 1 x 60 x 120 for the gap; flipped weights flip the order.
     expect(reasonsFor(rankedFirstRequest({ fewerDays: 3, compact: 1 }))[0].map((reason) => reason.preference)).toEqual(["fewerDays", "compact"]);

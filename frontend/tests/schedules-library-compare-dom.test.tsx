@@ -5,6 +5,7 @@
  * happy-dom's localStorage as in a guest's browser.
  */
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
+import type { Section } from "@/lib/sections";
 import { click, installDom, mount, removeDom } from "./ui/dom";
 
 // CSS modules have no loader under bun test: each class name is its own key.
@@ -14,6 +15,8 @@ mock.module("@/components/schedules-library/library.module.css", () => ({ defaul
 // the run, so afterAll puts the real module back for the files that mount the real provider.
 const realPlanner = { ...(await import("@/components/planner-provider")) };
 let plannerValue: Record<string, unknown> = {};
+/** The sections Week places for the stub's Main. */
+let mainSections: Section[] = [];
 mock.module("@/components/planner-provider", () => ({ ...realPlanner, usePlanner: () => plannerValue }));
 
 beforeAll(() => {
@@ -24,8 +27,8 @@ afterAll(() => {
   removeDom();
 });
 
-async function page() {
-  const { getInitialPlannerState } = await import("@/lib/planner");
+async function page({ copies = true, hydrated = true }: { copies?: boolean; hydrated?: boolean } = {}) {
+  const { getInitialPlannerState, normalizePlannerState, resolveSectionPlan } = await import("@/lib/planner");
   const { eventsOf } = await import("@/lib/plan-library/week");
   const { sampleCatalog } = await import("@/lib/planner-sections");
   const { createSavedPlanStore, setSavedPlanIdentity } = await import("@/lib/saved-plans/store");
@@ -38,21 +41,28 @@ async function page() {
   localStorage.clear();
   setSavedPlanIdentity(null);
   const store = createSavedPlanStore();
-  for (const [name, codes] of [
-    ["Lighter", ["ANTH 1010"]],
-    ["Heavier", ["ANTH 1010", "ENGL 1310", "MATH 1710", "BIOL 1710"]],
-    ["Middle", ["ANTH 1010", "ENGL 1310", "MATH 1710"]],
-  ] as const) {
+  for (const [name, codes] of copies
+    ? ([
+        ["Lighter", ["ANTH 1010"]],
+        ["Heavier", ["ANTH 1010", "ENGL 1310", "MATH 1710", "BIOL 1710"]],
+        ["Middle", ["ANTH 1010", "ENGL 1310", "MATH 1710"]],
+        ["Same as Main", ["ANTH 1010", "ENGL 1310"]],
+      ] as const)
+    : []) {
     const saved = store.savePlan({ state: taking([...codes]), name });
     if (!saved.ok) throw new Error(saved.failure.message);
   }
+  const sectionPlan = resolveSectionPlan(normalizePlannerState(main), sampleCatalog);
+  mainSections = sectionPlan.courses.flatMap((course) => (course.section ? [course.section] : []));
   plannerValue = {
     plannerState: main,
     scheduleEvents: eventsOf(main, sampleCatalog),
     sectionCatalog: sampleCatalog,
+    sectionPlan,
     loadSections: () => {},
     transact: async () => ({ status: "committed", result: null }),
     identityReady: true,
+    hydrated,
     afterHydration: async () => {},
     planStamp: 0,
     saveState: { status: "saved" },
@@ -98,6 +108,77 @@ describe("Compare", () => {
     expect(figures()[0]).toEqual(["Figure", "Lighter", "Heavier", "Middle"]);
     expect(figures()[1]).toEqual(["Credits", "3", "12", "9"]);
     await view.unmount();
+  });
+
+  test("walking reads as Week's Details counts it, never Unknown", async () => {
+    const { figuresOf } = await import("@/components/schedule-builder/answer");
+    const { eventsOf: gridEvents, walksOf } = await import("@/components/schedule-builder/week");
+    const { weekTravel } = await import("@/lib/planner-walking");
+    const view = await page();
+    await click(button("Compare"));
+    await click(button("Compare Main"));
+    await click(button("Compare Heavier"));
+    // Week's own figures for Main: the sections it places, timed by the walk function Week's host uses.
+    const events = gridEvents(mainSections);
+    const week = figuresOf(events, walksOf(events, weekTravel));
+    const rows = figures();
+    expect(rows.find((row) => row[0] === "Walking a week")?.[1]).toBe(`${week.walkMinutes} min`);
+    expect(rows.find((row) => row[0] === "Tight or late walks")?.[1]).toBe(String(week.badWalks));
+    expect(rows.flat()).not.toContain("Unknown");
+    // Heavier's sample sections meet MWF at 8:00, 9:00 and 10:00 in three buildings, ten minutes apart: two walks a
+    // day that add up to 12 minutes, one of them tight, three days a week. Both are more than Main's, said in words too.
+    expect(rows.find((row) => row[0] === "Walking a week")?.[2]).toBe("36 min, worse");
+    expect(rows.find((row) => row[0] === "Tight or late walks")?.[2]).toBe("3, worse");
+    await view.unmount();
+  });
+
+  test("a copy that holds what Main holds isn't offered for use; a different one is", async () => {
+    const view = await page();
+    await click(button("Compare"));
+    await click(button("Compare Main"));
+    await click(button("Compare Same as Main"));
+    expect(document.querySelector("aside")?.textContent).toContain("Every section is the same in both.");
+    expect(button("Use Same as Main in Main")).toBeUndefined();
+    await click(button("Remove Same as Main, B, from compare"));
+    await click(button("Compare Middle"));
+    expect(button("Use Middle in Main")).toBeDefined();
+    await view.unmount();
+  });
+
+  test("with only Main there is nothing to compare; a copy saved with no name is Copy of Main, and Compare appears", async () => {
+    const { act } = await import("react");
+    const view = await page({ copies: false });
+    expect(button("Compare")).toBeUndefined();
+    await click(button("Save a copy"));
+    const field = document.querySelector<HTMLInputElement>('[role="dialog"] input')!;
+    // The field says what a blank name saves.
+    expect(field.placeholder).toBe("Copy of Main");
+    await act(async () => {
+      document.querySelector<HTMLFormElement>("#schedule-name-form")!.requestSubmit();
+    });
+    expect([...document.querySelectorAll("li")].some((li) => li.textContent?.includes("Copy of Main"))).toBe(true);
+    expect(button("Compare")).toBeDefined();
+    await click(button("Save a copy"));
+    expect(document.querySelector<HTMLInputElement>('[role="dialog"] input')!.placeholder).toBe("Copy of Main 2");
+    // Leave nothing open for the files after this one: the dialog's modal layer and the saved toast are shared.
+    await click(button("Cancel"));
+    const { dismissToast } = await import("@/components/ui/Toast");
+    await act(async () => dismissToast());
+    // The closed dialog's layer is released: the page scrolls again (modal-layer.ts holds the lock while any layer is open).
+    expect(document.documentElement.style.overflow).toBe("");
+    await view.unmount();
+  });
+
+  test("Main says nothing about when it was edited until the stored plan has loaded", async () => {
+    const mainRow = () => [...document.querySelectorAll("li")].find((li) => li.textContent?.includes("Main"))?.textContent ?? "";
+    const loading = await page({ copies: false, hydrated: false });
+    expect(mainRow()).not.toContain("Nothing planned yet");
+    expect(mainRow()).not.toContain("Edited");
+    await loading.unmount();
+    // Loaded, this Main plans two courses, so it was edited.
+    const loaded = await page({ copies: false });
+    expect(mainRow()).toContain("Edited");
+    await loaded.unmount();
   });
 
   test("two plans keep Both, and the credits row", async () => {

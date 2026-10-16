@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Close } from "./icons";
+import { subscribeModalStack, topModal } from "./modal-layer";
+import { PHONE_QUERY, useMediaQuery } from "./use-media-query";
 
 export type ToastInput = {
   message: string;
@@ -58,6 +60,15 @@ export function useIsClient() {
 
 /**
  * Bottom-centre toast, above the tab bar on phones: 44px, ink, white 14px.
+ * While a modal is open the page under it is inert, toast included, and the
+ * live region has already said the message. Over a dialog or the search
+ * palette a toast hides, except an error, which keeps its usual place: it
+ * may be the only visible word on why the dialog's action failed (a
+ * sign-out that didn't go through). Over a modal sheet it shows its message on one
+ * line, without buttons it couldn't use; on a phone it sits in the dimmed
+ * space above the sheet's top edge (`--sheet-top`), and hides when that
+ * space is too short. When the modal closes it enters again in its usual
+ * place, Undo and all.
  * Enters with 8px of rise and a fade over 220ms, leaves in 150ms. A plain
  * toast leaves after 5s, counting only while the page is visible and the
  * toast is neither hovered nor focused; one with an action or an error
@@ -77,6 +88,16 @@ export function Toaster() {
   // of the toast that was hovered or focused before it.
   const [pausedFor, setPausedFor] = useState<number | null>(null);
   const paused = shown !== null && pausedFor === shown.id;
+  const over = useSyncExternalStore(subscribeModalStack, topModal, () => null);
+  const phone = useMediaQuery(PHONE_QUERY);
+  // Under a dialog or the search palette a toast that isn't an error hides (see the render below).
+  const underDialog = shown !== null && over === "dialog" && shown.tone !== "error";
+  // A modal opening or closing moves the toast or takes it away, so a hover or focus on it no longer holds it.
+  const [overBefore, setOverBefore] = useState(over);
+  if (over !== overBefore) {
+    setOverBefore(over);
+    setPausedFor(null);
+  }
   const remaining = useRef(0);
 
   // Swap records: the old one plays its exit, then the new one enters.
@@ -100,9 +121,9 @@ export function Toaster() {
     remaining.current = shown && !isPersistent(shown) ? (shown.duration ?? 5000) : Infinity;
   }, [shown]);
 
-  // Count down only while visible, unhovered and unfocused.
+  // Count down only while visible, unhovered and unfocused: a toast hidden under a dialog keeps its time for when it shows again.
   useEffect(() => {
-    if (!shown || leaving || isPersistent(shown)) return;
+    if (!shown || leaving || isPersistent(shown) || underDialog) return;
     const hidden = () => document.visibilityState === "hidden";
     let started = Date.now();
     let timer: number | null = null;
@@ -124,7 +145,7 @@ export function Toaster() {
       disarm();
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [shown, leaving, paused]);
+  }, [shown, leaving, paused, underDialog]);
 
   const isClient = useIsClient();
   if (!isClient) return null;
@@ -140,10 +161,11 @@ export function Toaster() {
         document.body,
       )}
       {createPortal(
-        <div className="ui-toaster" data-ui="">
-          {shown ? (
+        <div className="ui-toaster" data-ui="" data-covered={over ?? undefined}>
+          {shown && !underDialog ? (
             <div
-              key={shown.id}
+              // On a phone a sheet moves the toast to the top: a new key makes it enter again there instead of jumping.
+              key={`${shown.id}${phone && over === "sheet" ? ":over-sheet" : ""}`}
               className="ui-toast"
               data-state={leaving ? "closed" : "open"}
               data-tone={shown.tone ?? "default"}
@@ -154,7 +176,7 @@ export function Toaster() {
               onBlur={() => setPausedFor(null)}
             >
               <span className="ui-toast__message">{shown.message}</span>
-              {shown.action ? (
+              {shown.action && !over ? (
                 <button
                   type="button"
                   className="ui-toast__action"
@@ -166,7 +188,7 @@ export function Toaster() {
                   {shown.action.label}
                 </button>
               ) : null}
-              {isPersistent(shown) ? (
+              {isPersistent(shown) && !over ? (
                 <button type="button" className="ui-toast__close" aria-label="Dismiss" onClick={() => dismissToast(shown.id)}>
                   <Close size={14} />
                 </button>

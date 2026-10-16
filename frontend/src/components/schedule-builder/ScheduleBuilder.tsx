@@ -13,7 +13,7 @@ import { assignColors } from "@/lib/course-colors";
 import type { Day, Section } from "@/lib/sections";
 import { calendarBands, calendarBlockedTimes, weekdayCount } from "@/lib/calendar-busy";
 import type { BlockedTime, SchedulePreferences, WeekDay } from "@/lib/types";
-import { answerFor, describeAlternative, type AnswerCourse } from "./answer";
+import { answerFor, describeAlternative, timeLeanOf, type AnswerCourse } from "./answer";
 import styles from "./builder.module.css";
 import { hasNoSetTime, isTimed, meetingsOverlap, meetTogether } from "./conflicts";
 import { ExportSheet } from "./ExportSheet";
@@ -29,7 +29,7 @@ import { SearchPanel } from "./SearchPanel";
 import { restoreSetup, setupChanged } from "./setup";
 import { SetupAuto, type SetupClose } from "./SetupAuto";
 import type { SharedWeek } from "./share";
-import { andList, dayLetters, eventsOf, optionName, optionTitle, placeEvents, sectionLabel, walksOf } from "./week";
+import { andList, dayLetters, eventsOf, optionName, optionTitle, placeEvents, sectionLabel, unknownWalksOf, walksOf } from "./week";
 import { WeekGrid, type Busy, type Ghost, type Outline } from "./WeekGrid";
 
 export type SearchRequest = { nonce: number; query: string };
@@ -160,7 +160,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   const now = useMemo(() => {
     const events = eventsOf(placed);
     const exams = finals ? weekFinals(placed, finals) : [];
-    return { events, walks: walksOf(events, host.walk), sections: placed, finals: exams, finalsClashes: finalsClashCount(exams) };
+    return { events, walks: walksOf(events, host.walk), unknownWalks: unknownWalksOf(events, host.walk), sections: placed, finals: exams, finalsClashes: finalsClashCount(exams) };
     // `placed` is rebuilt every render; its ids say when it changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(current), host.walk, finals]);
@@ -168,7 +168,15 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   const shown = useMemo(() => {
     const events = eventsOf(shownSections);
     const exams = finals ? weekFinals(shownSections, finals) : [];
-    return { events, walks: walksOf(events, host.walk), sections: shownSections, placements: placeEvents(events), finals: exams, finalsClashes: finalsClashCount(exams) };
+    return {
+      events,
+      walks: walksOf(events, host.walk),
+      unknownWalks: unknownWalksOf(events, host.walk),
+      sections: shownSections,
+      placements: placeEvents(events),
+      finals: exams,
+      finalsClashes: finalsClashCount(exams),
+    };
     // `shownSections` is rebuilt every render; `shownKey` names its sections.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownKey, host.walk, finals]);
@@ -536,7 +544,8 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   const running = feed.status === "running";
   const firstAnswerPending = running && (strip?.kind !== "options" || strip.shown.length === 0);
   const identical = previewMap !== undefined && same(Object.fromEntries(Object.entries(current).filter(([code]) => code in previewMap)), previewMap) && strip?.kind === "options";
-  const sentence = identical ? "Your week is already the best Auto found." : describeAlternative(now, shown);
+  const lean = timeLeanOf(host.preferences);
+  const sentence = identical ? "Your week is already the best Auto found." : describeAlternative(now, shown, lean);
   // Browse all previews on every hover, tens of times a minute: the grid changes without motion.
   const instant = keyboard.current || (strip?.kind === "options" && strip.instant) || strip?.kind === "browse";
   const exit = exiting.current;
@@ -626,7 +635,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
             browseRow
               ? yours
                 ? "This is your week."
-                : describeAlternative(now, shown)
+                : describeAlternative(now, shown, lean)
               : browse.infeasible
                 ? "Nothing fits these preferences. The list says what to change."
                 : browse.timedOut
@@ -860,9 +869,10 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         open={panel !== null}
         onClose={closePanel}
         title={panelTitle}
-        // On a phone the list's sheet shows its title and a Close button, and opening it focuses the title
-        // (BottomSheet's opening focus): a long list mustn't leave dragging as the only way out.
-        heading={panel?.kind === "browse" ? panelTitle : undefined}
+        // On a phone these sheets show their title (the class's code, the option, the list) and a Close button, and opening
+        // one focuses the title (BottomSheet's opening focus): a long sheet mustn't leave dragging as the only way out.
+        // Find courses starts with its search field instead.
+        heading={panel?.kind === "browse" || panel?.kind === "event" || panel?.kind === "option" ? panelTitle : undefined}
         returnFocus={() => trigger.current}
       >
         {panel?.kind === "search" ? (
@@ -893,6 +903,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
             option={shown}
             label={optionTitle(strip.index)}
             reasons={previewMap ? feed.explain(previewMap) : []}
+            lean={lean}
             onUse={applyShown}
             canUse={!identical && !feed.stale && !running}
           />

@@ -83,6 +83,89 @@ describe("Toaster", () => {
     await view.unmount();
   });
 
+  test("over a modal sheet the toast waits above the sheet's edge, message only; Undo returns when it closes", async () => {
+    const { Toaster, toast, dismissToast } = await import("@/components/ui/Toast");
+    const { BottomSheet } = await import("@/components/ui/BottomSheet");
+    const { act } = await import("react");
+    const Harness = ({ open }: { open: boolean }) => (
+      <>
+        <BottomSheet open={open} onOpenChange={() => {}} title="Find courses" detents={["52%", "92%"]}>
+          <button type="button">Add section 001</button>
+        </BottomSheet>
+        <Toaster />
+      </>
+    );
+    const view = await mount(<Harness open />);
+    await act(async () => {
+      toast({ message: "Added CSCE 1030 section 001", action: { label: "Undo", onClick: () => {} } });
+    });
+    const toaster = () => document.querySelector(".ui-toaster")!;
+    // Over the sheet: marked for the strip above it (ui.css), with no buttons it couldn't use (the page is inert).
+    expect(toaster().getAttribute("data-covered")).toBe("sheet");
+    expect(toaster().hasAttribute("inert")).toBe(true);
+    expect(toaster().textContent).toContain("Added CSCE 1030 section 001");
+    expect(toaster().querySelector("button")).toBeNull();
+    // The sheet opens at 52%: its top edge rests 48% of the way down the 900px window.
+    expect(document.documentElement.style.getPropertyValue("--sheet-top")).toBe(`${900 - 0.52 * 900}px`);
+    await view.rerender(<Harness open={false} />);
+    await act(async () => sleep(200));
+    expect(toaster().hasAttribute("data-covered")).toBe(false);
+    expect(document.documentElement.style.getPropertyValue("--sheet-top")).toBe("");
+    expect([...toaster().querySelectorAll("button")].map((b) => b.textContent || b.getAttribute("aria-label"))).toEqual(["Undo", "Dismiss"]);
+    await act(async () => dismissToast());
+    await view.unmount();
+  });
+
+  test("over the search palette or a dialog the toast hides, so it never covers the field or a title", async () => {
+    const { Toaster, toast, dismissToast } = await import("@/components/ui/Toast");
+    const { SearchPalette } = await import("@/components/ui/SearchPalette");
+    const { act } = await import("react");
+    const Harness = ({ open }: { open: boolean }) => (
+      <>
+        <SearchPalette open={open} onOpenChange={() => {}} query="" onQueryChange={() => {}} sections={[]} onSelect={() => {}} />
+        <Toaster />
+      </>
+    );
+    const view = await mount(<Harness open={false} />);
+    await act(async () => {
+      toast({ message: "Planned CSCE 1030", action: { label: "Undo", onClick: () => {} } });
+    });
+    expect(document.querySelector(".ui-toast")).not.toBeNull();
+    await view.rerender(<Harness open />);
+    expect(document.querySelector(".ui-toaster")!.getAttribute("data-covered")).toBe("dialog");
+    expect(document.querySelector(".ui-toast")).toBeNull();
+    // Still said: the announcement region keeps the message.
+    expect(document.querySelector("[data-ui-live]")?.textContent).toBe("Planned CSCE 1030");
+    await view.rerender(<Harness open={false} />);
+    await act(async () => sleep(200));
+    expect(document.querySelector(".ui-toast button")?.textContent).toBe("Undo");
+    await act(async () => dismissToast());
+    // Let the Undo toast finish leaving, so the next one is on screen at once.
+    await act(async () => sleep(200));
+    // A plain toast hidden under the palette keeps its time: it shows when the palette closes, then leaves on its own.
+    await view.rerender(<Harness open />);
+    await act(async () => {
+      toast({ message: "Copied the share link", duration: 60 });
+    });
+    await act(async () => sleep(300));
+    await view.rerender(<Harness open={false} />);
+    await act(async () => sleep(10));
+    expect(document.querySelector(".ui-toast__message")?.textContent).toBe("Copied the share link");
+    await act(async () => sleep(250));
+    expect(document.querySelector(".ui-toast")).toBeNull();
+    // An error stays in view under a dialog, message only: it may be the only word on what failed.
+    await view.rerender(<Harness open />);
+    await act(async () => {
+      toast({ message: "Couldn't sign out.", tone: "error", action: { label: "Try again", onClick: () => {} } });
+    });
+    await act(async () => sleep(200));
+    expect(document.querySelector(".ui-toast__message")?.textContent).toBe("Couldn't sign out.");
+    expect(document.querySelector(".ui-toast button")).toBeNull();
+    await view.rerender(<Harness open={false} />);
+    await act(async () => dismissToast());
+    await view.unmount();
+  });
+
   test("the announcement region holds text only, so it can stay outside a modal's inert set", async () => {
     const { Toaster, toast } = await import("@/components/ui/Toast");
     const { act } = await import("react");
