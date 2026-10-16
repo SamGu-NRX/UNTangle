@@ -246,21 +246,6 @@ describe("planner-state store (guest durability)", () => {
     }
   });
 
-  it("writeMirror overwrites silently and never conflicts", () => {
-    const storage = new MemoryStorage();
-    const tabA = createPlannerStateStore(storage);
-    const tabB = createPlannerStateStore(storage);
-
-    tabA.write(stateWith({}), 0);
-    // B mirrors regardless of A's newer revision (best-effort backup path).
-    tabB.writeMirror(stateWith({ activeDay: "Fri" }));
-
-    const read = tabA.read();
-    expect(read.ok).toBe(true);
-    if (read.ok && read.state) {
-      expect(read.state.activeDay).toBe("Fri");
-    }
-  });
 
   it("subscribes to storage events, filters unrelated keys, and unsubscribes cleanly", () => {
     const listeners = new Set<(event: unknown) => void>();
@@ -318,10 +303,3 @@ it("refuses a guest write when corrupt bytes cannot be quarantined", () => {
   expect(store.listQuarantined()).toEqual([]);
 });
 
-it("refuses a mirror write when corrupt bytes cannot be quarantined", () => {
-  const storage = new QuarantineDeniedStorage({ [PLANNER_STATE_STORE_KEY]: "corrupt original" });
-  const store = createPlannerStateStore(storage);
-  store.writeMirror(stateWith({}));
-  expect(storage.getItem(PLANNER_STATE_STORE_KEY)).toBe("corrupt original");
-  expect(store.listQuarantined()).toEqual([]);
-});

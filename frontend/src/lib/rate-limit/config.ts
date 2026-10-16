@@ -22,8 +22,15 @@ export const budgets = {
   deviceInspect: { ip: 30, windowSeconds: 600 },
   deviceApprove: { user: 10, ip: 10, windowSeconds: 600 },
   deviceToken: { ip: 120 },
+  // The extension routes share the device routes' unmeasured per-IP cap: one
+  // extension worker polls previews and resends commands through one token.
+  extensionPreview: { ip: 120 },
+  extensionCommand: { ip: 120 },
   // Each preview fetches an outside URL; this is an unmeasured starting value.
   calendarFeedPreview: { user: 10, ip: 5, windowSeconds: 600 },
+  // Same cost as a preview (one outside fetch), but the planner calls it
+  // automatically, so signed-in users get more room. Unmeasured.
+  calendarFeedBusy: { user: 30, ip: 15, windowSeconds: 600 },
   grades: { user: 60, ip: 180 },
   mapRoute: { user: 60, ip: 60 },
   mapResolve: { user: 60, ip: 60 },
