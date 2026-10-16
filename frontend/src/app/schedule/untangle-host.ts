@@ -27,7 +27,7 @@ import { isShuttleLeg, plannerTravelTime } from "@/lib/planner-walking";
 import { findClassNumber } from "@/lib/sections/client";
 import { optionReasons } from "./option-reasons";
 import { courses as catalog } from "@/lib/seed-data";
-import type { CourseStatus, PlannerState } from "@/lib/types";
+import type { CourseStatus, PlannerState, SchedulePreferences } from "@/lib/types";
 
 /** What one undo puts back: the touched courses' status, section, lock and Auto-filled mark as they were. */
 type Snapshot = {
@@ -96,7 +96,7 @@ const seenThisPage = new Set<string>();
  * describes the student's arrival: the setup's own first answer saves
  * preferences, after which a fresh read would say "not due".
  */
-function useSetup(ready: boolean, stamp: string): BuilderSetup {
+function useSetup(ready: boolean, stamp: string, loaded: { preferences: SchedulePreferences; defaults: SchedulePreferences }): BuilderSetup {
   const identity = loadedIdentity(ready, stamp, ready ? browserStorage() : null);
   const tag = identity ? `${identity.kind}:${identity.id}` : null;
   const [gate, setGate] = useState<{ tag: string | null; identity: Identity | null; due: boolean }>({ tag: null, identity: null, due: false });
@@ -105,7 +105,7 @@ function useSetup(ready: boolean, stamp: string): BuilderSetup {
   let current = gate;
   if (gate.tag !== tag) {
     const storage = identity ? browserStorage() : null;
-    current = { tag, identity, due: Boolean(identity && tag && storage && !seenThisPage.has(tag) && setupDue(storage, identity)) };
+    current = { tag, identity, due: Boolean(identity && tag && storage && !seenThisPage.has(tag) && setupDue(storage, identity, loaded)) };
     setGate(current);
   }
   return {
@@ -140,7 +140,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     planStamp,
   } = planner;
 
-  const setup = useSetup(preferencesReady, planStamp.identity);
+  const setup = useSetup(preferencesReady, planStamp.identity, { preferences: schedulePreferences, defaults: defaultSchedulePreferences(plannerState.optimization) });
   const history = useRef<Snapshot[]>([]);
   const [historySize, setHistorySize] = useState(0);
   const { state: run, run: startRun, close: closeRun } = useOptimizerRuns();

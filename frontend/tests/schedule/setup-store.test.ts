@@ -20,40 +20,53 @@ const guest: Identity = { kind: "guest", id: "guest-0001-aaaa" };
 const ana: Identity = { kind: "user", id: "user-ana" };
 const ben: Identity = { kind: "user", id: "user-ben" };
 const NOW = new Date("2026-10-15T12:00:00Z");
+const DEFAULTS = defaultSchedulePreferences("clusterMorning");
+/** What the planner loaded for the identity: here, still the defaults. */
+const fresh = { preferences: DEFAULTS, defaults: DEFAULTS };
+const changed = { preferences: { ...DEFAULTS, weights: { ...DEFAULTS.weights, rating: 3 } }, defaults: DEFAULTS };
 
 describe("setupDue", () => {
   test("a new guest with nothing stored is due", () => {
-    expect(setupDue(memoryStorage(), guest)).toBe(true);
+    expect(setupDue(memoryStorage(), guest, fresh)).toBe(true);
   });
 
   test("skipping or finishing marks it seen for that identity only", () => {
     const storage = memoryStorage();
     expect(markSetupSeen(storage, ana, NOW)).toBe(true);
     expect(storage.data.get(setupSeenKey(ana))).toBe(NOW.toISOString());
-    expect(setupDue(storage, ana)).toBe(false);
+    expect(setupDue(storage, ana, fresh)).toBe(false);
     // Another account on the same browser, and the guest, still get their own first run.
-    expect(setupDue(storage, ben)).toBe(true);
-    expect(setupDue(storage, guest)).toBe(true);
+    expect(setupDue(storage, ben, fresh)).toBe(true);
+    expect(setupDue(storage, guest, fresh)).toBe(true);
   });
 
   test("a guest and an account with the same id are different identities", () => {
     const storage = memoryStorage();
     markSetupSeen(storage, { kind: "guest", id: "same-id-123" }, NOW);
-    expect(setupDue(storage, { kind: "user", id: "same-id-123" })).toBe(true);
+    expect(setupDue(storage, { kind: "user", id: "same-id-123" }, fresh)).toBe(true);
   });
 
-  test("saved preferences mean it isn't due, even when never seen", () => {
+  test("a guest's preferences saved in this browser mean it isn't due, even when never seen", () => {
     const storage = memoryStorage();
-    const p = defaultSchedulePreferences("clusterMorning");
-    writeStoredPreferences(storage, preferencesKey(ana), 0, p, (q) => ({ ...q, weights: { ...q.weights, rating: 3 } }));
-    expect(setupDue(storage, ana)).toBe(false);
-    expect(setupDue(storage, ben)).toBe(true);
+    writeStoredPreferences(storage, preferencesKey(guest), 0, DEFAULTS, (q) => ({ ...q, weights: { ...q.weights, rating: 3 } }));
+    expect(setupDue(storage, guest, fresh)).toBe(false);
+    expect(setupDue(storage, { kind: "guest", id: "guest-0002-bbbb" }, fresh)).toBe(true);
+  });
+
+  test("an account's preferences sync with the account, so the loaded ones decide, not this browser's storage", () => {
+    const storage = memoryStorage();
+    // Saved on another device: nothing on this browser, but the loaded preferences aren't the defaults.
+    expect(setupDue(storage, ana, changed)).toBe(false);
+    expect(setupDue(storage, ana, fresh)).toBe(true);
+    // Key order in a synced document means nothing.
+    const reordered = { constraints: DEFAULTS.constraints, weights: Object.fromEntries(Object.entries(DEFAULTS.weights).reverse()) } as typeof DEFAULTS;
+    expect(setupDue(storage, ana, { preferences: reordered, defaults: DEFAULTS })).toBe(true);
   });
 
   test("unreadable stored preferences count as none saved", () => {
     const storage = memoryStorage();
     storage.setItem(preferencesKey(guest), "{not json");
-    expect(setupDue(storage, guest)).toBe(true);
+    expect(setupDue(storage, guest, fresh)).toBe(true);
   });
 
   test("storage that throws is never due: it could not remember being seen", () => {
@@ -65,7 +78,7 @@ describe("setupDue", () => {
         throw new Error("SecurityError");
       },
     };
-    expect(setupDue(broken, guest)).toBe(false);
+    expect(setupDue(broken, guest, fresh)).toBe(false);
     expect(markSetupSeen(broken, guest, NOW)).toBe(false);
   });
 });

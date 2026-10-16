@@ -5,6 +5,8 @@
  * guest id otherwise, so a second account on the same browser still gets
  * its own first run.
  */
+import { equal } from "@untangle/sync";
+import type { SchedulePreferences } from "@/lib/types";
 import { preferencesKey, readGuestId, readStoredPreferences, type Identity } from "./preferences-store";
 
 /**
@@ -33,8 +35,14 @@ type StorageLike = Pick<Storage, "getItem" | "setItem">;
  * never been skipped or finished here, and no preferences are saved for this
  * identity. Unusable storage answers false, because the setup could not
  * remember being seen and would open on every visit.
+ *
+ * Where preferences are saved depends on the identity. A guest's live in
+ * this browser's storage, keyed by guest id. An account's sync with the
+ * account (the planner moved them there and deletes the local copy), so
+ * the check is the preferences loaded for it: anything other than the
+ * defaults was saved by the student, here or on another device.
  */
-export function setupDue(storage: StorageLike, identity: Identity): boolean {
+export function setupDue(storage: StorageLike, identity: Identity, loaded: { preferences: SchedulePreferences; defaults: SchedulePreferences }): boolean {
   let seen: string | null;
   try {
     seen = storage.getItem(setupSeenKey(identity));
@@ -42,6 +50,7 @@ export function setupDue(storage: StorageLike, identity: Identity): boolean {
     return false;
   }
   if (seen !== null) return false;
+  if (identity.kind === "user") return equal(loaded.preferences, loaded.defaults);
   const saved = readStoredPreferences(storage, preferencesKey(identity));
   // "invalid" counts as none saved: those preferences are replaced by defaults on the next write.
   return saved.kind === "absent" || saved.kind === "invalid";
