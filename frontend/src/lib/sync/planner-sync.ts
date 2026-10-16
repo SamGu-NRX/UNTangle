@@ -33,7 +33,7 @@ import {
   type AcademicRecordBody,
   type DocumentKind,
 } from "../../../../packages/contracts/src/documents";
-import { ACCOUNT_HEADER } from "../../../../packages/contracts/src/sync";
+import { ACCOUNT_HEADER, PullListSchema } from "../../../../packages/contracts/src/sync";
 import {
   firstDocumentId,
   joinPlanner,
@@ -217,20 +217,36 @@ export type OpenConflict = {
 
 /**
  * The state the student sees: the worst among the planner's documents; null
- * when nothing is stored yet. The engine marks a write unconfirmed before it
- * is sent, so a write this tab is sending right now reads as waiting.
+ * when nothing is stored yet.
+ *
+ * A document with nothing waiting is "Synced" when the server confirmed this
+ * device's copy: a receipt for it, or the last successful pull listing it at
+ * the same revision. Otherwise, as after loading offline from this device's
+ * store, it is "Saved on this device". So one receipt can't stand for
+ * documents the server hasn't confirmed, and a plan freshly read from the
+ * server isn't shown as less saved than one just written. A write this tab
+ * is sending right now reads as waiting: the engine marks it unconfirmed
+ * before it is sent.
  */
-export function plannerStatus(userId: string, snapshot: PlannerSnapshot, conflict: OpenConflict | null, sending: ReadonlySet<string>): SyncStatus | null {
+export function plannerStatus(
+  userId: string,
+  snapshot: PlannerSnapshot,
+  conflict: OpenConflict | null,
+  sending: ReadonlySet<string>,
+  pulled: ReadonlyMap<string, number>,
+): SyncStatus | null {
   if (conflict) return "Resolve conflict";
   const user = { kind: "user", id: userId } as const;
-  const statuses = plannerKinds.flatMap((kind) => {
+  const statuses = plannerKinds.flatMap((kind): SyncStatus[] => {
     const document = snapshot.documents[kind];
     if (!document) return [];
     const status = syncStatus(user, document);
-    return [status === "Save not confirmed (retrying)" && sending.has(document.documentId) ? "Waiting to sync" : status];
+    if (status === "Save not confirmed (retrying)" && sending.has(document.documentId)) return ["Waiting to sync"];
+    if (status === "Saved on this device" && pulled.get(document.documentId) === document.confirmed.revision) return ["Synced"];
+    return [status];
   });
-  const order: SyncStatus[] = ["Resolve conflict", "Needs sign-in", "Save not confirmed (retrying)", "Waiting to sync", "Synced"];
-  return order.find((status) => statuses.includes(status)) ?? (statuses.length ? "Saved on this device" : null);
+  const order: SyncStatus[] = ["Resolve conflict", "Needs sign-in", "Save not confirmed (retrying)", "Waiting to sync", "Saved on this device", "Synced"];
+  return order.find((status) => statuses.includes(status)) ?? null;
 }
 
 /** The server holds documents this build can't read, as an open tab after a release does. */
@@ -263,6 +279,8 @@ export class PlannerSync {
   private readonly sending = new Set<string>();
   /** Documents whose waiting write the server refused for good; they aren't sent again until a reload. */
   private readonly refused = new Set<string>();
+  /** Each document's revision in the last successful pull list. */
+  private pulled = new Map<string, number>();
   /** When the server last asked to be retried no sooner than (epoch ms). */
   private retryAt = 0;
   /** Set when the planner retires this identity; from then on nothing reaches the network. */
@@ -365,6 +383,7 @@ export class PlannerSync {
         if (isParseError(error)) throw error;
         return "unavailable";
       }
+      this.pulled = new Map(PullListSchema.parse(pulled.list).map((entry) => [entry.documentId, entry.revision]));
       await this.drainNow();
       return "synced";
     });
@@ -441,7 +460,7 @@ export class PlannerSync {
             body = resolution.body as Body;
           }
           try {
-            await this.engine.save({ documentId: current.ids[kind], kind, body, expectedGeneration: current.generations[kind] });
+            await this.engine.save({ documentId: current.ids[kind], kind, body, expectedGeneration: current.generations[kind], startedFrom: this.started(kind) });
           } catch (error) {
             if (attempt < 2 && error instanceof Error && error.message.startsWith("Local document changed")) continue;
             throw error;
@@ -474,7 +493,7 @@ export class PlannerSync {
       const conflict = this.openConflict(snapshot);
       const after = this.split(read());
       return {
-        status: plannerStatus(this.userId, snapshot, conflict, this.sending),
+        status: plannerStatus(this.userId, snapshot, conflict, this.sending, this.pulled),
         conflict: conflict && { ...conflict, mine: this.mine(conflict.kind, after) },
         unsynced: state.documents.some((document) => document.pending.length > 0),
         refused: state.documents.some((document) => document.pending.length > 0 && this.refused.has(document.documentId)),
@@ -525,6 +544,11 @@ export class PlannerSync {
     return settled.then(() => this.adopt(read, { force: true }) as Promise<PlannerView>);
   }
 
+  /** The bodies the planner reads, as this device stores them now. */
+  drafts(): Promise<StoredBodies> {
+    return this.run(async () => (await this.current()).drafts);
+  }
+
   /** Stops all network work for good; this device's store is left as it is. */
   close(): void {
     this.closed = true;
@@ -542,8 +566,11 @@ export class PlannerSync {
 
 /* ---------- settling a conflict ---------- */
 
+/** Two sides of a document and the body both started from: a sync conflict, or guest work meeting an account. */
+export type ThreeWay = { kind: PlannerKind; base: Body | null; mine: Body; latest: Body | null };
+
 /** The questions an academic-record conflict asks, one per course (or major, catalog year, transcript row) both sides changed. */
-export function academicQuestions(conflict: OpenConflict & { mine: Body }): AcademicQuestion[] {
+export function academicQuestions(conflict: ThreeWay): AcademicQuestion[] {
   if (conflict.kind !== "academic-record" || conflict.latest === null) return [];
   const resolution = resolveConflict("academic-record", conflict.base, conflict.mine, conflict.latest);
   return resolution.kind === "academic-record" ? resolution.questions : [];
@@ -555,7 +582,7 @@ export function academicQuestions(conflict: OpenConflict & { mine: Body }): Acad
  * settled per course by the three-way merge.
  */
 export function answerAcademicQuestions(
-  conflict: OpenConflict & { mine: Body },
+  conflict: ThreeWay,
   answers: ReadonlyArray<"latest" | "mine">,
 ): AcademicRecordBody {
   const resolution = resolveConflict("academic-record", conflict.base, conflict.mine, conflict.latest);
@@ -591,4 +618,9 @@ export function scheduleDifference(mine: Body | null, latest: Body | null): numb
   const a = read(mine), b = read(latest);
   const courses = new Set([...(a?.courses ?? []), ...(b?.courses ?? [])]);
   return [...courses].filter((code) => !a?.courses.includes(code) || !b?.courses.includes(code) || a.selectedSections[code] !== b.selectedSections[code]).length;
+}
+
+/** What a question is about, so its answer stays with it. */
+export function questionKey(question: AcademicQuestion): string {
+  return question.kind === "course" ? `course:${question.course}` : question.kind === "transcript-id" ? `row:${question.id}` : question.kind;
 }

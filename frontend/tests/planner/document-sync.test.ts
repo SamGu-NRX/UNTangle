@@ -98,8 +98,8 @@ describe("the legacy row on first sign-in", () => {
     expect(planner.get().plannerState.courseStatuses["CSCE 1040"]).toBe("inProgress");
     expect(planner.get().plannerState.selectedSections["CSCE 1040"]).toBe(fixtures.savedPlan.selectedSections["CSCE 1040"]);
     expect(planner.get().plannerState.coursePlan).toEqual(fixtures.savedPlan.coursePlan);
-    // A pulled document is not a receipt (packages/sync/src/status.ts).
-    expect(label(planner)).toBe("Saved on this device");
+    // Every document matches the revision the server listed in the pull.
+    expect(label(planner)).toBe("Synced");
     expect([RECORD, MAIN, PREFERENCES].map((id) => server.document(user.id, id)?.revision)).toEqual([1, 1, 1]);
     expect(body<Schedule>(MAIN).courses).toEqual(["CSCE 1040", "MATH 1720"]);
 
@@ -263,6 +263,21 @@ describe("conflicts, per document kind", () => {
     const merged = body<Preferences>(PREFERENCES).constraints;
     expect([merged.daysOff, merged.earliestStart, merged.latestEnd]).toEqual([["Fri"], 540, 1020]);
     await waitFor(() => planner.get().schedulePreferences.constraints.earliestStart === 540, "merged on screen");
+  });
+
+  test("preferences edited on a new device before its first pull merge with another device's, group by group", async () => {
+    const start = defaultSchedulePreferences(getInitialPlannerState().optimization);
+    server.seedPlan(user.id, getInitialPlannerState(), { ...start, constraints: { ...start.constraints, earliestStart: 540, latestEnd: 1020 } });
+    // This browser has never stored the account's documents, and the server can't be reached.
+    server.available = false;
+    const planner = await mount();
+    await planner.run((p) => p.setSchedulePreferences((current) => ({ ...current, constraints: { ...current.constraints, daysOff: ["Fri"] } })));
+    await waitFor(() => server.putsStarted > 0, "first write tried");
+    server.available = true;
+    await focus(planner);
+    await waitFor(() => label(planner) === "Synced", "merged and synced");
+    const merged = body<Preferences>(PREFERENCES).constraints;
+    expect([merged.daysOff, merged.earliestStart, merged.latestEnd]).toEqual([["Fri"], 540, 1020]);
   });
 
   test("academic record: courses one side changed merge; a course both changed is one question, answered by the student", async () => {
