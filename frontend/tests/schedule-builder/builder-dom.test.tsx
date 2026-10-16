@@ -248,6 +248,37 @@ describe("Week", () => {
     }
   });
 
+  test("on a phone, Export says inside its sheet when the browser blocks copying, where a toast couldn't show", async () => {
+    const realMatch = window.matchMedia;
+    const phoneList = (media: string) =>
+      ({ matches: true, media, onchange: null, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false }) as unknown as MediaQueryList;
+    window.matchMedia = ((query: string) => (query === "(max-width: 759px)" ? phoneList(query) : realMatch.call(window, query))) as typeof window.matchMedia;
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    // The refusal Safari gives a write it doesn't allow.
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => Promise.reject(new DOMException("Not allowed", "NotAllowedError")) } });
+    try {
+      const numbered = section({ courseCode: "CSCE 2110", sectionCode: "001", classNumbers: ["12345"], meetings: [meeting({ day: "Mon", at: "9:00", until: "9:50" })] });
+      const view = await render(host([course(numbered)]).value);
+      await click(buttons(view.container, /^Export$/)[0]);
+      const sheet = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].at(-1)!;
+      await click(buttons(sheet, /^Copy all 1$/)[0]);
+      const { act } = await import("react");
+      await act(async () => {
+        await Bun.sleep(0);
+      });
+      const alert = sheet.querySelector('[role="alert"]');
+      expect(alert?.textContent).toBe("This browser blocked copying. Select the text and copy it instead.");
+      // Said beside the control that failed, in the class numbers part.
+      expect(alert?.closest("section")?.querySelector("h3")?.textContent).toContain("Class numbers for myUNT");
+      expect(document.querySelector(".ui-toast")).toBeNull();
+      await view.unmount();
+    } finally {
+      window.matchMedia = realMatch;
+      if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
+      else delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+  });
+
   test("a result from settings that changed since can't be used", async () => {
     const week = [course(csce), course(math)];
     const view = await render(host(week).value);

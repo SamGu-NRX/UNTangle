@@ -1298,6 +1298,20 @@
   font-size: 15px;
   font-weight: 650;
 }
+/* What the last action in this part did (ExportSheet.tsx); a failure in the danger color, with its words. */
+.exportNote {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+.exportNote[data-failed] {
+  color: var(--danger);
+}
+/* Kept in the page so it announces when filled; empty, it takes back the section's grid gap. */
+.exportNote:empty {
+  margin-top: -10px;
+}
 .exportHead > :first-child {
   width: 18px;
   color: var(--brand-2);

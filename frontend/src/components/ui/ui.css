@@ -2341,8 +2341,6 @@
   .ui-toast[data-state="closed"] {
     transform: translateY(8px);
   }
-  /* At the top of a phone screen it comes down from the edge it sits against. */
-
 
   .ui-dialog {
     transition:

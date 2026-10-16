@@ -135,6 +135,8 @@ function removeLayer(id: symbol) {
   const at = layers.findIndex((layer) => layer.id === id);
   if (at < 0) return;
   const [layer] = layers.splice(at, 1);
+  // Reopened, a sheet reports its edge again; until then it has none, so no stale edge is published for a frame.
+  sheetTops.delete(layer.root);
   const wasTop = at === layers.length;
   if (!wasTop) {
     // A lower layer closed first. The layer above may have been opened from
