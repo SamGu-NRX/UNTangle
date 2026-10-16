@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 
-import { getServerSession } from "@/lib/auth-server";
 import { withRateLimit } from "@/lib/rate-limit/server";
 import { parseRangeInstant } from "@/lib/calendar-feeds/datetime";
 import { CalendarFetchError, CalendarParseError } from "@/lib/calendar-feeds/errors";
@@ -38,18 +37,18 @@ type PreviewBody = { url: unknown; rangeStart?: unknown; rangeEnd?: unknown };
  * endMinutes }`, both pointing into `events` by id. `skipped` lists
  * `{ uid, summary, reason }` warnings for events and series left out.
  *
- * Errors: 401 without a session, 400 for a bad body, range, or URL, a
+ * Guests may call it, counted by address (budgets.calendarFeedPreview): a
+ * guest connecting a calendar checks it here first. It never accepts a
+ * sealed address, so event text leaves the server only for someone holding
+ * the feed's address itself.
+ *
+ * Errors: 400 for a bad body, range, or URL, a
  * blocked or invalid feed, or one that does not parse, 502 for an
  * unreachable or slow feed, and 422 with "This calendar has too many events
  * to preview" when the response would be over 1 MiB. The response is never
  * cut short to fit.
  */
 async function previewHandler(request: Request) {
-  const session = await getServerSession(request);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   let body: PreviewBody | null = null;
   try {
     const parsed: unknown = await request.json();

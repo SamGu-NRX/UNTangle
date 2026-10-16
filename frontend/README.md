@@ -39,6 +39,7 @@ grep -rhoE "process\.env\.[A-Z0-9_]+" frontend/src | sort -u
 | `NEXT_PUBLIC_MAP_MAX_ZOOM` | `src/components/map-leaflet-canvas.tsx` | `19` | Map caps at zoom 19 |
 | `RESEND_API_KEY` | `src/lib/auth-email.ts` | none | **Required in production**: the server refuses to start without it. In development, sign-in links and password resets are written to the server log instead, and the sign-in page says so |
 | `RESEND_FROM_EMAIL` | `src/lib/auth-email.ts` | `UNTangle <onboarding@resend.dev>` outside production | **Required in production** (the server refuses to start): a sender on a domain verified in Resend. Resend's shared development sender only delivers to the Resend account's own address |
+| `CALENDAR_FEED_KEY` | `src/lib/calendar-feeds/seal.ts` | none | 32 random bytes in base64 (`openssl rand -base64 32`) that seal connected calendars' feed addresses (AES-256-GCM). Without it, connecting or refreshing a calendar answers 503 and Week says calendars can't be connected; everything else works. A value that isn't 32 bytes of base64 fails the request loudly. Changing it means every student connects their calendars again (their busy times stay until then) |
 | `USER` | `src/lib/db/index.ts` | — | Not app configuration: it is only the last-resort fallback for `PGUSER` when `PGUSER` is unset |
 
 Notes:

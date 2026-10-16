@@ -11,16 +11,17 @@ import { keyboardFocused } from "@/components/ui/input-source";
 import { PHONE_QUERY, useMediaQuery } from "@/components/ui/use-media-query";
 import { assignColors } from "@/lib/course-colors";
 import type { Day, Section } from "@/lib/sections";
-import type { SchedulePreferences, WeekDay } from "@/lib/types";
+import { calendarBands, calendarBlockedTimes, weekdayCount } from "@/lib/calendar-busy";
+import type { BlockedTime, SchedulePreferences, WeekDay } from "@/lib/types";
 import { answerFor, describeAlternative, type AnswerCourse } from "./answer";
 import styles from "./builder.module.css";
-import { hasNoSetTime, isTimed, meetingsOverlap } from "./conflicts";
+import { hasNoSetTime, isTimed, meetingsOverlap, meetTogether } from "./conflicts";
 import { ExportSheet } from "./ExportSheet";
 import type { BuilderHost } from "./host";
 import { BrowsePanel, totalCount } from "./CombinationsList";
 import { BrowseStrip, NoticeStrip, OptionsStrip } from "./OptionsStrip";
 import { EventPanel, OptionDetails } from "./panels";
-import { changedCount, newBusyId } from "./limits";
+import { changedCount, newBusyId, shortDate } from "./limits";
 import { addBusy, preferenceSummary, removeBusySpan } from "./preferences";
 import { PreferencesPopover } from "./PreferencesPopover";
 import { SearchPanel } from "./SearchPanel";
@@ -463,7 +464,53 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       slots.add(slot);
       return true;
     });
-  const busy: Busy[] = host.preferences.constraints.blocked.map((block) => ({ id: block.id, label: block.label, day: block.day, start: block.start, end: block.end }));
+  // Busy time the grid hatches: the student's own (weekly, or one calendar event on its date),
+  // then each connected calendar's, which reads apart from both.
+  const calendarTerm = host.calendars?.term ?? null;
+  const busy: Busy[] = [
+    ...host.preferences.constraints.blocked.map((block): Busy => {
+      const only = block.dates?.length === 1 && block.dates[0].start === block.dates[0].end ? block.dates[0].start : null;
+      const dated = Boolean(block.dates?.length);
+      return {
+        id: block.id,
+        label: block.label,
+        day: block.day,
+        start: block.start,
+        end: block.end,
+        ...(dated ? { kind: "dated" as const, note: only ? `${shortDate(only)} only` : "Some weeks" } : {}),
+      };
+    }),
+    ...(calendarTerm ? calendarBands(host.preferences.calendars, calendarTerm.id, calendarTerm) : [])
+      .filter((band): band is typeof band & { day: WeekDay } => isWeekDay(band.day))
+      .map((band): Busy => {
+        const weeks = band.dates.length;
+        const note = calendarTerm && weeks >= weekdayCount(band.day, calendarTerm) ? "Every week" : weeks === 1 ? `${shortDate(band.dates[0])} only` : `${weeks} weeks`;
+        return { id: `calendar-${band.calendarId}-${band.day}-${band.start}`, label: band.name, day: band.day, start: band.start, end: band.end, kind: "calendar", note };
+      }),
+  ];
+  // Auto keeps calendar busy time free, so the answer line checks it too.
+  const calendarBlocks: BlockedTime[] = calendarTerm
+    ? calendarBlockedTimes(host.preferences.calendars, calendarTerm.id, calendarTerm).flatMap((block) => (isWeekDay(block.day) ? [{ ...block, day: block.day }] : []))
+    : [];
+  // Classes on the grid that meet during dated busy time, on a date they meet: marked like a clash, with the date.
+  const datedBlocks: BlockedTime[] = [...host.preferences.constraints.blocked.filter((block) => block.dates?.length), ...calendarBlocks];
+  const busyClash = new Map<string, string>();
+  for (const event of shown.events) {
+    for (const block of datedBlocks) {
+      if (block.day !== event.day || event.start >= block.end || block.start >= event.end) continue;
+      const dates = (block.dates ?? []).filter((range) => meetTogether(event.day, event.dates, range));
+      if (dates.length === 0) continue;
+      busyClash.set(event.key, `${block.label}, ${dates.length === 1 ? shortDate(dates[0].start) : `${dates.length} dates`}`);
+      break;
+    }
+  }
+  const clashing = shown.events.filter((event) => busyClash.has(event.key));
+  const besideClass = (block: Busy) =>
+    block.kind !== undefined && clashing.some((event) => event.day === block.day && event.start < block.end && block.start < event.end);
+  const busyShown = busy.map((block) => (besideClass(block) ? { ...block, beside: true } : block));
+  const answerPreferences = calendarBlocks.length
+    ? { ...host.preferences, constraints: { ...host.preferences.constraints, blocked: [...host.preferences.constraints.blocked, ...calendarBlocks] } }
+    : host.preferences;
 
   const answerCourses: AnswerCourse[] = host.courses.map((course) => ({
     code: course.code,
@@ -471,7 +518,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     state: course.state === "none" ? "pick" : course.state,
     note: course.note,
   }));
-  const answer = answerFor({ courses: answerCourses, events: now.events, walks: now.walks, preferences: host.preferences, termLabel: host.term.label });
+  const answer = answerFor({ courses: answerCourses, events: now.events, walks: now.walks, preferences: answerPreferences, termLabel: host.term.label });
   const summary = preferenceSummary(host.preferences, host.defaults);
   const prefCount = changedCount(host.preferences, host.defaults);
   const noSetTime = shownSections.filter(hasNoSetTime);
@@ -706,7 +753,8 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         selectedCourse={selectedCourse?.code ?? null}
         outlines={outlines}
         ghost={ghost}
-        busy={busy}
+        busy={busyShown}
+        busyClash={busyClash}
         limits={host.preferences.constraints}
         motion={{ key: shownKey, instant, exit }}
         interactive={!previewing}
@@ -859,6 +907,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         options={host.search.options}
         load={host.search.load}
         touch={!fine}
+        calendars={host.calendars}
         onSetUp={host.setup ? () => openSetup("again") : null}
       />
 
