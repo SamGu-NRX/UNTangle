@@ -36,12 +36,12 @@ export type SectionExamUnknown = ExamUnknownReason | "sample" | "unpublished";
 
 export type SectionExam = { kind: "known"; exam: ExamSlot; projected: boolean } | { kind: "unknown"; reason: SectionExamUnknown };
 
-/** The first day of the planning term's finals week, from the registrar's calendar (lib/terms). */
-const planningWeekStart = (() => {
-  const finals = fullSession(planningTerm.label).finalExams;
-  if (!finals) throw new Error(`lib/terms has no finals week for ${planningTerm.label}`);
-  return finals.begin;
-})();
+/**
+ * The first day of the planning term's finals week, from the registrar's
+ * calendar (lib/terms); null while the registrar hasn't published it, and
+ * then no final can be placed in it.
+ */
+const planningWeekStart = fullSession(planningTerm.label).finalExams?.begin ?? null;
 
 /** Whether the rule is another term's, moved into the planning term's finals week. */
 const projected = UNT_FINAL_EXAMS.term !== planningTerm.label;
@@ -51,12 +51,22 @@ const sourceWeekStart = UNT_FINAL_EXAMS.grid
   .map((row) => row.exam.date)
   .sort()[0];
 
+/**
+ * Where a projected final lands: the planning term's finals week, when it is
+ * published and starts on the same weekday as the rule's own. Otherwise
+ * moving a slot would be a guess, so every final is unknown instead
+ * (frontend/tests/final-exams.test.ts pins that today's data projects).
+ */
+const projectInto = planningWeekStart !== null && examDayOf(sourceWeekStart) === examDayOf(planningWeekStart) ? planningWeekStart : null;
+
 /** Where the finals come from, for the one line that says so. */
 export const FINALS_SOURCE = {
   /** "Fall 2026" */
   term: UNT_FINAL_EXAMS.term,
   planningTerm: planningTerm.label,
   projected,
+  /** Where projected finals land; null when none can be placed (see `projectInto`). */
+  weekStart: projected ? projectInto : planningWeekStart,
   url: UNT_FINAL_EXAMS.sourceUrl,
   capturedAt: UNT_FINAL_EXAMS.capturedAt,
 } as const;
@@ -65,10 +75,6 @@ export const FINALS_SOURCE = {
 export const PROJECTED_FINALS_NOTE = projected
   ? `UNT hasn't published ${planningTerm.label} finals yet. These times follow its ${UNT_FINAL_EXAMS.term} schedule, moved to the same weekday of finals week, so they may change.`
   : null;
-// Checked once here, not on Week's render path: moving a slot between weeks that start on different weekdays would be a guess.
-if (projected && examDayOf(sourceWeekStart) !== examDayOf(planningWeekStart)) {
-  throw new Error(`final-exams: ${UNT_FINAL_EXAMS.term}'s finals week starts ${sourceWeekStart}, ${planningTerm.label}'s ${planningWeekStart}; they start on different weekdays`);
-}
 
 /** The planning term's sessions, from the registrar's calendar (lib/terms). */
 const planningSessions = getTermCalendar(planningTerm.label)?.sessions ?? [];
@@ -121,8 +127,8 @@ function examAnswer(section: Section): SectionExam {
   if (answer.kind === "unknown") return answer;
   if (!projected) return { kind: "known", exam: answer.exam, projected: false };
   // A first eight-week final sits weeks before finals week; its Spring 2027 day can't be read off Fall's.
-  if (!inWeek(answer.exam, sourceWeekStart)) return { kind: "unknown", reason: "unpublished" };
-  return { kind: "known", exam: moveToWeek(answer.exam, sourceWeekStart, planningWeekStart), projected: true };
+  if (projectInto === null || !inWeek(answer.exam, sourceWeekStart)) return { kind: "unknown", reason: "unpublished" };
+  return { kind: "known", exam: moveToWeek(answer.exam, sourceWeekStart, projectInto), projected: true };
 }
 
 /** Why a section has no known final, as one sentence. */
@@ -138,7 +144,9 @@ export function unknownExamSentence(section: Section, reason: SectionExamUnknown
     case "other-site":
       return `${otherSiteOf(section) ?? "Its site"} lists its own finals, and UNTangle doesn't read that list yet.`;
     case "unpublished":
-      return `First eight-week finals go by subject, and UNT hasn't set ${planningTerm.label}'s times yet.`;
+      return sessionOf(section) === "8w1"
+        ? `First eight-week finals go by subject, and UNT hasn't set ${planningTerm.label}'s times yet.`
+        : `UNT hasn't published ${planningTerm.label}'s finals week yet.`;
     case "session":
       return `UNT's exam schedule has no rule for its session (${section.session.label}).`;
     case "no-rule":

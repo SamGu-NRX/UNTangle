@@ -1124,13 +1124,19 @@
   font-size: 13px;
   color: var(--danger);
 }
+/* An overlap of projected finals: a check, not yet a conflict. */
+.check {
+  font-size: 13px;
+  color: var(--attention);
+}
 
 /* The selected course's final, in its panel. */
 .final {
   display: grid;
   gap: 4px;
 }
-.final .clash {
+.final .clash,
+.final .check {
   margin: 0;
   font-size: 14px;
 }

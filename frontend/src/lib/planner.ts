@@ -227,7 +227,9 @@ const RECOMMEND_MAX_NODES = 20_000;
  * a course whose fixed pick is not one of them: a pick that no longer
  * resolves, or one with no set time, is not the optimizer's to replace. When
  * the fixed sections clash so that nothing fits, they are returned as they
- * are and the clash is left for the page to show.
+ * are and the clash is left for the page to show. Finals count, unless they
+ * are the only reason nothing fits: then the other courses are suggested
+ * without them, and Week names the overlapping finals.
  */
 export function recommendSections(
   option: OptimizationKey,
@@ -247,23 +249,27 @@ export function recommendSections(
   if (optimizerCourses.length === 0) {
     return {};
   }
-  const result = optimize({
-    courses: optimizerCourses,
-    locks,
-    excluded: [],
-    term: planningTermDates,
-    constraints: NO_CONSTRAINTS,
-    weights: GOAL_WEIGHTS[option],
-    walkingTime,
-    k: 1,
-    maxNodes: RECOMMEND_MAX_NODES,
-    timeBudgetMs: Number.POSITIVE_INFINITY,
-    explainBudgetMs: 0,
-  });
-  if (result.schedules.length > 0) {
-    return { ...result.schedules[0].byCourse };
-  }
-  return locks;
+  const best = (searched: OptCourse[]) =>
+    optimize({
+      courses: searched,
+      locks,
+      excluded: [],
+      term: planningTermDates,
+      constraints: NO_CONSTRAINTS,
+      weights: GOAL_WEIGHTS[option],
+      walkingTime,
+      k: 1,
+      maxNodes: RECOMMEND_MAX_NODES,
+      timeBudgetMs: Number.POSITIVE_INFINITY,
+      explainBudgetMs: 0,
+    }).schedules[0] ?? null;
+  // Two picks whose finals overlap would leave every other course without a suggestion, and Week would
+  // blame those courses. The overlap is Week's to name (answer.ts), so the suggestions are found
+  // without finals instead. Auto's own request keeps them (buildOptimizeRequest).
+  const found =
+    best(optimizerCourses) ??
+    best(optimizerCourses.map((course) => ({ ...course, sections: course.sections.map((section) => (section.exam ? { ...section, exam: null } : section)) })));
+  return found ? { ...found.byCourse } : locks;
 }
 
 /**

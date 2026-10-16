@@ -28,7 +28,7 @@ function FinalExam({ section, week, finals }: { section: Section; week: readonly
             {examLongDay(exam.exam)}, {examTimes(exam.exam)}
           </p>
           {clashes.length > 0 ? (
-            <p className={styles.clash}>
+            <p className={exam.projected ? styles.check : styles.clash}>
               {clashes.length === 1 ? `Overlaps the ${clashes[0]} final.` : `Overlaps the ${andList(clashes)} finals.`}
             </p>
           ) : null}

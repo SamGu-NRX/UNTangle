@@ -9,9 +9,8 @@ import type { Section } from "@/lib/sections/model";
  * - fact: this option alone, on a stated preference.
  * - grade-history: the chosen instructor's past grades.
  * - seats: a chosen section is closed, wait-listed, cancelled or full.
- * - finals: a chosen section's final isn't known, so Auto couldn't check it for a clash.
  */
-export type ReasonKind = "comparison" | "trade-off" | "preference-met" | "fact" | "grade-history" | "seats" | "finals";
+export type ReasonKind = "comparison" | "trade-off" | "preference-met" | "fact" | "grade-history" | "seats";
 
 /** A key into the student's preference weights. */
 export type StatedPreference = keyof OptWeights;

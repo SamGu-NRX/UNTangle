@@ -28,9 +28,10 @@ export type AnswerCourse = {
 };
 
 /**
- * The first that applies: loading, a clash, a course that needs a pick, two
- * overlapping finals, a tight or late walk, a broken preference, or
- * the all-clear. Null when the week is empty (the grid shows its own empty
+ * The first that applies: loading, a clash, overlapping finals (before a
+ * course that needs a pick, since two picks' finals can leave the others
+ * without a suggestion), a course that needs a pick, a tight or late walk,
+ * a broken preference, or the all-clear. Null when the week is empty (the grid shows its own empty
  * state).
  */
 export function answerFor(input: {
@@ -55,9 +56,6 @@ export function answerFor(input: {
     return { tone: "danger", text: `${a.courseCode} overlaps ${b.courseCode} on ${dayNames(days)}.`, action: "fix" };
   }
 
-  const pick = courses.find((course) => course.state === "pick");
-  if (pick) return { tone: "attention", text: pick.note ?? `Pick a section for ${pick.code}.`, action: "pick", courseCode: pick.code };
-
   const final = input.finals?.find((entry) => entry.clashesWith.length > 0);
   if (final && final.exam.kind === "known") {
     // A projected time can still move when UNT publishes the term's finals, so it is a check, not a conflict.
@@ -67,6 +65,9 @@ export function answerFor(input: {
       action: "fix",
     };
   }
+
+  const pick = courses.find((course) => course.state === "pick");
+  if (pick) return { tone: "attention", text: pick.note ?? `Pick a section for ${pick.code}.`, action: "pick", courseCode: pick.code };
 
   const bad = walks.find((walk) => walk.kind !== "ok");
   if (bad) {
@@ -177,7 +178,7 @@ export function describeAlternative(
   if (b.clashes < a.clashes) gains.push(b.clashes === 0 ? "Fixes the overlap" : "Has fewer overlaps");
   const finalsNow = now.finalsClashes ?? 0;
   const finalsNext = next.finalsClashes ?? 0;
-  if (finalsNext < finalsNow) gains.push(finalsNext === 0 ? "Fixes the finals clash" : "Has fewer finals clashes");
+  if (finalsNext < finalsNow) gains.push(finalsNext === 0 ? "Fixes the overlapping finals" : "Has fewer overlapping finals");
   if (freed.length > 0) gains.push(`Frees ${dayNames(freed)}`);
   // The walk to PHYS 2220 on Monday and Wednesday is one walk to the student, so count destinations.
   const badTo = (walks: readonly WalkLeg[]) => new Set(walks.filter((w) => w.kind !== "ok").map((w) => w.toCourse)).size;

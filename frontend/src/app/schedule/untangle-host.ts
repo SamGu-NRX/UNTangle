@@ -10,8 +10,8 @@ import { useBrowseRuns, useOptimizerRuns } from "@/components/schedule/use-optim
 import { searchCourses } from "@/components/shell/course-search";
 import { toast } from "@/components/ui/Toast";
 import type { Brand } from "@/lib/brand";
-import { examOf, PROJECTED_FINALS_NOTE, unknownExamSentence } from "@/lib/final-exams";
-import type { RelaxSuggestion } from "@/lib/optimizer/types";
+import { examOf, FINALS_SOURCE, PROJECTED_FINALS_NOTE, unknownExamSentence } from "@/lib/final-exams";
+import type { Explanation, RelaxSuggestion } from "@/lib/optimizer/types";
 import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
 import {
   buildOptimizeRequest,
@@ -47,6 +47,17 @@ const finals: BuilderFinals = {
   },
   projected: PROJECTED_FINALS_NOTE ? { label: "Projected", source: PROJECTED_FINALS_NOTE } : null,
 };
+
+/**
+ * The explanation's sentence, plus where its finals come from when they are
+ * part of why nothing fits and their times are projected.
+ */
+function infeasibleSentence(explanation: Explanation): string {
+  const finals = explanation.members.some((member) => member.kind === "exams");
+  return finals && FINALS_SOURCE.projected
+    ? `${explanation.sentence} Those finals are projected from UNT's ${FINALS_SOURCE.term} schedule.`
+    : explanation.sentence;
+}
 
 /** Undo steps kept per visit. More than anyone presses; a bound, not a rule. */
 const HISTORY = 50;
@@ -406,7 +417,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     stale: isStale(run, inputKey),
     infeasible:
       result?.status === "infeasible"
-        ? { sentence: result.explanation.sentence, fixes: result.explanation.suggestions.map((s) => ({ label: s.label, apply: () => relax(s) })) }
+        ? { sentence: infeasibleSentence(result.explanation), fixes: result.explanation.suggestions.map((s) => ({ label: s.label, apply: () => relax(s) })) }
         : result?.status === "timeout" && result.schedules.length === 0 && run.status === "done"
           ? { sentence: "No week turned up in time. Loosen a preference or keep fewer sections.", fixes: [] }
           : null,
@@ -438,7 +449,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     stale: isStale(browseRun, inputKey),
     infeasible:
       listed?.status === "infeasible"
-        ? { sentence: listed.explanation.sentence, fixes: listed.explanation.suggestions.map((s) => ({ label: s.label, apply: () => relax(s) })) }
+        ? { sentence: infeasibleSentence(listed.explanation), fixes: listed.explanation.suggestions.map((s) => ({ label: s.label, apply: () => relax(s) })) }
         : null,
     timedOut: listed?.status === "timeout",
     error: browseRun.error,

@@ -244,18 +244,30 @@ function sectionLabel(section: OptSection): string {
 
 const WEEKDAY_SHORT = ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
 
-/** "Mon, May 3, 8 AM to 10 AM": a final as the student reads it. */
+/** "9:00", or "9:00 AM" with its half of the day: how Week writes a final's times (schedule-builder/finals.ts). */
+function examClock(minutes: number, suffix: boolean): string {
+  const hours = Math.floor(minutes / 60);
+  const text = `${hours % 12 === 0 ? 12 : hours % 12}:${String(minutes % 60).padStart(2, "0")}`;
+  return suffix ? `${text} ${hours >= 12 ? "PM" : "AM"}` : text;
+}
+
+/** "8:00 to 10:00 AM", or "10:30 AM to 12:30 PM" across noon, as Week writes them. */
+function examTimes(start: number, end: number): string {
+  return start < 12 * 60 === end < 12 * 60 ? `${examClock(start, false)} to ${examClock(end, true)}` : `${examClock(start, true)} to ${examClock(end, true)}`;
+}
+
+/** "Mon, May 3, 8:00 to 10:00 AM": a final as the student reads it in Week. */
 export function examLabel(exam: OptExam): string {
   // Epoch day 0, 1970-01-01, was a Thursday.
   const weekday = WEEKDAY_SHORT[(dayNumber(exam.date) ?? 0) % 7];
   const date = `${MONTHS[Number(exam.date.slice(5, 7)) - 1]} ${Number(exam.date.slice(8, 10))}`;
-  return `${weekday}, ${date}, ${formatClock(exam.start)} to ${formatClock(exam.end)}`;
+  return `${weekday}, ${date}, ${examTimes(exam.start, exam.end)}`;
 }
 
-/** Both finals of a clash: "both Mon, May 3, 8 AM to 10 AM", or each when they differ. */
+/** Both overlapping finals: "both Mon, May 3, 8:00 to 10:00 AM", or each when they differ. */
 function examPair(a: OptExam, b: OptExam): string {
   if (a.date === b.date && a.start === b.start && a.end === b.end) return `both ${examLabel(a)}`;
-  return `${examLabel(a)} and ${formatClock(b.start)} to ${formatClock(b.end)}`;
+  return `${examLabel(a)} and ${examTimes(b.start, b.end)}`;
 }
 
 function conditionPhrases(request: OptimizeRequest, members: ExplainMember[]): string[] {
@@ -280,7 +292,7 @@ function conditionPhrases(request: OptimizeRequest, members: ExplainMember[]): s
     const buffer = c.walking?.bufferMinutes ?? 0;
     phrases.push(buffer > 0 ? `with time to walk between buildings plus ${buffer} minutes` : "with time to walk between buildings");
   }
-  if (has("exams")) phrases.push("without a finals clash");
+  if (has("exams")) phrases.push("without overlapping finals");
   const excluded = members.filter((member): member is Extract<ExplainMember, { kind: "excluded" }> => member.kind === "excluded");
   if (excluded.length > 0) {
     const labels = excluded.map((member) => {
@@ -385,7 +397,8 @@ export function explainSentence(request: OptimizeRequest, members: ExplainMember
   }
 
   const names = codes.map(describe);
-  return `${joinList(names)} can't all fit together${where}: every combination has a clash.`.replace(/^./, (s) => s.toUpperCase());
+  const overlap = members.some((member) => member.kind === "exams") ? "two classes or two finals that overlap" : "a clash";
+  return `${joinList(names)} can't all fit together${where}: every combination has ${overlap}.`.replace(/^./, (s) => s.toUpperCase());
 }
 
 /** Used when the set could not be shown minimal: it conflicts, but may name more than needed. */

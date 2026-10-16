@@ -113,8 +113,18 @@ describe("finals model and words", () => {
     expect(answerFor({ courses, events: [], walks: [], preferences, termLabel: "Spring 2027" })?.text).toBe("This week fits your preferences.");
   });
 
+  test("overlapping finals come before a course that needs a pick, since they can be why it has no suggestion", () => {
+    const courses = [
+      ...[csce, math].map((s) => ({ code: s.courseCode, credits: 3, state: "placed" as const })),
+      { code: "ENGL 1310", credits: 3, state: "pick" as const, note: "No section of ENGL 1310 fits around your other classes. Pick one by hand." },
+    ];
+    expect(answerFor({ courses, events: [], walks: [], preferences, termLabel: "Spring 2027", finals: weekFinals([csce, math], finals) })?.text).toBe(
+      "CSCE 2110 and MATH 1710 finals overlap on Monday, May 3.",
+    );
+  });
+
   test("an alternative that removes the clash says so", () => {
-    expect(describeAlternative({ events: [], walks: [], finalsClashes: 1 }, { events: [], walks: [], finalsClashes: 0 })).toBe("Fixes the finals clash.");
+    expect(describeAlternative({ events: [], walks: [], finalsClashes: 1 }, { events: [], walks: [], finalsClashes: 0 })).toBe("Fixes the overlapping finals.");
     expect(describeAlternative({ events: [], walks: [], finalsClashes: 0 }, { events: [], walks: [], finalsClashes: 1 })).toBe("Two finals overlap.");
   });
 });
@@ -126,7 +136,7 @@ describe("Week with finals", () => {
     expect(pills(view.container).map((b) => [b.textContent, b.getAttribute("aria-label"), b.getAttribute("data-clash")])).toEqual([
       ["CSCE 2110Mon 8:00 AM", "CSCE 2110 Mon 8:00 AM, final on Monday, May 3, 8:00 to 10:00 AM, overlaps MATH 1710", "check"],
       ["MATH 1710Mon 9:00 AM", "MATH 1710 Mon 9:00 AM, final on Monday, May 3, 9:00 to 11:00 AM, overlaps CSCE 2110", "check"],
-      ["ENGL 1310Not known", "ENGL 1310 Not known, final time", null],
+      ["ENGL 1310Not known", "ENGL 1310 Not known. Its final time isn't known; open it to see why.", null],
     ]);
     // An overlap shows a glyph, not only a color; a pill without one has none.
     expect(pills(view.container).map((b) => Boolean(b.querySelector("svg")))).toEqual([true, true, false]);
@@ -150,7 +160,7 @@ describe("Week with finals", () => {
     const move = [...panel.querySelectorAll("button")].find((b) => b.getAttribute("aria-label")?.startsWith("Move to section 002"))!;
     expect(move.getAttribute("aria-label")).toBe("Move to section 002, final overlaps CSCE 2110");
     expect(panel.textContent).toContain("Final overlaps CSCE 2110");
-    expect(panel.textContent).toContain("Final Mon, May 3, 9:00 AM");
+    expect(panel.textContent).toContain("Projected final Mon, May 3, 9:00 AM");
     await click(pills(view.container).find((b) => b.textContent?.startsWith("ENGL 1310"))!);
     expect(document.querySelector("aside [data-final]")!.textContent).toBe("FinalIt has no set meeting time, so the syllabus sets the final.");
     await view.unmount();

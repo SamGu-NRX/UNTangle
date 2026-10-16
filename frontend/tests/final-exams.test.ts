@@ -5,8 +5,11 @@
  */
 import { describe, expect, test } from "bun:test";
 import { examOf, FINALS_SOURCE, unknownExamSentence } from "@/lib/final-exams";
-import { buildOptimizeRequest, defaultSchedulePreferences } from "@/lib/planner";
+import { buildOptimizeRequest, defaultSchedulePreferences, recommendSections, resolveSectionPlan } from "@/lib/planner";
+import type { SectionCatalog } from "@/lib/planner-sections";
+import type { Section } from "@/lib/sections";
 import { defaultPlannerState } from "@/lib/seed-data";
+import { meeting, section } from "./schedule-builder/fixtures";
 import { courseAs, fixtureCatalog, fixtureInput, optionsOf, setDates } from "./sections/real-term";
 
 const known = (date: string, start: number, end: number) => ({ kind: "known" as const, exam: { date, start, end }, projected: true });
@@ -83,4 +86,63 @@ test("Auto's request carries each known final and leaves unknown ones off", () =
     "CSCE 1030": expect.arrayContaining([null]),
   });
   expect(exams["CSCE 1030"].every((exam) => exam === null)).toBe(true);
+});
+
+describe("the planner with finals", () => {
+  // Monday 3:00 and Wednesday 3:00 classes both take Monday, Dec. 7, 1 to 3 under the Fall 2026 rule: May 3 in Spring.
+  const csce = section({ courseCode: "CSCE 2110", meetings: [meeting({ day: "Mon", at: "15:00", until: "15:50" })] });
+  const csceOther = section({ courseCode: "CSCE 2110", sectionCode: "002", meetings: [meeting({ day: "Tue", at: "8:00", until: "9:20" })] });
+  const math = section({ courseCode: "MATH 1710", meetings: [meeting({ day: "Wed", at: "15:00", until: "15:50" })] });
+  const engl = section({ courseCode: "ENGL 1310", meetings: (["Tue", "Thu"] as const).map((day) => meeting({ day, at: "11:00", until: "12:20" })) });
+  // Two ENGL options, so the planner can't fall back on a lone option: ENGL is placed only if it is suggested.
+  const englLate = section({ courseCode: "ENGL 1310", sectionCode: "002", meetings: (["Tue", "Thu"] as const).map((day) => meeting({ day, at: "17:30", until: "18:50" })) });
+  const options: Record<string, Section[]> = { "CSCE 2110": [csce, csceOther], "MATH 1710": [math], "ENGL 1310": [engl, englLate] };
+  const catalog: SectionCatalog = (code) => ({
+    status: "ready",
+    result: {
+      term: "spring-2027",
+      courseCode: code,
+      diagnostic: null,
+      sections: options[code] ?? [],
+      status: "ok",
+      availability: "sections",
+      provenance: { kind: "real", source: "vsb.untgrades.app", updatedAt: "2026-10-04T00:00:00Z", note: "" },
+      checkedAt: "2026-10-16T00:00:00Z",
+    },
+  });
+  const plan = (selectedSections: Record<string, string>) =>
+    ({
+      ...defaultPlannerState,
+      courseStatuses: { "CSCE 2110": "inProgress", "MATH 1710": "inProgress", "ENGL 1310": "inProgress" },
+      selectedSections,
+    }) as const;
+
+  test("the current term's finals week is where projected finals land", () => {
+    expect(FINALS_SOURCE.weekStart).toBe("2027-05-01");
+    expect(examOf(csce)).toEqual(known("2027-05-03", 780, 900));
+    expect(examOf(math)).toEqual(known("2027-05-03", 780, 900));
+  });
+
+  test("two picks whose finals overlap still leave the other courses a suggestion", () => {
+    const sections = resolveSectionPlan(plan({ "CSCE 2110": csce.id, "MATH 1710": math.id }), catalog);
+    const byCode = Object.fromEntries(sections.courses.map((course) => [course.code, [course.state, course.section?.id ?? null]]));
+    expect(byCode).toEqual({
+      "CSCE 2110": ["chosen", csce.id],
+      "ENGL 1310": ["recommended", engl.id],
+      "MATH 1710": ["chosen", math.id],
+    });
+  });
+
+  test("a suggestion still steers clear of a pick's final when it can", () => {
+    // CSCE 2110 001 would put its final on MATH 1710's; 002 doesn't.
+    expect(recommendSections("compact", ["CSCE 2110", "MATH 1710"], { "MATH 1710": math.id }, catalog)).toEqual({
+      "CSCE 2110": csceOther.id,
+      "MATH 1710": math.id,
+    });
+  });
+
+  test("Auto's request keeps the finals, so Auto itself never pairs them", () => {
+    const request = buildOptimizeRequest(plan({ "CSCE 2110": csce.id, "MATH 1710": math.id }), defaultSchedulePreferences("compact"), { catalog });
+    expect(request.courses.find((course) => course.code === "MATH 1710")!.sections[0].exam).toEqual({ date: "2027-05-03", start: 780, end: 900 });
+  });
 });

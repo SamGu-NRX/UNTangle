@@ -91,7 +91,8 @@ export function SectionRows({ courseCode, sections, week, currentId, verb, highl
               {detail ? <div className={styles.meta}>{detail}</div> : null}
               {exam?.kind === "known" ? (
                 <div className={styles.meta}>
-                  Final {examDay(exam.exam)}, {examStartTime(exam.exam)}
+                  {/* Each row says "projected" itself: the Finals line that labels the times may not be on screen. */}
+                  {exam.projected ? "Projected final" : "Final"} {examDay(exam.exam)}, {examStartTime(exam.exam)}
                 </div>
               ) : null}
               {conflicts.map((conflict) => (
@@ -99,7 +100,10 @@ export function SectionRows({ courseCode, sections, week, currentId, verb, highl
                   Overlaps {conflict.courseCode} on {andList(conflict.days)}
                 </div>
               ))}
-              {examClashes.length ? <div className={styles.clash}>Final overlaps {andList(examClashes)}</div> : null}
+              {examClashes.length ? (
+                // A projected overlap is a check (attention); a published one a conflict (danger).
+                <div className={exam?.kind === "known" && exam.projected ? styles.check : styles.clash}>Final overlaps {andList(examClashes)}</div>
+              ) : null}
             </div>
           </li>
         );

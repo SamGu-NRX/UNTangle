@@ -1647,15 +1647,23 @@ function sectionLabel(section) {
   return section.label ?? section.id;
 }
 var WEEKDAY_SHORT = ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
+function examClock(minutes, suffix) {
+  const hours = Math.floor(minutes / 60);
+  const text = `${hours % 12 === 0 ? 12 : hours % 12}:${String(minutes % 60).padStart(2, "0")}`;
+  return suffix ? `${text} ${hours >= 12 ? "PM" : "AM"}` : text;
+}
+function examTimes(start, end) {
+  return start < 12 * 60 === end < 12 * 60 ? `${examClock(start, false)} to ${examClock(end, true)}` : `${examClock(start, true)} to ${examClock(end, true)}`;
+}
 function examLabel(exam) {
   const weekday = WEEKDAY_SHORT[(dayNumber(exam.date) ?? 0) % 7];
   const date = `${MONTHS[Number(exam.date.slice(5, 7)) - 1]} ${Number(exam.date.slice(8, 10))}`;
-  return `${weekday}, ${date}, ${formatClock(exam.start)} to ${formatClock(exam.end)}`;
+  return `${weekday}, ${date}, ${examTimes(exam.start, exam.end)}`;
 }
 function examPair(a, b) {
   if (a.date === b.date && a.start === b.start && a.end === b.end)
     return `both ${examLabel(a)}`;
-  return `${examLabel(a)} and ${formatClock(b.start)} to ${formatClock(b.end)}`;
+  return `${examLabel(a)} and ${examTimes(b.start, b.end)}`;
 }
 function conditionPhrases(request, members) {
   const c = request.constraints;
@@ -1682,7 +1690,7 @@ function conditionPhrases(request, members) {
     phrases.push(buffer > 0 ? `with time to walk between buildings plus ${buffer} minutes` : "with time to walk between buildings");
   }
   if (has("exams"))
-    phrases.push("without a finals clash");
+    phrases.push("without overlapping finals");
   const excluded = members.filter((member) => member.kind === "excluded");
   if (excluded.length > 0) {
     const labels = excluded.map((member) => {
@@ -1773,7 +1781,8 @@ function explainSentence(request, members) {
     return `No pair of ${a} and ${b} sections fits together${where}.`;
   }
   const names = codes.map(describe);
-  return `${joinList(names)} can't all fit together${where}: every combination has a clash.`.replace(/^./, (s) => s.toUpperCase());
+  const overlap = members.some((member) => member.kind === "exams") ? "two classes or two finals that overlap" : "a clash";
+  return `${joinList(names)} can't all fit together${where}: every combination has ${overlap}.`.replace(/^./, (s) => s.toUpperCase());
 }
 function fallbackSentence(request, members) {
   const codes = members.filter((m) => m.kind === "course").map((m) => m.courseCode);

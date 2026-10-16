@@ -114,6 +114,22 @@ describe("parseUntExamPage on the Fall 2026 page", () => {
   });
 });
 
+test("reports a row with a header cell and a departmental final worded another way, instead of dropping them", () => {
+  const page = `<h3>Fall 2026 Final Exam Schedule</h3><div class="js-accordion__header">Classes Meeting on the Main Denton Campus</div>
+    <table><caption>First Class Meeting on Monday</caption><tr><th>Class Meeting Starts Between</th><th>Final Exam Day</th></tr>
+    <tr><th scope="row">8:00 a.m. and 8:59 a.m.</th><td>Saturday, Dec. 5 from 8 – 10 a.m.</td></tr>
+    <tr><td>9:00 a.m. and 9:59 a.m.</td><td>Monday, Dec. 7 from 8 – 10 a.m.</td></tr></table>
+    <div class="js-accordion__header">Accounting Departmental Exams</div>
+    <p>ACCT 2010 (Accounting Principles I) meets for its final on Wednesday, December 9 from 3:30 – 5:30 p.m.</p>
+    <p>Please contact the department for room locations.</p>`;
+  const result = parseUntExamPage(page, fixtureMeta());
+  expect(result.invalid.map((row) => [row.text, row.reason])).toEqual([
+    ["8:00 a.m. and 8:59 a.m. | Saturday, Dec. 5 from 8 – 10 a.m.", "the row mixes header and data cells"],
+    ["ACCT 2010 (Accounting Principles I) meets for its final on Wednesday, December 9 from 3:30 – 5:30 p.m.", 'names a course, but not as "final exam for"'],
+  ]);
+  expect(result.schedule.grid).toHaveLength(1);
+});
+
 describe("examFor against the Fall 2026 rule", () => {
   const exam = (subject: ExamClass) => {
     const answer = examFor(subject, schedule);

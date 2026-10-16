@@ -189,16 +189,29 @@ function dayList(text: string): ExamDay[] | null {
   return EXAM_DAYS.filter((day) => days.includes(day));
 }
 
-type Table = { caption: string; rows: string[][] };
+/** A table's caption, its data rows' cell texts, and the text of any row that mixes header and data cells. */
+type Table = { caption: string; rows: string[][]; mixed: string[] };
 
-/** Each table's caption and its data rows' cell texts; header rows (th) are skipped. */
+/**
+ * Each table's caption and its rows. A row of header cells only (th) is the
+ * table's heading and skipped. A row with both is kept apart in `mixed`, so
+ * the caller reports it: it could be a data row UNT marked up with a row
+ * header, and dropping it would lose an exam time quietly.
+ */
 function tables(html: string): Table[] {
   return [...html.matchAll(/<table[\s\S]*?<\/table>/g)].map((table) => {
     const caption = /<caption>([\s\S]*?)<\/caption>/.exec(table[0]);
-    const rows = [...table[0].matchAll(/<tr[\s\S]*?<\/tr>/g)]
-      .filter((row) => !/<th[\s>]/.test(row[0]))
-      .map((row) => [...row[0].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => decode(cell[1])));
-    return { caption: caption ? decode(caption[1]) : "", rows };
+    const rows: string[][] = [];
+    const mixed: string[] = [];
+    for (const row of table[0].matchAll(/<tr[\s\S]*?<\/tr>/g)) {
+      const cells = [...row[0].matchAll(/<(t[dh])[^>]*>([\s\S]*?)<\/\1>/g)];
+      const headers = cells.filter((cell) => cell[1] === "th").length;
+      if (headers === cells.length) continue;
+      const texts = cells.map((cell) => decode(cell[2]));
+      if (headers > 0) mixed.push(texts.join(" | "));
+      else rows.push(texts);
+    }
+    return { caption: caption ? decode(caption[1]) : "", rows, mixed };
   });
 }
 
@@ -233,7 +246,8 @@ export function parseUntExamPage(html: string, meta: ExamPageMeta): ParsedExamPa
 
     if (/main denton campus|^classes meeting at discovery park$/i.test(panel)) {
       const campus: ExamCampus = /discovery park/i.test(panel) ? "discovery-park" : "main";
-      for (const { caption, rows } of tables(body)) {
+      for (const { caption, rows, mixed } of tables(body)) {
+        for (const text of mixed) bad(caption, text, "the row mixes header and data cells");
         const firstDays = firstDaysOf(caption);
         if (!firstDays) {
           bad(caption, rows.map((row) => row.join(" | ")).join("; "), "the caption names no first meeting day");
@@ -255,7 +269,8 @@ export function parseUntExamPage(html: string, meta: ExamPageMeta): ParsedExamPa
     } else if (/first eight.week session/i.test(panel)) {
       const sentence = /final exams on ([A-Za-z]+),\s+([A-Za-z]+)\.?\s+(\d{1,2})\b/.exec(decode(body));
       const date: Read<string> = sentence ? isoDate(sentence[1], sentence[2], sentence[3], year) : { error: "the panel names no exam day" };
-      for (const { caption, rows } of tables(body)) {
+      for (const { caption, rows, mixed } of tables(body)) {
+        for (const text of mixed) bad(caption, text, "the row mixes header and data cells");
         for (const row of rows) {
           const text = row.join(" | ");
           const range = row.length === 2 ? timeRange(row[1]) : null;
@@ -268,7 +283,8 @@ export function parseUntExamPage(html: string, meta: ExamPageMeta): ParsedExamPa
         }
       }
     } else if (/second eight.week session/i.test(panel)) {
-      for (const { caption, rows } of tables(body)) {
+      for (const { caption, rows, mixed } of tables(body)) {
+        for (const text of mixed) bad(caption, text, "the row mixes header and data cells");
         const campus = CAMPUS_TABLES[caption.toLowerCase()];
         if (!campus) {
           bad(caption, rows.map((row) => row.join(" | ")).join("; "), "the caption names no campus");
@@ -292,7 +308,11 @@ export function parseUntExamPage(html: string, meta: ExamPageMeta): ParsedExamPa
     } else if (/departmental/i.test(panel)) {
       for (const paragraph of body.matchAll(/<p>([\s\S]*?)<\/p>/g)) {
         const text = decode(paragraph[1]);
-        if (!/final exam for/i.test(text)) continue;
+        if (!/final exam for/i.test(text)) {
+          // Only a paragraph that names a course could be a listing worded another way; "contact the department" is not.
+          if (/\b[A-Z]{3,4} \d{4}/.test(text)) bad("", text, 'names a course, but not as "final exam for"');
+          continue;
+        }
         const match = /final exam for ([A-Z]{3,4} \d{4}[A-Z]?)\b.*?\b([A-Z][a-z]+day),\s+([A-Za-z]+)\.?\s+(\d{1,2})\s+from\s+(.+?)$/.exec(text);
         if (!match) {
           bad("", text, "not a course, weekday, date and time");

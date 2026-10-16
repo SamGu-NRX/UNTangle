@@ -8,9 +8,10 @@
  * and a proof that finals that never clash change nothing Auto returns.
  */
 import { describe, expect, test } from "bun:test";
+import { enumerateSchedules, MAX_LIST_LIMIT } from "@/lib/optimizer/enumerate";
 import { optimize } from "@/lib/optimizer/optimize";
 import { OptimizerInputError, type OptExam, type OptimizeRequest, type OptimizeResult, type OptSection } from "@/lib/optimizer/types";
-import { smallInstance } from "./checks";
+import { examInstance, smallInstance } from "./checks";
 import { combinationCount, enumerateValid, referenceRestrict } from "./reference";
 
 const zero = { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 };
@@ -76,7 +77,7 @@ describe("acceptance: overlapping finals", () => {
     ]);
     expect(result.explanation.minimal).toBe(true);
     expect(result.explanation.sentence).toBe(
-      "CSCE 2110 (MWF 9 AM) and MATH 1710 (TTh 9:30 AM) have overlapping finals (Mon, May 3, 8 AM to 10 AM and 9 AM to 11 AM).",
+      "CSCE 2110 (MWF 9 AM) and MATH 1710 (TTh 9:30 AM) have overlapping finals (Mon, May 3, 8:00 to 10:00 AM and 9:00 to 11:00 AM).",
     );
     // UNT sets exam times, so the finals rule itself offers no one-click change.
     expect(result.explanation.suggestions).toEqual([]);
@@ -85,7 +86,7 @@ describe("acceptance: overlapping finals", () => {
   test("the same slot is named once", () => {
     const result = optimize(twoCourses(MON_8, { ...MON_8 }));
     expect(result.status === "infeasible" && result.explanation.sentence).toBe(
-      "CSCE 2110 (MWF 9 AM) and MATH 1710 (TTh 9:30 AM) have overlapping finals (both Mon, May 3, 8 AM to 10 AM).",
+      "CSCE 2110 (MWF 9 AM) and MATH 1710 (TTh 9:30 AM) have overlapping finals (both Mon, May 3, 8:00 to 10:00 AM).",
     );
   });
 
@@ -127,7 +128,7 @@ describe("acceptance: overlapping finals", () => {
       { kind: "lock", courseCode: "MATH 1710", sectionId: "math-002" },
     ]);
     expect(result.explanation.sentence).toBe(
-      "CSCE 2110 (MWF 9 AM) and your locked MATH 1710 section (TTh 9:30 AM) have overlapping finals (Mon, May 3, 8 AM to 10 AM and 9 AM to 11 AM).",
+      "CSCE 2110 (MWF 9 AM) and your locked MATH 1710 section (TTh 9:30 AM) have overlapping finals (Mon, May 3, 8:00 to 10:00 AM and 9:00 to 11:00 AM).",
     );
     expect(result.explanation.suggestions.map((s) => [s.label, s.resolves])).toEqual([["Unlock MATH 1710", true]]);
   });
@@ -159,23 +160,6 @@ describe("acceptance: overlapping finals", () => {
   });
 });
 
-/** Small instances, each section given one of four sittings on two dates, so clashes are common. */
-function withExams(request: OptimizeRequest, seed: number): OptimizeRequest {
-  const slots: OptExam[] = [MON_8, MON_9, MON_10, TUE_8];
-  let i = seed;
-  return {
-    ...request,
-    courses: request.courses.map((course) => ({
-      ...course,
-      sections: course.sections.map((section) => {
-        i = (i * 1103515245 + 12345) % 2147483648;
-        // About one section in five has no known final.
-        return { ...section, exam: i % 5 === 0 ? null : slots[i % slots.length] };
-      }),
-    })),
-  };
-}
-
 /** Every valid schedule, best first: reference.ts enumerates them and knows the finals rule. */
 const bruteForce = enumerateValid;
 const settled = (request: OptimizeRequest) => optimize({ ...request, k: 1, timeBudgetMs: Number.POSITIVE_INFINITY, explainBudgetMs: 10_000 });
@@ -185,7 +169,7 @@ describe("finals against a brute-force search", () => {
   test("the best schedule, or the proof that none exists, matches", () => {
     let infeasible = 0;
     for (const seed of SEEDS) {
-      const request = withExams(smallInstance(seed), seed);
+      const request = examInstance(seed);
       if (combinationCount(request) > 5_000) continue;
       const expected = bruteForce(request);
       const result = settled(request);
@@ -206,6 +190,27 @@ describe("finals against a brute-force search", () => {
     }
     // The generator has to produce both outcomes for this to mean anything.
     expect(infeasible).toBeGreaterThan(5);
+  });
+});
+
+describe("Browse all with finals", () => {
+  test("lists every week the brute-force search finds, and none with overlapping finals", () => {
+    let checked = 0;
+    for (const seed of SEEDS) {
+      const request = examInstance(seed);
+      if (combinationCount(request) > 5_000) continue;
+      const expected = bruteForce(request);
+      const listed = enumerateSchedules({ ...request, limit: MAX_LIST_LIMIT, timeBudgetMs: undefined });
+      if (expected.length === 0) {
+        expect({ seed, status: listed.status }).toEqual({ seed, status: "infeasible" });
+        continue;
+      }
+      checked += 1;
+      expect({ seed, status: listed.status, total: listed.total }).toEqual({ seed, status: "listed", total: expected.length });
+      expect(new Set(listed.schedules.map((s) => JSON.stringify(s.byCourse)))).toEqual(new Set(expected.slice(0, MAX_LIST_LIMIT).map((s) => JSON.stringify(s.byCourse))));
+    }
+    // Both outcomes must turn up for the comparison to mean anything.
+    expect(checked).toBeGreaterThan(10);
   });
 });
 

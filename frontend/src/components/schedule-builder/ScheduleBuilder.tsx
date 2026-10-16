@@ -955,7 +955,7 @@ function FinalsLine({
         const name =
           exam.kind === "known"
             ? `${courseCode} ${examStart(exam.exam)}, final on ${examLongDay(exam.exam)}, ${examTimes(exam.exam)}${clash ? `, overlaps ${andList(clashesWith)}` : ""}`
-            : `${courseCode} Not known, final time`;
+            : `${courseCode} Not known. Its final time isn't known; open it to see why.`;
         return (
           <button
             key={courseCode}
