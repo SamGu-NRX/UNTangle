@@ -965,7 +965,8 @@ function FinalsLine({
         );
       })}
       {projected ? (
-        <span className={styles.tag}>
+        // Unlike the sample tag, this one stays on phones: it is the only place the Finals line says its times may move.
+        <span className={styles.finalsTag}>
           <ProvenanceTag source={projected.source}>{projected.label}</ProvenanceTag>
         </span>
       ) : null}

@@ -68,6 +68,7 @@ function host(courses: WeekCourse[], withFinals: boolean) {
     search: { find: () => [], suggestions: () => [], options: (code) => OPTIONS[code] ?? null, load: () => {}, classNumber: async () => null },
     edits: { place: mock((): string | null => null), remove: mock(() => {}), keep: mock(() => {}), use: mock((): string[] => []), clear: mock(() => {}), undo: mock(() => {}), canUndo: false },
     optimizer,
+    browse: null,
     finals: withFinals ? finals : undefined,
     find: (code, id) => OPTIONS[code]?.find((s) => s.id === id),
     printHref: "/schedule/print",

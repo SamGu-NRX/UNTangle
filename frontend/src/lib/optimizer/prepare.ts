@@ -5,7 +5,7 @@
  * classes, overlapping finals, or a walk that can never fit).
  *
  * Nothing here can drop a section that some valid schedule uses, with one
- * deliberate exception: a section whose meetings and buildings are identical
+ * deliberate exception: a section whose meetings, buildings and final are identical
  * to a cheaper one of the same course (a "twin") is dropped, because the
  * cheaper twin always ranks ahead of it (see `dropTwins`). The browse list
  * keeps twins (`keepTwins`), since it lists every section.
