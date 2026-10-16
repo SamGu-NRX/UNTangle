@@ -38,6 +38,7 @@ import {
   writeStoredPreferences,
   type WriteOutcome,
 } from "@/components/schedule/preferences-store";
+import { forgetGuestCalendars } from "@/lib/calendar-feeds/client";
 import { clearPlannerIdentity, createPlannerStateStore } from "@/lib/planner-store";
 import { clearSavedPlansIdentity, getSavedPlanIdentity, setSavedPlanIdentity, subscribeSavedPlans } from "@/lib/saved-plans/store";
 import {
@@ -427,6 +428,8 @@ export function PlannerProvider(props: PlannerProviderProps) {
       clearSavedPlansIdentity(preparedUser);
       clearPlannerIdentity(null);
       clearSavedPlansIdentity(null);
+      // Guest calendars on this browser go with the guest's work (their cookie is HttpOnly, so the server clears it).
+      void forgetGuestCalendars();
       forgetAccountDocuments(props.documentStore ?? openBrowserDocumentStore, preparedUser);
     }
     setSavedPlanIdentity(userId);

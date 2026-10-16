@@ -61,8 +61,8 @@ describe("sealing a feed address", () => {
   });
 
   test("the guest id comes only from a well-formed cookie", () => {
-    expect(guestIdFrom(`a=1; untangle-calendar-guest=${browser.id}; b=2`)).toBe(browser.id);
-    expect(guestIdFrom("untangle-calendar-guest=short")).toBeNull();
+    expect(guestIdFrom(`a=1; __Host-untangle-calendar-guest=${browser.id}; b=2`)).toBe(browser.id);
+    expect(guestIdFrom("__Host-untangle-calendar-guest=short")).toBeNull();
     expect(guestIdFrom(null)).toBeNull();
   });
 
@@ -91,24 +91,30 @@ describe("how long a token opens", () => {
   const day = 24 * 60 * 60 * 1000;
 
   test("a guest's token stops opening 30 days after it was sealed", () => {
-    const token = sealFeedUrl(SECRET_URL, browser, KEY, issued);
+    const token = sealFeedUrl(SECRET_URL, browser, KEY, { now: issued });
     expect(openFeedUrl(token, browser, KEY, issued + 29 * day)).toBe(SECRET_URL);
     expect(failure(() => openFeedUrl(token, browser, KEY, issued + GUEST_TOKEN_MAX_AGE_MS + 1000))).toBe("expired");
   });
 
   test("resealing keeps the first issue time, so a line of guest tokens stops 90 days after it began", () => {
-    let token = sealFeedUrl(SECRET_URL, browser, KEY, issued);
+    let token = sealFeedUrl(SECRET_URL, browser, KEY, { now: issued });
     // Refreshed every 20 days, as a guest using Week would.
     for (let at = issued + 20 * day; at < issued + GUEST_TOKEN_LIFETIME_MS; at += 20 * day) {
       const opened = openFeedToken(token, browser, KEY, at);
       expect(opened.firstIssued).toBe(issued);
-      token = sealFeedUrl(opened.url, browser, KEY, at, opened.firstIssued);
+      token = sealFeedUrl(opened.url, browser, KEY, { now: at, firstIssued: opened.firstIssued });
     }
     expect(failure(() => openFeedUrl(token, browser, KEY, issued + GUEST_TOKEN_LIFETIME_MS + 1000))).toBe("expired");
   });
 
+  test("an account token converted from a guest's keeps the guest line's 90-day end", () => {
+    const converted = sealFeedUrl(SECRET_URL, student, KEY, { now: issued + 80 * day, firstIssued: issued, limited: true });
+    expect(openFeedToken(converted, student, KEY, issued + 89 * day)).toMatchObject({ url: SECRET_URL, limited: true, firstIssued: issued });
+    expect(failure(() => openFeedUrl(converted, student, KEY, issued + GUEST_TOKEN_LIFETIME_MS + 1000))).toBe("expired");
+  });
+
   test("an account's token keeps opening for its account", () => {
-    const token = sealFeedUrl(SECRET_URL, student, KEY, issued);
+    const token = sealFeedUrl(SECRET_URL, student, KEY, { now: issued });
     expect(openFeedUrl(token, student, KEY, issued + 400 * day)).toBe(SECRET_URL);
   });
 });

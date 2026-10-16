@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { forgetGuestCalendars } from "@/lib/calendar-feeds/client";
 import { clearPlannerIdentity } from "@/lib/planner-store";
 import { clearSavedPlansIdentity } from "@/lib/saved-plans/store";
 import { useState } from "react";
@@ -89,6 +90,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
     clearSavedPlansIdentity(user.id);
     clearPlannerIdentity(null);
     clearSavedPlansIdentity(null);
+    void forgetGuestCalendars();
     router.push("/");
     return true;
   };

@@ -18,9 +18,14 @@
  *   of a guest's localStorage opens for nobody; whoever also has the cookie
  *   already has the browser.
  *
- * The sealed text is the issue time, the first issue time, then the address.
- * A guest's token stops opening 30 days after it was issued and 90 days after
- * the first one in its line, however often it was sealed again in between.
+ * The sealed text is the issue time, the first issue time, whether the
+ * token's line is limited, then the address. A guest's token stops opening 30
+ * days after it was issued and 90 days after the first one in its line,
+ * however often it was sealed again in between. An account token converted
+ * from a guest's keeps that line and its 90-day end: on a shared computer the
+ * next student to sign in may have carried over the last guest's calendar,
+ * and that must not become theirs for good. Pasting the address again gives
+ * an account token with no limit.
  *
  * Token: `<kind>1.<key id>.<iv>.<ciphertext and tag>`, each part base64url,
  * the kind `cf` for an account's and `cg` for a guest's. The kind isn't
@@ -44,10 +49,11 @@ export type FeedOwner = { kind: "user"; id: string } | { kind: "guest"; id: stri
 
 /**
  * The cookie naming a guest's browser. HttpOnly, so the page's scripts and
- * anything copying its storage can't read it; Secure and SameSite=Lax; sent
- * only to the calendar-feed routes.
+ * anything copying its storage can't read it; Secure and SameSite=Lax. The
+ * `__Host-` prefix makes the browser refuse it unless it is Secure, has Path=/
+ * and no Domain, so a sibling subdomain can't plant one.
  */
-export const GUEST_COOKIE = "untangle-calendar-guest";
+export const GUEST_COOKIE = "__Host-untangle-calendar-guest";
 const GUEST_ID = /^[A-Za-z0-9_-]{22,64}$/;
 
 /** A new guest id: 128 random bits. */
@@ -67,8 +73,11 @@ export function guestIdFrom(cookieHeader: string | null): string | null {
 
 /** The Set-Cookie value for a guest id: the 90-day lifetime of the tokens it opens, renewed on each use. */
 export function guestCookie(id: string): string {
-  return `${GUEST_COOKIE}=${id}; Path=/api/v1/calendar-feeds; Max-Age=${GUEST_TOKEN_LIFETIME_MS / 1000}; HttpOnly; Secure; SameSite=Lax`;
+  return `${GUEST_COOKIE}=${id}; Path=/; Max-Age=${GUEST_TOKEN_LIFETIME_MS / 1000}; HttpOnly; Secure; SameSite=Lax`;
 }
+
+/** The Set-Cookie value that removes the guest cookie, so every guest token sealed to it stops opening. */
+export const forgetGuestCookie = `${GUEST_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
 
 /** Which kind of owner a token was sealed for, read from its prefix; null when it isn't a token. */
 export function tokenKind(token: string): FeedOwner["kind"] | null {
@@ -137,21 +146,29 @@ const associatedData = (owner: FeedOwner) => Buffer.from(`untangle calendar feed
 
 /**
  * Seals `url` for `owner`. Each call uses a fresh IV, so sealing one address
- * twice gives two tokens. `firstIssued` carries a guest token's line through
- * a reseal; a new connection starts it at `now`.
+ * twice gives two tokens. `firstIssued` carries a line through a reseal; a
+ * new connection starts it at `now`. A guest's line is always limited to
+ * GUEST_TOKEN_LIFETIME_MS; an account's only when `limited`, which is how a
+ * converted guest token keeps its end.
  */
-export function sealFeedUrl(url: string, owner: FeedOwner, key: Buffer | null, now: number = Date.now(), firstIssued: number = now): string {
+export function sealFeedUrl(
+  url: string,
+  owner: FeedOwner,
+  key: Buffer | null,
+  { now = Date.now(), firstIssued = now, limited = false }: { now?: number; firstIssued?: number; limited?: boolean } = {},
+): string {
   if (!key) throw new FeedSealError("not-configured");
   const iv = randomBytes(IV_BYTES);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
   cipher.setAAD(associatedData(owner));
-  const text = `${Math.floor(now / 1000)} ${Math.floor(firstIssued / 1000)} ${url}`;
+  const lined = owner.kind === "guest" || limited;
+  const text = `${Math.floor(now / 1000)} ${Math.floor(firstIssued / 1000)} ${lined ? 1 : 0} ${url}`;
   const sealed = Buffer.concat([cipher.update(text, "utf8"), cipher.final(), cipher.getAuthTag()]);
   return [PREFIX[owner.kind], keyId(key), iv.toString("base64url"), sealed.toString("base64url")].join(".");
 }
 
-/** What a token holds: the address and its issue times (epoch ms). */
-export type OpenedFeed = { url: string; issued: number; firstIssued: number };
+/** What a token holds: the address, its issue times (epoch ms), and whether its line ends GUEST_TOKEN_LIFETIME_MS after the first. */
+export type OpenedFeed = { url: string; issued: number; firstIssued: number; limited: boolean };
 
 /**
  * The address inside `token`, if it was sealed for `owner` under `key` (and,
@@ -178,12 +195,11 @@ export function openFeedToken(token: string, owner: FeedOwner, key: Buffer | nul
     // GCM refuses a changed token or another owner's alike; the reason isn't recoverable from here.
     throw new FeedSealError("unreadable");
   }
-  const match = /^(\d{1,12}) (\d{1,12}) ([^]+)$/.exec(text);
+  const match = /^(\d{1,12}) (\d{1,12}) ([01]) ([^]+)$/.exec(text);
   if (!match) throw new FeedSealError("unreadable");
-  const opened = { url: match[3], issued: Number(match[1]) * 1000, firstIssued: Number(match[2]) * 1000 };
-  if (owner.kind === "guest" && (now - opened.issued > GUEST_TOKEN_MAX_AGE_MS || now - opened.firstIssued > GUEST_TOKEN_LIFETIME_MS)) {
-    throw new FeedSealError("expired");
-  }
+  const opened = { url: match[4], issued: Number(match[1]) * 1000, firstIssued: Number(match[2]) * 1000, limited: match[3] === "1" };
+  if (owner.kind === "guest" && now - opened.issued > GUEST_TOKEN_MAX_AGE_MS) throw new FeedSealError("expired");
+  if ((owner.kind === "guest" || opened.limited) && now - opened.firstIssued > GUEST_TOKEN_LIFETIME_MS) throw new FeedSealError("expired");
   return opened;
 }
 

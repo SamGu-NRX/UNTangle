@@ -544,7 +544,7 @@ describe("sealed addresses", () => {
       setSession(null);
       const connected = await POST(busyRequest({ ...VALID_BODY, seal: true }, "192.0.2.92"));
       const setCookie = connected.headers.get("set-cookie") ?? "";
-      expect(setCookie).toMatch(/^untangle-calendar-guest=[A-Za-z0-9_-]{22,}; Path=\/api\/v1\/calendar-feeds; Max-Age=7776000; HttpOnly; Secure; SameSite=Lax$/);
+      expect(setCookie).toMatch(/^__Host-untangle-calendar-guest=[A-Za-z0-9_-]{22,}; Path=\/; Max-Age=7776000; HttpOnly; Secure; SameSite=Lax$/);
       const cookie = cookieFrom(connected);
       const { sealedUrl } = await connected.json();
       expect(sealedUrl).toMatch(/^cg1\./);
@@ -559,7 +559,7 @@ describe("sealed addresses", () => {
 
       // A copy of the token from the browser's storage, sent without the cookie or with another browser's.
       fetchStub.mockClear();
-      for (const copied of [undefined, "untangle-calendar-guest=BBBBBBBBBBBBBBBBBBBBBB"]) {
+      for (const copied of [undefined, "__Host-untangle-calendar-guest=BBBBBBBBBBBBBBBBBBBBBB"]) {
         const stolen = await POST(busyRequest(refresh(sealedUrl), "192.0.2.92", copied));
         expect(stolen.status).toBe(422);
         expect((await stolen.json()).code).toBe("CALENDAR_RECONNECT");
@@ -581,10 +581,32 @@ describe("sealed addresses", () => {
       expect(converted.status).toBe(200);
       const { sealedUrl: accountToken } = await converted.json();
       expect(accountToken).toMatch(/^cf1\./);
+      // The converted token keeps the guest line: it ends 90 days after the guest first connected.
+      const { openFeedToken } = await import("@/lib/calendar-feeds/seal");
+      const guestLine = openFeedToken(guestToken, { kind: "guest", id: cookie.split("=")[1] }, Buffer.from(KEY, "base64"));
+      expect(openFeedToken(accountToken, { kind: "user", id: "user-signed-in-later" }, Buffer.from(KEY, "base64"))).toMatchObject({
+        limited: true,
+        firstIssued: guestLine.firstIssued,
+      });
       // The account's token opens for the account, and without a session asks to sign in.
       expect((await POST(busyRequest(refresh(accountToken), "192.0.2.95"))).status).toBe(200);
       setSession(null);
       expect((await POST(busyRequest(refresh(accountToken), "192.0.2.95", cookie))).status).toBe(401);
+    }));
+
+  test("a converted account token past the guest line's 90 days asks to reconnect; a pasted one has no end", async () =>
+    withKey(KEY, async () => {
+      const { sealFeedUrl, GUEST_TOKEN_LIFETIME_MS } = await import("@/lib/calendar-feeds/seal");
+      const key = Buffer.from(KEY, "base64");
+      const user = { kind: "user" as const, id: "user-converted" };
+      setSession({ user: { id: user.id } });
+      const now = Date.now();
+      const converted = sealFeedUrl(VALID_BODY.url, user, key, { now: now - 5 * 24 * 3600_000, firstIssued: now - GUEST_TOKEN_LIFETIME_MS - 60_000, limited: true });
+      const pasted = sealFeedUrl(VALID_BODY.url, user, key, { now: now - 400 * 24 * 3600_000 });
+      const expired = await POST(busyRequest(refresh(converted), "192.0.2.97"));
+      expect(expired.status).toBe(422);
+      expect((await expired.json()).code).toBe("CALENDAR_RECONNECT");
+      expect((await POST(busyRequest(refresh(pasted), "192.0.2.97"))).status).toBe(200);
     }));
 
   test("a guest token past 30 days, or a line of them past 90, asks to reconnect, and neither converts", async () =>
@@ -592,12 +614,12 @@ describe("sealed addresses", () => {
       const { sealFeedUrl, openFeedToken, GUEST_TOKEN_MAX_AGE_MS, GUEST_TOKEN_LIFETIME_MS } = await import("@/lib/calendar-feeds/seal");
       const key = Buffer.from(KEY, "base64");
       const id = "CCCCCCCCCCCCCCCCCCCCCC";
-      const cookie = `untangle-calendar-guest=${id}`;
+      const cookie = `__Host-untangle-calendar-guest=${id}`;
       const day = 24 * 60 * 60 * 1000;
       const now = Date.now();
-      const stale = sealFeedUrl(VALID_BODY.url, { kind: "guest", id }, key, now - GUEST_TOKEN_MAX_AGE_MS - 60_000);
-      const old = sealFeedUrl(VALID_BODY.url, { kind: "guest", id }, key, now - day, now - GUEST_TOKEN_LIFETIME_MS - 60_000);
-      const late = sealFeedUrl(VALID_BODY.url, { kind: "guest", id }, key, now - day, now - GUEST_TOKEN_LIFETIME_MS + 10 * day);
+      const stale = sealFeedUrl(VALID_BODY.url, { kind: "guest", id }, key, { now: now - GUEST_TOKEN_MAX_AGE_MS - 60_000 });
+      const old = sealFeedUrl(VALID_BODY.url, { kind: "guest", id }, key, { now: now - day, firstIssued: now - GUEST_TOKEN_LIFETIME_MS - 60_000 });
+      const late = sealFeedUrl(VALID_BODY.url, { kind: "guest", id }, key, { now: now - day, firstIssued: now - GUEST_TOKEN_LIFETIME_MS + 10 * day });
       fetchStub.mockClear();
       for (const session of [null, { user: { id: "user-late" } }]) {
         setSession(session);

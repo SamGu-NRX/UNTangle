@@ -213,8 +213,10 @@ async function busyHandler(request: Request) {
  *   90-day lifetime holds however often it is refreshed.
  * - A signed-in student on that same browser may hold a guest token, carried
  *   over from guest preferences at sign-in. It opens with the cookie, within
- *   its lifetimes, and comes back sealed for the account. A copy of the
- *   token sent from any other browser opens for nobody.
+ *   its lifetimes, and comes back sealed for the account with the guest
+ *   line's 90-day end kept: on a shared computer that calendar may be the
+ *   last guest's. Pasting the address again gives an unlimited account
+ *   token. A copy of the token sent from any other browser opens for nobody.
  */
 function openForCaller(
   token: string,
@@ -229,8 +231,11 @@ function openForCaller(
   if (!cookieGuest) throw new FeedSealError("unreadable");
   const guest = { kind: "guest" as const, id: cookieGuest };
   const opened = openFeedToken(token, guest, key);
-  if (userId) return { url: opened.url, sealedUrl: sealFeedUrl(opened.url, { kind: "user", id: userId }, key), guestId: null };
-  return { url: opened.url, sealedUrl: sealFeedUrl(opened.url, guest, key, Date.now(), opened.firstIssued), guestId: cookieGuest };
+  // Converted for the account, the token keeps the guest line's first issue time and its 90-day end.
+  if (userId) {
+    return { url: opened.url, sealedUrl: sealFeedUrl(opened.url, { kind: "user", id: userId }, key, { firstIssued: opened.firstIssued, limited: true }), guestId: null };
+  }
+  return { url: opened.url, sealedUrl: sealFeedUrl(opened.url, guest, key, { firstIssued: opened.firstIssued }), guestId: cookieGuest };
 }
 
 /**

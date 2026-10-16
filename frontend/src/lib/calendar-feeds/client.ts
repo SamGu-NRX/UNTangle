@@ -167,3 +167,16 @@ export async function refreshCalendar(
     ...readingOf(read.value.occurrences, term),
   });
 }
+
+/**
+ * Ends this browser's guest calendars: the server drops the HttpOnly cookie
+ * their tokens are sealed to, so any copy of them opens nothing. Called
+ * wherever the app discards a guest's work on this browser. It never throws;
+ * a failure leaves the cookie to run out with its tokens' 90 days.
+ */
+export function forgetGuestCalendars(fetchImpl: FetchLike = globalThis.fetch): Promise<void> {
+  return fetchImpl("/api/v1/calendar-feeds/forget", { method: "POST", keepalive: true, cache: "no-store" }).then(
+    () => undefined,
+    () => undefined,
+  );
+}
