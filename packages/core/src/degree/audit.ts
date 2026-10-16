@@ -287,13 +287,13 @@ function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
       return { ...base, state: covered >= node.count ? "met" : "unmet", progress: covered / node.count, detail: `${covered}/${node.count} chosen${codes.length > 0 ? ` (${codes.join(", ")})` : ""}` };
     }
     case "hours": {
-      // Options with known credit go first, passing grades before ones below
-      // the major's floor, catalog order within each. A course with unknown
-      // credit could be the one that fills the hours, so claiming stops
-      // there: the node cannot hoard more courses on a guess, and it reads
-      // advisory rather than satisfied or unsatisfied.
+      // Passing grades go before ones below the major's floor, known credit
+      // before unknown within each, catalog order after that. A course with
+      // unknown credit could be the one that fills the hours, so claiming
+      // stops there: the node cannot hoard more courses on a guess, and it
+      // reads advisory rather than satisfied or unsatisfied.
       const known = (option: OptionGroup): boolean => option.must.every((code) => scenario.credits.get(code) != null);
-      const ordered = sortedBy(node.options, (option) => (known(option) ? 0 : 2) + optionPenalty(option, scenario));
+      const ordered = sortedBy(node.options, (option) => optionPenalty(option, scenario) * 2 + (known(option) ? 0 : 1));
       let hours = 0;
       const taken: string[] = [];
       const unknown: string[] = [];
@@ -410,8 +410,10 @@ function evaluateProgram(program: ProgramData, available: Set<string>, credits: 
 function combine(now: Evaluation, projected: Evaluation): NodeOutcome {
   const status: NodeOutcome["status"] =
     now.state === "met" ? "satisfied" : projected.state === "met" ? "inProgress" : now.state === "undecided" || projected.state === "undecided" ? "advisory" : "unsatisfied";
-  // A choice in progress is named for the branch the in-progress courses complete.
-  const shown = status === "inProgress" ? projected : now;
+  // A choice in progress is named for the branch the in-progress courses
+  // complete, and one left to an advisor only by its in-progress courses for
+  // the branch that made it undecided.
+  const shown = status === "inProgress" || (status === "advisory" && now.state === "unmet") ? projected : now;
   // Short of satisfied, the detail shows what the in-progress courses add.
   const detail = status !== "satisfied" && projected.detail !== now.detail ? `${now.detail}. Counting in-progress courses: ${projected.detail}` : now.detail;
   const children = now.children?.map((child, index) => combine(child, projected.children![index]!));
@@ -469,6 +471,13 @@ function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied:
       const elsewhere = advanced.length - atUnt.length;
       const { hours, unknown } = creditedHours(atUnt);
       if (hours === null) return { ...base, detail: `${policy.quote} — credit hours unknown for ${unknown.join(", ")}; cannot verify.` };
+      // Scoped to the major, the claimed courses leave out advisory pool
+      // candidates; an unclaimed advanced UNT course may be the elective that
+      // closes the gap, so a short total cannot read unsatisfied then.
+      const poolAtUnt = p.courseScope?.kind === "applied" && hours < p.hours
+        ? [...new Set(pools.flatMap(({ codes }) => codes))].filter((code) => credited.some((entry) => entry.code === code && entry.credit?.sourceKind === "unt" && levelOf(code) >= 3000))
+        : [];
+      if (poolAtUnt.length > 0) return { ...base, detail: `${hours} advanced UNT hours of ${p.hours} from courses the audit placed; ${poolAtUnt.join(", ")} may count as major electives too. Cannot verify.` };
       return {
         ...base,
         status: hours >= p.hours ? "satisfied" : "unsatisfied",

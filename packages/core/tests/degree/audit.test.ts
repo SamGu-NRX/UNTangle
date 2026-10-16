@@ -129,6 +129,19 @@ describe("each course counts toward one requirement node", () => {
     expect(node(result, "Electives").status).toBe("satisfied");
   });
 
+  test("a choice left to an advisor by an in-progress course is named for the branch that needs the advisor", () => {
+    const tree = program([
+      all("Required", "CSCE 3610"),
+      { kind: "choice", name: "Specialization", citation, branches: [
+        { name: "Real-Time", node: choose("Real-Time", 3, singles("CSCE 4610", "CSCE 4730", "CSCE 4440")) },
+        { name: "VLSI", node: choose("VLSI", 3, singles("CSCE 3610", "CSCE 4610", "CSCE 4730")) },
+      ] },
+    ], "advisor");
+    const outcome = node(auditProgram(tree, [done("CSCE 4610"), done("CSCE 4730"), current("CSCE 3610")], COMPLETE), "Specialization");
+    expect(outcome.status).toBe("advisory");
+    expect(outcome.name).toBe("Specialization — VLSI");
+  });
+
   test("an unmet choice names its closest branch", () => {
     const tree = program([
       { kind: "choice", name: "Track", citation, branches: [{ name: "First", node: all("First", "CSCE 1030", "CSCE 1040") }, { name: "Second", node: all("Second", "CSCE 2100", "CSCE 2110", "CSCE 2120") }] },
@@ -168,6 +181,12 @@ describe("allocation prefers courses that meet the major's floor", () => {
     const result = auditProgram(tree, [done("MATH 1710", "D"), done("MATH 1810", "B"), done("MATH 1820", "B")], COMPLETE);
     expect(node(result, "Calculus").status).toBe("satisfied");
     expect(policyOutcome(result, "C floor").status).toBe("satisfied");
+  });
+
+  test("a passing course of unknown credit is taken before a D of known credit", () => {
+    const result = auditProgram(withFloor([hours("Core", 6, "CSCE 3530", "CSCE 4115", "CSCE 4430")]), [done("CSCE 3530", "B"), done("CSCE 4115", "D"), done("CSCE 4430", "B", { credits: null })], COMPLETE);
+    expect(node(result, "Core").detail).toBe("2 courses, 3/6 hours (CSCE 3530, CSCE 4430); credit hours unknown for CSCE 4430");
+    expect(policyOutcome(result, "C floor").status).not.toBe("unsatisfied");
   });
 
   test("a D still fails the floor when no passing course can take its place", () => {
@@ -350,6 +369,13 @@ describe("hour totals", () => {
     const outcome = policyOutcome(auditProgram(tree, [done("CSCE 3600"), done("CSCE 4010", "A", { sourceKind: "transfer" }), done("HIST 4000")], COMPLETE), "Major at UNT");
     expect(outcome.status).toBe("unsatisfied");
     expect(outcome.detail).toStartWith("3 advanced UNT hours of 6");
+  });
+
+  test("an unclaimed advanced UNT pool candidate may close the major's residence gap, so a short total is unverifiable", () => {
+    const tree = program([{ kind: "group", name: "Major", citation, children: [all("Required", "CSCE 3600"), pool("Advanced electives")] }, policy("Major at UNT", { type: "advancedHoursAtUnt", hours: 6, courseScope: { kind: "applied" } })]);
+    const outcome = policyOutcome(auditProgram(tree, [done("CSCE 3600"), done("CSCE 4560")], COMPLETE), "Major at UNT");
+    expect(outcome.status).toBe("unverifiable");
+    expect(outcome.detail).toBe("3 advanced UNT hours of 6 from courses the audit placed; CSCE 4560 may count as major electives too. Cannot verify.");
   });
 
   test("a total scoped to applied courses counts only what the nodes claimed", () => {
