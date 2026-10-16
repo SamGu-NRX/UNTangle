@@ -29,10 +29,10 @@ export type AnswerCourse = {
 };
 
 /**
- * The first that applies: loading, a clash, overlapping finals (before a
- * course that needs a pick, since two picks' finals can leave the others
- * without a suggestion), a course that needs a pick, a tight or late walk,
- * a broken preference, or the all-clear. Null when the week is empty (the grid shows its own empty
+ * The first that applies: loading, a clash, overlapping finals, a course
+ * that needs a pick, a tight or late walk, a broken preference, or the
+ * all-clear. Finals come before a pick because the overlap is between
+ * sections already on the week, which the student can act on at once. Null when the week is empty (the grid shows its own empty
  * state).
  */
 export function answerFor(input: {

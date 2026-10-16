@@ -137,7 +137,7 @@ describe("Week with finals", () => {
     expect(pills(view.container).map((b) => [b.textContent, b.getAttribute("aria-label"), b.getAttribute("data-clash")])).toEqual([
       ["CSCE 2110Mon 8:00 AM", "CSCE 2110 Mon 8:00 AM, final on Monday, May 3, 8:00 to 10:00 AM, overlaps MATH 1710", "check"],
       ["MATH 1710Mon 9:00 AM", "MATH 1710 Mon 9:00 AM, final on Monday, May 3, 9:00 to 11:00 AM, overlaps CSCE 2110", "check"],
-      ["ENGL 1310Not known", "ENGL 1310 Not known. Its final time isn't known; open it to see why.", null],
+      ["ENGL 1310Not known", "ENGL 1310 Not known: open it to see why its final time isn't known.", null],
     ]);
     // An overlap shows a glyph, not only a color; a pill without one has none.
     expect(pills(view.container).map((b) => Boolean(b.querySelector("svg")))).toEqual([true, true, false]);
