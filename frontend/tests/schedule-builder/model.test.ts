@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { answerFor, describeAlternative, type AnswerCourse } from "@/components/schedule-builder/answer";
+import { answerFor, describeAlternative, timeLeanOf, type AnswerCourse } from "@/components/schedule-builder/answer";
 import { meetTogether, sectionConflicts } from "@/components/schedule-builder/conflicts";
 import { busyGroups, preferenceSummary, withFewerDays, withLunch, withShortWalks } from "@/components/schedule-builder/preferences";
 import { decodeFile, decodeShare, encodeFile, encodeShare } from "@/components/schedule-builder/share";
@@ -255,6 +255,49 @@ describe("an alternative in one sentence", () => {
       "Moves CSCE 2610 to 12:40.",
     );
     expect(describeAlternative(main, main)).toBe("Same days and times, with different sections.");
+  });
+});
+
+describe("an alternative with a walk of no known time", () => {
+  test("walking less isn't claimed when either week's total leaves a walk out", () => {
+    // The same times, with MATH 2700 in CSCE 2110's building: no more 4-minute walk three days a week.
+    const now = week([csce2110, math2700]);
+    const together = week([csce2110, mwf("MATH 2700", "005", "10:00", "10:50", "gab")]);
+    expect(describeAlternative(now, together)).toBe("Walks 12 minutes less a week.");
+    expect(describeAlternative({ ...now, unknownWalks: 1 }, together)).toBe("Same days and times, with different sections.");
+  });
+});
+
+describe("an alternative, said against the student's time of day", () => {
+  // The walk-through's option 1: Friday free, and 8:00 starts Monday to Thursday.
+  const now = week([mwf("MATH 1710", "001", "9:30", "10:20", "gab"), two("ENGL 1310", "002", ["Tue", "Thu"], "9:30", "10:50", "cury")]);
+  const early = week([two("MATH 1710", "003", ["Mon", "Wed"], "8:00", "9:15", "gab"), two("ENGL 1310", "004", ["Tue", "Thu"], "8:00", "9:20", "cury")]);
+
+  test("8:00 starts are a cost to most students, and not to one who asked for mornings", () => {
+    expect(describeAlternative(now, early)).toBe("Frees Friday, but Monday, Tuesday, Wednesday and Thursday start at 8:00.");
+    expect(describeAlternative(now, early, "mornings")).toBe("Frees Friday.");
+  });
+
+  test("for a morning lean an earlier start is the gain, and a later one isn't", () => {
+    const sameDays = week([mwf("MATH 1710", "005", "8:00", "8:50", "gab"), two("ENGL 1310", "002", ["Tue", "Thu"], "9:30", "10:50", "cury")]);
+    expect(describeAlternative(now, sameDays, "mornings")).toBe("Starts at 8:00 instead of 9:30 by moving MATH 1710 to 8:00.");
+    expect(describeAlternative(sameDays, now)).toBe("Starts at 9:30 instead of 8:00, but Monday, Wednesday and Friday end at 10:20.");
+    // The later start isn't a gain to this student; the later end is still a cost.
+    expect(describeAlternative(sameDays, now, "mornings")).toBe("Monday, Wednesday and Friday end at 10:20.");
+  });
+
+  test("for an afternoon lean, ending later isn't a cost", () => {
+    const late = week([mwf("MATH 1710", "007", "14:00", "14:50", "gab"), two("ENGL 1310", "008", ["Tue", "Thu"], "14:00", "15:20", "cury")]);
+    expect(describeAlternative(now, late)).toBe("Starts at 2:00 instead of 9:30, but Tuesday and Thursday end at 3:20.");
+    expect(describeAlternative(now, late, "afternoons")).toBe("Starts at 2:00 instead of 9:30.");
+  });
+
+  test("the lean is Set up Auto's time-of-day answer", () => {
+    const at = (mornings: number, evenings: number) => timeLeanOf({ ...defaults, weights: { ...defaults.weights, mornings, evenings } });
+    // "Mornings, if they fit" writes mornings 2; "As late as I can" writes evenings 4.
+    expect(at(2, 0)).toBe("mornings");
+    expect(at(0, 4)).toBe("afternoons");
+    expect(at(0, 0)).toBeNull();
   });
 });
 
