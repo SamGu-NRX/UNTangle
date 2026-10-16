@@ -83,6 +83,41 @@ fallback is surprising, so the Week view says "Only one course has other
 times, so these differ in one course." (`differsInOneCourse` in
 `components/schedule/run-state.ts`).
 
+## Browse all: every schedule that fits
+
+`enumerateSchedules(request: EnumerateRequest): EnumerateResult` in
+`enumerate.ts` is a second entry point, for Week's Browse all list. It takes
+the same request without `k` and lists every schedule that meets the hard
+constraints, best first, up to `limit` (default 500, at most 2000).
+
+- No diversity rule: two rows may differ in one section. `k`'s 1..20 bound
+  and the 64-leaf pool belong to `optimize` and stay there.
+- Twins stay (`keepTwins` in `prepare.ts`). Ranking drops a section with the
+  same meetings in the same rooms as a cheaper one, because it can never rank
+  ahead of it. A list of every section has to show it, so a student can pick
+  the instructor or seat count.
+- Order is Auto's: ascending cost, then section ids in course-code order. On
+  the same request the first row is Auto's first option.
+- Two passes with their own node budgets. The rank pass is the same branch and
+  bound, pruning against the `limit`-th best schedule found so far (`collect`
+  in `search.ts`); when it completes, the rows are exactly the best `limit`
+  and each is `proven`. Only when more fit, or the rank pass ran out, a count
+  pass visits every valid schedule with the weights at 0; `total` is exact
+  when it completes and a lower bound (`totalExact: false`) when it runs out.
+- Nothing fits: status `infeasible` with the same explanation `optimize` gives.
+  Neither found nor ruled out: `timeout`.
+
+Choosing a row in Week uses its sections the way the options strip's Use this
+does: it plans them and keeps no section. The research note
+(`docs/research/schedule-builders/README.md` §5) says choosing "issues the
+locks"; that would make the next Browse all list only that week and pin
+Auto's next run to it, so Week doesn't. Keep this section still locks.
+
+The worker runs it as a `browse` job (`runBrowseJob` in `worker/protocol.ts`)
+with `BROWSE_LIMIT` rows and `BROWSE_BUDGET_MS` as a wall-clock cap on top of
+the node budgets. Browse all has its own `OptimizerClient`, so its worker
+never replaces Auto's search. `tests/optimizer/browse-bench.ts` times it.
+
 ## Walking
 
 The provider is a `WalkingTimeFn`: `(fromBuildingId, toBuildingId)` returns
@@ -111,6 +146,8 @@ map v2, with a straight-line fallback where the graph has no route.
 | Week view, follow-up | 3 s cap (`FINAL_BUDGET_MS`), only when the first answer is `feasible` or `timeout` | A fresh search that replaces the first answer in place. |
 | `recommendSections` (state normalization) | 20,000 nodes, no clock | Runs synchronously on every normalization and must give the same answer everywhere. |
 | Infeasibility explanation | 250 ms default (`explainBudgetMs`) | When it runs out, `explanation.minimal` is false and suggestions may have `resolves: null`. |
+| Browse all, rank pass | 400,000 nodes (`DEFAULT_RANK_NODES`) | About 1.8 s at most on the 8 x 40 bench shape; real plans finish in milliseconds (`browse-bench.ts`). |
+| Browse all, count pass | 1,000,000 nodes (`DEFAULT_COUNT_NODES`), 4 s cap on the whole job (`BROWSE_BUDGET_MS`) | Counting cheaply past the list; a count cut short says "at least". |
 
 Preparation checks the deadline too, including date validation and segmentation,
 so a huge request reports `timeout` instead of finishing an unbounded calendar scan.
@@ -137,7 +174,7 @@ build of `optimize.worker.ts`. Next 16.1's Turbopack copies a
 of compiling it, so the bundle is built with Bun:
 `bun --no-env-file tests/optimizer/build-worker.ts --write`. `tests/optimizer/worker.test.ts`
 fails while the bundle is out of date. The bundle holds only the engine and the
-protocol (about 65 KB), not the catalog. `worker/client.ts` drops replies to anything but the newest job, and
+protocol (about 80 KB), not the catalog. `worker/client.ts` drops replies to anything but the newest job, and
 replaces the worker when a new job arrives while one is still searching,
 because a running search cannot be interrupted. A crash or a worker that
 cannot start becomes an `error` reply, which the page shows inline with "Try
@@ -167,6 +204,12 @@ of overwriting it. A failed write is shown as "not stored".
 - `tests/optimizer/regressions.test.ts`: pinned bugs from review.
 - `tests/optimizer/mutation.test.ts`: plants one bug at a time in a copy of
   this folder and asserts a check fails.
+- `tests/optimizer/enumerate.test.ts`: Browse all's list against the
+  reference's every valid schedule (a 6-course instance with twins, the 400
+  and 2 x 300 seeds), short lists, honest budgets and totals, Auto's `k`
+  bound, and planted bugs it must catch.
+- `tests/optimizer/browse-worker.test.ts`: the browse job, the browse client,
+  the bundle answering one, and choosing a row through to the next Auto request.
 - `tests/optimizer/worker.test.ts`: the two-phase protocol, the plain request
   (same results as the original on 61 requests), the bundle's freshness and a
   run in a real Worker, and the client's stale-reply, replacement and failure

@@ -106,6 +106,41 @@ export type OptionsFeed = {
   close: () => void;
 };
 
+/** One row of Browse all: a whole week, with the figures its row shows. */
+export type BrowseRow = {
+  /** Course code -> section id, every course the search placed. */
+  byCourse: Record<string, string>;
+  daysOnCampus: number;
+  /** Earliest start and latest end of the week, in minutes; null when nothing is timed. */
+  earliestStart: number | null;
+  latestEnd: number | null;
+};
+
+/**
+ * Every week that fits, best first by Auto's ranking (lib/optimizer/enumerate.ts),
+ * as Browse all reads it. The same inputs as Auto's run: pins, kept
+ * sections, blocked times and preferences.
+ */
+export type BrowseFeed = {
+  status: "idle" | "running" | "done" | "error";
+  /** At most the first 500, best first. */
+  rows: readonly BrowseRow[];
+  /** Weeks that fit; a lower bound unless `totalExact`. */
+  total: number;
+  totalExact: boolean;
+  /** False when the search ran out of time before proving these are the best ones. */
+  proven: boolean;
+  /** Settings changed since this list was found: shown, never applied. */
+  stale: boolean;
+  /** When nothing fits: why, and the fixes that would make something fit (Auto's explanation). */
+  infeasible: { sentence: string; fixes: BuilderFix[] } | null;
+  /** The search ran out before it found a week or ruled them all out. */
+  timedOut: boolean;
+  error: string | null;
+  run: () => void;
+  close: () => void;
+};
+
 /** "Set up Auto": the short first-run setup over Week (r3 mockup, onboarding.html). */
 export type BuilderSetup = {
   /**
@@ -140,6 +175,8 @@ export type BuilderHost = {
   search: BuilderSearch;
   edits: BuilderEdits;
   optimizer: OptionsFeed;
+  /** Browse all, or null for a host that can't list every week; Week then leaves the button out. */
+  browse: BrowseFeed | null;
   /** Section lookup for an alternative's ids, across every loaded option. */
   find: (courseCode: string, sectionId: string) => Section | undefined;
   /** Where Export's Print goes, and the address a share link opens. */
