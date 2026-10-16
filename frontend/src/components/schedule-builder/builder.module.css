@@ -506,6 +506,10 @@
   background: var(--danger-soft);
   box-shadow: 0 0 0 1.5px var(--danger);
 }
+/* Selected in a clash: the selection ring outside the danger ring, so it differs from the event it clashes with. */
+.event[data-conflict][aria-pressed="true"] {
+  box-shadow: 0 0 0 1.5px var(--danger), 0 0 0 3.5px var(--c), var(--shadow-2);
+}
 .event[data-conflict]::before {
   background: var(--danger);
 }

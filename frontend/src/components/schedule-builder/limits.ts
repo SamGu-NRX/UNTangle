@@ -6,7 +6,7 @@
  * doesn't do.
  */
 import type { BlockedTime, PreferenceWeights, SchedulePreferences, WeekDay } from "@/lib/types";
-import { WEEKDAYS } from "./preferences";
+import { isLunch, WEEKDAYS } from "./preferences";
 import { andList, clockWithSuffix } from "./week";
 
 /** The painted grid's hours: 8 AM to 10 PM in half hours, as the mockup draws them. */
@@ -38,9 +38,10 @@ export function isBusy(p: SchedulePreferences, day: WeekDay, start: number): boo
 
 /**
  * Paints a rectangle of the week: every day in `days`, from `start` to `end`.
- * `busy` adds the time (joining any busy time it touches, which keeps its
- * name); `free` removes it, splitting a block it cuts through. Lunch and
- * other named blocks are ordinary busy time here.
+ * `busy` adds the time, joining the unnamed busy time it touches and the
+ * blocks of one name, which keep that name. It never joins Lunch, which the
+ * Lunch switch adds and removes whole, or a second name. `free` removes the
+ * time, splitting a block it cuts through.
  */
 export function paint(p: SchedulePreferences, days: readonly WeekDay[], start: number, end: number, mode: "busy" | "free", newId: () => string): SchedulePreferences {
   if (end <= start || days.length === 0) return p;
@@ -49,9 +50,10 @@ export function paint(p: SchedulePreferences, days: readonly WeekDay[], start: n
     const others = blocked.filter((b) => b.day !== day);
     const today = blocked.filter((b) => b.day === day);
     if (mode === "busy") {
-      const touching = today.filter((b) => b.start <= end && b.end >= start);
+      const joinable = today.filter((b) => b.start <= end && b.end >= start && !isLunch(b));
+      const label = joinable.find((b) => b.label !== UNNAMED)?.label ?? UNNAMED;
+      const touching = joinable.filter((b) => b.label === UNNAMED || b.label === label);
       const keep = today.filter((b) => !touching.includes(b));
-      const label = touching.find((b) => b.label !== UNNAMED)?.label ?? UNNAMED;
       const merged: BlockedTime = {
         id: touching[0]?.id ?? newId(),
         label,

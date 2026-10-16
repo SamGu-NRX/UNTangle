@@ -218,7 +218,7 @@ function weekHost(setup: BuilderHost["setup"], courses: WeekCourse[] = [course])
     setup,
     walk: () => null,
     search: { find: () => [], suggestions: () => [], options: () => [csce], load: () => {}, classNumber: async () => null },
-    edits: { place: mock(() => {}), remove: mock(() => {}), keep: mock(() => {}), use: mock(() => {}), clear: mock(() => {}), undo: mock(() => {}), canUndo: false },
+    edits: { place: mock((): string | null => null), remove: mock(() => {}), keep: mock(() => {}), use: mock((): string[] => []), clear: mock(() => {}), undo: mock(() => {}), canUndo: false },
     optimizer,
     find: () => csce,
     printHref: "/schedule/print",
