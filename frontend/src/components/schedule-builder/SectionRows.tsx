@@ -4,6 +4,8 @@ import { Check, LockGlyph, Plus } from "@/components/ui/icons";
 import type { Section } from "@/lib/sections";
 import styles from "./builder.module.css";
 import { sectionConflicts } from "./conflicts";
+import { examDay, examStartTime, finalClashes } from "./finals";
+import type { BuilderFinals } from "./host";
 import { andList, patternOf, sectionLabel } from "./week";
 
 type Props = {
@@ -20,6 +22,8 @@ type Props = {
   onPlace: (section: Section, overlaps: string[], fromKeyboard: boolean) => void;
   /** Paints the section on the grid while pointed at, focused or tapped; null clears it. */
   onPreview: (section: Section | null) => void;
+  /** Each section's final, when the host knows them: a known one is shown, and a clash with the week is named. */
+  finals?: BuilderFinals | null;
 };
 
 const seats = (section: Section) =>
@@ -30,7 +34,7 @@ const seats = (section: Section) =>
  * before the tap (red outline, "Overlaps MATH 2700 on Mon and Wed"); a
  * closed section can't be added.
  */
-export function SectionRows({ courseCode, sections, week, currentId, verb, highlightId, onPlace, onPreview }: Props) {
+export function SectionRows({ courseCode, sections, week, currentId, verb, highlightId, onPlace, onPreview, finals }: Props) {
   const ordered = [...sections].sort(
     (a, b) => Number(b.id === currentId) - Number(a.id === currentId) || Number(b.id === highlightId) - Number(a.id === highlightId),
   );
@@ -45,11 +49,15 @@ export function SectionRows({ courseCode, sections, week, currentId, verb, highl
         const rooms = [...new Set(section.meetings.filter((m) => m.kind === "building").map((m) => m.room))].join(" and ");
         const detail = [instructor, rooms, seats(section)].filter(Boolean).join(", ");
         const overlaps = conflicts.map((c) => c.courseCode);
+        const exam = finals?.examOf(section);
+        const examClashes = finals && !on ? finalClashes(section, week, finals) : [];
         const label = on
           ? `Section ${sectionLabel(section)}, in your week`
           : full
             ? `Section ${sectionLabel(section)}, full`
-            : `${verb === "move" ? "Move to" : "Add"} section ${sectionLabel(section)}${overlaps.length ? `, overlaps ${andList(overlaps)}` : ""}`;
+            : `${verb === "move" ? "Move to" : "Add"} section ${sectionLabel(section)}${overlaps.length ? `, overlaps ${andList(overlaps)}` : ""}${
+                examClashes.length ? `, final at the same time as ${andList(examClashes)}` : ""
+              }`;
         return (
           <li
             key={section.id}
@@ -81,11 +89,17 @@ export function SectionRows({ courseCode, sections, week, currentId, verb, highl
                 {patternOf(section)}
               </div>
               {detail ? <div className={styles.meta}>{detail}</div> : null}
+              {exam?.kind === "known" ? (
+                <div className={styles.meta}>
+                  Final {examDay(exam.exam)}, {examStartTime(exam.exam)}
+                </div>
+              ) : null}
               {conflicts.map((conflict) => (
                 <div key={conflict.courseCode} className={styles.clash}>
                   Overlaps {conflict.courseCode} on {andList(conflict.days)}
                 </div>
               ))}
+              {examClashes.length ? <div className={styles.clash}>Final at the same time as {andList(examClashes)}</div> : null}
             </div>
           </li>
         );

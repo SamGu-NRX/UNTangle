@@ -6,9 +6,38 @@ import { Switch } from "@/components/ui/Switch";
 import type { Section } from "@/lib/sections";
 import { figuresOf } from "./answer";
 import styles from "./builder.module.css";
-import type { WeekCourse } from "./host";
+import { examLongDay, examTimes, finalClashes } from "./finals";
+import type { BuilderFinals, WeekCourse } from "./host";
 import { SectionRows } from "./SectionRows";
-import { clock, patternOf, type GridEvent, type WalkLeg } from "./week";
+import { andList, clock, patternOf, type GridEvent, type WalkLeg } from "./week";
+
+/** The selected section's final: when it is, what it clashes with, and where the time comes from. */
+function FinalExam({ section, week, finals }: { section: Section; week: readonly Section[]; finals: BuilderFinals }) {
+  const exam = finals.examOf(section);
+  const clashes = finalClashes(section, week, finals);
+  return (
+    <section aria-labelledby="event-final" className={styles.final}>
+      <h3 id="event-final" className={styles.label}>
+        Final
+      </h3>
+      {exam.kind === "known" ? (
+        <>
+          <p className={styles.finalWhen}>
+            {examLongDay(exam.exam)}, {examTimes(exam.exam)}
+          </p>
+          {clashes.length > 0 ? (
+            <p className={styles.clash}>
+              {clashes.length === 1 ? `Same time as the ${clashes[0]} final.` : `Same time as the ${andList(clashes)} finals.`}
+            </p>
+          ) : null}
+          {exam.projected && finals.projected ? <p className={styles.meta}>{finals.projected.source}</p> : null}
+        </>
+      ) : (
+        <p className={styles.meta}>{exam.note}</p>
+      )}
+    </section>
+  );
+}
 
 /** A selected event's course: keep it, switch its section, or remove it. */
 export function EventPanel(props: {
@@ -20,6 +49,7 @@ export function EventPanel(props: {
   onMove: (section: Section, overlaps: string[], fromKeyboard: boolean) => void;
   onPreview: (section: Section | null) => void;
   onRemove: (fromKeyboard: boolean) => void;
+  finals?: BuilderFinals | null;
 }) {
   const { course } = props;
   return (
@@ -29,6 +59,7 @@ export function EventPanel(props: {
       {course.section ? (
         <Switch checked={course.locked} onChange={props.onKeep} label="Keep this section" description="Auto won't move it." className={styles.keep} />
       ) : null}
+      {course.section && props.finals ? <FinalExam section={course.section} week={props.week} finals={props.finals} /> : null}
       <section aria-labelledby="event-sections">
         <h3 id="event-sections" className={styles.label}>
           Sections
@@ -44,6 +75,7 @@ export function EventPanel(props: {
             verb="move"
             onPlace={props.onMove}
             onPreview={props.onPreview}
+            finals={props.finals}
           />
         )}
       </section>

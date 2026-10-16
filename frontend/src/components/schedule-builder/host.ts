@@ -154,6 +154,25 @@ export type BuilderSetup = {
   markSeen: () => void;
 };
 
+/** One exam sitting: an ISO date and minutes after midnight, half-open [start, end). */
+export type ExamSlot = { date: string; start: number; end: number };
+
+/**
+ * A section's final as Week shows it: when it is, and whether that time is
+ * projected from another term; or one sentence on why it isn't known.
+ */
+export type FinalExam = { kind: "known"; exam: ExamSlot; projected: boolean } | { kind: "unknown"; note: string };
+
+/** Each section's final exam, for the Finals line under the week and the section rows. */
+export type BuilderFinals = {
+  examOf: (section: Section) => FinalExam;
+  /**
+   * Where projected times come from, said once on the Finals line
+   * ("Projected"), or null when they are the term's own published finals.
+   */
+  projected: { label: string; source: string } | null;
+};
+
 export type BuilderHost = {
   brand: BuilderBrand;
   term: BuilderTerm;
@@ -177,6 +196,8 @@ export type BuilderHost = {
   optimizer: OptionsFeed;
   /** Browse all, or null for a host that can't list every week; Week then leaves the button out. */
   browse: BrowseFeed | null;
+  /** Final exams, or absent for a host that doesn't know them: Week then shows no Finals line. */
+  finals?: BuilderFinals | null;
   /** Section lookup for an alternative's ids, across every loaded option. */
   find: (courseCode: string, sectionId: string) => Section | undefined;
   /** Where Export's Print goes, and the address a share link opens. */

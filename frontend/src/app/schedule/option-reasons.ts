@@ -1,6 +1,6 @@
 /**
  * Week's Details lines for an alternative, from scheduleReasons: up to three
- * evidence-backed reasons, seat warnings first, naming options as Week does
+ * evidence-backed reasons, seat and unchecked-final warnings first, naming options as Week does
  * ("than option 1"). Kept beside the UNTangle host so the schedule builder
  * itself never reads lib/reasons.
  */
@@ -16,5 +16,5 @@ export function optionReasons(input: {
   request: OptimizeRequest;
   seats: Readonly<Record<string, Pick<Section, "status" | "components">>>;
 }): Array<{ sentence: string; warning: boolean }> {
-  return scheduleReasons({ ...input, optionName }).map((reason) => ({ sentence: reason.sentence, warning: reason.kind === "seats" }));
+  return scheduleReasons({ ...input, optionName }).map((reason) => ({ sentence: reason.sentence, warning: reason.kind === "seats" || reason.kind === "finals" }));
 }

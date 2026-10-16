@@ -38,6 +38,7 @@ import {
 import { compareAcademicTerms } from "@/lib/term-chronology";
 import { plannerTravelTime, type WalkingTimeFn } from "@/lib/planner-walking";
 import { optimize } from "@/lib/optimizer/optimize";
+import { examOf } from "@/lib/final-exams";
 import { GOAL_WEIGHTS, NO_CONSTRAINTS } from "@/lib/optimizer/presets";
 import type { SerializedBusyOccurrence } from "@/lib/calendar-feeds/busy-serialize";
 import type { OptBlockedTime, OptCourse, OptDay, OptimizeRequest, OptSection } from "@/lib/optimizer/types";
@@ -178,6 +179,16 @@ const planningTermDates = termDates[planningTerm.id];
 export const DEFAULT_CANDIDATE_FILTER: CandidateFilter = { openSeatsOnly: false, otherSites: false };
 
 /**
+ * An option in the optimizer's shape, carrying its final when UNT's rule
+ * places it (lib/final-exams.ts), so Auto never pairs two clashing finals.
+ */
+function toSearchedSection(section: Section): OptSection | null {
+  const searched = toOptSection(section);
+  const exam = examOf(section);
+  return searched && exam.kind === "known" ? { ...searched, exam: exam.exam } : searched;
+}
+
+/**
  * Each course's options that have a set time and pass `filter`, in the
  * optimizer's shape. Courses still loading, and courses with no such option,
  * are left out.
@@ -193,7 +204,7 @@ export function toOptimizerCourses(
     if (!course || options.status !== "ready") return [];
     const sections = options.result.sections
       .filter((section) => isCandidate(section, filter))
-      .map(toOptSection)
+      .map(toSearchedSection)
       .filter((section): section is OptSection => section !== null);
     if (sections.length === 0) return [];
     return [{ code, credits: Number.isFinite(course.creditHours) && course.creditHours >= 0 ? course.creditHours : 0, sections }];
@@ -492,7 +503,7 @@ export function buildOptimizeRequest(
   const held = new Set(heldOutCourses(state, catalog, preferences.constraints, codes).map((course) => course.code));
   const keptAsIs = [...held].flatMap((code): OptCourse[] => {
     const section = findOption(catalog, code, state.selectedSections[code]);
-    const fixed = section && toOptSection(section);
+    const fixed = section && toSearchedSection(section);
     const course = getCourseByCode(code);
     return fixed && course ? [{ code, credits: course.creditHours, sections: [fixed] }] : [];
   });

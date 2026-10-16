@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
-import type { BrowseFeed, BuilderEdits, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
+import type { BrowseFeed, BuilderEdits, BuilderFinals, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
 import type { Identity } from "@/components/schedule/preferences-store";
 import { loadedIdentity, markSetupSeen, setupDue } from "@/components/schedule/setup-store";
 import { isStale, requestKey } from "@/components/schedule/run-state";
@@ -10,6 +10,7 @@ import { useBrowseRuns, useOptimizerRuns } from "@/components/schedule/use-optim
 import { searchCourses } from "@/components/shell/course-search";
 import { toast } from "@/components/ui/Toast";
 import type { Brand } from "@/lib/brand";
+import { examOf, FINALS_SOURCE, unknownExamSentence } from "@/lib/final-exams";
 import type { RelaxSuggestion } from "@/lib/optimizer/types";
 import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
 import {
@@ -36,6 +37,20 @@ type Snapshot = {
   sections: Record<string, string | undefined>;
   locks: Record<string, string | undefined>;
   autoPlanned: Record<string, boolean>;
+};
+
+/** Finals from UNT's rule (lib/final-exams.ts), the same ones Auto checks. */
+const finals: BuilderFinals = {
+  examOf: (section) => {
+    const exam = examOf(section);
+    return exam.kind === "known" ? exam : { kind: "unknown", note: unknownExamSentence(section, exam.reason) };
+  },
+  projected: FINALS_SOURCE.projected
+    ? {
+        label: "Projected",
+        source: `UNT hasn't published ${FINALS_SOURCE.planningTerm} finals. These follow its ${FINALS_SOURCE.term} exam schedule, on the same weekdays of finals week.`,
+      }
+    : null,
 };
 
 /** Undo steps kept per visit. More than anyone presses; a bound, not a rule. */
@@ -501,6 +516,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     edits,
     optimizer,
     browse,
+    finals,
     find,
     printHref: "/schedule/print",
     shareUrl: (encoded) => {

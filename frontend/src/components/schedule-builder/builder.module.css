@@ -881,6 +881,11 @@
 .pill .code {
   font-size: 12px;
 }
+/* A final that clashes with another: the danger outline a clashing outline on the grid has, around the course's tint. */
+.pill[data-clash] {
+  box-shadow: inset 3px 0 0 var(--c), inset 0 0 0 1.5px var(--danger);
+  color: var(--danger);
+}
 .tag {
   margin-left: auto;
 }
@@ -1084,6 +1089,23 @@
 .clash {
   font-size: 13px;
   color: var(--danger);
+}
+
+/* The selected course's final, in its panel. */
+.final {
+  display: grid;
+  gap: 4px;
+}
+.final .clash {
+  margin: 0;
+  font-size: 14px;
+}
+.finalWhen {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
 }
 
 .reasons {

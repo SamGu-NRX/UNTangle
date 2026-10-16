@@ -242,6 +242,27 @@ function seatWarning(section: OptSection, catalog: Pick<Section, "status" | "com
   return { sentence, kind: "seats", preference: null, evidence: { numbers } };
 }
 
+/**
+ * The chosen sections whose final isn't known, when the request checks finals
+ * at all (some section carries one). Auto treats an unknown final as clashing
+ * with nothing, so the student is told which ones went unchecked.
+ */
+function finalsWarning(sections: readonly OptSection[], request: ScheduleReasonsInput["request"]): Reason | null {
+  if (!request.courses.some((course) => course.sections.some((section) => section.exam))) return null;
+  const unknown = sections.filter((section) => !section.exam).map((section) => section.courseCode);
+  if (unknown.length === 0) return null;
+  const sentence =
+    unknown.length === 1
+      ? `${unknown[0]}'s final isn't known, so it wasn't checked for a clash.`
+      : `Finals for ${joinList(unknown)} aren't known, so they weren't checked for clashes.`;
+  return {
+    sentence,
+    kind: "finals",
+    preference: null,
+    evidence: { numbers: [{ label: "courses without a known final", value: unknown.length }, { label: "courses", value: joinList(unknown) }] },
+  };
+}
+
 const aThroughF = (g: GradeData) => g.gradeA + g.gradeB + g.gradeC + g.gradeD + g.gradeF;
 
 function gradeReason(section: OptSection, history: CourseHistory): Reason | null {
@@ -269,7 +290,8 @@ function gradeReason(section: OptSection, history: CourseHistory): Reason | null
 }
 
 /**
- * Why `alternatives[index]` is a good choice. Seat warnings come first and
+ * Why `alternatives[index]` is a good choice. Seat warnings, then a line
+ * naming any chosen section whose final went unchecked, come first and
  * always appear. Then up to `maxReasons` (default 3) of: comparisons with
  * the next option, ranked by what the difference is worth to the optimizer
  * (weight times cost per unit times the difference); facts about this
@@ -352,5 +374,7 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
     const grade = history ? gradeReason(section, history) : null;
     if (grade) grades.push(grade);
   }
+  const finals = finalsWarning(mine.sections, request);
+  if (finals) warnings.push(finals);
   return [...warnings, ...[...comparisons.map((entry) => entry.reason), ...facts, ...grades].slice(0, maxReasons)];
 }

@@ -5,6 +5,8 @@ import { SectionsTag, summarizeProvenance } from "@/components/sections-provenan
 import { Check, Plus } from "@/components/ui/icons";
 import { Plate } from "@/components/ui/Plate";
 import type { Hue } from "@/lib/course-colors";
+import { examDay, examStartTime } from "@/components/schedule-builder/finals";
+import { examOf } from "@/lib/final-exams";
 import { meetingsConflict, optionLabel, rangeLabel, sampleOption, type CourseOptions } from "@/lib/planner-sections";
 import type { Day, Meeting, Section } from "@/lib/sections";
 import styles from "./courses.module.css";
@@ -156,6 +158,7 @@ export function SectionList({ courseId, term, options, placed, chosenId, canAdd,
           const instructor = section.instructor.display;
           const gpa = instructor ? gpaOf(instructor) : null;
           const room = section.meetings.find((meeting) => meeting.buildingCode);
+          const exam = examOf(section);
           const label = `§${optionLabel(section)}`;
           return (
             <li
@@ -217,6 +220,7 @@ export function SectionList({ courseId, term, options, placed, chosenId, canAdd,
                   // A short session (eight weeks, a late start) changes when the class meets, so it is named.
                   <span className={styles.sectionNote}>{`${section.session.label}, ${rangeLabel(section.session.dates)}`}</span>
                 ) : null}
+                {exam.kind === "known" ? <span className={styles.sectionNote}>{`Final ${examDay(exam.exam)}, ${examStartTime(exam.exam)}`}</span> : null}
                 {clash ? <span className={styles.conflict}>{clash}</span> : null}
               </button>
               <span className={styles.seats} data-full={seat?.full || undefined}>
