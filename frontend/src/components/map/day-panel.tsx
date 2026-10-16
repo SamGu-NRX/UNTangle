@@ -21,7 +21,7 @@ import {
   type StartPlace,
 } from "@/lib/map-itinerary";
 import type { ClassDay, MapStop } from "@/lib/types";
-import { dayNames } from "@/components/map/day-steps";
+import { dayNames, shortDate } from "@/components/map/day-steps";
 import { GAP_PREVIEW, type GapEvent, type GapRow, type GapTrip } from "@/components/map/gap-events";
 import { fromKeyboard, type MapSelection } from "@/components/map/selection";
 import { searchStartPlaces, type StartPlaceOption } from "@/components/map/start-places";
@@ -129,9 +129,9 @@ function nextClassLine(next: NextClass, isToday: boolean, prefix: "your-next" | 
 function heroCopy(
   hero: Hero,
   itinerary: Itinerary,
-  { day, isToday, next, hasClasses }: { day: ClassDay; isToday: boolean; next: NextClass; hasClasses: boolean },
+  { day, isToday, date, next, hasClasses }: { day: ClassDay; isToday: boolean; date: string | null; next: NextClass; hasClasses: boolean },
 ): HeroCopy {
-  const on = isToday ? null : dayNames[day];
+  const on = isToday ? null : date ? `${dayNames[day]}, ${shortDate(date)}` : dayNames[day];
   const fromName = (index: number) =>
     index === 0 ? (itinerary.start?.place.name ?? "") : buildingOf(itinerary.stops[index - 1]);
   const walkOf = (index: number) => (index === 0 ? itinerary.start?.leg : itinerary.legs[index - 1]);
@@ -214,6 +214,7 @@ export function DayHero({
   itinerary,
   day,
   isToday,
+  date,
   next,
   hasClasses,
   onShowDay,
@@ -222,12 +223,14 @@ export function DayHero({
   itinerary: Itinerary;
   day: ClassDay;
   isToday: boolean;
+  /** The calendar date the day stands for, when it isn't today but a date ahead (the plan's first week). */
+  date: string | null;
   next: NextClass;
   /** Whether the schedule has any timed class at all. */
   hasClasses: boolean;
   onShowDay: (day: ClassDay, instant: boolean) => void;
 }) {
-  const copy = heroCopy(hero, itinerary, { day, isToday, next, hasClasses });
+  const copy = heroCopy(hero, itinerary, { day, isToday, date, next, hasClasses });
   return (
     <div className="mv-hero">
       <p className="mv-hero__label">{copy.label}</p>
