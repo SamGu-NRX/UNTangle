@@ -65,6 +65,7 @@ function host(courses: WeekCourse[], feed: Partial<OptionsFeed> = {}) {
     defaults: preferences,
     setPreferences: () => {},
     preferencesReady: true,
+    setup: null,
     walk: (a, b) => {
       const minutes = MINUTES[`${a}|${b}`] ?? MINUTES[`${b}|${a}`];
       return minutes === undefined ? null : { seconds: minutes * 60, shuttle: false };
