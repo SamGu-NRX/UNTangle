@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button, IconButton } from "@/components/ui/Button";
 import { ContextPanel } from "@/components/ui/ContextPanel";
 import { AlertGlyph, BookGlyph, SearchGlyph, ShareGlyph, SlidersGlyph, TrayIn, Undo } from "@/components/ui/icons";
@@ -939,9 +939,10 @@ function FinalsLine({
   disabled: boolean;
   onOpen: (code: string) => void;
 }) {
+  const labelId = useId();
   return (
-    <div className={`${styles.gridFoot} ${styles.finalsLine}`} role="group" aria-labelledby="week-finals">
-      <span id="week-finals" className={styles.label}>
+    <div className={`${styles.gridFoot} ${styles.finalsLine}`} role="group" aria-labelledby={labelId} data-finals="">
+      <span id={labelId} className={styles.label}>
         Finals
       </span>
       {projected ? (
@@ -967,7 +968,11 @@ function FinalsLine({
             onClick={() => onOpen(courseCode)}
           >
             <span className={styles.code}>{courseCode}</span>
-            {exam.kind === "known" ? examStart(exam.exam) : "Not known"}
+            {/* The outline's color isn't the only sign of an overlap: the glyph marks it too. */}
+            <span className={styles.pillTime}>
+              {clash ? <AlertGlyph size={14} /> : null}
+              {exam.kind === "known" ? examStart(exam.exam) : "Not known"}
+            </span>
           </button>
         );
       })}

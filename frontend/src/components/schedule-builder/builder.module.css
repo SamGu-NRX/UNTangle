@@ -226,7 +226,8 @@
     min-height: 48px;
   }
   .chips,
-  .filterRow {
+  .filterRow,
+  .finalsLine {
     row-gap: 16px;
   }
 }
@@ -878,8 +879,24 @@
   font-size: 13px;
   color: var(--ink-2);
 }
+.pill {
+  /* A control, not text: a long press opens nothing and selects nothing. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.pill:disabled {
+  /* Week is previewing another week: the pills describe it but can't open a panel. */
+  opacity: 0.6;
+  cursor: default;
+}
 .pill .code {
   font-size: 12px;
+}
+.pillTime {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 /* A final that overlaps another, outlined around the course's tint: attention while the time is
    projected and can still move (a check), danger once UNT has published it (a conflict). */

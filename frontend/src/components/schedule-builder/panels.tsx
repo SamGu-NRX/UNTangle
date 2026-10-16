@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Button } from "@/components/ui/Button";
 import { AlertGlyph, ChevronRight } from "@/components/ui/icons";
 import { Switch } from "@/components/ui/Switch";
@@ -15,9 +16,10 @@ import { andList, clock, patternOf, type GridEvent, type WalkLeg } from "./week"
 function FinalExam({ section, week, finals }: { section: Section; week: readonly Section[]; finals: BuilderFinals }) {
   const exam = finals.examOf(section);
   const clashes = finalClashes(section, week, finals);
+  const headingId = useId();
   return (
-    <section aria-labelledby="event-final" className={styles.final}>
-      <h3 id="event-final" className={styles.label}>
+    <section aria-labelledby={headingId} className={styles.final} data-final="">
+      <h3 id={headingId} className={styles.label}>
         Final
       </h3>
       {exam.kind === "known" ? (

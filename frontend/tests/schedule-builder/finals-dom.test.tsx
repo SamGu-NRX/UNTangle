@@ -81,7 +81,7 @@ async function render(h: BuilderHost) {
   const { ScheduleBuilder } = await import("@/components/schedule-builder/ScheduleBuilder");
   return mount(<ScheduleBuilder host={h} scheduleName="Main" searchRequest={null} shared={null} onSharedSeen={() => {}} />);
 }
-const pills = (root: ParentNode) => [...root.querySelectorAll<HTMLButtonElement>('[aria-labelledby="week-finals"] button[data-hue]')];
+const pills = (root: ParentNode) => [...root.querySelectorAll<HTMLButtonElement>('[data-finals] button[data-hue]')];
 
 describe("finals model and words", () => {
   test("in exam order, unknown last, each naming its clashes", () => {
@@ -128,7 +128,9 @@ describe("Week with finals", () => {
       ["MATH 1710Mon 9:00 AM", "MATH 1710 Mon 9:00 AM, final on Monday, May 3, 9:00 to 11:00 AM, overlaps CSCE 2110", "check"],
       ["ENGL 1310Not known", "ENGL 1310 Not known, final time", null],
     ]);
-    expect(view.container.querySelector('[aria-labelledby="week-finals"]')!.textContent).toContain("Projected");
+    // An overlap shows a glyph, not only a color; a pill without one has none.
+    expect(pills(view.container).map((b) => Boolean(b.querySelector("svg")))).toEqual([true, true, false]);
+    expect(view.container.querySelector("[data-finals]")!.textContent).toContain("Projected");
     expect(view.container.textContent).toContain("CSCE 2110 and MATH 1710 finals overlap on Monday, May 3.");
     const fix = [...view.container.querySelectorAll("button")].find((b) => b.textContent === "Show a fix")!;
     await click(fix);
@@ -142,7 +144,7 @@ describe("Week with finals", () => {
     expect(pills(view.container).some((b) => b.hasAttribute("data-clash"))).toBe(false);
     await click(pills(view.container).find((b) => b.textContent?.startsWith("MATH 1710"))!);
     const panel = document.querySelector("aside")!;
-    const final = panel.querySelector('[aria-labelledby="event-final"]')!;
+    const final = panel.querySelector("[data-final]")!;
     expect(final.textContent).toBe("FinalTuesday, May 4, 3:30 to 5:30 PMUNT hasn't published Spring 2027 finals.");
     // Section 002's final would land on CSCE 2110's.
     const move = [...panel.querySelectorAll("button")].find((b) => b.getAttribute("aria-label")?.startsWith("Move to section 002"))!;
@@ -150,7 +152,7 @@ describe("Week with finals", () => {
     expect(panel.textContent).toContain("Final overlaps CSCE 2110");
     expect(panel.textContent).toContain("Final Mon, May 3, 9:00 AM");
     await click(pills(view.container).find((b) => b.textContent?.startsWith("ENGL 1310"))!);
-    expect(document.querySelector('aside [aria-labelledby="event-final"]')!.textContent).toBe("FinalIt has no set meeting time, so the syllabus sets the final.");
+    expect(document.querySelector("aside [data-final]")!.textContent).toBe("FinalIt has no set meeting time, so the syllabus sets the final.");
     await view.unmount();
   });
 
