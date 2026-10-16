@@ -2,11 +2,11 @@
  * The over-the-air update flow: check on launch and on return to the
  * foreground, download in the background, and hold the downloaded update
  * until something applies it at a safe moment. A restart replaces the whole
- * JavaScript runtime, and the guest's plan lives only in memory (plan-store),
- * so today nothing in the app calls applyWhenSafe: a downloaded update
- * applies at the next cold start, which is expo-updates' own default, and
- * applyWhenSafe is the explicit path reserved for when plans persist to
- * SQLite. Its safety rule stands anyway, tested here: a screen reviewing an
+ * JavaScript runtime: the guest's plan is saved on the device (saved-plan.ts),
+ * but an open review is not, so today nothing in the app calls
+ * applyWhenSafe: a downloaded update applies at the next cold start, which is
+ * expo-updates' own default, and applyWhenSafe is the explicit path reserved
+ * for when plans persist to SQLite. Its safety rule stands anyway, tested here: a screen reviewing an
  * import, resolving a conflict or approving Auto holds an unsafe moment
  * (safe-moment.ts) and no restart may land inside one
  * (docs/architecture/README.md, "Mobile").

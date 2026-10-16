@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { courses } from "@/lib/seed-data";
 import type { Section } from "@/lib/sections/model";
-import { rangeText } from "@/plan/day-plan";
 import {
   conflictsWith,
   courseByCode,
@@ -15,6 +14,7 @@ import {
   planningTermLabel,
   sectionNumber,
   sectionsOf,
+  sectionTimes,
   type CourseState,
 } from "@/plan/guest-plan";
 import { usePlan } from "@/plan/plan-store";
@@ -32,17 +32,6 @@ const WORD: Record<CourseState["kind"], string> = {
   available: "You can take this",
   locked: "Locked",
 };
-
-/** "Mon Wed Fri" and "9:00 to 9:50" for a section whose meetings share one time. */
-function sectionTimes(section: Section): { days: string; time: string } | null {
-  const timed = section.meetings.filter((meeting) => meeting.day && meeting.startMinutes !== null && meeting.endMinutes !== null);
-  if (timed.length === 0) return null;
-  const first = timed[0];
-  return {
-    days: timed.map((meeting) => meeting.day).join(" "),
-    time: rangeText(first.startMinutes as number, first.endMinutes as number),
-  };
-}
 
 /** Courses in this catalog that list `code` as a prerequisite: what passing it opens. */
 function unlocksOf(code: string): string[] {

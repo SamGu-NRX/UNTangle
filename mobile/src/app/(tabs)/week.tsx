@@ -10,7 +10,7 @@ import { creditsText, planningTermLabel, weekOf, type Picks } from "@/plan/guest
 import { usePlan } from "@/plan/plan-store";
 import { gridDays } from "@/plan/preferences";
 import { color, layout, radius, shadow, space } from "@/theme/tokens";
-import { EmptyState, ViewHead } from "@/ui/chrome";
+import { EmptyState, useCompactWindow, ViewHead } from "@/ui/chrome";
 import { CloseGlyph, SlidersGlyph } from "@/ui/glyphs";
 import { land, refuse, tick } from "@/ui/haptics";
 import { Button, PressScale } from "@/ui/press";
@@ -23,25 +23,20 @@ const DAY_NAMES: Record<string, string> = { Mon: "Monday", Tue: "Tuesday", Wed: 
 const noteIn = FadeIn.duration(200).reduceMotion(ReduceMotion.Never);
 const noteOut = FadeOut.duration(150).reduceMotion(ReduceMotion.Never);
 
-/** "Moves CSCE 2110 and MATH 2700." or, when nothing moves, that this is the current week. */
-function movesText(moves: readonly string[]): string {
-  if (moves.length === 0) return "Same sections as your week now.";
-  const list = moves.length === 1 ? moves[0] : `${moves.slice(0, -1).join(", ")} and ${moves[moves.length - 1]}`;
-  return `Moves ${list}.`;
-}
-
 export default function WeekScreen() {
   const { picks, week, prefs, replace } = usePlan();
   const [auto, setAuto] = useState<AutoResult | null>(null);
   const [index, setIndex] = useState(0);
   // While the Auto options card is open the update flow holds: a restart
-  // replaces the whole JavaScript runtime and the plan is memory-only, so the
-  // student's review would be lost (docs/mobile/ota.md).
+  // replaces the whole JavaScript runtime, and the options under review live
+  // only in memory, so the student's review would be lost (docs/mobile/ota.md).
   useUnsafeMoment(auto !== null, "auto");
   const [used, setUsed] = useState<{ label: string; before: Picks } | null>(null);
+  const compact = useCompactWindow();
 
   const option = auto?.kind === "options" ? auto.options[index] : null;
-  const shown = useMemo(() => (option ? weekOf(option.picks) : week), [option, week]);
+  // An option keeps the week's colors: Auto moves sections, never a course's hue.
+  const shown = useMemo(() => (option ? weekOf(option.picks, week.colors) : week), [option, week]);
 
   // The first tight walk, said once under the grid, with the fix: Preferences' short walks.
   const tight = useMemo(() => {
@@ -116,7 +111,7 @@ export default function WeekScreen() {
                 </PressScale>
               </View>
               <Txt variant="body" tone="ink2">
-                {movesText(option.moves)}
+                {option.sentence}
               </Txt>
               <View style={styles.autoActions}>
                 {auto.options.length > 1 ? (
@@ -171,7 +166,7 @@ export default function WeekScreen() {
         </Animated.View>
       ) : null}
 
-      <View style={styles.gridWrap}>
+      <View style={[styles.gridWrap, compact && styles.gridWrapCompact]}>
         <WeekGrid
           blocks={shown.blocks}
           events={shown.events}
@@ -226,5 +221,7 @@ const styles = StyleSheet.create({
   undo: { minHeight: 36, justifyContent: "center", paddingHorizontal: 4 },
   link: { fontFamily: "DMSans_600SemiBold" },
   gridWrap: { paddingHorizontal: 8 },
+  // The grid's own margin gives its five columns the room a compact window lacks (WeekGrid).
+  gridWrapCompact: { paddingHorizontal: 4 },
   tight: { paddingHorizontal: layout.gutter, paddingTop: space[3] },
 });

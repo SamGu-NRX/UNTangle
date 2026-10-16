@@ -1,9 +1,11 @@
-import type { Hue } from "@/lib/course-colors";
-import { eventsOf, weekBlocks, weekColors, weekStats, type WeekBlock, type WeekStats } from "@/lib/plan-library/week";
+import { assignColors, type Hue } from "@/lib/course-colors";
+import { eventsOf, weekBlocks, weekStats, type WeekBlock, type WeekStats } from "@/lib/plan-library/week";
 import { optionsConflict, planningTerm, sampleCatalog } from "@/lib/planner-sections";
 import { courses, defaultPlannerState } from "@/lib/seed-data";
 import type { Section } from "@/lib/sections/model";
 import type { Course, PlannerState, ScheduleEvent } from "@/lib/types";
+
+import { rangeWithPeriod } from "./day-plan";
 
 /**
  * Guest mode's plan. Until device sign-in exists the app has no account to
@@ -107,6 +109,22 @@ export function sectionNumber(section: Pick<Section, "id">): string {
   return section.id.split("-").pop() ?? section.id;
 }
 
+/**
+ * "Mon Wed Fri" and "12:00 to 12:50 PM" for a section whose meetings share
+ * one time. A section's times stand alone, with no grid to place them in a
+ * day, so they carry AM or PM the way the web writes a range off the grid
+ * (schedule-builder/finals.ts examTimes).
+ */
+export function sectionTimes(section: Section): { days: string; time: string } | null {
+  const timed = section.meetings.filter((meeting) => meeting.day && meeting.startMinutes !== null && meeting.endMinutes !== null);
+  if (timed.length === 0) return null;
+  const first = timed[0];
+  return {
+    days: timed.map((meeting) => meeting.day).join(" "),
+    time: rangeWithPeriod(first.startMinutes as number, first.endMinutes as number),
+  };
+}
+
 /** Course code to the picked section's id. */
 export type Picks = Readonly<Record<string, string>>;
 
@@ -144,8 +162,21 @@ export type GuestWeek = {
   credits: number;
 };
 
-/** The week the picks make, built with the web's own builders. */
-export function weekOf(picks: Picks): GuestWeek {
+/**
+ * Each planned course's hue, by the web Week's rule (ScheduleBuilder keeps
+ * its last assignment and passes it back to assignColors): a course already
+ * colored keeps its hue while it stays planned, so adding or removing a
+ * course never recolors the others. New courses are colored in pick order.
+ */
+export function colorsFor(picks: Picks, previous: ReadonlyMap<string, Hue>): Map<string, Hue> {
+  return assignColors(
+    Object.keys(picks).map((code) => ({ id: code, department: code.split(" ")[0] })),
+    previous,
+  );
+}
+
+/** The week the picks make, built with the web's own builders, colored on from `colors`. */
+export function weekOf(picks: Picks, colors: ReadonlyMap<string, Hue>): GuestWeek {
   const codes = Object.keys(picks);
   const state: PlannerState = {
     ...defaultPlannerState,
@@ -161,7 +192,7 @@ export function weekOf(picks: Picks): GuestWeek {
   return {
     events,
     blocks,
-    colors: weekColors(blocks.map((block) => block.code)),
+    colors: colorsFor(picks, colors),
     stats: weekStats(events),
     credits: codes.reduce((sum, code) => sum + (courseByCode(code)?.creditHours ?? 0), 0),
   };

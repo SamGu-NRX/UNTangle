@@ -9,6 +9,7 @@ import { dayPlan, placeOf, sampleStart } from "@/plan/day-plan";
 import { busyBlocks, DAY_OFF, gridDays, isDayOff, type Preferences } from "@/plan/preferences";
 import { color, font, hueOf, layout, radius } from "@/theme/tokens";
 
+import { useCompactWindow } from "./chrome";
 import { Txt } from "./text";
 
 const GUTTER = 38;
@@ -39,7 +40,8 @@ const crossfadeOut = FadeOut.duration(120).reduceMotion(ReduceMotion.Never);
  * The phone Week: Mon to Fri, 56px hours, course blocks in their department
  * tint with the color bar inset as its own pill so the code never touches
  * it. The code stacks subject over number so it shows in full in a 60px
- * column. A walk ribbon joins back-to-back classes; tight ones are red.
+ * column; on a compact window the bar and text insets tighten so a 4-letter
+ * subject as wide as MGMT still fits a 52px column. A walk ribbon joins back-to-back classes; tight ones are red.
  * A changed section crossfades (MOTION.md §3: opacity only, no movement).
  */
 export function WeekGrid({
@@ -66,6 +68,7 @@ export function WeekGrid({
   const height = hours.length * layout.hour;
   const y = (minute: number) => ((minute - range.first * 60) / 60) * layout.hour;
   const daysWithClasses = new Set(blocks.map((block) => block.day));
+  const compact = useCompactWindow();
 
   return (
     <View style={styles.grid}>
@@ -164,8 +167,8 @@ export function WeekGrid({
                         accessibilityRole="button"
                         accessibilityLabel={`${block.code}, ${day} ${clockText(block.start)} to ${clockText(block.end)}`}
                       >
-                        <View style={[styles.bar, { backgroundColor: hue.solid }]} />
-                        <View style={styles.blockText}>
+                        <View style={[styles.bar, compact && styles.barCompact, { backgroundColor: hue.solid }]} />
+                        <View style={[styles.blockText, compact && styles.blockTextCompact]}>
                           <Txt style={[styles.code, { color: color.ink }]} numberOfLines={1}>
                             {subject}
                           </Txt>
@@ -239,7 +242,9 @@ const styles = StyleSheet.create({
   block: { flex: 1, borderRadius: radius.sm, flexDirection: "row", overflow: "hidden" },
   // The bar is inset from the block's corners, so it never curls with them.
   bar: { width: 3, marginLeft: 3, marginVertical: 4, borderRadius: 2 },
+  barCompact: { marginLeft: 2 },
   blockText: { flex: 1, paddingLeft: 5, paddingRight: 3, paddingTop: 4 },
+  blockTextCompact: { paddingLeft: 4, paddingRight: 1 },
   code: { fontFamily: font.bold, fontSize: 12, lineHeight: 15 },
   place: { fontSize: 11, lineHeight: 15, marginTop: 2 },
 });
