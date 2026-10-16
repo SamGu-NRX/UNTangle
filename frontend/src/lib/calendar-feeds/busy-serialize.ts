@@ -1,6 +1,6 @@
 /**
  * The JSON body of a busy response: the same size cap as a preview, but
- * occurrences carry only `{ date, startMinutes, endMinutes }` and skipped
+ * occurrences carry only `{ date, startMinutes, endMinutes, allDay }` and skipped
  * entries carry only `{ index, reason }`. The serializer drops fields
  * explicitly rather than passing values through, so a future field on the
  * internal occurrence or skipped types cannot leak event text into the
@@ -26,9 +26,17 @@ export type SerializedBusyOccurrence = {
   endMinutes: number;
 };
 
+/**
+ * One piece as the busy route sends it: the occurrence, and whether it came
+ * from an all-day event. A connected calendar keeps all-day pieces apart and
+ * counts them as busy only when the student says so (lib/calendar-busy.ts),
+ * since all-day entries are mostly deadlines, holidays and reminders.
+ */
+export type SerializedBusyPiece = SerializedBusyOccurrence & { allDay: boolean };
+
 export function serializeBusy(payload: {
   range: { start: string; end: string };
-  occurrences: ReadonlyArray<SerializedBusyOccurrence>;
+  occurrences: ReadonlyArray<SerializedBusyOccurrence & { allDay?: boolean }>;
   skipped: ReadonlyArray<{ reason: string }>;
   /** The feed's address sealed for the caller (lib/calendar-feeds/seal.ts), when the request asked for it. */
   sealedUrl?: string;
@@ -39,6 +47,7 @@ export function serializeBusy(payload: {
       date: piece.date,
       startMinutes: piece.startMinutes,
       endMinutes: piece.endMinutes,
+      allDay: piece.allDay === true,
     })),
     skipped: payload.skipped.map((entry, index) => ({
       index,

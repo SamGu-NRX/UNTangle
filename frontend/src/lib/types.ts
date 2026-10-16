@@ -316,6 +316,10 @@ export type ConnectedCalendar = {
   /** When the feed was last read, ISO 8601. */
   checkedAt: string;
   busy: CalendarBusySlot[];
+  /** Dates of busy all-day events; busy only when `countAllDay` is on. */
+  allDayDates: string[];
+  /** The student counts this calendar's all-day events as busy. Off by default. */
+  countAllDay: boolean;
 };
 
 export type SchedulePreferences = {

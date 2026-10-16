@@ -17,7 +17,7 @@ import type { BlockedTime, CalendarBusySlot, ConnectedCalendar, WeekDay } from "
 export { MAX_CALENDARS } from "../../../packages/contracts/src/documents";
 
 /** One dated busy piece, as the busy route serializes it (calendar-feeds/busy-serialize.ts). */
-export type BusyPiece = { date: string; startMinutes: number; endMinutes: number };
+export type BusyPiece = { date: string; startMinutes: number; endMinutes: number; allDay?: boolean };
 
 const WEEKDAY: readonly OptDay[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -49,6 +49,30 @@ export function slotsFromPieces(pieces: readonly BusyPiece[], term?: { start: st
 /** How many busy pieces a calendar holds: one per slot and date. */
 export const busyCount = (calendar: Pick<ConnectedCalendar, "busy">) => calendar.busy.reduce((sum, slot) => sum + slot.dates.length, 0);
 
+/** The calendar's busy time as Auto reads it: its timed slots, plus a whole-day slot for its all-day dates when they count. */
+export function countedSlots(calendar: Pick<ConnectedCalendar, "busy" | "allDayDates" | "countAllDay">): CalendarBusySlot[] {
+  if (!calendar.countAllDay || calendar.allDayDates.length === 0) return calendar.busy;
+  // A timed piece already filling the whole day merges with the all-day dates rather than repeating a slot.
+  const whole = calendar.busy.find((slot) => slot.start === 0 && slot.end === 24 * 60);
+  const rest = calendar.busy.filter((slot) => slot !== whole);
+  const dates = [...new Set([...(whole?.dates ?? []), ...calendar.allDayDates])].sort();
+  return [...rest, { start: 0, end: 24 * 60, dates }];
+}
+
+/**
+ * The timed pieces as slots, and the all-day pieces as the dates they fall
+ * on, each inside `term`: what a connected calendar keeps.
+ */
+export function readingOf(pieces: readonly BusyPiece[], term: { start: string; end: string }): { busy: CalendarBusySlot[]; allDayDates: string[] } {
+  return {
+    busy: slotsFromPieces(
+      pieces.filter((piece) => !piece.allDay),
+      term,
+    ),
+    allDayDates: [...new Set(pieces.filter((piece) => piece.allDay && piece.date >= term.start && piece.date <= term.end).map((piece) => piece.date))].sort(),
+  };
+}
+
 /** Calendars whose busy time was read for `termId`; the others wait for a refresh. */
 export const calendarsFor = (calendars: readonly ConnectedCalendar[] | undefined, termId: string) =>
   (calendars ?? []).filter((calendar) => calendar.termId === termId);
@@ -65,7 +89,7 @@ export function calendarBlockedTimes(
   term: { start: string; end: string } | null,
 ): OptBlockedTime[] {
   return calendarsFor(calendars, termId).flatMap((calendar) =>
-    calendar.busy.flatMap((slot) => {
+    countedSlots(calendar).flatMap((slot) => {
       const byDay = new Map<OptDay, string[]>();
       for (const date of slot.dates) {
         if (term && (date < term.start || date > term.end)) continue;
@@ -157,11 +181,11 @@ export type CheckedFeed = {
   /** Busy pieces in the term, as connecting would store them. */
   busyCount: number;
   /**
-   * How many of them are all day. Auto keeps such a date's whole day free,
-   * so a class that meets that weekday all term can't be picked; the check
-   * says so before the student adds the calendar.
+   * How many busy all-day events fall in the term. They are left out of busy
+   * time unless the student counts them: one busy all-day date rules out
+   * every full-term class on its weekday.
    */
-  allDayCount: number;
+  allDayEvents: number;
   /** Timed weekday occurrences in the term, by date: what one event can become. */
   events: FeedEvent[];
 };
@@ -212,7 +236,8 @@ export function calendarsToRefresh(
 /**
  * The preferences with one calendar's fresh reading: its busy time, term,
  * read time and (when the server upgraded it) sealed address, onto the
- * calendar as it is now, so a rename made meanwhile stays. A calendar
+ * calendar as it is now, so a rename or an all-day choice made meanwhile
+ * stays. A calendar
  * removed meanwhile, or connected again under another address, is left as it
  * is: the reading belonged to the one that was there.
  */
@@ -222,7 +247,14 @@ export function withReading<P extends { calendars?: ConnectedCalendar[] }>(prefe
     ...preferences,
     calendars: preferences.calendars.map((calendar) =>
       calendar.id === read.id && calendar.sealedUrl === read.sealedUrl
-        ? { ...calendar, busy: reading.busy, termId: reading.termId, checkedAt: reading.checkedAt, sealedUrl: reading.sealedUrl }
+        ? {
+            ...calendar,
+            busy: reading.busy,
+            allDayDates: reading.allDayDates,
+            termId: reading.termId,
+            checkedAt: reading.checkedAt,
+            sealedUrl: reading.sealedUrl,
+          }
         : calendar,
     ),
   };

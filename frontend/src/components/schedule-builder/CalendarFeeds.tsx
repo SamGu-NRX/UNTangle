@@ -4,6 +4,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } f
 import { Button, IconButton } from "@/components/ui/Button";
 import { CalendarGlyph, Check, Close, LockGlyph, Plus } from "@/components/ui/icons";
 import { keyboardFocused } from "@/components/ui/input-source";
+import { Switch } from "@/components/ui/Switch";
 import { TextField } from "@/components/ui/TextField";
 import { toast } from "@/components/ui/Toast";
 import { busyCount, eventBusyTime, MAX_CALENDARS, type CheckedFeed, type FeedEvent, type FeedProblem } from "@/lib/calendar-busy";
@@ -23,13 +24,31 @@ type Update = (update: (current: SchedulePreferences) => SchedulePreferences) =>
 type Flow =
   | { step: "closed" }
   | { step: "address"; url: string; error: string | null; checking: boolean }
-  | { step: "checked"; url: string; feed: CheckedFeed; name: string; error: string | null; adding: boolean; picking: boolean; query: string };
+  | {
+      step: "checked";
+      url: string;
+      feed: CheckedFeed;
+      name: string;
+      /** Count the feed's all-day events as busy. Off by default: they are mostly deadlines, holidays and reminders. */
+      countAllDay: boolean;
+      error: string | null;
+      adding: boolean;
+      picking: boolean;
+      query: string;
+    };
 
 /** How many events the one-event list shows before asking for a search. */
 const EVENTS_SHOWN = 30;
 
 /** "11 AM to 12:30 PM": a range the way people say it (docs/design/copy.md). */
 const spokenSpan = (start: number, end: number) => `${clockWithSuffix(start)} to ${clockWithSuffix(end)}`;
+
+/** "It works. 36 busy times in Spring 2027; 4 all-day events skipped." */
+function foundLine(feed: CheckedFeed, countAllDay: boolean, termLabel: string): string {
+  const timed = feed.busyCount === 0 ? `Nothing busy in ${termLabel} yet` : `${plural(feed.busyCount, "busy time")} in ${termLabel}`;
+  if (feed.allDayEvents === 0) return `It works. ${timed}.`;
+  return `It works. ${timed}; ${plural(feed.allDayEvents, "all-day event")} ${countAllDay ? "counted" : "skipped"}.`;
+}
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -51,8 +70,20 @@ function withoutCalendar(p: SchedulePreferences, id: string): SchedulePreference
 }
 
 /** One connected calendar: its name, what it holds this term, and Remove. */
-function CalendarRow({ calendar, term, problem, onRemove }: { calendar: ConnectedCalendar; term: BuilderCalendars["term"]; problem: string | undefined; onRemove: () => void }) {
-  const n = busyCount(calendar);
+function CalendarRow({
+  calendar,
+  term,
+  problem,
+  onRemove,
+  onCountAllDay,
+}: {
+  calendar: ConnectedCalendar;
+  term: BuilderCalendars["term"];
+  problem: string | undefined;
+  onRemove: () => void;
+  onCountAllDay: (on: boolean) => void;
+}) {
+  const n = busyCount(calendar) + (calendar.countAllDay ? calendar.allDayDates.length : 0);
   const fact = problem
     ? problem
     : calendar.termId !== term.id
@@ -72,6 +103,15 @@ function CalendarRow({ calendar, term, problem, onRemove }: { calendar: Connecte
       <IconButton label={`Remove ${calendar.name}`} size="sm" className={styles.rowX} onClick={onRemove}>
         <Close size={14} />
       </IconButton>
+      {calendar.allDayDates.length > 0 ? (
+        <Switch
+          className={styles.rowSwitch}
+          checked={calendar.countAllDay}
+          onChange={onCountAllDay}
+          label={`Count all-day events as busy`}
+          description={`${plural(calendar.allDayDates.length, "all-day date")} in ${term.label}`}
+        />
+      ) : null}
     </li>
   );
 }
@@ -173,16 +213,16 @@ export function CalendarFeeds({ host, preferences, onChange }: { host: BuilderCa
       addressRef.current?.focus();
       return;
     }
-    setFlow({ step: "checked", url, feed: outcome.value, name: "", error: null, adding: false, picking: false, query: "" });
+    setFlow({ step: "checked", url, feed: outcome.value, name: "", countAllDay: false, error: null, adding: false, picking: false, query: "" });
   };
 
   const add = async (event: FormEvent) => {
     event.preventDefault();
     if (flow.step !== "checked" || flow.adding) return;
     note();
-    const { url, name } = flow;
+    const { url, name, countAllDay } = flow;
     setFlow({ ...flow, adding: true, error: null });
-    const outcome = await host.connect(url, name.trim() || "Calendar").catch(failed);
+    const outcome = await host.connect(url, name.trim() || "Calendar", { countAllDay }).catch(failed);
     const now = flowRef.current;
     if (now.step !== "checked" || now.url !== url) return;
     if (!outcome.ok) {
@@ -261,7 +301,16 @@ export function CalendarFeeds({ host, preferences, onChange }: { host: BuilderCa
       ) : (
         <ul className={styles.srows} aria-labelledby={`${pickerId}-head`} data-instant={instant ? "" : undefined}>
           {calendars.map((calendar) => (
-            <CalendarRow key={calendar.id} calendar={calendar} term={term} problem={host.problems[calendar.id]} onRemove={() => remove(calendar)} />
+            <CalendarRow
+              key={calendar.id}
+              calendar={calendar}
+              term={term}
+              problem={host.problems[calendar.id]}
+              onRemove={() => remove(calendar)}
+              onCountAllDay={(on) =>
+                onChange((p) => ({ ...p, calendars: p.calendars?.map((c) => (c.id === calendar.id ? { ...c, countAllDay: on } : c)) }))
+              }
+            />
           ))}
         </ul>
       )}
@@ -301,16 +350,16 @@ export function CalendarFeeds({ host, preferences, onChange }: { host: BuilderCa
         <form id={pickerId} className={styles.picker} aria-label="Add a calendar" onSubmit={add} noValidate data-instant={instant ? "" : undefined}>
           <p className={styles.found} role="status">
             <Check size={15} />
-            <span>
-              {flow.feed.busyCount === 0
-                ? `It works. Nothing busy in ${term.label} yet.`
-                : `It works. ${plural(flow.feed.busyCount, "busy time")} in ${term.label}.`}
-            </span>
+            <span>{foundLine(flow.feed, flow.countAllDay, term.label)}</span>
           </p>
-          {flow.feed.allDayCount > 0 ? (
-            <p className={styles.allDay}>
-              {flow.feed.allDayCount === 1 ? "One is all day" : `${flow.feed.allDayCount} are all day`}, so Auto keeps those whole days free.
-            </p>
+          {flow.feed.allDayEvents > 0 ? (
+            <Switch
+              className={styles.allDaySwitch}
+              checked={flow.countAllDay}
+              onChange={(on) => setFlow({ ...flow, countAllDay: on })}
+              label="Count all-day events as busy"
+              description="Auto then keeps each of those whole days free."
+            />
           ) : null}
           <TextField
             ref={nameRef}

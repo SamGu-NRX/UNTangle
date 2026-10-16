@@ -57,8 +57,9 @@ type BusyBody = {
  *
  * 200 response: `{ range, occurrences, skipped }`, plus `sealedUrl` when
  * asked to seal. Occurrences are
- * `{ date, startMinutes, endMinutes }` — weekday and minutes are derived by
- * the caller, and no event title, location, or description is included;
+ * `{ date, startMinutes, endMinutes, allDay }` — weekday and minutes are
+ * derived by the caller, `allDay` marks a piece of an all-day event, and no
+ * event title, location, or description is included;
  * event text never crosses this boundary. `skipped` lists `{ index, reason }`
  * warnings for events and series left out of the busy picture; a skipped
  * transparent or free event is reported, not silently dropped.

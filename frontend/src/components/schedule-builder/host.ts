@@ -118,7 +118,7 @@ export type BuilderCalendars = {
   /** Reads a feed over the term: its busy count and its events. */
   check: (url: string) => Promise<Outcome<CheckedFeed>>;
   /** Reads a feed's busy time and seals its address. Nothing is saved until the builder adds it. */
-  connect: (url: string, name: string) => Promise<Outcome<ConnectedCalendar>>;
+  connect: (url: string, name: string, options: { countAllDay: boolean }) => Promise<Outcome<ConnectedCalendar>>;
   /** Why a connected calendar couldn't be refreshed, by calendar id; absent when it's current. */
   problems: Readonly<Record<string, string>>;
 };

@@ -93,6 +93,8 @@ describe("connecting a calendar", () => {
     // 17 Tuesdays and 17 Thursdays of 3:00 to 6:00 shifts, the Feb 8 inventory and the Feb 16 early shift.
     // The June shift is after the term and doesn't count.
     expect(checked.value.busyCount).toBe(36);
+    // The career fair and the two-day conference are all day, so they are left out unless counted.
+    expect(checked.value.allDayEvents).toBe(2);
 
     const connected = await connectFeed(WORK_URL, "Work", TERM, { fetchImpl: browserFetch, id: "cal-work", now: () => new Date("2026-10-15T12:00:00Z") });
     if (!connected.ok) throw new Error(connected.problem.message);
@@ -160,6 +162,40 @@ describe("connecting a calendar", () => {
     process.env.CALENDAR_FEED_KEY = Buffer.alloc(32, 12).toString("base64");
     if (connected.ok) expect((await refreshCalendar(connected.value, TERM, { fetchImpl: browserFetch })).ok).toBe(false);
     expect(logged.filter((line) => line.includes(SECRET))).toEqual([]);
+  });
+});
+
+describe("all-day events", () => {
+  test("are kept apart and skipped by default, so Auto keeps no whole day free", async () => {
+    const { connectFeed } = await client();
+    const connected = await connectFeed(WORK_URL, "Work", TERM, { fetchImpl: browserFetch, id: "cal-work" });
+    if (!connected.ok) throw new Error(connected.problem.message);
+    expect(connected.value.allDayDates).toEqual(["2027-02-24", "2027-03-18", "2027-03-19"]);
+    expect(connected.value.countAllDay).toBe(false);
+    const { calendarBlockedTimes } = await import("@/lib/calendar-busy");
+    expect(calendarBlockedTimes([connected.value], TERM.id, TERM).filter((block) => block.start === 0 && block.end === 1440)).toEqual([]);
+  });
+
+  test("count as whole busy days when the student turns the option on", async () => {
+    const { connectFeed } = await client();
+    const connected = await connectFeed(WORK_URL, "Work", TERM, { fetchImpl: browserFetch, id: "cal-work", countAllDay: true });
+    if (!connected.ok) throw new Error(connected.problem.message);
+    expect(connected.value.countAllDay).toBe(true);
+    const { calendarBlockedTimes } = await import("@/lib/calendar-busy");
+    const wholeDays = calendarBlockedTimes([connected.value], TERM.id, TERM).filter((block) => block.start === 0 && block.end === 1440);
+    expect(wholeDays.map((block) => [block.day, block.dates?.map((range) => range.start)])).toEqual([
+      ["Wed", ["2027-02-24"]],
+      ["Thu", ["2027-03-18"]],
+      ["Fri", ["2027-03-19"]],
+    ]);
+  });
+
+  test("the choice survives a refresh, which reads the dates again", async () => {
+    const { connectFeed, refreshCalendar } = await client();
+    const connected = await connectFeed(WORK_URL, "Work", TERM, { fetchImpl: browserFetch, countAllDay: true });
+    if (!connected.ok) throw new Error(connected.problem.message);
+    const refreshed = await refreshCalendar(connected.value, TERM, { fetchImpl: browserFetch });
+    expect(refreshed).toMatchObject({ ok: true, value: { countAllDay: true, allDayDates: ["2027-02-24", "2027-03-18", "2027-03-19"] } });
   });
 });
 

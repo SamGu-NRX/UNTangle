@@ -11,6 +11,8 @@ const calendar = (id: string, over: Partial<ConnectedCalendar> = {}): ConnectedC
   termId: "spring-2027",
   checkedAt: new Date(NOW - 60_000).toISOString(),
   busy: [{ start: 900, end: 1080, dates: ["2027-01-12"] }],
+  allDayDates: [],
+  countAllDay: false,
   ...over,
 });
 

@@ -39,10 +39,12 @@ const work: ConnectedCalendar = {
     { start: 480, end: 570, dates: ["2027-02-16"] },
     { start: 900, end: 1080, dates: ["2027-01-12", "2027-01-19"] },
   ],
+  allDayDates: [],
+  countAllDay: false,
 };
 const checked: CheckedFeed = {
   busyCount: 3,
-  allDayCount: 0,
+  allDayEvents: 0,
   events: [{ key: "demo", summary: "Robot demo day", date: "2027-03-02", day: "Tue", start: 660, end: 750 }],
 };
 
@@ -113,11 +115,34 @@ describe("connecting a calendar in Preferences", () => {
     await type(field(view.container, "Name"), "Night job");
     await click(button(view.container, "Add calendar"));
     await settle();
-    expect(connect).toHaveBeenCalledWith("https://calendar.example.edu/work.ics", "Night job");
+    expect(connect).toHaveBeenCalledWith("https://calendar.example.edu/work.ics", "Night job", { countAllDay: false });
     expect(view.preferences().calendars).toEqual([{ ...work, name: "Night job" }]);
     expect(view.container.textContent).toContain("Night job");
     expect(view.container.textContent).toContain("3 busy times in Spring 2027");
     expect(document.body.textContent).toContain("Added Night job. Auto keeps its busy times free.");
+  });
+
+  test("all-day events are skipped unless the student counts them, before adding and on the row after", async () => {
+    const { host, connect } = fakeHost({ check: async () => ({ ok: true, value: { ...checked, busyCount: 36, allDayEvents: 4 } }) });
+    const view = await render(host);
+    await click(button(view.container, "Add a calendar"));
+    await type(field(view.container, "Calendar address"), "https://calendar.example.edu/work.ics");
+    await click(button(view.container, "Check"));
+    await settle();
+    expect(view.container.textContent).toContain("It works. 36 busy times in Spring 2027; 4 all-day events skipped.");
+    const toggle = view.container.querySelector<HTMLButtonElement>('[role="switch"]')!;
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    await click(toggle);
+    expect(view.container.textContent).toContain("4 all-day events counted.");
+    await click(button(view.container, "Add calendar"));
+    await settle();
+    expect(connect).toHaveBeenCalledWith("https://calendar.example.edu/work.ics", "Calendar", { countAllDay: true });
+
+    const withDates = { ...work, allDayDates: ["2027-02-24"], countAllDay: false };
+    const rows = await render(fakeHost().host, { ...start, calendars: [withDates] });
+    const rowSwitch = rows.container.querySelector<HTMLButtonElement>('[role="switch"]')!;
+    await click(rowSwitch);
+    expect(rows.preferences().calendars?.[0].countAllDay).toBe(true);
   });
 
   test("an unreachable feed shows its error under the address and keeps what was typed", async () => {

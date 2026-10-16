@@ -30,7 +30,7 @@ test('an unchanged preference draft takes every latest group', () => {
 
 const calendar = (id: string, name = id, dates = ['2027-01-12']) => ({
   id, name, sealedUrl: `cf1.key.iv.${id}`, termId: 'spring-2027', checkedAt: '2026-10-15T12:00:00.000Z',
-  busy: [{ start: 900, end: 1080, dates }],
+  busy: [{ start: 900, end: 1080, dates }], allDayDates: [], countAllDay: false,
 });
 
 test('calendars connected on two devices are both kept', () => {

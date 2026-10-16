@@ -14,7 +14,7 @@ import { busyFromFeed } from "@/lib/calendar-feeds/busy";
 import { parseCalendarFeed } from "@/lib/calendar-feeds/parse";
 import { sealFeedUrl } from "@/lib/calendar-feeds/seal";
 import { buildOptimizeRequest } from "@/lib/planner";
-import { slotsFromPieces } from "@/lib/calendar-busy";
+import { readingOf } from "@/lib/calendar-busy";
 import type { ConnectedCalendar, SchedulePreferences } from "@/lib/types";
 
 const user = { id: "student-1", email: "student@my.unt.edu", name: "Student" };
@@ -23,7 +23,7 @@ const SECRET = "private-5e1f0c8a9b7d6e4f3a2b1c0d9e8f7a6b";
 const WORK_URL = `https://calendar.google.com/calendar/ical/student%40my.unt.edu/${SECRET}/basic.ics`;
 const KEY = Buffer.alloc(32, 21);
 
-function workCalendar(owner: { kind: "user"; id: string } | { kind: "guest" }): ConnectedCalendar {
+function workCalendar(owner: { kind: "user"; id: string } | { kind: "guest" }, countAllDay = false): ConnectedCalendar {
   const raw = readFileSync(join(import.meta.dir, "../calendar-feeds/fixtures/work-shifts-spring-2027.ics"), "utf8");
   const term = { start: "2027-01-11", end: "2027-05-07" };
   const pieces = busyFromFeed(parseCalendarFeed(raw, { start: "2027-01-11T00:00:00", end: "2027-05-08T00:00:00" }), term);
@@ -33,7 +33,8 @@ function workCalendar(owner: { kind: "user"; id: string } | { kind: "guest" }): 
     sealedUrl: sealFeedUrl(WORK_URL, owner, KEY),
     termId: "spring-2027",
     checkedAt: "2026-10-15T12:00:00.000Z",
-    busy: slotsFromPieces(pieces, term),
+    ...readingOf(pieces, term),
+    countAllDay,
   };
 }
 
@@ -103,6 +104,23 @@ describe("a signed-in student", () => {
     ]);
   });
 
+  test("counting all-day events is part of the calendar, so it syncs with it", async () => {
+    setSession(user);
+    const laptop = await mount();
+    await laptop.run((p) => p.setSchedulePreferences(addCalendar(workCalendar({ kind: "user", id: user.id }))));
+    await laptop.run((p) =>
+      p.setSchedulePreferences((current) => ({ ...current, calendars: current.calendars?.map((c) => ({ ...c, countAllDay: true })) })),
+    );
+    await waitFor(() => laptop.get().saveState.label === "Synced", "synced");
+    expect((server.document(user.id, PREFERENCES)?.body as { calendars: ConnectedCalendar[] }).calendars[0].countAllDay).toBe(true);
+
+    resetDocumentStore();
+    const phone = await mount();
+    await waitFor(() => phone.get().schedulePreferences.calendars?.[0]?.countAllDay === true, "the choice on the other device");
+    const wholeDays = calendarBlocks(phone.get().schedulePreferences).filter((block) => block.start === 0 && block.end === 1440);
+    expect(wholeDays.map((block) => block.day)).toEqual(["Wed", "Thu", "Fri"]);
+  });
+
   test("removing the calendar on one device removes its busy time everywhere", async () => {
     setSession(user);
     const laptop = await mount();
@@ -129,7 +147,7 @@ describe("a guest", () => {
   test("keeps the calendar on this device across a reload, sealed", async () => {
     const first = await mount();
     await waitFor(() => first.get().preferencesReady, "guest preferences read");
-    const calendar = workCalendar({ kind: "guest" });
+    const calendar = workCalendar({ kind: "guest" }, true);
     await first.run((p) => p.setSchedulePreferences(addCalendar(calendar)));
     expect(server.puts).toEqual([]);
     expect(JSON.stringify({ ...window.localStorage })).not.toContain(SECRET);

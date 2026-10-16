@@ -10,7 +10,7 @@
  */
 import { busyFromFeed } from "./busy";
 import type { CalendarEvent, CalendarParseResult } from "./types";
-import { busyCount, slotsFromPieces, weekdayOf, type BusyPiece, type CheckedFeed, type FeedEvent, type FeedProblem, type FeedTerm, type Outcome } from "@/lib/calendar-busy";
+import { busyCount, readingOf, weekdayOf, type BusyPiece, type CheckedFeed, type FeedEvent, type FeedProblem, type FeedTerm, type Outcome } from "@/lib/calendar-busy";
 import type { ConnectedCalendar, WeekDay } from "@/lib/types";
 import { CalendarSchema, MAX_CALENDAR_BUSY_DATES } from "../../../../packages/contracts/src/documents";
 
@@ -89,9 +89,10 @@ export async function checkFeed(url: string, term: FeedTerm, fetchImpl: FetchLik
     }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
   // Counted as connecting stores them: one per slot and date, so two events at one time on one date count once.
-  const count = busyCount({ busy: slotsFromPieces(pieces, term) });
-  if (count > MAX_CALENDAR_BUSY_DATES) return { ok: false, problem: TOO_MANY };
-  return { ok: true, value: { busyCount: count, allDayCount: pieces.filter((piece) => piece.allDay).length, events } };
+  const reading = readingOf(pieces, term);
+  if (busyCount(reading) + reading.allDayDates.length > MAX_CALENDAR_BUSY_DATES) return { ok: false, problem: TOO_MANY };
+  const allDayEvents = new Set(pieces.filter((piece) => piece.allDay).map((piece) => piece.eventId)).size;
+  return { ok: true, value: { busyCount: busyCount(reading), allDayEvents, events } };
 }
 
 type BusyResponse = { occurrences: BusyPiece[]; sealedUrl?: string };
@@ -115,7 +116,7 @@ const TOO_MANY: FeedProblem = {
  * refuses is a bug in this file, so it throws.
  */
 function kept(calendar: ConnectedCalendar): Outcome<ConnectedCalendar> {
-  if (calendar.busy.reduce((sum, slot) => sum + slot.dates.length, 0) > MAX_CALENDAR_BUSY_DATES) return { ok: false, problem: TOO_MANY };
+  if (busyCount(calendar) + calendar.allDayDates.length > MAX_CALENDAR_BUSY_DATES) return { ok: false, problem: TOO_MANY };
   return { ok: true, value: CalendarSchema.parse(calendar) };
 }
 
@@ -127,7 +128,7 @@ export async function connectFeed(
   url: string,
   name: string,
   term: FeedTerm,
-  options: { fetchImpl?: FetchLike; id?: string; now?: () => Date } = {},
+  options: { fetchImpl?: FetchLike; id?: string; now?: () => Date; countAllDay?: boolean } = {},
 ): Promise<Outcome<ConnectedCalendar>> {
   const read = await readBusy(options.fetchImpl ?? globalThis.fetch, { url: url.trim(), seal: true }, term);
   if (!read.ok) return read;
@@ -138,7 +139,8 @@ export async function connectFeed(
     sealedUrl: read.value.sealedUrl,
     termId: term.id,
     checkedAt: (options.now ?? (() => new Date()))().toISOString(),
-    busy: slotsFromPieces(read.value.occurrences, term),
+    ...readingOf(read.value.occurrences, term),
+    countAllDay: options.countAllDay ?? false,
   });
 }
 
@@ -156,6 +158,6 @@ export async function refreshCalendar(
     sealedUrl: read.value.sealedUrl ?? calendar.sealedUrl,
     termId: term.id,
     checkedAt: (options.now ?? (() => new Date()))().toISOString(),
-    busy: slotsFromPieces(read.value.occurrences, term),
+    ...readingOf(read.value.occurrences, term),
   });
 }

@@ -47,6 +47,8 @@ const calendar = {
   termId: "spring-2027",
   checkedAt: "2026-10-15T12:00:00.000Z",
   busy: [{ start: 900, end: 1080, dates: ["2027-01-12", "2027-01-19"] }],
+  allDayDates: ["2027-02-24"],
+  countAllDay: false,
 };
 
 const bodies = [

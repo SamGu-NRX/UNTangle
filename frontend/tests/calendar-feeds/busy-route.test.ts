@@ -80,7 +80,7 @@ test("answers a guest too, who keeps calendars on the device", async () => {
   setSession(null);
   const response = await POST(busyRequest(VALID_BODY, "192.0.2.70"));
   expect(response.status).toBe(200);
-  expect((await response.json()).occurrences).toEqual([{ date: "2026-01-15", startMinutes: 480, endMinutes: 540 }]);
+  expect((await response.json()).occurrences).toEqual([{ date: "2026-01-15", startMinutes: 480, endMinutes: 540, allDay: false }]);
   // The tests below count calls from zero.
   dnsLookup.mockClear();
   fetchStub.mockClear();
@@ -125,7 +125,7 @@ test("answers 200 with title-free dated pieces on success", async () => {
   expect(payload.range).toEqual({ start: "2026-01-01T00:00:00.000Z", end: "2026-03-01T00:00:00.000Z" });
   // The real parser ran over the mocked feed text: one busy piece, weekday
   // and minutes derivable from the date, and no id or event fields.
-  expect(payload.occurrences).toEqual([{ date: "2026-01-15", startMinutes: 480, endMinutes: 540 }]);
+  expect(payload.occurrences).toEqual([{ date: "2026-01-15", startMinutes: 480, endMinutes: 540, allDay: false }]);
   expect(payload.skipped).toEqual([]);
   expect(JSON.stringify(payload)).not.toContain("Tiny event");
   expect(fetchStub).toHaveBeenCalledTimes(1);
@@ -212,7 +212,7 @@ test("termStart and termEnd scope the pieces to the term's real dates", async ()
   // A term covering the date keeps the piece.
   const covering = await POST(busyRequest({ ...VALID_BODY, termStart: "2026-01-12", termEnd: "2026-02-27" }, "192.0.2.84"));
   expect(covering.status).toBe(200);
-  expect((await covering.json()).occurrences).toEqual([{ date: "2026-01-15", startMinutes: 480, endMinutes: 540 }]);
+  expect((await covering.json()).occurrences).toEqual([{ date: "2026-01-15", startMinutes: 480, endMinutes: 540, allDay: false }]);
 });
 
 test("a term without a range reads the whole term in America/Chicago, however far ahead it is", async () => {
@@ -233,7 +233,7 @@ test("a term without a range reads the whole term in America/Chicago, however fa
     const payload = await response.json();
     // Midnight CST on the first day to midnight CDT after the last.
     expect(payload.range).toEqual({ start: "2027-01-11T06:00:00.000Z", end: "2027-05-08T05:00:00.000Z" });
-    expect(payload.occurrences).toEqual([{ date: "2027-04-20", startMinutes: 540, endMinutes: 600 }]);
+    expect(payload.occurrences).toEqual([{ date: "2027-04-20", startMinutes: 540, endMinutes: 600, allDay: false }]);
   } finally {
     fetchStub.mockImplementation(async () => tinyResponse());
   }
@@ -288,11 +288,11 @@ test("without a term, the fallback term window reads the range in America/Chicag
       }),
     );
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { occurrences: Array<{ date: string; startMinutes: number; endMinutes: number }> };
+    const body = (await response.json()) as { occurrences: Array<{ date: string; startMinutes: number; endMinutes: number; allDay: boolean }> };
     // The fallback window starts 2026-01-15 in America/Chicago (02:00Z is
     // 20:00 on the 15th), so the 02:30Z event keeps its local date and is not
     // clipped out by a window that started a day late.
-    expect(body.occurrences).toEqual([{ date: "2026-01-15", startMinutes: 1230, endMinutes: 1290 }]);
+    expect(body.occurrences).toEqual([{ date: "2026-01-15", startMinutes: 1230, endMinutes: 1290, allDay: false }]);
   } finally {
     fetchStub.mockImplementation(async () => tinyResponse());
   }
@@ -315,7 +315,7 @@ test("pieces are cut to the half-open range, and a piece wholly after it is left
     );
     expect(response.status).toBe(200);
     // 14:30-15:00Z is 08:30-09:00 in Denton (CST).
-    expect((await response.json()).occurrences).toEqual([{ date: "2026-01-15", startMinutes: 510, endMinutes: 540 }]);
+    expect((await response.json()).occurrences).toEqual([{ date: "2026-01-15", startMinutes: 510, endMinutes: 540, allDay: false }]);
   } finally {
     fetchStub.mockImplementation(async () => tinyResponse());
   }
@@ -354,7 +354,7 @@ test("the route's parsed response feeds buildOptimizeRequest as a dated calendar
       ),
     );
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { occurrences: Array<{ date: string; startMinutes: number; endMinutes: number }> };
+    const body = (await response.json()) as { occurrences: Array<{ date: string; startMinutes: number; endMinutes: number; allDay: boolean }> };
     const { buildOptimizeRequest, defaultSchedulePreferences, getInitialPlannerState, normalizePlannerState } = await import(
       "@/lib/planner"
     );

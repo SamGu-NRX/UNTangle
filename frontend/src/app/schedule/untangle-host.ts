@@ -434,7 +434,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
         ? {
             term: feedTerm,
             check: (url) => checkFeed(url, feedTerm),
-            connect: (url, name) => connectFeed(url, name, feedTerm),
+            connect: (url, name, { countAllDay }) => connectFeed(url, name, feedTerm, { countAllDay }),
             problems: calendarProblems,
           }
         : null,

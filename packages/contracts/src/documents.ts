@@ -274,15 +274,26 @@ export const CalendarSchema = z
     /** When the feed was last read. */
     checkedAt: z.iso.datetime(),
     busy: z.array(CalendarBusySlotSchema),
+    /**
+     * Dates of the feed's busy all-day events, kept apart from `busy`: all-day
+     * entries are mostly deadlines, holidays and reminders, and one busy
+     * all-day date rules out every full-term class on its weekday. They count
+     * as busy only when `countAllDay` is on.
+     */
+    allDayDates: z.array(isoDate),
+    countAllDay: z.boolean(),
   })
   .superRefine((calendar, ctx) => {
+    if (!calendar.allDayDates.every((date, index) => index === 0 || calendar.allDayDates[index - 1] < date)) {
+      ctx.addIssue({ code: "custom", path: ["allDayDates"], message: "All-day dates ascend without repeats." });
+    }
     requireUnique(
       calendar.busy.map((slot) => `${slot.start}-${slot.end}`),
       ctx,
       "busy",
       "Busy slot",
     );
-    const dates = calendar.busy.reduce((sum, slot) => sum + slot.dates.length, 0);
+    const dates = calendar.busy.reduce((sum, slot) => sum + slot.dates.length, calendar.allDayDates.length);
     if (dates > MAX_CALENDAR_BUSY_DATES) {
       ctx.addIssue({ code: "custom", path: ["busy"], message: `A calendar holds at most ${MAX_CALENDAR_BUSY_DATES} busy dates.` });
     }

@@ -993,10 +993,16 @@
   gap: 8px;
   margin: 12px 0 2px;
 }
-.allDay {
-  margin: -4px 0 10px 21px;
-  font-size: 12.5px;
-  color: var(--ink-2);
+.allDaySwitch {
+  margin: -2px 0 10px;
+}
+/* The all-day choice sits under its calendar's name, as the row's second line of controls. */
+.srows li[data-kind="calendar"] {
+  flex-wrap: wrap;
+}
+.rowSwitch {
+  flex-basis: 100%;
+  margin: 0 0 4px 38px;
 }
 .formError {
   margin: 8px 0 0;
