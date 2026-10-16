@@ -233,6 +233,79 @@ export const ScheduleBodySchema = z
     }
   });
 
+/**
+ * A connected calendar's address as the server sealed it (AES-256-GCM,
+ * frontend/src/lib/calendar-feeds/seal.ts): `cf1.<key id>.<iv>.<ciphertext>`
+ * for an account's, `cg1.` for a guest's.
+ * A private feed address is a password, so a document never holds the
+ * address itself, and this pattern can't match one.
+ */
+export const SealedFeedUrlSchema = z
+  .string()
+  // A 2,048-character address of 4-byte characters, sealed and base64url'd, with room to spare.
+  .max(12_000)
+  .regex(/^c[fg]1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, "A calendar address is stored only sealed.");
+
+/** Most calendars one student connects, and most busy dates one calendar holds for a term. */
+export const MAX_CALENDARS = 8;
+export const MAX_CALENDAR_BUSY_DATES = 1500;
+
+/** The same minutes, busy on each listed date (America/Chicago). Dates ascend and don't repeat. */
+export const CalendarBusySlotSchema = z
+  .strictObject({ start: minute, end: minute, dates: z.array(isoDate).min(1) })
+  .refine((slot) => slot.end > slot.start, { message: "A busy time ends after it starts.", path: ["end"] })
+  .refine((slot) => slot.dates.every((date, index) => index === 0 || slot.dates[index - 1] < date), {
+    message: "A busy time's dates ascend without repeats.",
+    path: ["dates"],
+  });
+
+/**
+ * A calendar feed the student connected: its title-free busy time over one
+ * term, never event text. Auto and the week grid treat each date as a dated
+ * busy time (docs/architecture/README.md, "Auto and calendars").
+ */
+export const CalendarSchema = z
+  .strictObject({
+    id: z.string().regex(/^[A-Za-z0-9-]{1,64}$/, "A calendar id is 1 to 64 letters, digits or hyphens."),
+    name: z.string().min(1).max(40),
+    sealedUrl: SealedFeedUrlSchema,
+    /**
+     * A keyed fingerprint of the feed's address (feedIdOf in seal.ts), the same
+     * for every seal of one address, so connecting it again replaces this
+     * calendar instead of adding a second one.
+     */
+    feedId: z.string().regex(/^[A-Za-z0-9_-]{22}$/, "A feed id is 22 base64url characters."),
+    /** The term the busy times were read for, a plain string as the planner holds it. */
+    // TermIdSchema's rule, without its brand: ConnectedCalendar in frontend/src/lib/types.ts holds a string.
+    termId: z.string().max(64).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'A term id is lowercase words joined by hyphens, like "spring-2027".'),
+    /** When the feed was last read. */
+    checkedAt: z.iso.datetime(),
+    busy: z.array(CalendarBusySlotSchema),
+    /**
+     * Dates of the feed's busy all-day events, kept apart from `busy`: all-day
+     * entries are mostly deadlines, holidays and reminders, and one busy
+     * all-day date rules out every full-term class on its weekday. They count
+     * as busy only when `countAllDay` is on.
+     */
+    allDayDates: z.array(isoDate),
+    countAllDay: z.boolean(),
+  })
+  .superRefine((calendar, ctx) => {
+    if (!calendar.allDayDates.every((date, index) => index === 0 || calendar.allDayDates[index - 1] < date)) {
+      ctx.addIssue({ code: "custom", path: ["allDayDates"], message: "All-day dates ascend without repeats." });
+    }
+    requireUnique(
+      calendar.busy.map((slot) => `${slot.start}-${slot.end}`),
+      ctx,
+      "busy",
+      "Busy slot",
+    );
+    const dates = calendar.busy.reduce((sum, slot) => sum + slot.dates.length, calendar.allDayDates.length);
+    if (dates > MAX_CALENDAR_BUSY_DATES) {
+      ctx.addIssue({ code: "custom", path: ["busy"], message: `A calendar holds at most ${MAX_CALENDAR_BUSY_DATES} busy dates.` });
+    }
+  });
+
 /** One per user and institution. */
 export const PreferencesBodySchema = z.strictObject({
   institutionId: InstitutionIdSchema,
@@ -240,6 +313,22 @@ export const PreferencesBodySchema = z.strictObject({
   goal: OptimizationKeySchema,
   constraints: ScheduleConstraintsSchema,
   weights: PreferenceWeightsSchema,
+  /**
+   * Connected calendars, absent when there are none, so a document written
+   * before calendars existed reads the same.
+   */
+  calendars: z
+    .array(CalendarSchema)
+    .min(1)
+    .max(MAX_CALENDARS)
+    .superRefine((calendars, ctx) => {
+      const seen = new Set<string>();
+      for (const { id } of calendars) {
+        if (seen.has(id)) ctx.addIssue({ code: "custom", message: `Calendar id "${id}" appears twice.` });
+        seen.add(id);
+      }
+    })
+    .optional(),
 });
 
 /** Append-only: an immutable copy of one schedule. */

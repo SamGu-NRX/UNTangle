@@ -6,9 +6,9 @@
  *   paths) still see none.
  * - `@/lib/auth-client` is replaced with a session store the test drives
  *   through `setSession`; components re-render on change, like better-auth.
- * - `FakePlannerServer` answers `/api/planner` with the same contract as
- *   `src/app/api/planner/route.ts`: revisions, 409 on a stale base revision,
- *   428 without one, 401 when told the session is gone.
+ * - `FakeDocumentServer` answers `/api/v1` with the real handlers and write
+ *   decision over in-memory tables; `PersistedDocumentStore` stands in for
+ *   IndexedDB and survives a remount, as the browser's store survives a reload.
  *
  * `mountPlanner().get()` always returns the latest rendered context value,
  * never a snapshot from the first render.
@@ -17,6 +17,17 @@ import { mock } from "bun:test";
 import { Window } from "happy-dom";
 import { act, useSyncExternalStore } from "react";
 import { TestClock } from "./test-clock";
+import { identityKey, MemoryStore, parseStoreState, type Identity, type LocalStore, type StoreState } from "@untangle/sync";
+import type { DocumentKind } from "../../../packages/contracts/src/documents";
+import { PullListSchema, type Receipt, type Write } from "../../../packages/contracts/src/sync";
+import { decideWrite, parseWrite, SyncError } from "@/lib/document-sync/decision";
+import { documentHandlers } from "@/lib/document-sync/handlers";
+import { legacyDocuments } from "@/lib/document-sync/legacy-migration";
+import { defaultSchedulePreferences } from "@/lib/planner";
+import { firstDocumentId, joinPlanner, splitPlanner, type PlannerBodies } from "@/lib/planner-documents";
+import { planningTerm } from "@/lib/planner-sections";
+import type { DocumentRepository } from "@/lib/document-sync/repository";
+import { DeviceGrantError } from "@/server/auth/device-grants";
 import type { SectionStore } from "@/lib/section-store";
 import type { PlannerState } from "@/lib/types";
 
@@ -98,12 +109,16 @@ const DOM_KEYS = [
   "MouseEvent",
   "FocusEvent",
   "MutationObserver",
+  "IntersectionObserver",
+  "ResizeObserver",
   "getComputedStyle",
   "requestAnimationFrame",
   "cancelAnimationFrame",
 ] as const;
 
 let installed: { win: Window; previous: Map<string, unknown> } | null = null;
+// Taken before the test clock replaces it.
+const realSetTimeout = globalThis.setTimeout;
 const clock = new TestClock();
 let clockInstalled = false;
 
@@ -175,17 +190,17 @@ export async function waitFor(predicate: () => boolean, label: string, timeoutMs
   }
   await settle();
   for (let elapsed = 0; elapsed <= timeoutMs; elapsed += 20) {
+    // A real millisecond: Web Crypto's SHA-256 (the sync engine's write hash)
+    // settles on the runtime's own thread pool, not as a microtask.
+    await new Promise((resolve) => realSetTimeout(resolve, 1));
+    await settle();
     if (predicate()) return;
     if (elapsed < timeoutMs) await advanceTime(Math.min(20, timeoutMs - elapsed));
   }
   throw new Error(`timed out waiting for: ${label} after ${timeoutMs} ms of test time`);
 }
 
-/* ---------- fake /api/planner ---------- */
-
-type StoredRow = { state: PlannerState; revision: number };
-
-export type RecordedPost = { body: PlannerState; baseRevision: string | null; status: number };
+/* ---------- fake /api/v1 ---------- */
 
 type Deferred = { promise: Promise<void>; release: () => void };
 
@@ -197,110 +212,242 @@ function deferred(): Deferred {
   return { promise, release };
 }
 
-export class FakePlannerServer {
-  row: StoredRow | null = null;
-  persistent = true;
+type StoredDocument = { kind: DocumentKind; revision: number; institutionId: string; body: unknown; deleted: boolean };
+/** A write as sent; ids are plain strings so tests can compare them with literals. */
+type SentWrite = Omit<Write, "documentId" | "operationId"> & { documentId: string; operationId: string };
+export type RecordedPut = { write: SentWrite; status: number | "dropped" };
+
+/**
+ * The document routes as the server runs them: the real handlers and the
+ * real write decision (receipts, revisions, deletions), over in-memory
+ * tables instead of Postgres, plus the legacy row's one-time migration.
+ * The signed-in user is the test session's.
+ */
+export class FakeDocumentServer {
+  readonly documents = new Map<string, StoredDocument>();
+  readonly receipts = new Map<string, Receipt>();
+  /** Legacy planner_state rows by user; the first pull or write moves them into documents. */
+  readonly legacy = new Map<string, PlannerState>();
+  readonly migrated = new Set<string>();
   /** Responds 401 to every request while false. */
   sessionValid = true;
-  /** Next POSTs answer with these statuses (500, "drop" for a dropped connection), then normal service resumes. */
-  failNextPosts: Array<number | "drop"> = [];
-  /** When set, the next POST waits for `release()` before it is processed. */
-  private gate: Deferred | null = null;
-  /** When set, the next GET waits for `release()` before it is answered. */
-  private getGate: Deferred | null = null;
-  gets = 0;
-  /** POSTs that reached the server, including ones still held at a gate. */
-  postsStarted = 0;
-  posts: RecordedPost[] = [];
+  /** Next PUTs: a status to answer, "drop" before the commit, or "lost" after it (the response never arrives). */
+  failNextPuts: Array<number | "drop" | "lost"> = [];
+  private putGate: Deferred | null = null;
+  private pullGate: Deferred | null = null;
+  pulls = 0;
+  puts: RecordedPut[] = [];
+  putsStarted = 0;
 
-  holdNextPost(): () => void {
-    const gate = deferred();
-    this.gate = gate;
-    return gate.release;
+  private key(userId: string, documentId: string) {
+    return `${userId}\u0000${documentId}`;
   }
 
-  holdNextGet(): () => void {
-    const gate = deferred();
-    this.getGate = gate;
-    return gate.release;
+  holdNextPut(): () => void {
+    this.putGate = deferred();
+    return this.putGate.release;
   }
 
-  /** Another tab or device writes directly. */
-  writeElsewhere(state: PlannerState) {
-    this.row = { state, revision: (this.row?.revision ?? 0) + 1 };
+  holdNextPull(): () => void {
+    this.pullGate = deferred();
+    return this.pullGate.release;
   }
+
+  document(userId: string, documentId: string): StoredDocument | undefined {
+    return this.documents.get(this.key(userId, documentId));
+  }
+
+  /** Another device writes a document: a new revision, with no receipt here. */
+  writeElsewhere(userId: string, documentId: string, kind: DocumentKind, body: unknown) {
+    const current = this.document(userId, documentId);
+    this.documents.set(this.key(userId, documentId), {
+      kind,
+      revision: (current?.revision ?? 0) + 1,
+      institutionId: "unt",
+      body,
+      deleted: false,
+    });
+  }
+
+  /** Another device saves this plan: each of its documents gets a new revision. */
+  seedPlan(userId: string, state: PlannerState, preferences = defaultSchedulePreferences(state.optimization)) {
+    const bodies = splitPlanner(state, preferences, planningTerm.id);
+    this.writeElsewhere(userId, firstDocumentId["academic-record"], "academic-record", bodies["academic-record"]);
+    this.writeElsewhere(userId, firstDocumentId.schedule(planningTerm.id), "schedule", bodies.schedule);
+    this.writeElsewhere(userId, firstDocumentId.preferences, "preferences", bodies.preferences);
+  }
+
+  /** The user's plan as the planner reads their documents; null when they have none. */
+  plan(userId: string): PlannerState | null {
+    const read = <T,>(documentId: string) => {
+      const stored = this.document(userId, documentId);
+      return stored && !stored.deleted ? (stored.body as T) : null;
+    };
+    const bodies = {
+      "academic-record": read<PlannerBodies["academic-record"]>(firstDocumentId["academic-record"]),
+      schedule: read<PlannerBodies["schedule"]>(firstDocumentId.schedule(planningTerm.id)),
+      preferences: read<PlannerBodies["preferences"]>(firstDocumentId.preferences),
+    };
+    return Object.values(bodies).some((body) => body !== null) ? joinPlanner(bodies, "Mon").state : null;
+  }
+
+  /** Another device deletes a document, leaving its tombstone. */
+  deleteElsewhere(userId: string, documentId: string) {
+    const current = this.document(userId, documentId);
+    if (!current) throw new Error(`No document ${documentId} to delete`);
+    this.documents.set(this.key(userId, documentId), { ...current, revision: current.revision + 1, body: null, deleted: true });
+  }
+
+  private migrate(userId: string) {
+    if (this.migrated.has(userId)) return;
+    const row = this.legacy.get(userId);
+    if (row) {
+      for (const document of legacyDocuments(row)) {
+        if (!this.document(userId, document.documentId)) {
+          this.documents.set(this.key(userId, document.documentId), { kind: document.kind, revision: 1, institutionId: "unt", body: document.body, deleted: false });
+        }
+      }
+    }
+    this.migrated.add(userId);
+  }
+
+  private readonly repository: DocumentRepository = {
+    write: async (userId, bytes, documentId) => {
+      const { write, writeSha256 } = parseWrite(bytes);
+      if (write.documentId !== documentId) throw new SyncError(400, "ID_MISMATCH", "The URL and write must name the same document.");
+      this.migrate(userId);
+      const receipt = this.receipts.get(this.key(userId, write.operationId)) ?? null;
+      const stored = this.document(userId, documentId);
+      const decision = decideWrite({ write, writeSha256, receipt, current: stored ? { kind: stored.kind, revision: stored.revision, institutionId: stored.institutionId, deleted: stored.deleted } : null });
+      if (decision.kind === "replay") return decision.receipt;
+      if (decision.kind === "version") throw new Error("The fake server stores no versions.");
+      this.documents.set(this.key(userId, documentId), { kind: write.kind, revision: decision.revision, institutionId: decision.institutionId, body: decision.body, deleted: decision.deleted });
+      const committed = { userId, operationId: write.operationId, writeSha256, committedRevision: decision.revision };
+      this.receipts.set(this.key(userId, write.operationId), committed);
+      return committed;
+    },
+    get: async (userId, documentId) => {
+      this.migrate(userId);
+      const stored = this.document(userId, documentId);
+      if (!stored || stored.deleted) throw new SyncError(404, "NOT_FOUND", "The document does not exist.");
+      // Unparsed: a newer server returns fields this build's contracts don't know.
+      return { documentId, kind: stored.kind, revision: stored.revision, schemaVersion: 1, body: stored.body } as Awaited<ReturnType<DocumentRepository["get"]>>;
+    },
+    pull: async (userId) => {
+      this.migrate(userId);
+      const prefix = this.key(userId, "");
+      return PullListSchema.parse(
+        [...this.documents.entries()]
+          .filter(([key]) => key.startsWith(prefix))
+          .map(([key, stored]) => ({ documentId: key.slice(prefix.length), kind: stored.kind, revision: stored.revision, deleted: stored.deleted })),
+      );
+    },
+    listVersions: async () => ({ versions: [], nextPage: null }),
+  };
+
+  /** False answers like a deployment without document storage (503). */
+  available = true;
+
+  private get handlers() {
+    return this.handlersFor(this.available);
+  }
+
+  private handlersFor = (available: boolean) => documentHandlers({
+    repository: this.repository,
+    authorize: async () => {
+      const userId = session.data?.user.id;
+      if (!userId || !this.sessionValid) throw new DeviceGrantError("unauthorized", 401);
+      return { userId, source: "browser" };
+    },
+    limit: async () => null,
+    origin: "http://localhost:3000",
+    available,
+  });
 
   readonly fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    const url = String(input instanceof Request ? input.url : input);
-    if (!url.includes("/api/planner")) {
-      return new Response("not found", { status: 404 });
-    }
+    const url = new URL(String(input instanceof Request ? input.url : input), "http://localhost:3000");
     const method = (init?.method ?? "GET").toUpperCase();
-    if (method === "GET") {
-      this.gets += 1;
-      const getGate = this.getGate;
-      this.getGate = null;
-      if (getGate) {
-        await getGate.promise;
-      }
-      if (!this.sessionValid) {
-        return json({ error: "Unauthorized" }, 401);
-      }
-      return json({
-        state: this.persistent ? (this.row?.state ?? null) : null,
-        revision: this.persistent ? (this.row?.revision ?? 0) : 0,
-        persistent: this.persistent,
-      });
+    // The browser adds Origin to a same-origin PUT.
+    const request = new Request(url, { ...init, headers: { ...Object.fromEntries(new Headers(init?.headers)), origin: "http://localhost:3000" } });
+    if (url.pathname === "/api/v1/sync" && method === "GET") {
+      this.pulls += 1;
+      const gate = this.pullGate;
+      this.pullGate = null;
+      if (gate) await gate.promise;
+      return this.handlers.pull(request);
     }
-
-    this.postsStarted += 1;
-    const gate = this.gate;
-    this.gate = null;
-    if (gate) {
-      await gate.promise;
-    }
-    const headers = new Headers(init?.headers);
-    const baseRevision = headers.get("X-Planner-Base-Revision");
-    const body = JSON.parse(String(init?.body)) as PlannerState;
-    const record = (status: number) => {
-      this.posts.push({ body, baseRevision, status });
-    };
-
-    const failure = this.failNextPosts.shift();
+    const match = /^\/api\/v1\/documents\/([^/]+)$/.exec(url.pathname);
+    if (!match) return new Response("not found", { status: 404 });
+    const context = { params: Promise.resolve({ id: decodeURIComponent(match[1]) }) };
+    if (method === "GET") return this.handlers.get(request, context);
+    this.putsStarted += 1;
+    const gate = this.putGate;
+    this.putGate = null;
+    if (gate) await gate.promise;
+    const write = JSON.parse(String(init?.body)) as SentWrite;
+    const failure = this.failNextPuts.shift();
     if (failure === "drop") {
-      record(0);
+      this.puts.push({ write, status: "dropped" });
       throw new TypeError("Failed to fetch");
     }
     if (typeof failure === "number") {
-      record(failure);
-      return json({ error: "injected failure" }, failure);
+      this.puts.push({ write, status: failure });
+      return Response.json({ error: "injected failure" }, { status: failure });
     }
-    if (!this.sessionValid) {
-      record(401);
-      return json({ error: "Unauthorized" }, 401);
-    }
-    if (baseRevision === null || !/^\d+$/.test(baseRevision)) {
-      record(428);
-      return json({ error: "missing base revision" }, 428);
-    }
-    if (!this.persistent) {
-      record(200);
-      return json({ state: null, persistent: false });
-    }
-    const currentRevision = this.row?.revision ?? 0;
-    if (Number(baseRevision) !== currentRevision) {
-      record(409);
-      return json({ error: "conflict", state: this.row?.state ?? null, revision: currentRevision }, 409);
-    }
-    this.row = { state: body, revision: currentRevision + 1 };
-    record(200);
-    return json({ state: body, revision: this.row.revision, persistent: true });
+    const response = await this.handlers.put(request, context);
+    this.puts.push({ write, status: failure === "lost" ? "dropped" : response.status });
+    if (failure === "lost") throw new TypeError("Failed to fetch");
+    return response;
   };
 }
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+/** This browser's document store, kept between mounts like IndexedDB: each write is stored as the bytes IndexedDB would hold. */
+export class PersistedDocumentStore implements LocalStore {
+  private readonly records = new Map<string, string>();
+  private readonly locks = new MemoryStore();
+
+  async read(identity: Identity): Promise<StoreState> {
+    const raw = this.records.get(identityKey(identity));
+    return parseStoreState(raw === undefined ? undefined : JSON.parse(raw), identity);
+  }
+
+  /** While true, every write fails, as when the browser's storage is full. */
+  refuseWrites = false;
+
+  async transact<T>(identity: Identity, change: (state: StoreState) => T): Promise<T> {
+    if (this.refuseWrites) throw new Error("QuotaExceededError");
+    const state = await this.read(identity);
+    const result = change(state);
+    if (result instanceof Promise) throw new Error("A sync storage transaction callback must be synchronous.");
+    this.records.set(identityKey(identity), JSON.stringify({ format: 1, state }));
+    return result === undefined ? result : structuredClone(result);
+  }
+
+  exclusive<T>(identity: Identity, documentId: string, work: () => Promise<T>): Promise<T> {
+    return this.locks.exclusive(identity, documentId, work);
+  }
+
+  /** What is stored for a user, as the planner's engine reads it. */
+  stored(userId: string): Promise<StoreState> {
+    return this.read({ kind: "user", id: userId });
+  }
 }
+
+let documentStore = new PersistedDocumentStore();
+let documentStoreFails = false;
+/** A fresh browser: no documents stored for anyone, a store that opens, and no browser-session cookie. */
+export function resetDocumentStore(): PersistedDocumentStore {
+  // The browser closed: session cookies are gone.
+  document.cookie = "untangle_guest_session=; path=/; Max-Age=0";
+  documentStore = new PersistedDocumentStore();
+  documentStoreFails = false;
+  return documentStore;
+}
+/** The browser refuses to open the document store, as IndexedDB can in some private modes. */
+export function failDocumentStore(): void {
+  documentStoreFails = true;
+}
+export const currentDocumentStore = () => documentStore;
 
 /* ---------- mounting ---------- */
 
@@ -341,7 +488,13 @@ export async function mountPlanner(
   const content = React.createElement(
     mod.PlannerProvider,
     // Sections answer at once from the bundled samples unless a test passes a store (section-store.test.ts).
-    { sectionStore },
+    {
+      sectionStore,
+      documentStore: async () => {
+        if (documentStoreFails) throw new Error("IndexedDB is unavailable.");
+        return documentStore;
+      },
+    },
     React.createElement(mod.ToastProvider, null, React.createElement(Probe), extra ? extra() : null),
   );
   const tree = strict ? React.createElement(React.StrictMode, null, content) : content;

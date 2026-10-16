@@ -91,6 +91,14 @@ export const VersionListPageSchema = z.strictObject({
   nextPage: z.string().min(1).max(512).nullable(),
 });
 
+/**
+ * Header a browser client sends with the account it is syncing for. The
+ * browser attaches whichever session cookie it holds now, so a tab still
+ * syncing for a student who signed out could otherwise read or write as the
+ * next one. The server refuses a request whose header names another account.
+ */
+export const ACCOUNT_HEADER = "x-untangle-account";
+
 export type Write = z.output<typeof WriteSchema>;
 export type Receipt = z.output<typeof ReceiptSchema>;
 export type PullEntry = z.output<typeof PullEntrySchema>;

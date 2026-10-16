@@ -113,8 +113,9 @@ async function stubEvents(context, feed = "up") {
 
 async function seed(context, feed = "up") {
   await stubEvents(context, feed);
-  // Monday 12 October 2026, 8:37 local: Date is fixed, timers keep running.
-  await context.clock.setFixedTime(new Date(2026, 9, 12, 8, 37));
+  // Monday 12 October 2026, 8:37 in Denton (CDT, UTC-5), whatever zone the
+  // runner is in. Date is fixed, timers keep running.
+  await context.clock.setFixedTime(new Date("2026-10-12T08:37:00-05:00"));
   await context.addInitScript(({ doc, start }) => {
     // The planner reads the guest identity's store (#77).
     if (!window.localStorage.getItem("untangle.planner-state.v1:guest")) {

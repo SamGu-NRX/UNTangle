@@ -63,7 +63,13 @@ export class SyncEngine {
     return { write, bytes, sha256, baseBody: copy(base.body) };
   }
 
-  async save(input: { documentId: string; kind: DocumentKind; body: unknown; expectedGeneration: number }): Promise<LocalDocument> {
+  /**
+   * `startedFrom` is the body an edit to a document this device has never
+   * stored was made on: the client's starting values. A conflict on that
+   * first write then merges against it, so only what the edit changed wins;
+   * without it, every part of a first write counts as changed.
+   */
+  async save(input: { documentId: string; kind: DocumentKind; body: unknown; expectedGeneration: number; startedFrom?: unknown }): Promise<LocalDocument> {
     const documentId = DocumentIdSchema.parse(input.documentId);
     const body = parseBody(input.kind, input.body);
     const state = await this.read();
@@ -76,7 +82,9 @@ export class SyncEngine {
     if (current?.delivery.kind === 'conflict') throw new Error('Resolve the conflict before editing this document.');
     if (input.kind === 'version' && (current || body === null)) throw new Error('A version is created once and cannot be changed or deleted.');
     const last = current?.pending.at(-1);
-    const base = last ? { revision: last.write.baseRevision + 1, body: current?.draft ?? null } : current?.confirmed ?? { revision: 0, body: null };
+    const base = last
+      ? { revision: last.write.baseRevision + 1, body: current?.draft ?? null }
+      : current?.confirmed ?? { revision: 0, body: input.startedFrom === undefined || input.kind === 'version' ? null : parseBody(input.kind, input.startedFrom) };
     const pending = this.identity.kind === 'user' ? await this.prepare(documentId, input.kind, base, body) : null;
     return this.store.transact(this.identity, (next) => {
       if (next.epoch !== state.epoch) throw new Error('Identity data was discarded while saving.');

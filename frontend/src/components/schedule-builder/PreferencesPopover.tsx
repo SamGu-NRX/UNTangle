@@ -7,6 +7,7 @@ import { Button, IconButton } from "@/components/ui/Button";
 import {
   BanGlyph,
   BriefcaseGlyph,
+  CalendarGlyph,
   CalendarOffGlyph,
   ChevronDown,
   Close,
@@ -27,7 +28,8 @@ import { Slider } from "@/components/ui/Slider";
 import { Switch } from "@/components/ui/Switch";
 import type { Section } from "@/lib/sections";
 import type { SchedulePreferences } from "@/lib/types";
-import type { WeekCourse } from "./host";
+import { CalendarFeeds } from "./CalendarFeeds";
+import type { BuilderCalendars, WeekCourse } from "./host";
 import {
   CARD_SIZE,
   CreditPic,
@@ -68,18 +70,20 @@ export type PreferencesContentProps = {
   options: (courseCode: string) => readonly Section[] | null;
   load: (courseCodes: readonly string[]) => void;
   touch: boolean;
+  /** Calendar feeds as busy time; null where the host can't connect them. */
+  calendars: BuilderCalendars | null;
 };
 
 /* ───────── Times you can't have class ───────── */
 
-const ROW_ICON: Record<LedgerRow["kind"], ReactNode> = {
+export const ROW_ICON: Record<LedgerRow["kind"], ReactNode> = {
   start: <SunriseGlyph size={16} />,
   end: <MoonGlyph size={16} />,
   off: <CalendarOffGlyph size={16} />,
   busy: <BriefcaseGlyph size={16} />,
 };
 
-function Ledger({ preferences: p, onChange }: Pick<PreferencesContentProps, "preferences" | "onChange">) {
+export function Ledger({ preferences: p, onChange }: Pick<PreferencesContentProps, "preferences" | "onChange">) {
   const rows = ledger(p);
   if (rows.length === 0) return <p className={styles.ledgerEmpty}>Nothing blocked. Auto may use any weekday time.</p>;
   const clear = (row: LedgerRow): ((q: SchedulePreferences) => SchedulePreferences) => {
@@ -92,7 +96,7 @@ function Ledger({ preferences: p, onChange }: Pick<PreferencesContentProps, "pre
     <ul className={styles.ledger}>
       {rows.map((row) => (
         <li key={row.kind === "busy" ? row.ids.join() : row.kind}>
-          <span className={styles.rowIcon}>{ROW_ICON[row.kind]}</span>
+          <span className={styles.rowIcon}>{row.kind === "busy" && row.dated ? <CalendarGlyph size={16} /> : ROW_ICON[row.kind]}</span>
           <span className={styles.rowText}>
             {row.kind === "busy" && row.unnamed ? (
               <NameField ids={row.ids} onChange={onChange} />
@@ -464,12 +468,18 @@ function More({ preferences: p, defaults, onChange }: Pick<PreferencesContentPro
               description="Frisco and other campuses outside Denton. Discovery Park counts as Denton."
             />
             <div className={styles.resetRow}>
-              <span>Clears your times, leanings and credit limit. Locked and skipped sections stay.</span>
+              <span>Clears your times, leanings and credit limit. Locked and skipped sections and your calendars stay.</span>
               <Button
                 variant="quiet"
                 size="sm"
                 icon={<Undo size={16} />}
-                onClick={() => onChange((q) => ({ ...defaults, constraints: { ...defaults.constraints, excludedSections: q.constraints.excludedSections } }))}
+                onClick={() =>
+                  onChange((q) => ({
+                    ...defaults,
+                    constraints: { ...defaults.constraints, excludedSections: q.constraints.excludedSections },
+                    ...(q.calendars ? { calendars: q.calendars } : {}),
+                  }))
+                }
               >
                 Back to defaults
               </Button>
@@ -501,6 +511,7 @@ export function PreferencesContent(props: PreferencesContentProps) {
         </p>
         <PaintGrid preferences={props.preferences} onChange={props.onChange} newId={props.newId} touch={touch} />
         <Ledger preferences={props.preferences} onChange={props.onChange} />
+        {props.calendars ? <CalendarFeeds host={props.calendars} preferences={props.preferences} onChange={props.onChange} /> : null}
       </section>
       <section className={styles.sec} aria-labelledby="pref-lean">
         <h3 id="pref-lean">Leanings</h3>
@@ -526,6 +537,8 @@ type ShellProps = PreferencesContentProps & {
   anchor: () => HTMLElement | null;
   phone: boolean;
   ready: boolean;
+  /** Opens Set up Auto, the first-run setup, again; null when the host has none. */
+  onSetUp: (() => void) | null;
 };
 
 const EXIT_MS = 140;
@@ -538,7 +551,7 @@ const EXIT_MS = 140;
  * the keyboard, nothing animates; under reduced motion it only fades.
  */
 export function PreferencesPopover(props: ShellProps) {
-  const { open, onClose, anchor, phone, ready } = props;
+  const { open, onClose, anchor, phone, ready, onSetUp } = props;
   const [mounted, setMounted] = useState(open);
   const [shown, setShown] = useState(false);
   const [instant, setInstant] = useState(false);
@@ -615,6 +628,12 @@ export function PreferencesPopover(props: ShellProps) {
         </h2>
         <p>Auto builds your week around these.</p>
       </div>
+      {/* Only once preferences have loaded: the setup's Undo must start from the student's real ones. */}
+      {onSetUp && ready ? (
+        <Button variant="quiet" size="sm" className={styles.setUp} onClick={onSetUp}>
+          Set up Auto
+        </Button>
+      ) : null}
       <IconButton
         label="Close preferences"
         size="sm"

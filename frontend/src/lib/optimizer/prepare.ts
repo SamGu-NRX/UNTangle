@@ -6,7 +6,8 @@
  * Nothing here can drop a section that some valid schedule uses, with one
  * deliberate exception: a section whose meetings and buildings are identical
  * to a cheaper one of the same course (a "twin") is dropped, because the
- * cheaper twin always ranks ahead of it (see `dropTwins`).
+ * cheaper twin always ranks ahead of it (see `dropTwins`). The browse list
+ * keeps twins (`keepTwins`), since it lists every section.
  */
 
 import {
@@ -266,7 +267,7 @@ export function passesTimeConstraints(
 }
 
 /** Same day and overlapping times; dated blocks only bite when the weeks overlap too. */
-function blockConflicts(block: OptBlockedTime, meeting: OptMeeting, term: OptDateRange | null): boolean {
+export function blockConflicts(block: OptBlockedTime, meeting: OptMeeting, term: OptDateRange | null): boolean {
   if (block.day !== meeting.day) return false;
   if (meeting.start >= block.end || block.start >= meeting.end) return false;
   const ranges = block.dates;
@@ -357,10 +358,19 @@ export class PrepareBudgetExhausted extends Error {
   }
 }
 
+export type PrepareOptions = {
+  /**
+   * Keep every twin instead of the cheapest (see `dropTwins`). The browse
+   * list shows every section, so it needs them; ranking does not.
+   */
+  keepTwins?: boolean;
+};
+
 export function prepare(
   request: OptimizeRequest,
   deadline: number = Number.POSITIVE_INFINITY,
   now: () => number = () => performance.now(),
+  options: PrepareOptions = {},
 ): Prepared {
   const checkDeadline = () => {
     if (deadline !== Number.POSITIVE_INFINITY && now() > deadline) throw new PrepareBudgetExhausted();
@@ -481,7 +491,7 @@ export function prepare(
       });
     }
     const walkingMatters = weights.walking > 0 || constraints.walking !== null;
-    const ordered = dropTwins(kept, walkingMatters).sort((a, b) => a.self - b.self || compareIds(a.section.id, b.section.id));
+    const ordered = (options.keepTwins ? kept : dropTwins(kept, walkingMatters)).sort((a, b) => a.self - b.self || compareIds(a.section.id, b.section.id));
     const wordLo = word;
     ordered.forEach((candidate, index) => {
       candidate.bit = wordLo * 32 + index;

@@ -107,7 +107,7 @@ The ⌘K layer. It opens and closes with no animation, keeps focus in the input,
 - **Specimen:** Toast, dialog, sheet ("Course sheet", "Day sheet").
 
 ### Dialog (`Dialog.tsx`)
-- **Props:** `open`, `onOpenChange`, `title`, `ariaLabel` (when untitled), `description`, `footer` (right-aligned buttons), `width` (default 480), `dismissible`, `role` (`alertdialog` for a decision), `initialFocus`.
+- **Props:** `open`, `onOpenChange`, `title`, `ariaLabel` (when untitled), `description`, `footer` (right-aligned buttons), `width` (default 480), `dismissible`, `role` (`alertdialog` for a decision), `initialFocus`, `focusTitle` (opens focused on the title, as a sheet does, for a decision to read before acting; the title draws no ring).
 - **States:** opening (scale .96 to 1 from the center, 220ms), open (page inert), closing (150ms). Instant from the keyboard.
 - **Use when:** major picker, Export, Sign in, a destructive confirm ("Delete Fridays off?" with Keep it and Delete).
 - **Don't use when:** showing information about a selection (`ContextPanel`), or confirming something a toast's Undo already reverses.
