@@ -139,6 +139,20 @@ describe("Toaster", () => {
     await view.rerender(<Harness open={false} />);
     await act(async () => sleep(200));
     expect(document.querySelector(".ui-toast button")?.textContent).toBe("Undo");
+    await act(async () => dismissToast());
+    // Let the Undo toast finish leaving, so the next one is on screen at once.
+    await act(async () => sleep(200));
+    // A plain toast hidden under the palette keeps its time: it shows when the palette closes, then leaves on its own.
+    await view.rerender(<Harness open />);
+    await act(async () => {
+      toast({ message: "Copied the share link", duration: 60 });
+    });
+    await act(async () => sleep(300));
+    await view.rerender(<Harness open={false} />);
+    await act(async () => sleep(10));
+    expect(document.querySelector(".ui-toast__message")?.textContent).toBe("Copied the share link");
+    await act(async () => sleep(250));
+    expect(document.querySelector(".ui-toast")).toBeNull();
     // An error stays in view under a dialog, message only: it may be the only word on what failed.
     await view.rerender(<Harness open />);
     await act(async () => {

@@ -47,10 +47,13 @@ async function copied(text: string): Promise<boolean> {
 }
 
 const COPY_BLOCKED = "This browser blocked copying. Select the text and copy it instead.";
+/** The share link isn't on the sheet, so a blocked copy shows it to select. */
+const LINK_BLOCKED = "This browser blocked copying. Select the link and copy it instead.";
 
 /** The part of Export an outcome belongs to. */
 type Place = "numbers" | "ics" | "png" | "share";
-type Note = { at: Place; text: string; failed: boolean };
+/** `select`: text the student can select and copy by hand, shown with a failure. */
+type Note = { at: Place; text: string; failed: boolean; select?: string };
 
 type Props = {
   open: boolean;
@@ -78,6 +81,8 @@ export function ExportSheet({ open, onOpenChange, phone, host, sections, events,
   }
   const say = (at: Place, text: string, failed = false) => setNote({ at, text, failed });
   const copy = async (at: Place, text: string, done: string) => (await copied(text) ? say(at, done) : say(at, COPY_BLOCKED, true));
+  const copyLink = async (url: string) =>
+    (await copied(url)) ? say("share", "Copied the share link") : setNote({ at: "share", text: LINK_BLOCKED, failed: true, select: url });
   const noteFor = (at: Place) => (
     <>
       <p className={styles.exportNote} role="status">
@@ -87,6 +92,9 @@ export function ExportSheet({ open, onOpenChange, phone, host, sections, events,
         <p className={styles.exportNote} data-failed="" role="alert">
           {note.text}
         </p>
+      ) : null}
+      {note?.at === at && note.select ? (
+        <input className={styles.exportSelect} readOnly value={note.select} aria-label="Share link" onFocus={(event) => event.currentTarget.select()} />
       ) : null}
     </>
   );
@@ -184,7 +192,10 @@ export function ExportSheet({ open, onOpenChange, phone, host, sections, events,
               hueOf,
               noSetTime: sections.filter((s) => !events.some((e) => e.courseCode === s.courseCode)).map((s) => s.courseCode),
             }).then(
-              (blob) => download(blob, `${host.term.id}-week.png`),
+              (blob) => {
+                download(blob, `${host.term.id}-week.png`);
+                say("png", "Downloaded a picture of your week");
+              },
               (error: Error) => say("png", error.message, true),
             )
           }
@@ -200,7 +211,7 @@ export function ExportSheet({ open, onOpenChange, phone, host, sections, events,
           Share and back up
         </h3>
         <div className={styles.actions}>
-          <Button variant="secondary" size="sm" disabled={empty} onClick={() => copy("share", host.shareUrl(encodeShare(week)), "Copied the share link")}>
+          <Button variant="secondary" size="sm" disabled={empty} onClick={() => copyLink(host.shareUrl(encodeShare(week)))}>
             Copy share link
           </Button>
           <Button variant="secondary" size="sm" disabled={empty} onClick={() => window.location.assign(host.printHref)}>

@@ -1308,6 +1308,27 @@
 .exportNote[data-failed] {
   color: var(--danger);
 }
+/* The share link, to select and copy by hand when the browser refuses. */
+.exportSelect {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+  color: var(--ink);
+  font: 400 14px/1 var(--font-ui);
+}
+.exportSelect:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+@media (pointer: coarse) {
+  .exportSelect {
+    min-height: 44px;
+    font-size: 16px;
+  }
+}
 /* Kept in the page so it announces when filled; empty, it takes back the section's grid gap. */
 .exportNote:empty {
   margin-top: -10px;

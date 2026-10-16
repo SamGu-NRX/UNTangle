@@ -29,7 +29,7 @@ import { SearchPanel } from "./SearchPanel";
 import { restoreSetup, setupChanged } from "./setup";
 import { SetupAuto, type SetupClose } from "./SetupAuto";
 import type { SharedWeek } from "./share";
-import { andList, dayLetters, eventsOf, optionName, optionTitle, placeEvents, sectionLabel, walksOf } from "./week";
+import { andList, dayLetters, eventsOf, optionName, optionTitle, placeEvents, sectionLabel, unknownWalksOf, walksOf } from "./week";
 import { WeekGrid, type Busy, type Ghost, type Outline } from "./WeekGrid";
 
 export type SearchRequest = { nonce: number; query: string };
@@ -160,7 +160,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   const now = useMemo(() => {
     const events = eventsOf(placed);
     const exams = finals ? weekFinals(placed, finals) : [];
-    return { events, walks: walksOf(events, host.walk), sections: placed, finals: exams, finalsClashes: finalsClashCount(exams) };
+    return { events, walks: walksOf(events, host.walk), unknownWalks: unknownWalksOf(events, host.walk), sections: placed, finals: exams, finalsClashes: finalsClashCount(exams) };
     // `placed` is rebuilt every render; its ids say when it changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(current), host.walk, finals]);
@@ -168,7 +168,15 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   const shown = useMemo(() => {
     const events = eventsOf(shownSections);
     const exams = finals ? weekFinals(shownSections, finals) : [];
-    return { events, walks: walksOf(events, host.walk), sections: shownSections, placements: placeEvents(events), finals: exams, finalsClashes: finalsClashCount(exams) };
+    return {
+      events,
+      walks: walksOf(events, host.walk),
+      unknownWalks: unknownWalksOf(events, host.walk),
+      sections: shownSections,
+      placements: placeEvents(events),
+      finals: exams,
+      finalsClashes: finalsClashCount(exams),
+    };
     // `shownSections` is rebuilt every render; `shownKey` names its sections.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownKey, host.walk, finals]);

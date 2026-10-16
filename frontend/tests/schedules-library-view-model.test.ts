@@ -216,28 +216,29 @@ describe("a week's walking, as Week's Details counts it", () => {
       await at("PHYS 2220", ["Mon", "Wed"], "11:00", "11:50", "phys"),
     ];
     // Mon and Wed: 6 + 9 minutes; Fri: 6. CURY to PHYS takes 9 of a 10-minute break, under two to spare: tight.
-    expect(weekWalking(week, travel)).toEqual({ walkMinutes: 36, tightWalks: 2 });
+    expect(weekWalking(week, travel)).toEqual({ walkMinutes: 36, tightWalks: 2, unknownWalks: 0 });
   });
 
   it("leaves out breaks over 30 minutes, which Week draws no walk for", async () => {
     const { weekWalking } = await import("@/components/schedules-library/view-model");
     const week = [await at("PHYS 2220", ["Mon"], "11:00", "11:50", "phys"), await at("MATH 2700", ["Mon"], "15:30", "16:50", "lang")];
-    expect(weekWalking(week, travel)).toEqual({ walkMinutes: 0, tightWalks: 0 });
+    expect(weekWalking(week, travel)).toEqual({ walkMinutes: 0, tightWalks: 0, unknownWalks: 0 });
   });
 
-  it("leaves out a walk with no known time, as Week leaves it off the grid, rather than making the week unknown", async () => {
+  it("counts a walk with no known time apart, instead of as no walking", async () => {
     const { weekWalking } = await import("@/components/schedules-library/view-model");
     const week = [
       await at("A 1", ["Mon"], "9:00", "9:50", "gab"),
       await at("B 1", ["Mon"], "10:00", "10:50", "cury"),
       await at("C 1", ["Mon"], "11:00", "11:50", "nowhere"),
     ];
-    expect(weekWalking(week, travel)).toEqual({ walkMinutes: 6, tightWalks: 0 });
+    // GAB to CURY is 6 minutes; CURY to a building with no walking time is the unknown one.
+    expect(weekWalking(week, travel)).toEqual({ walkMinutes: 6, tightWalks: 0, unknownWalks: 1 });
   });
 
   it("doesn't count a shuttle ride as walking, though it can still be tight", async () => {
     const { weekWalking } = await import("@/components/schedules-library/view-model");
     const week = [await at("A 1", ["Mon"], "9:00", "9:50", "gab"), await at("B 1", ["Mon"], "10:00", "10:50", "ntdp")];
-    expect(weekWalking(week, travel)).toEqual({ walkMinutes: 0, tightWalks: 1 });
+    expect(weekWalking(week, travel)).toEqual({ walkMinutes: 0, tightWalks: 1, unknownWalks: 0 });
   });
 });

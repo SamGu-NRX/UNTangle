@@ -60,6 +60,8 @@ test("Week's search says what Courses says about a course's prerequisites", asyn
     // A course Courses has no row for is one nobody can vouch for.
     const { requirementStatus } = await import("@/app/schedule/untangle-host");
     expect(requirementStatus(undefined)).toBe("check");
+    // In progress by Courses' reading, though the transcript wrote the code another way.
+    expect(requirementStatus({ status: "taking" })).toBe("taking");
   } finally {
     await planner.unmount();
   }

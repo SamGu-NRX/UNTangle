@@ -1,5 +1,5 @@
 import { figuresOf } from "@/components/schedule-builder/answer";
-import { eventsOf, walksOf, type WalkFn } from "@/components/schedule-builder/week";
+import { eventsOf, unknownWalksOf, walksOf, type WalkFn } from "@/components/schedule-builder/week";
 import { normalizePlannerState } from "@/lib/planner";
 import type { PlanLockChange } from "@/lib/plan-library/diff";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
@@ -91,14 +91,16 @@ export function hasSavedCopy(working: PlannerState, plans: readonly SavedPlanSna
  * A week's walking as Week's Details counts it, so Compare and Week give one
  * number: walks between classes in different buildings with 30 minutes or
  * less between them (walksOf), timed by weekTravel. A walk with no known
- * time is left out, as Week leaves it off the grid; a shuttle ride is not
- * walking but can still be tight. Tight or late: less than two minutes to
- * spare, or longer than the break.
+ * time (a building not on the campus map) isn't in the totals; it is
+ * counted in `unknownWalks`, so the totals can be shown as at least that
+ * much, never as complete. A shuttle ride is not walking but can still be
+ * tight. Tight or late: less than two minutes to spare, or longer than the
+ * break.
  */
-export function weekWalking(sections: readonly Section[], travel: WalkFn = weekTravel): { walkMinutes: number; tightWalks: number } {
+export function weekWalking(sections: readonly Section[], travel: WalkFn = weekTravel): { walkMinutes: number; tightWalks: number; unknownWalks: number } {
   const events = eventsOf(sections);
   const figures = figuresOf(events, walksOf(events, travel));
-  return { walkMinutes: figures.walkMinutes, tightWalks: figures.badWalks };
+  return { walkMinutes: figures.walkMinutes, tightWalks: figures.badWalks, unknownWalks: unknownWalksOf(events, travel) };
 }
 
 /**

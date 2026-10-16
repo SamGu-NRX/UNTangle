@@ -204,7 +204,8 @@ describe("Week", () => {
     const option1 = { "CSCE 2110": csce.id, "MATH 2700": math.id };
     const cases = [
       { mornings: 4, sentence: "Starts at 9:00 instead of 10:00 by moving CSCE 2110 to 9:00.", firstClass: "better" },
-      { mornings: 0, sentence: "Monday, Wednesday and Friday start at 9:00.", firstClass: "worse" },
+      // With no lean, the week ending at 10:50 instead of 2:50 is the gain, and the earlier start the cost.
+      { mornings: 0, sentence: "Ends by 10:50, but Monday, Wednesday and Friday start at 9:00.", firstClass: "worse" },
     ];
     for (const { mornings, sentence, firstClass } of cases) {
       const leaning = { ...preferences, weights: { ...preferences.weights, mornings } };
@@ -213,7 +214,8 @@ describe("Week", () => {
       await click(buttons(view.container, /^Auto/)[0]);
       await view.update({ ...host(week, { runId: 1, status: "done", options: [option1] }).value, preferences: leaning });
       // The strip keeps course codes whole with a no-break space.
-      expect(view.container.querySelector('[aria-label="Other weeks Auto found"]')!.textContent?.replace(/\u00a0/g, " ")).toContain(sentence);
+      // The strip's text is its count, the sentence, then its buttons.
+      expect(view.container.querySelector('[aria-label="Other weeks Auto found"]')!.textContent?.replace(/\u00a0/g, " ")).toBe(`1 of 1${sentence}DetailsUse this`);
       await click(buttons(view.container, /^Details$/)[0]);
       const row = [...document.querySelectorAll("aside tr")].find((tr) => tr.querySelector("th")?.textContent === "First class")!;
       expect(row.querySelectorAll("td")[1].getAttribute("data-change")).toBe(firstClass);
@@ -274,6 +276,45 @@ describe("Week", () => {
       await view.unmount();
     } finally {
       window.matchMedia = realMatch;
+      if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
+      else delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+  });
+
+  test("Export says a picture downloaded, and shows the share link to select when copying is blocked", async () => {
+    // A canvas that draws nothing and hands back an empty PNG, as tests/schedule-builder/week-png-dom.test.ts does.
+    const context = new Proxy({} as Record<string | symbol, unknown>, { get: () => () => {}, set: () => true });
+    const canvas = { width: 0, height: 0, getContext: () => context, toBlob: (done: (blob: Blob) => void) => done(new Blob()) };
+    const createElement = document.createElement.bind(document);
+    document.createElement = ((tag: string) => (tag === "canvas" ? canvas : createElement(tag))) as typeof document.createElement;
+    Object.defineProperty(document, "fonts", { value: { ready: Promise.resolve() }, configurable: true });
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => Promise.reject(new DOMException("Not allowed", "NotAllowedError")) } });
+    const { act } = await import("react");
+    try {
+      const view = await render(host([course(csce)]).value);
+      await click(buttons(view.container, /^Export$/)[0]);
+      const sheet = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].at(-1)!;
+      const part = (title: string) => [...sheet.querySelectorAll("section")].find((section) => section.querySelector("h3")?.textContent?.includes(title))!;
+
+      await click(buttons(sheet, /^Download \.png$/)[0]);
+      await act(async () => {
+        await Bun.sleep(0);
+      });
+      expect(part("Picture of the week").querySelector('[role="status"]')?.textContent).toBe("Downloaded a picture of your week");
+
+      await click(buttons(sheet, /^Copy share link$/)[0]);
+      await act(async () => {
+        await Bun.sleep(0);
+      });
+      const share = part("Share and back up");
+      expect(share.querySelector('[role="alert"]')?.textContent).toBe("This browser blocked copying. Select the link and copy it instead.");
+      const link = share.querySelector<HTMLInputElement>('input[aria-label="Share link"]');
+      expect(link?.readOnly).toBe(true);
+      expect(link?.value.startsWith("http://localhost/schedule?week=")).toBe(true);
+      await view.unmount();
+    } finally {
+      document.createElement = createElement;
       if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
       else delete (navigator as { clipboard?: unknown }).clipboard;
     }

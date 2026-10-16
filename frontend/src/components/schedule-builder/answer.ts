@@ -192,8 +192,8 @@ function whereTo(now: readonly GridEvent[], next: readonly GridEvent[]): string 
  * asked for is never named as a cost.
  */
 export function describeAlternative(
-  now: { events: readonly GridEvent[]; walks: readonly WalkLeg[]; finalsClashes?: number },
-  next: { events: readonly GridEvent[]; walks: readonly WalkLeg[]; finalsClashes?: number },
+  now: { events: readonly GridEvent[]; walks: readonly WalkLeg[]; finalsClashes?: number; unknownWalks?: number },
+  next: { events: readonly GridEvent[]; walks: readonly WalkLeg[]; finalsClashes?: number; unknownWalks?: number },
   lean: TimeLean = null,
 ): string {
   const a = figuresOf(now.events, now.walks);
@@ -214,7 +214,9 @@ export function describeAlternative(
   if (a.last !== null && b.last !== null && endGain(a.last, b.last, lean) >= NOTICE_MIN) {
     gains.push(lean === "afternoons" ? `Ends at ${clock(b.last)} instead of ${clock(a.last)}` : `Ends by ${clock(b.last)}`);
   }
-  if (a.walkMinutes - b.walkMinutes >= 5) gains.push(`Walks ${a.walkMinutes - b.walkMinutes} minutes less a week`);
+  // A walk with no known time on either side leaves the totals incomplete, so no difference between them is claimed.
+  const walkingKnown = (now.unknownWalks ?? 0) === 0 && (next.unknownWalks ?? 0) === 0;
+  if (walkingKnown && a.walkMinutes - b.walkMinutes >= 5) gains.push(`Walks ${a.walkMinutes - b.walkMinutes} minutes less a week`);
 
   const costs: string[] = [];
   if (b.clashes > a.clashes) costs.push("two classes overlap");

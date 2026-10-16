@@ -63,8 +63,8 @@ describe("a week's figures", () => {
 
 describe("comparing Main (A) with Fridays off (B)", () => {
   // Walking comes from weekWalking (tests/schedules-library-view-model.test.ts); these are its figures for the two weeks.
-  const mainFigures = { ...weekStats(main), walkMinutes: 34, tightWalks: 2, credits: 12 };
-  const fridaysOffFigures = { ...weekStats(fridaysOff), walkMinutes: 30, tightWalks: 0, credits: 12 };
+  const mainFigures = { ...weekStats(main), walkMinutes: 34, tightWalks: 2, unknownWalks: 0, credits: 12 };
+  const fridaysOffFigures = { ...weekStats(fridaysOff), walkMinutes: 30, tightWalks: 0, unknownWalks: 0, credits: 12 };
 
   test("each row judges B against A", () => {
     expect(compareRows(mainFigures, fridaysOffFigures)).toEqual([
@@ -78,10 +78,19 @@ describe("comparing Main (A) with Fridays off (B)", () => {
   });
 
   test("a week with no timed class has no first or last class to judge", () => {
-    const online = { days: 0, first: null, last: null, walkMinutes: 0, tightWalks: 0, credits: 12 };
+    const online = { days: 0, first: null, last: null, walkMinutes: 0, tightWalks: 0, unknownWalks: 0, credits: 12 };
     const rows = compareRows(mainFigures, online).slice(1);
     expect(rows.map((row) => row.verdict)).toEqual(["better", "same", "same", "better", "better"]);
     expect(rows[1].b).toBe("None");
+  });
+
+  test("a walk with no known time makes that side's walking a lower bound, and neither walking row is judged", () => {
+    // Fridays off with one more walk to a building that isn't on the map: its 30 minutes are at least 30.
+    const rows = compareRows(mainFigures, { ...fridaysOffFigures, unknownWalks: 1 });
+    expect(rows.slice(4)).toEqual([
+      { label: "Walking a week", a: "34 min", b: "At least 30 min", verdict: "unjudged" },
+      { label: "Tight or late walks", a: "2", b: "At least 0", verdict: "unjudged" },
+    ]);
   });
 
   test("sections that change, and the courses both share", () => {
@@ -213,7 +222,7 @@ describe("credits in the compare table", () => {
   });
 
   test("the first row is each plan's credits, shown and never judged", () => {
-    const week = { ...weekStats(main), walkMinutes: 0, tightWalks: 0 };
+    const week = { ...weekStats(main), walkMinutes: 0, tightWalks: 0, unknownWalks: 0 };
     const [credits] = compareRows({ ...week, credits: 12 }, { ...week, credits: 15 });
     expect(credits).toEqual({ label: "Credits", a: "12", b: "15", verdict: "unjudged" });
     expect(compareRows({ ...week, credits: 9 }, { ...week, credits: 9 })[0]).toEqual({ label: "Credits", a: "9", b: "9", verdict: "same" });

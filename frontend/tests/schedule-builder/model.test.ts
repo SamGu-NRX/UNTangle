@@ -258,6 +258,16 @@ describe("an alternative in one sentence", () => {
   });
 });
 
+describe("an alternative with a walk of no known time", () => {
+  test("walking less isn't claimed when either week's total leaves a walk out", () => {
+    // The same times, with MATH 2700 in CSCE 2110's building: no more 4-minute walk three days a week.
+    const now = week([csce2110, math2700]);
+    const together = week([csce2110, mwf("MATH 2700", "005", "10:00", "10:50", "gab")]);
+    expect(describeAlternative(now, together)).toBe("Walks 12 minutes less a week.");
+    expect(describeAlternative({ ...now, unknownWalks: 1 }, together)).toBe("Same days and times, with different sections.");
+  });
+});
+
 describe("an alternative, said against the student's time of day", () => {
   // The walk-through's option 1: Friday free, and 8:00 starts Monday to Thursday.
   const now = week([mwf("MATH 1710", "001", "9:30", "10:20", "gab"), two("ENGL 1310", "002", ["Tue", "Thu"], "9:30", "10:50", "cury")]);

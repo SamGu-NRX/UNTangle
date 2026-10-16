@@ -107,13 +107,15 @@ function noteFor(course: PlannedCourse): { state: WeekCourse["state"]; note?: st
  * started, from Courses' row for it: a rule UNTangle can't read, or one that
  * needs consent, is "check" (check with an advisor), never "locked". A
  * course Courses has no row for is one nobody can vouch for, so it is
- * "check" too.
+ * "check" too. Courses also knows a course is in progress from a transcript
+ * row written another way ("csce1040"), which Week's own check misses.
  */
-export function requirementStatus(row: Pick<CourseRowModel, "status"> | undefined): "available" | "locked" | "check" | "done" {
+export function requirementStatus(row: Pick<CourseRowModel, "status"> | undefined): "available" | "locked" | "check" | "done" | "taking" {
   if (!row) return "check";
   switch (row.status) {
     case "locked":
     case "check":
+    case "taking":
       return row.status;
     case "done":
     case "covered":

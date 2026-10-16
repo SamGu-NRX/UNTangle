@@ -90,6 +90,8 @@ export function Toaster() {
   const paused = shown !== null && pausedFor === shown.id;
   const over = useSyncExternalStore(subscribeModalStack, topModal, () => null);
   const phone = useMediaQuery(PHONE_QUERY);
+  // Under a dialog or the search palette a toast that isn't an error hides (see the render below).
+  const underDialog = shown !== null && over === "dialog" && shown.tone !== "error";
   // A modal opening or closing moves the toast or takes it away, so a hover or focus on it no longer holds it.
   const [overBefore, setOverBefore] = useState(over);
   if (over !== overBefore) {
@@ -119,9 +121,9 @@ export function Toaster() {
     remaining.current = shown && !isPersistent(shown) ? (shown.duration ?? 5000) : Infinity;
   }, [shown]);
 
-  // Count down only while visible, unhovered and unfocused.
+  // Count down only while visible, unhovered and unfocused: a toast hidden under a dialog keeps its time for when it shows again.
   useEffect(() => {
-    if (!shown || leaving || isPersistent(shown)) return;
+    if (!shown || leaving || isPersistent(shown) || underDialog) return;
     const hidden = () => document.visibilityState === "hidden";
     let started = Date.now();
     let timer: number | null = null;
@@ -143,7 +145,7 @@ export function Toaster() {
       disarm();
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [shown, leaving, paused]);
+  }, [shown, leaving, paused, underDialog]);
 
   const isClient = useIsClient();
   if (!isClient) return null;
@@ -160,7 +162,7 @@ export function Toaster() {
       )}
       {createPortal(
         <div className="ui-toaster" data-ui="" data-covered={over ?? undefined}>
-          {shown && (over !== "dialog" || shown.tone === "error") ? (
+          {shown && !underDialog ? (
             <div
               // On a phone a sheet moves the toast to the top: a new key makes it enter again there instead of jumping.
               key={`${shown.id}${phone && over === "sheet" ? ":over-sheet" : ""}`}

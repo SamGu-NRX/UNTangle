@@ -118,7 +118,13 @@ export function weekStats(events: readonly ScheduleEvent[]): WeekStats {
  * Details counts it (components/schedules-library/view-model.ts,
  * weekWalking), and the credits it plans.
  */
-export type PlanFigures = WeekStats & { walkMinutes: number; tightWalks: number; credits: number };
+export type PlanFigures = WeekStats & {
+  walkMinutes: number;
+  tightWalks: number;
+  /** Walks with no known time, left out of the two totals above: more than 0 makes them lower bounds. */
+  unknownWalks: number;
+  credits: number;
+};
 
 /**
  * Credits a saved plan schedules this term: its planned courses, as Courses
@@ -136,8 +142,10 @@ export type CompareRow = { label: string; a: string; b: string; verdict: Verdict
  * B against A, row by row. Which way is better is a starting value with no
  * data behind it: fewer days, a later first class, an earlier last class,
  * less walking and fewer tight or late walks. A week with no timed class
- * has no first or last class and judges nothing there. Credits come first
- * and are never judged: more is not better or worse, only different.
+ * has no first or last class and judges nothing there. A walk with no known
+ * time makes that week's walking figures "At least" figures, and the two
+ * walking rows are then shown without a verdict. Credits come first and
+ * are never judged: more is not better or worse, only different.
  */
 export function compareRows(a: PlanFigures, b: PlanFigures): CompareRow[] {
   const judge = (x: number | null, y: number | null, lowerIsBetter: boolean): Verdict => {
@@ -145,14 +153,17 @@ export function compareRows(a: PlanFigures, b: PlanFigures): CompareRow[] {
     return (y < x) === lowerIsBetter ? "better" : "worse";
   };
   const clock = (n: number | null) => (n === null ? "None" : clockText(n));
+  const partial = a.unknownWalks > 0 || b.unknownWalks > 0;
+  const walking = (x: number, y: number): Verdict => (partial ? "unjudged" : judge(x, y, true));
+  const atLeast = (side: PlanFigures, text: string) => (side.unknownWalks > 0 ? `At least ${text}` : text);
   return [
     { label: "Credits", a: String(a.credits), b: String(b.credits), verdict: a.credits === b.credits ? "same" : "unjudged" },
     { label: "Days on campus", a: String(a.days), b: String(b.days), verdict: judge(a.days, b.days, true) },
     { label: "First class", a: clock(a.first), b: clock(b.first), verdict: judge(a.first, b.first, false) },
     { label: "Last class ends", a: clock(a.last), b: clock(b.last), verdict: judge(a.last, b.last, true) },
-    { label: "Walking a week", a: `${a.walkMinutes} min`, b: `${b.walkMinutes} min`, verdict: judge(a.walkMinutes, b.walkMinutes, true) },
+    { label: "Walking a week", a: atLeast(a, `${a.walkMinutes} min`), b: atLeast(b, `${b.walkMinutes} min`), verdict: walking(a.walkMinutes, b.walkMinutes) },
     // Week's Details names the same count the same way.
-    { label: "Tight or late walks", a: String(a.tightWalks), b: String(b.tightWalks), verdict: judge(a.tightWalks, b.tightWalks, true) },
+    { label: "Tight or late walks", a: atLeast(a, String(a.tightWalks)), b: atLeast(b, String(b.tightWalks)), verdict: walking(a.tightWalks, b.tightWalks) },
   ];
 }
 
