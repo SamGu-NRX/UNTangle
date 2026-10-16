@@ -107,6 +107,12 @@ constraints, best first, up to `limit` (default 500, at most 2000).
 - Nothing fits: status `infeasible` with the same explanation `optimize` gives.
   Neither found nor ruled out: `timeout`.
 
+Choosing a row in Week uses its sections the way the options strip's Use this
+does: it plans them and keeps no section. The research note
+(`docs/research/schedule-builders/README.md` §5) says choosing "issues the
+locks"; that would make the next Browse all list only that week and pin
+Auto's next run to it, so Week doesn't. Keep this section still locks.
+
 The worker runs it as a `browse` job (`runBrowseJob` in `worker/protocol.ts`)
 with `BROWSE_LIMIT` rows and `BROWSE_BUDGET_MS` as a wall-clock cap on top of
 the node budgets. Browse all has its own `OptimizerClient`, so its worker

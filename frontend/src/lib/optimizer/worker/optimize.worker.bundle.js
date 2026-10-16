@@ -2022,7 +2022,8 @@ function enumerateSchedules(request) {
     total = Math.max(count, kept.length);
     totalExact = counted.complete;
   }
-  const schedules = kept.map((leaf) => toRanked(engineRequest, prepared, leaf, ranked.complete));
+  const proven = ranked.complete || totalExact && total === kept.length;
+  const schedules = kept.map((leaf) => toRanked(engineRequest, prepared, leaf, proven));
   return { status: "listed", schedules, total, totalExact, stats: stats() };
 }
 

@@ -175,6 +175,8 @@ export function enumerateSchedules(request: EnumerateRequest): EnumerateResult {
     totalExact = counted.complete;
   }
 
-  const schedules = kept.map((leaf) => toRanked(engineRequest, prepared, leaf, ranked.complete));
+  // A rank pass cut short still listed every schedule when the count found no more than it kept.
+  const proven = ranked.complete || (totalExact && total === kept.length);
+  const schedules = kept.map((leaf) => toRanked(engineRequest, prepared, leaf, proven));
   return { status: "listed", schedules, total, totalExact, stats: stats() };
 }

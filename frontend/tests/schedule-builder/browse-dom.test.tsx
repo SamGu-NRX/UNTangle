@@ -165,7 +165,7 @@ describe("Browse all", () => {
     await view.unmount();
   });
 
-  test("choosing a row uses exactly its sections, with Undo; the next Auto runs from there", async () => {
+  test("choosing a row uses exactly its sections, with Undo; Auto can run again", async () => {
     const h = host();
     const view = await openBrowse(h);
     await click(option(1));
@@ -232,6 +232,19 @@ describe("Browse all", () => {
     expect(listbox().getAttribute("aria-disabled")).toBe("true");
     await click(option(1));
     expect(changed.edits.use).not.toHaveBeenCalled();
+    await view.unmount();
+  });
+
+  test("an error after the settings changed stays, with Try again, and is not retried on its own", async () => {
+    const h = host();
+    const view = await openBrowse(h);
+    const failed = host({ stale: true, status: "error", error: "The optimizer stopped unexpectedly." });
+    await view.update(failed.value);
+    await view.update(failed.value);
+    expect(failed.browse.run).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain("Browse all stopped before it listed any weeks. The optimizer stopped unexpectedly.");
+    await click(buttons(document.body, /^Try again$/)[0]);
+    expect(failed.browse.run).toHaveBeenCalledTimes(1);
     await view.unmount();
   });
 

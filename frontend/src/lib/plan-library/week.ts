@@ -223,16 +223,20 @@ function sectionText(section: PlannedSection): string {
  * the courses every plan shares exactly. With two plans it says what
  * `sectionChanges` says, as cells.
  */
-export function sectionGrid(plans: ReadonlyArray<readonly PlannedSection[]>): { rows: Array<{ code: string; cells: Array<string | null> }>; same: string[] } {
+export function sectionGrid(plans: ReadonlyArray<readonly PlannedSection[]>): {
+  /** `ids` says which plans' sections differ even when their `cells` read the same (two sections at the same times). */
+  rows: Array<{ code: string; cells: Array<string | null>; ids: Array<string | null> }>;
+  same: string[];
+} {
   const maps = plans.map((plan) => new Map(plan.map((section) => [section.code, section])));
   const codes = [...new Set(maps.flatMap((map) => [...map.keys()]))].sort((x, y) => x.localeCompare(y));
-  const rows: Array<{ code: string; cells: Array<string | null> }> = [];
+  const rows: Array<{ code: string; cells: Array<string | null>; ids: Array<string | null> }> = [];
   const same: string[] = [];
   for (const code of codes) {
     const sections = maps.map((map) => map.get(code));
     const first = sections[0];
     if (first && sections.every((section) => section?.sectionId === first.sectionId)) same.push(code);
-    else rows.push({ code, cells: sections.map((section) => (section ? sectionText(section) : null)) });
+    else rows.push({ code, cells: sections.map((section) => (section ? sectionText(section) : null)), ids: sections.map((section) => section?.sectionId ?? null) });
   }
   return { rows, same };
 }

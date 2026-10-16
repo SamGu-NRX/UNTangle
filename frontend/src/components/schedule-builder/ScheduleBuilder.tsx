@@ -201,8 +201,9 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   useEffect(() => {
     if (strip?.kind === "options" && feed.stale && feed.status !== "running") feed.run();
   }, [strip?.kind, feed]);
+  // Only after a list arrived: an error stays on screen with Try again, never retried in a loop.
   useEffect(() => {
-    if (strip?.kind === "browse" && browse?.stale && browse.status !== "running") browse.run();
+    if (strip?.kind === "browse" && browse?.stale && browse.status === "done") browse.run();
   }, [strip?.kind, browse]);
   useEffect(() => {
     if (refocusBrowse.current && strip?.kind === "options") {
@@ -309,6 +310,8 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   };
 
   const auto = (fromKeyboard: boolean) => {
+    // Auto again from Browse all: the list's search stops, and the list closes with its strip.
+    if (strip?.kind === "browse") browse?.close();
     setPanel((open) => (open?.kind === "event" || open?.kind === "option" ? null : open));
     setStrip((open) =>
       open?.kind === "options" ? { ...open, instant: fromKeyboard } : { kind: "options", runId: null, shown: [], index: 0, better: false, instant: fromKeyboard },

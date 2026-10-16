@@ -66,7 +66,12 @@ export function CompareView({
   const { changes, same } = sectionChanges(planned[0], planned[1]);
   const grid = sectionGrid(planned);
   // Statuses, claimed credit, Auto, locks, goal and major: one step away, behind "More differences".
-  const more = sides.slice(1).flatMap((side) => describeOtherDifferences(diffLibraryPlans(a.state, side.state, sectionCatalog), a.name, side.name));
+  // One group per plan read against A, so "in A only" stays true of the pair it names.
+  const more = sides
+    .slice(1)
+    .map((side) => ({ side, lines: describeOtherDifferences(diffLibraryPlans(a.state, side.state, sectionCatalog), a.name, side.name) }))
+    .filter((group) => group.lines.length > 0);
+  const moreCount = more.reduce((sum, group) => sum + group.lines.length, 0);
   const shownSide = view === "b" ? b : view === "c" && c ? c : a;
   // Both: A solid, and B dashed where it differs (A's own classes are not faded here).
   const items: PlacedBlock[] =
@@ -184,9 +189,9 @@ export function CompareView({
                       <span className="ui-code">{row.code}</span>
                     </th>
                     {row.cells.map((cell, i) => (
-                      <td key={sides[i].id} data-differs={i > 0 && cell !== row.cells[0] ? "" : undefined}>
+                      <td key={sides[i].id} data-differs={i > 0 && row.ids[i] !== row.ids[0] ? "" : undefined}>
                         {cell ?? `Not in ${sides[i].name}`}
-                        {i > 0 && cell !== row.cells[0] ? <span className="sr-only-v2">, differs from {a.name}</span> : null}
+                        {i > 0 && row.ids[i] !== row.ids[0] ? <span className="sr-only-v2">, differs from {a.name}</span> : null}
                       </td>
                     ))}
                   </tr>
@@ -225,19 +230,28 @@ export function CompareView({
       ) : same.length && changes.length ? (
         <p className={styles.quiet}>Same in both: {same.join(", ")}.</p>
       ) : null}
-      {more.length ? (
+      {moreCount ? (
         <section>
           <button type="button" className={styles.groupToggle} aria-expanded={showMore} onClick={() => setShowMore((on) => !on)}>
             More differences
-            {showMore ? null : <span className={styles.count}>{more.length}</span>}
+            {showMore ? null : <span className={styles.count}>{moreCount}</span>}
           </button>
-          {showMore ? (
-            <ul className={styles.moreList}>
-              {more.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          ) : null}
+          {showMore
+            ? more.map(({ side, lines }) => (
+                <div key={side.id}>
+                  {three ? (
+                    <h4 className={styles.moreTitle}>
+                      {a.name} and {side.name}
+                    </h4>
+                  ) : null}
+                  <ul className={styles.moreList}>
+                    {lines.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            : null}
         </section>
       ) : null}
     </div>

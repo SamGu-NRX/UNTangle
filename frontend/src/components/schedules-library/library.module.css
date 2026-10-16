@@ -655,3 +655,9 @@
 .compareBar .quiet {
   margin: 0;
 }
+/* With three plans, More differences groups its lines by the pair they compare. */
+.moreTitle {
+  margin: 12px 0 4px;
+  font: 650 var(--text-meta) / var(--lh-meta) var(--font-ui);
+  color: var(--ink-2);
+}

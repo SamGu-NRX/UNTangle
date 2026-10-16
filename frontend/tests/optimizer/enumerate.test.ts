@@ -133,6 +133,27 @@ describe("budgets and bounds", () => {
     }
   });
 
+  // The proven side of this rule needs a rank pass that ran out after its last valid schedule, which
+  // these seeds never produce (the search ends at its last leaf); they check the unproven side.
+  test("a rank pass cut short is unproven unless the count shows every schedule is listed", () => {
+    let checked = 0;
+    for (const seed of SEEDS.slice(0, 200)) {
+      const request = smallInstance(seed);
+      const valid = enumerateValid(request);
+      if (valid.length < 10) continue;
+      for (const rankNodes of [10, 30, 100]) {
+        const result = enumerateSchedules({ ...request, limit: MAX_LIST_LIMIT, rankNodes, countNodes: 1_000_000 });
+        // Only rank passes that ran out and still listed something.
+        if (result.status !== "listed" || result.stats.rankNodes <= rankNodes) continue;
+        checked += 1;
+        expect(result.totalExact).toBe(true);
+        expect(result.total).toBe(valid.length);
+        expect(result.schedules.every((schedule) => schedule.proven)).toBe(result.schedules.length === valid.length);
+      }
+    }
+    expect(checked).toBeGreaterThan(20);
+  });
+
   test("a count cut short says at least, and never less than the rows listed", () => {
     const result = enumerateSchedules({ ...big, limit: 20, countNodes: 5_000 });
     expect(result.status).toBe("listed");

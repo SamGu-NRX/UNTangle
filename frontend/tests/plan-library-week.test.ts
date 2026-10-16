@@ -252,9 +252,9 @@ describe("sections across three plans", () => {
     ];
     expect(sectionGrid([sectionsOf(main), sectionsOf(fridaysOff), sectionsOf(third)])).toEqual({
       rows: [
-        { code: "CSCE 2110", cells: ["MWF 9:00", "TR 9:30", "MWF 9:00"] },
-        { code: "CSCE 2610", cells: ["TR 12:30", "TR 12:30", null] },
-        { code: "MATH 2700", cells: ["MWF 10:00", "MW 3:30", "TR 11:00"] },
+        { code: "CSCE 2110", cells: ["MWF 9:00", "TR 9:30", "MWF 9:00"], ids: ["001", "002", "001"] },
+        { code: "CSCE 2610", cells: ["TR 12:30", "TR 12:30", null], ids: ["002", "002", null] },
+        { code: "MATH 2700", cells: ["MWF 10:00", "MW 3:30", "TR 11:00"], ids: ["003", "001", "004"] },
       ],
       same: ["PHYS 2220"],
     });

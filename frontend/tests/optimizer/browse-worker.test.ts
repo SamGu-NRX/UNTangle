@@ -20,7 +20,8 @@ import {
   type OptimizeJob,
   type OptimizeReply,
 } from "@/lib/optimizer/worker/protocol";
-import { buildOptimizeRequest, defaultSchedulePreferences, getInitialPlannerState } from "@/lib/planner";
+import { buildOptimizeRequest, defaultSchedulePreferences, getInitialPlannerState, normalizePlannerState, resolveSectionPlan } from "@/lib/planner";
+import { sampleCatalog } from "@/lib/planner-sections";
 import type { PlannerState } from "@/lib/types";
 import { WORKER_BUNDLE } from "./build-worker";
 
@@ -110,7 +111,7 @@ describe("a browse client", () => {
 });
 
 describe("choosing a row", () => {
-  test("puts exactly its sections on the plan, and the next Auto request contains them", () => {
+  test("plans exactly its sections without keeping them, so the next Auto request offers them and may still move them", () => {
     const plan = planWith(FIVE);
     const list = enumerateSchedules(browseRequest(plain));
     if (list.status !== "listed") throw new Error(`expected a list, got ${list.status}`);
@@ -121,6 +122,9 @@ describe("choosing a row", () => {
 
     const after = withSections(plan, row, codes);
     expect(Object.fromEntries(codes.map((code) => [code, after.selectedSections[code]]))).toEqual(row);
+    // The picks survive the plan's own resolution: the week shows exactly the row.
+    const shown = resolveSectionPlan(normalizePlannerState(after), sampleCatalog).courses.flatMap((course) => (course.section ? [[course.code, course.section.id]] : []));
+    expect(Object.fromEntries(shown.filter(([code]) => code in row))).toEqual(row);
 
     // The next Auto run, as the host starts it: build from the plan, post to the worker.
     const fake = fakePort<OptimizeReply>();
@@ -131,8 +135,10 @@ describe("choosing a row", () => {
     for (const [code, id] of Object.entries(row)) {
       const course = job.request.courses.find((c) => c.code === code);
       expect(course?.sections.map((s) => s.id)).toContain(id);
-      if (code in job.request.locks) expect(job.request.locks[code]).toBe(id);
     }
+    // Using a combination is not keeping it: the plan had no kept sections, and the request has no locks,
+    // so Auto may still suggest other sections (choosing does what Use this does, not what Keep does).
+    expect(job.request.locks).toEqual({});
     // The chosen week is one the next search may return: it fits that request.
     const next = enumerateSchedules({ ...fromPlainRequest(job.request, 10_000), limit: 2000 });
     expect(next.status).toBe("listed");
