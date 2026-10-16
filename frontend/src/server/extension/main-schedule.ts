@@ -13,8 +13,8 @@ import { planningTerm } from "@/lib/planner-sections";
 
 /**
  * The terms whose Main the web planner shows, from planner-sections.ts. The
- * planner plans one term today; when it plans several, this list grows with
- * it and the extension serves each one.
+ * planner plans one term today. When it plans several, widen this list by
+ * hand to match, and the extension serves each one.
  */
 export const plannedTerms: readonly { id: string; label: string }[] = [planningTerm];
 

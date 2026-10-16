@@ -197,11 +197,13 @@ export async function applyAddOption(
       return refuseUnlessCommitted("stale-revision", 409);
     }
     if (error instanceof SyncError && error.code === "OPERATION_REUSED") {
-      // A concurrent write between the receipt lookup and the commit already
-      // stored other bytes under this operation id: a copy of this command
-      // (whose bytes differ once jsonb re-sorts the body it read), or a client
-      // bug. verifiedReplay tells them apart; a different command gets the
-      // client's own forbidden rejection.
+      // Another write already stored other bytes under this operation id. A
+      // copy of this command can't land here: the repository locks the user
+      // and looks up the receipt inside its transaction (repository.ts), so a
+      // copy that read before the commit sends the same bytes and is replayed,
+      // and one that read after it fails the revision check above. Only a
+      // client bug reuses an operation id for another write; verifiedReplay
+      // gives a different command the client's own forbidden rejection.
       return refuseUnlessCommitted("forbidden", 409);
     }
     throw error;
