@@ -17,7 +17,8 @@ import styles from "./builder.module.css";
 import { hasNoSetTime, isTimed, meetingsOverlap } from "./conflicts";
 import { ExportSheet } from "./ExportSheet";
 import type { BuilderHost } from "./host";
-import { NoticeStrip, OptionsStrip } from "./OptionsStrip";
+import { BrowsePanel, totalCount } from "./CombinationsList";
+import { BrowseStrip, NoticeStrip, OptionsStrip } from "./OptionsStrip";
 import { EventPanel, OptionDetails } from "./panels";
 import { changedCount, newBusyId } from "./limits";
 import { addBusy, preferenceSummary } from "./preferences";
@@ -29,11 +30,19 @@ import { WeekGrid, type Busy, type Ghost, type Outline } from "./WeekGrid";
 
 export type SearchRequest = { nonce: number; query: string };
 
-type Panel = { kind: "event"; code: string } | { kind: "search" } | { kind: "option" };
+type Panel = { kind: "event"; code: string } | { kind: "search" } | { kind: "option" } | { kind: "browse" };
+/** `instant`: the option on the grid was reached from the keyboard (Auto, Next or Show), so it didn't animate. */
+type OptionsState = { kind: "options"; runId: number | null; shown: ReadonlyArray<Record<string, string>>; index: number; better: boolean; instant: boolean };
 type Strip =
-  /** `instant`: the option on the grid was reached from the keyboard (Auto, Next or Show), so it didn't animate. */
-  | { kind: "options"; runId: number | null; shown: ReadonlyArray<Record<string, string>>; index: number; better: boolean; instant: boolean }
-  | { kind: "shared"; week: SharedWeek };
+  | OptionsState
+  | { kind: "shared"; week: SharedWeek }
+  /**
+   * Browse all, opened from the options strip (`from`, restored when the list
+   * closes). `active` is the row the list is on: it starts on the option the
+   * strip showed and moves with the keyboard. `hovered` is the row under the
+   * pointer. The grid previews `hovered`, else `active`.
+   */
+  | { kind: "browse"; from: OptionsState; active: number | null; hovered: number | null; fromKeyboard: boolean };
 
 const isWeekDay = (day: Day): day is WeekDay => day !== "Sat" && day !== "Sun";
 
@@ -90,6 +99,9 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   /** The last change undoes or leaves a preview: an exit, so it moves a little faster (MOTION.md §7). */
   const exiting = useRef(false);
   const trigger = useRef<HTMLElement | null>(null);
+  /** Browse all's button, and whether it should take focus back once the list closes. */
+  const browseButton = useRef<HTMLButtonElement | null>(null);
+  const refocusBrowse = useRef(false);
   const colors = useRef(new Map<string, 1 | 2 | 3 | 4 | 5 | 6>());
 
   // Week's main region stops at 960px; the contextual panel lines up beside it (globals.css, ui.css).
@@ -109,7 +121,16 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   // A shared week previews, and applies, only the sections that resolved this term.
   const sharedResolved =
     strip?.kind === "shared" ? Object.fromEntries(Object.entries(strip.week.sections).filter(([code, id]) => host.find(code, id))) : undefined;
-  const previewMap = strip?.kind === "options" ? strip.shown[strip.index] : sharedResolved;
+  const browse = host.browse;
+  const browseRows = browse && !browse.stale && browse.status !== "running" ? browse.rows : [];
+  const browseIndex = strip?.kind === "browse" ? (strip.hovered ?? strip.active) : null;
+  const browseRow = browseIndex !== null ? browseRows[browseIndex] : undefined;
+  const previewMap =
+    strip?.kind === "options"
+      ? strip.shown[strip.index]
+      : strip?.kind === "browse"
+        ? (browseRow?.byCourse ?? strip.from.shown[strip.from.index])
+        : sharedResolved;
   const previewing = Boolean(previewMap);
   const shownSections = previewMap
     ? [
@@ -156,6 +177,16 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   const selectedCourse = panel?.kind === "event" ? host.courses.find((course) => course.code === panel.code) ?? null : null;
   if (panel?.kind === "event" && !selectedCourse) setPanel(null);
   if (panel?.kind === "option" && strip?.kind !== "options") setPanel(null);
+  if (panel?.kind === "browse" && strip?.kind !== "browse") setPanel(null);
+  // Browse all lands on the option the strip showed, or the best row; a new list starts over.
+  if (strip?.kind === "browse") {
+    if (browseRows.length === 0 && (strip.active !== null || strip.hovered !== null)) setStrip({ ...strip, active: null, hovered: null });
+    else if (browseRows.length > 0 && strip.active === null) {
+      const shownOption = strip.from.shown[strip.from.index];
+      const match = browseRows.findIndex((row) => same(row.byCourse, shownOption));
+      setStrip({ ...strip, active: Math.max(0, match) });
+    }
+  }
 
   const { load } = host.search;
   const selectedCode = selectedCourse?.code ?? null;
@@ -167,6 +198,14 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   useEffect(() => {
     if (strip?.kind === "options" && feed.stale && feed.status !== "running") feed.run();
   }, [strip?.kind, feed]);
+  useEffect(() => {
+    if (strip?.kind === "browse" && browse?.stale && browse.status !== "running") browse.run();
+  }, [strip?.kind, browse]);
+  useEffect(() => {
+    if (!refocusBrowse.current || strip?.kind !== "options") return;
+    refocusBrowse.current = false;
+    browseButton.current?.focus({ preventScroll: true });
+  }, [strip?.kind]);
 
   useEffect(() => {
     if (!searchRequest) return;
@@ -230,6 +269,14 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   const closePanel = () => {
     setPanel(null);
     setPreview(null);
+    // Closing the list goes back to the strip it was opened from, and focus to its Browse all
+    // button when it was in the list (the button that opened the list was gone while it was open).
+    if (strip?.kind === "browse") {
+      browse?.close();
+      const active = document.activeElement;
+      refocusBrowse.current = !active || active === document.body || Boolean(active.closest(".ui-context, .ui-sheet"));
+      setStrip(strip.from);
+    }
   };
 
   const place = (section: Section, overlaps: string[], fromKeyboard: boolean) => {
@@ -256,20 +303,38 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   };
   const closeStrip = (fromKeyboard = false) => {
     keyboard.current ||= fromKeyboard;
-    if (strip?.kind === "options") feed.close();
+    if (strip?.kind === "options" || strip?.kind === "browse") feed.close();
+    if (strip?.kind === "browse") browse?.close();
     exiting.current = true;
     setStrip(null);
+  };
+  /** Replaces the week's sections with `byCourse`, as one undoable step: Use this, and choosing a combination. */
+  const applyWeek = (byCourse: Record<string, string>, label: string) => {
+    keyboard.current = false;
+    host.edits.use(byCourse);
+    closeStrip();
+    if (panel?.kind === "option" || panel?.kind === "browse") setPanel(null);
+    toast({ message: `Using ${label}`, action: undoAction });
   };
   const applyShown = () => {
     if (!previewMap || Object.keys(previewMap).length === 0) return;
     // Rechecked here: the button may have drawn before a setting changed.
     if (strip?.kind === "options" && (feed.stale || feed.status === "running")) return;
-    const label = strip?.kind === "options" ? optionName(strip.index) : "the shared week";
-    keyboard.current = false;
-    host.edits.use(previewMap);
-    closeStrip();
-    if (panel?.kind === "option") setPanel(null);
-    toast({ message: `Using ${label}`, action: undoAction });
+    if (strip?.kind === "browse") return chooseRow(strip.hovered ?? strip.active);
+    applyWeek(previewMap, strip?.kind === "options" ? optionName(strip.index) : "the shared week");
+  };
+  const openBrowse = (from: OptionsState, fromKeyboard: boolean) => {
+    if (!browse) return;
+    trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setStrip({ kind: "browse", from, active: null, hovered: null, fromKeyboard });
+    setPanel({ kind: "browse" });
+    browse.run();
+  };
+  /** Uses exactly one combination's sections. Rows from a list whose settings changed are never used. */
+  const chooseRow = (index: number | null) => {
+    if (index === null || !browse || browse.stale || browse.status === "running") return;
+    const row = browse.rows[index];
+    if (row) applyWeek(row.byCourse, `combination ${index + 1}`);
   };
 
   // What the grid draws besides the week.
@@ -323,7 +388,8 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   const firstAnswerPending = running && (strip?.kind !== "options" || strip.shown.length === 0);
   const identical = previewMap !== undefined && same(Object.fromEntries(Object.entries(current).filter(([code]) => code in previewMap)), previewMap) && strip?.kind === "options";
   const sentence = identical ? "Your week is already the best Auto found." : describeAlternative(now, shown);
-  const instant = keyboard.current || (strip?.kind === "options" && strip.instant);
+  // Browse all previews on every hover, tens of times a minute: the grid changes without motion.
+  const instant = keyboard.current || (strip?.kind === "options" && strip.instant) || strip?.kind === "browse";
   const exit = exiting.current;
   // Read once per commit: the next change says again where it came from.
   useLayoutEffect(() => {
@@ -336,7 +402,9 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       ? panel.code
       : panel?.kind === "search"
         ? "Find courses"
-        : strip?.kind === "options"
+        : panel?.kind === "browse"
+          ? "All combinations"
+          : strip?.kind === "options"
             ? `${optionTitle(strip.index)} next to your week`
             : "";
 
@@ -382,6 +450,35 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
             const list = feed.options.length > 0 ? feed.options : strip.shown;
             setStrip({ ...strip, shown: list, index: (strip.index + 1) % list.length, better: false, instant: fromKeyboard });
           }}
+          onUse={applyShown}
+          onClose={(fromKeyboard) => {
+            keyboard.current = fromKeyboard;
+            closeStrip();
+          }}
+          onBrowse={browse ? (fromKeyboard) => openBrowse(strip, fromKeyboard) : undefined}
+          browseRef={browseButton}
+        />
+      );
+    }
+    if (strip?.kind === "browse" && browse) {
+      const yours = browseRow !== undefined && same(Object.fromEntries(Object.entries(current).filter(([code]) => code in browseRow.byCourse)), browseRow.byCourse);
+      return (
+        <BrowseStrip
+          count={browseIndex !== null && browseRow ? `${browseIndex + 1} of ${totalCount(browse)}` : browse.status === "done" && browse.rows.length === 0 ? "None" : "Listing"}
+          sentence={keepCodesWhole(
+            browseRow
+              ? yours
+                ? "This is your week."
+                : describeAlternative(now, shown)
+              : browse.infeasible
+                ? "Nothing fits these preferences. The list says what to change."
+                : browse.timedOut
+                  ? "No week turned up in time."
+                  : browse.status === "error"
+                    ? "Browse all stopped before it listed any weeks."
+                    : "Listing every combination that fits these preferences.",
+          )}
+          canUse={browseRow !== undefined && !yours}
           onUse={applyShown}
           onClose={(fromKeyboard) => {
             keyboard.current = fromKeyboard;
@@ -615,6 +712,22 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
             reasons={previewMap ? feed.explain(previewMap) : []}
             onUse={applyShown}
             canUse={!identical && !feed.stale && !running}
+          />
+        ) : panel?.kind === "browse" && strip?.kind === "browse" && browse ? (
+          <BrowsePanel
+            feed={browse}
+            find={host.find}
+            hueOf={hueOf}
+            current={current}
+            active={strip.active}
+            previewed={browseIndex}
+            onActive={(active) => setStrip({ ...strip, active })}
+            onHover={(hovered) => {
+              if (hovered !== strip.hovered) setStrip({ ...strip, hovered });
+            }}
+            onChoose={(index) => chooseRow(index)}
+            focusOnShow={strip.fromKeyboard}
+            onRetry={browse.run}
           />
         ) : null}
       </ContextPanel>

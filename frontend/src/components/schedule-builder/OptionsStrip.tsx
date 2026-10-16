@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { flushSync } from "react-dom";
 import { Button, IconButton } from "@/components/ui/Button";
 import { AlertGlyph, Close } from "@/components/ui/icons";
@@ -48,6 +48,10 @@ type OptionsProps = {
   onNext: (fromKeyboard: boolean) => void;
   onUse: () => void;
   onClose: (fromKeyboard: boolean) => void;
+  /** Opens Browse all; absent when the host can't list every week. */
+  onBrowse?: (fromKeyboard: boolean) => void;
+  /** The Browse all button, so focus can come back to it when the list closes. */
+  browseRef?: Ref<HTMLButtonElement>;
 };
 
 const keyboard = (event: { detail: number }) => event.detail === 0;
@@ -61,6 +65,11 @@ export function OptionsStrip(props: OptionsProps) {
         {props.searching ? <i className={styles.pulse} aria-hidden="true" /> : null}
       </span>
       <SwapText className={styles.stripSentence} text={props.better ? "A better option is ready." : props.sentence} instant={props.instant} part="sentence" />
+      {props.onBrowse ? (
+        <Button ref={props.browseRef} className={styles.stripBrowse} variant="quiet" size="sm" onClick={(event) => props.onBrowse?.(keyboard(event))}>
+          Browse all
+        </Button>
+      ) : null}
       <div className={styles.stripActions}>
         {props.better ? (
           <Button variant="quiet" size="sm" onClick={(event) => props.onShow(keyboard(event))}>
@@ -110,6 +119,42 @@ export function NoticeStrip({
       <div className={styles.stripActions}>
         {actions}
         <IconButton label={closeLabel} size="sm" onClick={(event) => onClose(keyboard(event))}>
+          <Close />
+        </IconButton>
+      </div>
+    </div>
+  );
+}
+
+type BrowseStripProps = {
+  /** "12 of 248", or "Listing" before the list arrives. */
+  count: string;
+  sentence: string;
+  canUse: boolean;
+  onUse: () => void;
+  onClose: (fromKeyboard: boolean) => void;
+};
+
+/**
+ * The strip while Browse all is open: what the grid shows, the combination
+ * under the pointer or the one the list is on, said against the week. Not a
+ * live region: moving through the list would read every sentence over the
+ * row the screen reader is already announcing.
+ */
+export function BrowseStrip(props: BrowseStripProps) {
+  return (
+    <div className={styles.strip} role="region" aria-label="Combination on the grid" aria-live="off">
+      <span className={styles.stripCount}>
+        <span data-part="count">{props.count}</span>
+      </span>
+      <p className={styles.stripSentence} data-part="sentence">
+        {props.sentence}
+      </p>
+      <div className={styles.stripActions}>
+        <Button size="sm" disabled={!props.canUse} onClick={props.onUse}>
+          Use this
+        </Button>
+        <IconButton label="Keep my week" size="sm" onClick={(event) => props.onClose(keyboard(event))}>
           <Close />
         </IconButton>
       </div>
