@@ -1,27 +1,63 @@
-import type { Citation, CourseScope, DegreeData, PolicyNode, PoolNode, ProgramData, RequirementNode } from "./types";
+import type { Citation, CourseScope, CourseSlot, OptionGroup, PolicyNode, PoolNode, ProgramData, RequirementNode } from "./types";
 
 /**
- * The pure audit engine: given a completed-course record and a program's
- * requirement tree, walks the tracked nodes and reports what is satisfied,
- * in progress, or unresolvable. It never guesses: nodes it cannot verify
- * (advisory pools, prose-only notes) come back as untracked findings with
- * their citation, and policy checks that need data the record lacks (UNT
- * residence splits, unknown credits) are reported as unverifiable.
+ * The pure audit engine: given a student's course attempts and a program's
+ * requirement tree, reports what is satisfied, in progress, unsatisfied, or
+ * left to an advisor. It never guesses: nodes it cannot verify (advisory
+ * pools, prose notes, unknown credit values) come back advisory with their
+ * citation, and policy checks that need data the record lacks are reported
+ * unverifiable.
+ *
+ * Each course counts toward at most one requirement node in a program. Nodes
+ * claim courses in tree order, so a course an earlier node used cannot fill a
+ * later one: the core's double-dip rule, and within a major, CE's required
+ * CSCE 3610 cannot also be a VLSI specialization course. Advisory pools read
+ * what is left after every tracked node has claimed its courses.
+ *
+ * Statuses mean the same thing for every node kind:
+ * - satisfied: met by finished, credit-earning courses;
+ * - inProgress: not met yet, but met once every in-progress course earns credit;
+ * - advisory: the audit cannot decide, and an advisor must;
+ * - unsatisfied: not met even counting in-progress courses.
+ * The tree is evaluated twice, once over finished courses and once adding
+ * in-progress ones, so "in progress" is always that second evaluation's
+ * verdict rather than a per-kind rule.
  */
 
+/** One attempt at a course. A record may hold several attempts at the same code. */
 export type AuditCourse = {
   code: string;
+  /** The transcript grade; null when the row carries none. */
   grade: string | null;
+  /**
+   * Credit hours. For a finished passing attempt these are the hours earned;
+   * a GPA also needs them as the hours attempted, so an F must carry its
+   * attempted hours here or its GPA weight is unknown.
+   */
   credits: number | null;
   sourceKind: "unt" | "transfer" | "exam" | "current" | "unknown";
   inProgress: boolean;
+  /** Chronological rank of the attempt's term: a larger rank is a later term. */
+  term: number;
+};
+
+export type AuditOptions = {
+  /**
+   * True only when the attempts include every graded attempt on the student's
+   * transcript, failed and withdrawn ones too. A GPA computed from a subset
+   * is not the student's GPA, so GPA checks report unverifiable without it.
+   */
+  gradeHistoryComplete: boolean;
 };
 
 export type NodeOutcome = {
   name: string;
+  kind: RequirementNode["kind"];
   status: "satisfied" | "inProgress" | "unsatisfied" | "advisory";
   detail: string;
   citation: Citation;
+  /** A group's parts, or the parts of the branch a choice settled on. */
+  children?: NodeOutcome[];
 };
 
 export type PolicyOutcome = {
@@ -30,18 +66,6 @@ export type PolicyOutcome = {
   detail: string;
   citation: Citation;
 };
-
-type Branch = { name: string; node: RequirementNode };
-
-/**
- * Shared allocation state for programs whose catalog rule counts each course
- * toward one area only (the core's double-dip rule). Nodes consume completed
- * courses from `used` in tree order, so a course claimed by an earlier node
- * cannot satisfy a later one. Slot nodes (all) keep independent per-slot
- * matching: the core tree has none, and programs that do use slots do not
- * allocate.
- */
-type Allocation = { used: Set<string> };
 
 export type AuditResult = {
   programId: string;
@@ -58,25 +82,17 @@ export type AuditResult = {
   };
 };
 
-const GRADE_POINTS: Record<string, number> = {
-  "A+": 4, A: 4, "A-": 3.7,
-  "B+": 3.3, B: 3, "B-": 2.7,
-  "C+": 2.3, C: 2, "C-": 1.7,
-  "D+": 1.3, D: 1, "D-": 0.7,
-  F: 0,
-};
-
-/** Grades at or above a floor like "C" on the catalog's letter scale. */
-function gradeMeetsFloor(grade: string | null, floor: string): boolean {
-  if (grade === null) return false;
-  // Ordered weakest to strongest, matching GRADE_POINTS: each plus-grade sits
-  // above its letter, each minus-grade below it.
-  const order = ["F", "D-", "D", "D+", "C-", "C", "C+", "B-", "B", "B+", "A-", "A", "A+"];
-  const gradeIndex = order.indexOf(grade);
-  const floorIndex = order.indexOf(floor);
-  if (gradeIndex === -1 || floorIndex === -1) return false;
-  return gradeIndex >= floorIndex;
-}
+/**
+ * UNT's grade points. The importer reads UNT transcript rows with only these
+ * letters (frontend/src/lib/transcript-import.ts, transcriptRowPattern): UNT
+ * grades carry no plus or minus, so a "B+" on a row is not on this scale.
+ */
+const GRADE_POINTS: Record<string, number> = { A: 4, B: 3, C: 2, D: 1, F: 0 };
+const LETTER_ORDER = ["F", "D", "C", "B", "A"];
+/** Grades that earn no credit: failed, withdrawn, incomplete, no pass, and the importer's zero-credit duplicate marker. */
+const NO_CREDIT_GRADES = new Set(["F", "W", "I", "NP", "Z"]);
+/** Grades that earn credit without grade points. */
+const CREDIT_ONLY_GRADES = new Set(["P", "CR"]);
 
 function levelOf(code: string): number {
   const match = /\s(\d{4})$/.exec(code);
@@ -88,486 +104,368 @@ function subjectOf(code: string): string {
 }
 
 /**
- * Maximum disjoint-option coverage: the largest number of options that can
- * each take all their courses from `available`. Overlapping options make a
- * first-fit undercount (options {A,B},{A,C},{B,D} admit two disjoint picks
- * while greedy commits to one), so the search backtracks. Options are tried
- * in catalog order, include-first, keeping the reported set deterministic.
+ * Whether a finished attempt earned credit: every grade but F, W, I, NP and
+ * Z does. The caller passes only rows the importer or the student judged
+ * finished, so a grade off UNT's scale or a missing one still counts as
+ * credit here; the grade floors and the GPA flag what they cannot read.
  */
-function maxCovered(options: { must: string[] }[], available: Set<string>, limit = Infinity): { covered: number; usedCodes: string[] } {
-  const candidates = options.filter((option) => option.must.every((code) => available.has(code)));
-  let bestCodes: string[][] = [];
-  const used = new Set<string>();
-  const picked: string[][] = [];
-  const walk = (start: number): void => {
-    if (picked.length > bestCodes.length) bestCodes = picked.map((codes) => [...codes]);
-    if (picked.length >= limit) return;
-    for (let index = start; index < candidates.length; index += 1) {
-      // No later candidate can grow a better answer from here.
-      if (picked.length + (candidates.length - index) <= bestCodes.length) break;
-      const option = candidates[index]!.must;
-      if (option.some((code) => used.has(code))) continue;
-      option.forEach((code) => used.add(code));
-      picked.push(option);
-      walk(index + 1);
-      picked.pop();
-      option.forEach((code) => used.delete(code));
-    }
-  };
-  walk(0);
-  return { covered: bestCodes.length, usedCodes: bestCodes.flat() };
+function earnsCredit(attempt: AuditCourse): boolean {
+  return !attempt.inProgress && !(attempt.grade !== null && NO_CREDIT_GRADES.has(attempt.grade));
 }
 
-/** Disjoint options maximizing the credit coverage usable toward an hours
- * target: for hour requirements what counts is the hours a picked set earns,
- * so a wider alternative outranks more single-course picks that total less,
- * and coverage past the target is not usable. Unknown credit values rank as
- * zero — the caller's detail still flags them. Ties prefer the larger set,
- * then the earlier listed one, keeping catalog order stable. */
-function maxCreditCovered(options: { must: string[] }[], available: Set<string>, creditsByCode: Map<string, number>, target: number): { usedCodes: string[] } {
-  const candidates = options.filter((option) => option.must.every((code) => available.has(code)));
-  const credits = candidates.map((option) => option.must.reduce((sum, code) => sum + (creditsByCode.get(code) ?? 0), 0));
-  // Upper bound on the credits the options from `start` onward could add:
-  // overlaps only shrink the true maximum, so the bound stays safe.
-  const bestFrom = new Array<number>(candidates.length + 1).fill(0);
-  for (let index = candidates.length - 1; index >= 0; index -= 1) bestFrom[index] = bestFrom[index + 1]! + credits[index]!;
-  let bestCodes: string[][] = [];
-  let bestUsable = 0;
-  const used = new Set<string>();
-  const picked: string[][] = [];
-  const walk = (start: number, creditsSoFar: number): void => {
-    const usable = Math.min(creditsSoFar, target);
-    if (usable > bestUsable || (usable === bestUsable && picked.length > bestCodes.length)) {
-      bestUsable = usable;
-      bestCodes = picked.map((codes) => [...codes]);
+/** What the record shows for one course code. */
+type CourseEvidence = {
+  code: string;
+  /** The latest finished attempt that earned credit. */
+  credit: AuditCourse | null;
+  /** The latest in-progress attempt. */
+  current: AuditCourse | null;
+  /** Every attempt, oldest first. */
+  attempts: AuditCourse[];
+};
+
+/**
+ * Groups attempts by code. A completed attempt stays completed when a later
+ * retake is in progress: the retake can only add, so the course is credited
+ * now and the retake is not counted again.
+ */
+function collectEvidence(courses: AuditCourse[]): Map<string, CourseEvidence> {
+  const byCode = new Map<string, CourseEvidence>();
+  const ordered = courses.map((course, index) => ({ course, index })).sort((a, b) => a.course.term - b.course.term || a.index - b.index);
+  for (const { course } of ordered) {
+    const entry = byCode.get(course.code) ?? { code: course.code, credit: null, current: null, attempts: [] };
+    entry.attempts.push(course);
+    if (earnsCredit(course)) entry.credit = course;
+    if (course.inProgress) entry.current = course;
+    byCode.set(course.code, entry);
+  }
+  return byCode;
+}
+
+/** The course set one evaluation reads, its credit values, and the shared claims. */
+type Scenario = {
+  available: Set<string>;
+  credits: Map<string, number | null>;
+  used: Set<string>;
+  /** Codes the tracked nodes claimed in an earlier pass; pools report only what they left. */
+  claimedByTracked: Set<string> | null;
+};
+
+type State = "met" | "unmet" | "undecided";
+type Evaluation = { name: string; kind: RequirementNode["kind"]; state: State; detail: string; citation: Citation; children?: Evaluation[] };
+
+function isFree(scenario: Scenario, code: string): boolean {
+  return scenario.available.has(code) && !scenario.used.has(code);
+}
+
+function claim(scenario: Scenario, codes: string[]): void {
+  codes.forEach((code) => scenario.used.add(code));
+}
+
+function optionCount(option: OptionGroup): number {
+  return option.counts ?? 1;
+}
+
+/**
+ * The slot picks that fill the most of `count` from free courses: each slot
+ * gives at most one alternative, and slots may not share a course. Overlapping
+ * alternatives make a first-fit undercount, so the search backtracks; slots
+ * and alternatives are tried in catalog order and the first assignment that
+ * reaches `count` wins, keeping the result deterministic.
+ */
+function bestSlotPicks(slots: CourseSlot[], count: number, scenario: Scenario): { covered: number; codes: string[] } {
+  const candidates = slots
+    .map((slot) => slot.alternatives.filter((option) => option.must.every((code) => isFree(scenario, code))))
+    .filter((alternatives) => alternatives.length > 0);
+  const maxGain = candidates.map((alternatives) => Math.max(...alternatives.map(optionCount)));
+  const remainingGain = new Array<number>(candidates.length + 1).fill(0);
+  for (let index = candidates.length - 1; index >= 0; index -= 1) remainingGain[index] = remainingGain[index + 1]! + maxGain[index]!;
+  let best = { covered: 0, codes: [] as string[] };
+  const taken = new Set<string>();
+  const picked: string[] = [];
+  const walk = (index: number, covered: number): boolean => {
+    const capped = Math.min(covered, count);
+    if (capped > best.covered) best = { covered: capped, codes: [...picked] };
+    if (capped >= count) return true;
+    if (index >= candidates.length || Math.min(covered + remainingGain[index]!, count) <= best.covered) return false;
+    for (const option of candidates[index]!) {
+      if (option.must.some((code) => taken.has(code))) continue;
+      option.must.forEach((code) => taken.add(code));
+      picked.push(...option.must);
+      const done = walk(index + 1, covered + optionCount(option));
+      picked.splice(picked.length - option.must.length, option.must.length);
+      option.must.forEach((code) => taken.delete(code));
+      if (done) return true;
     }
-    for (let index = start; index < candidates.length; index += 1) {
-      const reachable = Math.min(creditsSoFar + bestFrom[index]!, target);
-      // Nothing from here can beat or usefully tie the current answer.
-      if (reachable < bestUsable || (reachable === bestUsable && picked.length + (candidates.length - index) <= bestCodes.length)) break;
-      const option = candidates[index]!.must;
-      if (option.some((code) => used.has(code))) continue;
-      option.forEach((code) => used.add(code));
-      picked.push(option);
-      walk(index + 1, creditsSoFar + credits[index]!);
-      picked.pop();
-      option.forEach((code) => used.delete(code));
-    }
+    return walk(index + 1, covered);
   };
   walk(0, 0);
-  return { usedCodes: bestCodes.flat() };
+  return best;
 }
 
-/** Completed courses matching a pool's subject/level rule. */
-function matchingCourses(node: PoolNode, completed: Set<string>): string[] {
-  return [...completed].filter((code) => {
+function plural(count: number, word: string): string {
+  return `${count} ${word}${count === 1 ? "" : "s"}`;
+}
+
+function evaluate(node: RequirementNode, scenario: Scenario): Evaluation {
+  const base = { name: node.name, kind: node.kind, citation: node.citation };
+  switch (node.kind) {
+    case "all": {
+      // A required slot claims the first alternative it finds complete; the
+      // course is required here, so no later node has a better claim to it.
+      let met = 0;
+      for (const slot of node.items) {
+        const hit = slot.alternatives.find((option) => option.must.every((code) => isFree(scenario, code)));
+        if (!hit) continue;
+        claim(scenario, hit.must);
+        met += 1;
+      }
+      return { ...base, state: met === node.items.length ? "met" : "unmet", detail: `${met}/${node.items.length} required courses or sequences complete` };
+    }
+    case "choose": {
+      const { covered, codes } = bestSlotPicks(node.items, node.count, scenario);
+      claim(scenario, codes);
+      return { ...base, state: covered >= node.count ? "met" : "unmet", detail: `${covered}/${node.count} chosen${codes.length > 0 ? ` (${codes.join(", ")})` : ""}` };
+    }
+    case "hours": {
+      // Options with known credit go first, in catalog order. A course with
+      // unknown credit could be the one that fills the hours, so claiming
+      // stops there: the node cannot hoard more courses on a guess, and it
+      // reads advisory rather than satisfied or unsatisfied.
+      const known = (option: OptionGroup): boolean => option.must.every((code) => scenario.credits.get(code) != null);
+      const ordered = [...node.options.filter(known), ...node.options.filter((option) => !known(option))];
+      let hours = 0;
+      const taken: string[] = [];
+      const unknown: string[] = [];
+      for (const option of ordered) {
+        if (hours >= node.hours) break;
+        if (!option.must.every((code) => isFree(scenario, code))) continue;
+        claim(scenario, option.must);
+        taken.push(...option.must);
+        for (const code of option.must) {
+          const value = scenario.credits.get(code);
+          if (value == null) unknown.push(code);
+          else hours += value;
+        }
+        if (unknown.length > 0) break;
+      }
+      const state: State = hours >= node.hours ? "met" : unknown.length > 0 ? "undecided" : "unmet";
+      const listed = taken.length > 0 ? ` (${taken.join(", ")})` : "";
+      const unknownNote = unknown.length > 0 ? `; credit hours unknown for ${unknown.join(", ")}` : "";
+      return { ...base, state, detail: `${plural(taken.length, "course")}, ${hours}/${node.hours} hours${listed}${unknownNote}` };
+    }
+    case "pool":
+      return { ...base, state: "undecided", detail: poolDetail(node, scenario) };
+    case "choice": {
+      // Every branch is tried against the claims made before the choice, so
+      // each branch's progress is reported on equal terms. The first met
+      // branch keeps its claims; when none is met, nothing is claimed and the
+      // branches' courses stay free for later nodes.
+      const start = scenario.used;
+      const tried = node.branches.map((branch) => {
+        scenario.used = new Set(start);
+        const evaluation = evaluate(branch.node, scenario);
+        return { branch: branch.name, evaluation, after: scenario.used };
+      });
+      const met = tried.find((entry) => entry.evaluation.state === "met");
+      scenario.used = met ? met.after : start;
+      const undecided = tried.find((entry) => entry.evaluation.state === "undecided");
+      const shown = met ?? undecided ?? tried[0]!;
+      return {
+        ...base,
+        name: `${node.name} — ${shown.branch}`,
+        state: met ? "met" : undecided ? "undecided" : "unmet",
+        detail: met ? shown.evaluation.detail : `No branch met. ${shown.branch}: ${shown.evaluation.detail}`,
+        children: tried.map((entry) => entry.evaluation),
+      };
+    }
+    case "group": {
+      // Policies nested in a group are checked with the program's policies
+      // and reported there; they are not parts the group can be missing.
+      const children = node.children.filter((child) => child.kind !== "policy").map((child) => evaluate(child, scenario));
+      const met = children.filter((child) => child.state === "met").length;
+      const undecided = children.filter((child) => child.state === "undecided");
+      // Any unmet part fails the group. Otherwise a part the audit cannot
+      // decide (an uncaptured elective list, a prose rule) leaves the whole
+      // group to an advisor: it cannot read satisfied with parts unchecked.
+      const state: State = children.some((child) => child.state === "unmet") ? "unmet" : undecided.length > 0 ? "undecided" : "met";
+      const review = undecided.length > 0 ? `; needs advisor review: ${undecided.map((child) => child.name).join(", ")}` : "";
+      return { ...base, state, detail: `${met}/${children.length} parts satisfied${review}`, children };
+    }
+    case "policy":
+      return { ...base, state: "undecided", detail: node.quote };
+    case "note":
+      return { ...base, state: "undecided", detail: node.text };
+  }
+}
+
+/**
+ * An advisory pool's detail: the record's courses that match its subject and
+ * level rule, after every tracked node took its courses. A required CSCE
+ * course is never listed as an elective candidate.
+ */
+function poolDetail(node: PoolNode, scenario: Scenario): string {
+  const excluded = scenario.claimedByTracked ?? scenario.used;
+  const matching = [...scenario.available].filter((code) => {
+    if (excluded.has(code)) return false;
     if (node.match.subjects === null || !node.match.subjects.includes(subjectOf(code))) return false;
     const level = levelOf(code);
     if (node.match.minLevel !== null && level < node.match.minLevel) return false;
     if (node.match.maxLevel !== null && level > node.match.maxLevel) return false;
     return true;
-  });
+  }).sort();
+  const known = matching.map((code) => scenario.credits.get(code));
+  const hours = known.every((value) => value != null) ? `${known.reduce<number>((sum, value) => sum + (value ?? 0), 0)} hours` : "hours partly unknown";
+  const list = matching.length > 0 ? `${matching.join(", ")} (${hours} of ${node.hours})` : "none";
+  return `${node.note ?? "Advisory: the catalog's course list for this requirement is not captured."} Unclaimed courses matching the subject and level rule: ${list}. Verify against the catalog list.`;
 }
 
-function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set<string>, creditsByCode: Map<string, number>, allocation: Allocation | null = null, applied: Set<string> = new Set()): NodeOutcome {
-  const cite = node.citation;
-  switch (node.kind) {
-    case "all": {
-      const slotStates = node.items.map((slot) => {
-        const hit = slot.alternatives.find((option) => option.must.every((code) => completed.has(code)));
-        if (hit) {
-          hit.must.forEach((code) => applied.add(code));
-          return { state: "satisfied", option: hit };
-        }
-        // An option whose courses are all completed or in progress, with at
-        // least one still in progress, is under way: a completed lecture
-        // with an in-progress lab is progress, not a miss.
-        const pending = slot.alternatives.find(
-          (option) => option.must.every((code) => completed.has(code) || inProgress.has(code)) && option.must.some((code) => inProgress.has(code)),
-        );
-        if (pending) {
-          pending.must.forEach((code) => applied.add(code));
-          return { state: "inProgress", option: pending };
-        }
-        return { state: "unsatisfied", option: null };
-      });
-      const satisfied = slotStates.filter((slot) => slot.state === "satisfied").length;
-      const progress = slotStates.filter((slot) => slot.state === "inProgress").length;
-      const detail = `${satisfied}/${slotStates.length} slots satisfied${progress > 0 ? `, ${progress} in progress` : ""}`;
-      return {
-        name: node.name,
-        status: satisfied === slotStates.length ? "satisfied" : progress > 0 ? "inProgress" : "unsatisfied",
-        detail,
-        citation: cite,
-      };
-    }
-    case "choose": {
-      if (allocation) {
-        // Maximum disjoint coverage, but each taken option claims its courses
-        // in the shared allocation so later nodes cannot reuse them, and
-        // coverage only counts courses no earlier node took.
-        const freeCompleted = new Set([...completed].filter((code) => !allocation.used.has(code)));
-        const freePlanned = new Set([...freeCompleted, ...[...inProgress].filter((code) => !allocation.used.has(code))]);
-        const { covered, usedCodes } = maxCovered(node.options, freeCompleted, node.count);
-        usedCodes.forEach((code) => {
-          allocation.used.add(code);
-          applied.add(code);
-        });
-        const possible = maxCovered(node.options, freePlanned, node.count).covered;
-        const status = covered >= node.count ? "satisfied" : possible > covered ? "inProgress" : "unsatisfied";
-        return { name: node.name, status, detail: `${covered}/${node.count} chosen`, citation: cite };
-      }
-      // Only the options the choice actually uses count toward grade floors:
-      // the unused alternatives are not dragged in.
-      const { covered, usedCodes } = maxCovered(node.options, completed, node.count);
-      usedCodes.forEach((code) => applied.add(code));
-      const possible = maxCovered(node.options, new Set([...completed, ...inProgress]), node.count).covered;
-      const status = covered >= node.count ? "satisfied" : possible > covered ? "inProgress" : "unsatisfied";
-      return { name: node.name, status, detail: `${covered}/${node.count} chosen`, citation: cite };
-    }
-    case "hours": {
-      if (allocation) {
-        // Options in listed order form a prefix: each option whose courses are
-        // all completed and unclaimed is taken (and claims them) until the
-        // hours are met. A course claimed here cannot satisfy a later node,
-        // which is how the catalog's double-dip rule behaves. When the node is
-        // short, a planned pass accepts options whose members are completed or
-        // in progress; accepting one claims EVERY member into the allocation —
-        // a completed lecture paired with its live lab is spent in this area
-        // even though only the lab contributes planned hours. A node already
-        // satisfied by completed work claims nothing further. The planned
-        // amount is reported whenever any live credit was counted: completed
-        // and planned hours mix without hiding the live term.
-        let courses = 0;
-        let credits = 0;
-        let unknownCredits = false;
-        for (const option of node.options) {
-          if (credits >= node.hours) break;
-          if (!option.must.every((code) => completed.has(code) && !allocation.used.has(code))) continue;
-          option.must.forEach((code) => allocation.used.add(code));
-          option.must.forEach((code) => applied.add(code));
-          courses += 1;
-          for (const code of option.must) {
-            const value = creditsByCode.get(code);
-            if (value === undefined) unknownCredits = true;
-            else credits += value;
-          }
-        }
-        let plannedCredits = 0;
-        let plannedUnknown = false;
-        if (credits < node.hours) {
-          for (const option of node.options) {
-            if (plannedCredits >= node.hours - credits) break;
-            if (!option.must.every((code) => (completed.has(code) || inProgress.has(code)) && !allocation.used.has(code))) continue;
-            // Claim every member of an accepted planned option: only the
-            // in-progress members count toward planned hours, but the completed
-            // members are spent here and cannot feed a later core area.
-            option.must.forEach((code) => allocation.used.add(code));
-            for (const code of option.must) {
-              if (!inProgress.has(code)) continue;
-              const value = creditsByCode.get(code);
-              if (value === undefined) plannedUnknown = true;
-              else plannedCredits += value;
-            }
-          }
-        }
-        const detail = `${courses} course${courses === 1 ? "" : "s"}, ${credits}/${node.hours} hours${unknownCredits ? " (some credit hours unknown)" : ""}${plannedCredits > 0 ? `, ${plannedCredits} planned` : ""}${plannedUnknown ? " (planned credit hours unknown)" : ""}`;
-        const status = credits >= node.hours ? "satisfied" : plannedCredits > credits || plannedUnknown || courses > 0 ? "inProgress" : "unsatisfied";
-        return { name: node.name, status, detail, citation: cite };
-      }
-      // The completed pass maximizes usable credit coverage, not option
-      // count: a wider alternative worth more hours outranks more
-      // single-course picks that total less, and coverage past the target is
-      // not usable.
-      const { usedCodes } = maxCreditCovered(node.options, completed, creditsByCode, node.hours);
-      usedCodes.forEach((code) => applied.add(code));
-      const courses = usedCodes.length;
-      // In-progress rows are reported as planned coverage: a term still under
-      // way that already reaches the hours — or adds any hours at all — keeps
-      // the node in progress instead of unsatisfied. Each counted option
-      // claims every member in a node-local set — only the in-progress ones
-      // count planned hours, but the completed members are spent on that
-      // option and cannot anchor a second overlapping one.
-      let total = 0;
-      let unknownCredits = false;
-      for (const code of usedCodes) {
-        const value = creditsByCode.get(code);
-        if (value === undefined) unknownCredits = true;
-        else total += value;
-      }
-      // Planned coverage only fills a node the completed hours have not met —
-      // a satisfied node reports no planned hours — and the detail exposes the
-      // planned amount whenever any in-progress credit was counted, so a mix
-      // of completed and planned hours does not hide the live term.
-      let plannedTotal = 0;
-      let plannedUnknown = false;
-      const plannedUsed = new Set<string>();
-      if (total < node.hours) {
-        for (const option of node.options) {
-          if (plannedTotal >= node.hours - total) break;
-          if (!option.must.every((code) => (completed.has(code) || inProgress.has(code)) && !plannedUsed.has(code))) continue;
-          for (const code of option.must) {
-            if (inProgress.has(code)) {
-              const value = creditsByCode.get(code);
-              if (value === undefined) plannedUnknown = true;
-              else plannedTotal += value;
-            }
-            plannedUsed.add(code);
-          }
-        }
-      }
-      const detail = `${courses} course${courses === 1 ? "" : "s"}, ${total}/${node.hours} hours${unknownCredits ? " (some credit hours unknown)" : ""}${plannedTotal > 0 ? `, ${plannedTotal} planned` : ""}${plannedUnknown ? " (planned credit hours unknown)" : ""}`;
-      const status = total >= node.hours ? "satisfied" : plannedTotal > total || plannedUnknown || courses > 0 ? "inProgress" : "unsatisfied";
-      return { name: node.name, status, detail, citation: cite };
-    }
-    case "pool": {
-      // Matches stay on this advisory node: the pool's subject/level rule is
-      // the audit's approximation of a list the capture did not record, so
-      // its courses never confirm major coursework in any policy scope.
-      const matching = matchingCourses(node, completed);
-      const total = matching.length * 3;
-      return {
-        name: node.name,
-        status: "advisory",
-        detail: `${node.note ?? "Advisory pool: the catalog's authoritative list is not captured."} Completed courses matching the subject/level rule: ${matching.length > 0 ? matching.join(", ") : "none"} (~${total} hours of ${node.hours}). Verify against the catalog list.`,
-        citation: cite,
-      };
-    }
-    case "choice": {
-      if (allocation) {
-        // Branches try in order against the live allocation: the first
-        // satisfied branch keeps its consumption, later branches roll back so
-        // an unsatisfied attempt releases its courses to the next branch, and
-        // the first in-progress branch (re-evaluated so its partial claims
-        // stand) is the fallback when nothing satisfies.
-        let satisfied: { branch: Branch; outcome: NodeOutcome } | null = null;
-        let pending: { branch: Branch; outcome: NodeOutcome } | null = null;
-        let advisory: { branch: Branch; outcome: NodeOutcome } | null = null;
-        for (const branch of node.branches) {
-          const usedSnapshot = new Set(allocation.used);
-          const appliedSnapshot = new Set(applied);
-          const outcome = evaluate(branch.node, completed, inProgress, creditsByCode, allocation, applied);
-          if (outcome.status === "satisfied") {
-            satisfied = { branch, outcome };
-            break;
-          }
-          if (outcome.status === "inProgress" && pending === null) pending = { branch, outcome };
-          if (outcome.status === "advisory" && advisory === null) advisory = { branch, outcome };
-          allocation.used = usedSnapshot;
-          applied.clear();
-          appliedSnapshot.forEach((code) => applied.add(code));
-        }
-        if (satisfied) return { ...satisfied.outcome, name: `${node.name} — ${satisfied.branch.name}`, citation: cite };
-        if (pending) {
-          const outcome = evaluate(pending.branch.node, completed, inProgress, creditsByCode, allocation, applied);
-          return { ...outcome, name: `${node.name} — ${pending.branch.name}`, citation: cite };
-        }
-        // An advisory best branch (a proficiency note, say) is reported as
-        // advisory, not as an unsatisfied requirement.
-        if (advisory) return { ...advisory.outcome, name: `${node.name} — ${advisory.branch.name}`, citation: cite };
-        const first = node.branches[0];
-        const outcome = evaluate(first.node, completed, inProgress, creditsByCode, allocation, applied);
-        return {
-          name: `${node.name} — ${first.name}`,
-          status: "unsatisfied",
-          detail: `No branch satisfied. First branch: ${outcome.detail}`,
-          citation: cite,
-        };
-      }
-      const results = node.branches.map((branch) => {
-        // Each branch evaluates against a scratch applied set; only the
-        // chosen branch's courses count toward grade floors.
-        const scratch = new Set(applied);
-        const outcome = evaluate(branch.node, completed, inProgress, creditsByCode, allocation, scratch);
-        return { branch, outcome, scratch };
-      });
-      const chosen = results.find((result) => result.outcome.status === "satisfied")
-        ?? results.find((result) => result.outcome.status === "inProgress");
-      if (chosen) {
-        applied.clear();
-        chosen.scratch.forEach((code) => applied.add(code));
-        return { ...chosen.outcome, name: `${node.name} — ${chosen.branch.name}`, citation: cite };
-      }
-      const best = results.find((result) => result.outcome.status !== "unsatisfied") ?? results[0];
-      if (best.outcome.status === "advisory") {
-        return { ...best.outcome, name: `${node.name} — ${best.branch.name}`, citation: cite };
-      }
-      return {
-        name: `${node.name} — ${best.branch.name}`,
-        status: "unsatisfied",
-        detail: `No branch satisfied. First branch: ${best.outcome.detail}`,
-        citation: cite,
-      };
-    }
-    case "group": {
-      const results = node.children.map((child) => evaluate(child, completed, inProgress, creditsByCode, allocation, applied));
-      const satisfied = results.filter((result) => result.status === "satisfied").length;
-      const progress = results.filter((result) => result.status === "inProgress").length;
-      // Notes and advisory pools cannot fail a group; only unsatisfied
-      // checkable parts do.
-      const unsatisfied = results.filter((result) => result.status === "unsatisfied").length;
-      return {
-        name: node.name,
-        status: unsatisfied > 0 ? "unsatisfied" : progress > 0 ? "inProgress" : "satisfied",
-        detail: `${satisfied}/${results.length} parts satisfied${progress > 0 ? `, ${progress} in progress` : ""}`,
-        citation: cite,
-      };
-    }
-    case "policy":
-    case "note":
-      return { name: node.name, status: "advisory", detail: node.kind === "policy" ? node.quote : node.text, citation: cite };
+/** One full pass over the tree, then a second so pools see what the tracked nodes claimed. */
+function evaluateProgram(program: ProgramData, available: Set<string>, credits: Map<string, number | null>): { evaluations: Evaluation[]; used: Set<string> } {
+  // Policies are checked separately and reported among the policies, not as requirement nodes.
+  const nodes = program.requirements.filter((node) => node.kind !== "policy");
+  const first: Scenario = { available, credits, used: new Set(), claimedByTracked: null };
+  nodes.forEach((node) => evaluate(node, first));
+  // Pools never claim, so the second pass makes the same claims as the first.
+  const second: Scenario = { available, credits, used: new Set(), claimedByTracked: first.used };
+  const evaluations = nodes.map((node) => evaluate(node, second));
+  return { evaluations, used: second.used };
+}
+
+/**
+ * One outcome from the two evaluations. Both walk the same tree, so their
+ * parts line up by position; a choice lists every branch in both.
+ */
+function combine(now: Evaluation, projected: Evaluation): NodeOutcome {
+  const status: NodeOutcome["status"] =
+    now.state === "met" ? "satisfied" : projected.state === "met" ? "inProgress" : now.state === "undecided" || projected.state === "undecided" ? "advisory" : "unsatisfied";
+  // A choice in progress is named for the branch the in-progress courses complete.
+  const shown = status === "inProgress" ? projected : now;
+  // Short of satisfied, the detail shows what the in-progress courses add.
+  const detail = status !== "satisfied" && projected.detail !== now.detail ? `${now.detail}. Counting in-progress courses: ${projected.detail}` : now.detail;
+  const children = now.children?.map((child, index) => combine(child, projected.children![index]!));
+  return { name: shown.name, kind: now.kind, status, detail, citation: now.citation, ...(children ? { children } : {}) };
+}
+
+/** The finished courses a typed scope admits, each code once. */
+function evidenceInScope(scope: CourseScope, evidence: CourseEvidence[], applied: Set<string>): CourseEvidence[] {
+  switch (scope.kind) {
+    case "overall":
+      return evidence;
+    case "unt":
+      return evidence.filter((entry) => entry.credit?.sourceKind === "unt");
+    case "applied":
+      return evidence.filter((entry) => applied.has(entry.code));
+    case "codes":
+      return evidence.filter((entry) => scope.codes.includes(entry.code));
   }
 }
 
-type ScopeContext = { applied: Set<string> };
+/** Credit hours of the credited courses, each code once; null when any value is unknown. */
+function creditedHours(evidence: CourseEvidence[]): { hours: number | null; unknown: string[] } {
+  const unknown = evidence.filter((entry) => entry.credit !== null && entry.credit.credits === null).map((entry) => entry.code);
+  if (unknown.length > 0) return { hours: null, unknown };
+  return { hours: evidence.reduce((sum, entry) => sum + (entry.credit?.credits ?? 0), 0), unknown };
+}
 
-/** The courses from `list` a typed scope admits. */
-function coursesInScope(scope: CourseScope, list: AuditCourse[], context: ScopeContext): AuditCourse[] {
-  switch (scope.kind) {
-    case "overall":
-      return list;
-    case "unt":
-      return list.filter((course) => course.sourceKind === "unt");
-    case "major":
-      return list.filter((course) => context.applied.has(course.code));
-    case "codes":
-      return list.filter((course) => scope.codes.includes(course.code));
-    case "subjectLevel":
-      return list.filter((course) => scope.subjects.includes(subjectOf(course.code)) && (scope.minLevel === null || levelOf(course.code) >= scope.minLevel));
+function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied: Set<string>, options: AuditOptions): PolicyOutcome {
+  const base: PolicyOutcome = { name: policy.name, status: "unverifiable", detail: policy.quote, citation: policy.citation };
+  const credited = evidence.filter((entry) => entry.credit !== null);
+  const p = policy.policy;
+  switch (p.type) {
+    case "totalHours": {
+      const inScope = p.courseScope ? evidenceInScope(p.courseScope, credited, applied) : credited;
+      const { hours, unknown } = creditedHours(inScope);
+      if (hours === null) return { ...base, detail: `${policy.quote} — credit hours unknown for ${unknown.join(", ")}; cannot verify.` };
+      const pending = (p.courseScope ? evidenceInScope(p.courseScope, evidence, applied) : evidence).filter((entry) => entry.credit === null && entry.current !== null);
+      const pendingKnown = pending.reduce((sum, entry) => sum + (entry.current?.credits ?? 0), 0);
+      const pendingUnknown = pending.some((entry) => entry.current?.credits === null);
+      const note = pending.length > 0 ? ` (${pendingKnown} more in progress${pendingUnknown ? ", some with unknown credit hours" : ""})` : "";
+      return { ...base, status: hours >= p.hours ? "satisfied" : "unsatisfied", detail: `${hours} completed hours of ${p.hours}${note}` };
+    }
+    case "advancedHours": {
+      const { hours, unknown } = creditedHours(credited.filter((entry) => levelOf(entry.code) >= 3000));
+      if (hours === null) return { ...base, detail: `${policy.quote} — credit hours unknown for ${unknown.join(", ")}; cannot verify.` };
+      return { ...base, status: hours >= p.hours ? "satisfied" : "unsatisfied", detail: `${hours} advanced hours of ${p.hours}` };
+    }
+    case "advancedHoursAtUnt": {
+      const advanced = credited.filter((entry) => levelOf(entry.code) >= 3000);
+      const atUnt = advanced.filter((entry) => entry.credit?.sourceKind === "unt");
+      const elsewhere = advanced.length - atUnt.length;
+      const { hours, unknown } = creditedHours(atUnt);
+      if (hours === null) return { ...base, detail: `${policy.quote} — credit hours unknown for ${unknown.join(", ")}; cannot verify.` };
+      return {
+        ...base,
+        status: hours >= p.hours ? "satisfied" : "unsatisfied",
+        detail: `${hours} advanced UNT hours of ${p.hours}${elsewhere > 0 ? `; ${plural(elsewhere, "advanced transfer or exam course")} need advisor confirmation of residence credit` : ""}`,
+      };
+    }
+    case "residencyPercent":
+      return { ...base, detail: `${policy.quote} — the audit does not check the residence share yet; verify with an advisor.` };
+    case "minGrade": {
+      if (!p.courseScope) return { ...base, detail: `${policy.quote} — the course scope (${p.scope}) cannot be resolved from the record; cannot verify.` };
+      // The floor reads each credited course's latest credit-earning grade, so
+      // a D raised to a C on a retake passes, as the catalog's repeat wording
+      // ("repeat the course and raise the grade") asks.
+      const inScope = evidenceInScope(p.courseScope, credited, applied);
+      if (inScope.length === 0) return { ...base, detail: `${policy.quote} — no completed courses in scope (${p.scope}); nothing to check.` };
+      const gradeOf = (entry: CourseEvidence): string => entry.credit?.grade ?? "no grade";
+      const lettered = inScope.filter((entry) => gradeOf(entry) in GRADE_POINTS);
+      // Exam and transfer credit (CR, or no UNT grade) carries no letter to
+      // compare; it is listed, not failed. A P on a major course is a
+      // question for an advisor, so it makes the floor unverifiable.
+      const creditOnly = inScope.filter((entry) => !(gradeOf(entry) in GRADE_POINTS) && (gradeOf(entry) === "CR" || entry.credit?.sourceKind === "transfer" || entry.credit?.sourceKind === "exam"));
+      const unreadable = inScope.filter((entry) => !lettered.includes(entry) && !creditOnly.includes(entry));
+      const failing = lettered.filter((entry) => LETTER_ORDER.indexOf(gradeOf(entry)) < LETTER_ORDER.indexOf(p.grade));
+      const describe = (list: CourseEvidence[]): string => list.map((entry) => `${entry.code} (${gradeOf(entry)})`).join(", ");
+      const skipped = creditOnly.length > 0 ? ` Not checked, no letter grade: ${describe(creditOnly)}.` : "";
+      if (failing.length > 0) return { ...base, status: "unsatisfied", detail: `Below ${p.grade}: ${describe(failing)}.${skipped}` };
+      if (unreadable.length > 0) return { ...base, detail: `${policy.quote} — ${describe(unreadable)}: no grade on UNT's letter scale; cannot verify.${skipped}` };
+      return { ...base, status: "satisfied", detail: `No completed course in scope (${p.scope}) falls below ${p.grade}.${skipped}` };
+    }
+    case "gpa": {
+      if (!p.courseScope) return { ...base, detail: `${policy.quote} — the course scope (${p.scope}) cannot be resolved from the record; cannot verify.` };
+      return evaluateGpa(policy, p.minimum, p.courseScope, evidence, applied, options, base);
+    }
+    case "note":
+      return base;
   }
 }
 
 /**
- * The completed courses a grade or GPA policy applies to, from the typed
- * scope ingest parsed out of the catalog's wording. Returns null when no
- * filter resolves: the audit reports unverifiable rather than guessing a
- * scope. Hand-written trees may still carry the three universal scopes as
- * plain strings.
+ * GPA over every graded attempt in scope: A through F carry grade points,
+ * and an F's hours count with zero points ("all work attempted"). P, CR, W,
+ * I, NP and in-progress rows carry no points and are skipped. A course
+ * attempted more than once makes the figure unverifiable: which attempts
+ * count is UNT's repeat rule, and no captured page states it.
  */
-function scopedCourses(p: { scope: string; courseScope?: CourseScope }, courses: AuditCourse[], context: ScopeContext): AuditCourse[] | null {
-  const completed = courses.filter((course) => !course.inProgress);
-  if (p.courseScope) {
-    return coursesInScope(p.courseScope, completed, context);
+function evaluateGpa(policy: PolicyNode, minimum: number, scope: CourseScope, evidence: CourseEvidence[], applied: Set<string>, options: AuditOptions, base: PolicyOutcome): PolicyOutcome {
+  const inScope = scope.kind === "unt"
+    ? evidence.map((entry) => ({ ...entry, attempts: entry.attempts.filter((attempt) => attempt.sourceKind === "unt") }))
+    : evidenceInScope(scope, evidence, applied);
+  const graded = inScope.flatMap((entry) => entry.attempts.filter((attempt) => !attempt.inProgress && attempt.grade !== null && attempt.grade in GRADE_POINTS));
+  const offScale = inScope.flatMap((entry) => entry.attempts.filter((attempt) => !attempt.inProgress && attempt.grade !== null && attempt.grade !== "" && !(attempt.grade in GRADE_POINTS) && !NO_CREDIT_GRADES.has(attempt.grade) && !CREDIT_ONLY_GRADES.has(attempt.grade)));
+  // An F earns no hours, and the importer keeps earned hours (the transcript
+  // row's "earned" column, 0.000 for an F), so a 0 on an F is not the hours
+  // attempted. Without those hours the F's weight in the GPA is unknown.
+  const noCredits = graded.filter((attempt) => attempt.credits === null || (attempt.grade === "F" && attempt.credits === 0));
+  const repeated = [...new Set(graded.map((attempt) => attempt.code).filter((code, index, codes) => codes.indexOf(code) !== index))];
+  const reasons: string[] = [];
+  if (offScale.length > 0) reasons.push(`${offScale.map((attempt) => `${attempt.code} (${attempt.grade})`).join(", ")} ${offScale.length === 1 ? "has a grade" : "have grades"} off UNT's letter scale`);
+  if (noCredits.length > 0) reasons.push(`attempted hours unknown for ${noCredits.map((attempt) => `${attempt.code} (${attempt.grade})`).join(", ")}`);
+  if (repeated.length > 0) reasons.push(`${repeated.join(", ")} ${repeated.length === 1 ? "was" : "were"} attempted more than once, and UNT's repeat rule is not captured`);
+  if (graded.length === 0) reasons.push("no letter-graded attempts in scope");
+  const hours = graded.reduce((sum, attempt) => sum + (attempt.credits ?? 0), 0);
+  const points = graded.reduce((sum, attempt) => sum + GRADE_POINTS[attempt.grade!]! * (attempt.credits ?? 0), 0);
+  const value = noCredits.length === 0 && hours > 0 ? points / hours : null;
+  const figure = value === null ? "" : `${value.toFixed(2)} over ${plural(graded.length, "graded attempt")}`;
+  if (!options.gradeHistoryComplete) {
+    reasons.push("the record holds only the transcript rows saved to the planner, which leaves out failed and withdrawn attempts the import did not save");
   }
-  if (p.scope === "overall") return completed;
-  if (p.scope === "unt") return completed.filter((course) => course.sourceKind === "unt");
-  if (p.scope === "all courses required in the major") {
-    return completed.filter((course) => context.applied.has(course.code));
+  if (reasons.length > 0 || value === null) {
+    return { ...base, detail: `${figure ? `${figure} of ${minimum.toFixed(1)} required, but ` : ""}${reasons.join("; ")}. Cannot verify.` };
   }
-  return null;
-}
-
-function evaluatePolicy(policy: PolicyNode, courses: AuditCourse[], context: ScopeContext): PolicyOutcome {
-  const detail: PolicyOutcome = { name: policy.name, status: "unverifiable", detail: policy.quote, citation: policy.citation };
-  const completed = courses.filter((course) => !course.inProgress);
-  const sum = (list: AuditCourse[]): number | null => {
-    let total = 0;
-    for (const course of list) {
-      if (course.credits === null) return null;
-      total += course.credits;
-    }
-    return total;
-  };
-  const gpa = (list: AuditCourse[]): number | null => {
-    let points = 0;
-    let count = 0;
-    for (const course of list) {
-      if (course.grade === null || course.credits === null) return null;
-      const value = GRADE_POINTS[course.grade];
-      if (value === undefined) return null;
-      points += value * course.credits;
-      count += course.credits;
-    }
-    return count === 0 ? null : points / count;
-  };
-  const p = policy.policy;
-  switch (p.type) {
-    case "totalHours": {
-      // An optional course scope narrows both sums to the policy's own course
-      // set: the core's 42-hour total counts core coursework, not the whole
-      // record. Unscoped totals still read every completed transcript course.
-      const inScope = p.courseScope ? coursesInScope(p.courseScope, courses, context) : courses;
-      const total = sum(inScope.filter((course) => !course.inProgress));
-      if (total === null) return { ...detail, detail: `${policy.quote} — completed hours include unknown credit values; cannot verify.` };
-      // Planned credit never satisfies a policy — the verdict comes from the
-      // completed total — but the note must not guess either: known in-progress
-      // credits accumulate into the note and a missing credit value is flagged,
-      // the same convention the hours nodes use.
-      let planned = 0;
-      let plannedUnknown = false;
-      for (const course of inScope) {
-        if (!course.inProgress) continue;
-        if (course.credits === null) plannedUnknown = true;
-        else planned += course.credits;
-      }
-      return { ...detail, status: total >= p.hours ? "satisfied" : "unsatisfied", detail: `${total} completed hours of ${p.hours}${planned > 0 ? ` (${planned} in progress)` : ""}${plannedUnknown ? " (some in-progress credit hours unknown)" : ""}` };
-    }
-    case "advancedHours": {
-      const advanced = completed.filter((course) => levelOf(course.code) >= 3000);
-      const total = sum(advanced);
-      if (total === null) return { ...detail, detail: `${policy.quote} — unknown credit values; cannot verify.` };
-      return { ...detail, status: total >= p.hours ? "satisfied" : "unsatisfied", detail: `${total} advanced hours of ${p.hours}` };
-    }
-    case "advancedHoursAtUnt": {
-      const unt = completed.filter((course) => course.sourceKind === "unt" && levelOf(course.code) >= 3000);
-      const other = completed.filter((course) => course.sourceKind !== "unt" && levelOf(course.code) >= 3000);
-      const total = sum(unt);
-      if (total === null) return { ...detail, detail: `${policy.quote} — unknown credit values; cannot verify.` };
-      return {
-        ...detail,
-        status: total >= p.hours ? "satisfied" : "unsatisfied",
-        detail: `${total} advanced UNT hours of ${p.hours}${other.length > 0 ? `; ${other.length} advanced transfer/exam courses need advisor confirmation of residence credit` : ""}`,
-      };
-    }
-    case "residencyPercent":
-      return { ...detail, status: "unverifiable", detail: `${policy.quote} — the record does not split hours by institution; verify with an advisor.` };
-    case "subjectHours": {
-      // A policy may narrow the count to coursework its scope admits: the
-      // mathematics degree's hours total counts the mathematics courses the
-      // audit confirmed toward the major, not every MATH/STAT course on the
-      // record.
-      const bySubject = completed.filter((course) => p.subjects.includes(subjectOf(course.code)));
-      const inScope = p.courseScope ? coursesInScope(p.courseScope, bySubject, context) : bySubject;
-      const total = sum(inScope);
-      if (total === null) return { ...detail, detail: `${policy.quote} — unknown credit values; cannot verify.` };
-      return { ...detail, status: total >= p.hours ? "satisfied" : "unsatisfied", detail: `${total} hours in ${p.subjects.join("/")} of ${p.hours}` };
-    }
-    case "minGrade": {
-      const scoped = scopedCourses(p, courses, context);
-      if (scoped === null) {
-        return { ...detail, detail: `${policy.quote} — the course scope (${p.scope}) cannot be resolved from the record; cannot verify.` };
-      }
-      if (scoped.length === 0) {
-        return { ...detail, detail: `${policy.quote} — no completed courses in scope (${p.scope}); nothing to check.` };
-      }
-      // A grade the point table does not carry (credit, pass, in progress)
-      // cannot be compared: the floor is unverifiable, not passed.
-      const ungraded = scoped.filter((course) => course.grade === null || GRADE_POINTS[course.grade] === undefined);
-      if (ungraded.length > 0) {
-        return {
-          ...detail,
-          status: "unverifiable",
-          detail: `${policy.quote} — ${ungraded.map((course) => `${course.code} (${course.grade ?? "no grade"})`).join(", ")} ${ungraded.length === 1 ? "has" : "have"} no letter grade; cannot verify.`,
-        };
-      }
-      const failing = scoped.filter((course) => !gradeMeetsFloor(course.grade, p.grade));
-      return failing.length === 0
-        ? { ...detail, status: "satisfied", detail: `No completed course in scope (${p.scope}) falls below ${p.grade}.` }
-        : { ...detail, status: "unsatisfied", detail: `Below ${p.grade}: ${failing.map((course) => `${course.code} (${course.grade ?? "no grade"})`).join(", ")}` };
-    }
-    case "gpa": {
-      const list = scopedCourses(p, courses, context);
-      if (list === null) {
-        return { ...detail, detail: `${policy.quote} — the course scope (${p.scope}) cannot be resolved from the record; cannot verify.` };
-      }
-      const value = gpa(list);
-      if (value === null) return { ...detail, detail: `${policy.quote} — grades or credits missing; cannot verify.` };
-      return { ...detail, status: value >= p.minimum ? "satisfied" : "unsatisfied", detail: `${value.toFixed(2)} GPA of ${p.minimum.toFixed(1)} required (${list.length} courses)` };
-    }
-  }
-  // The switch above covers every policy type; this fallback keeps the
-  // return type honest if a new kind is added without a check.
-  return detail;
+  return { ...base, status: value >= minimum ? "satisfied" : "unsatisfied", detail: `${figure} of ${minimum.toFixed(1)} required` };
 }
 
 /** Every policy node in the tree, including ones nested in groups and choices. */
@@ -580,43 +478,46 @@ function collectPolicyNodes(node: RequirementNode, into: PolicyNode[]): void {
   if (node.kind === "choice") node.branches.forEach((branch) => collectPolicyNodes(branch.node, into));
 }
 
-export function auditProgram(program: ProgramData, courses: AuditCourse[]): AuditResult {
-  const completed = new Set(courses.filter((course) => !course.inProgress).map((course) => course.code));
-  const inProgress = new Set(courses.filter((course) => course.inProgress).map((course) => course.code));
-  const creditsByCode = new Map<string, number>();
-  for (const course of courses) {
-    if (course.credits !== null) creditsByCode.set(course.code, course.credits);
+export function auditProgram(program: ProgramData, courses: AuditCourse[], options: AuditOptions): AuditResult {
+  const evidence = collectEvidence(courses);
+  const finished = new Set<string>();
+  const finishedCredits = new Map<string, number | null>();
+  const projected = new Set<string>();
+  const projectedCredits = new Map<string, number | null>();
+  for (const entry of evidence.values()) {
+    if (entry.credit) {
+      finished.add(entry.code);
+      finishedCredits.set(entry.code, entry.credit.credits);
+      projected.add(entry.code);
+      projectedCredits.set(entry.code, entry.credit.credits);
+    } else if (entry.current) {
+      projected.add(entry.code);
+      projectedCredits.set(entry.code, entry.current.credits);
+    }
   }
-  const applied = new Set<string>();
-  const allocation: Allocation | null = program.oneCourseOneArea ? { used: new Set<string>() } : null;
-  const requirements = program.requirements.map((node) => evaluate(node, completed, inProgress, creditsByCode, allocation, applied));
-  // Grade floors and scoped hour totals apply to the coursework the audit
-  // confirmed: courses that satisfied captured requirements. Advisory pool
-  // matches are approximations whose authoritative lists were not captured;
-  // they inform their own advisory nodes and never confirm major coursework.
-  // Policies nested anywhere get outcomes, and each appears once.
+  const now = evaluateProgram(program, finished, finishedCredits);
+  const later = evaluateProgram(program, projected, projectedCredits);
+  const requirements = now.evaluations.map((evaluation, index) => combine(evaluation, later.evaluations[index]!));
+
+  // Grade floors and scoped totals read the courses the requirement nodes
+  // claimed from finished work. Advisory pool matches are never claimed.
   const policyNodes: PolicyNode[] = [];
   for (const node of program.requirements) collectPolicyNodes(node, policyNodes);
-  const context: ScopeContext = { applied };
-  const policies = policyNodes.map((node) => evaluatePolicy(node, courses, context));
+  const policies = policyNodes.map((node) => evaluatePolicy(node, [...evidence.values()], now.used, options));
 
-  const summary = {
-    satisfied: requirements.filter((result) => result.status === "satisfied").length,
-    inProgress: requirements.filter((result) => result.status === "inProgress").length,
-    unsatisfied: requirements.filter((result) => result.status === "unsatisfied").length,
-    advisory: requirements.filter((result) => result.status === "advisory").length,
-    unverifiablePolicies: policies.filter((result) => result.status === "unverifiable").length,
-  };
+  const count = (status: NodeOutcome["status"]): number => requirements.filter((result) => result.status === status).length;
   return {
     programId: program.id,
     programName: program.name,
     requirements,
     policies,
     coreSharedCourses: program.coreSharedCourses,
-    summary,
+    summary: {
+      satisfied: count("satisfied"),
+      inProgress: count("inProgress"),
+      unsatisfied: count("unsatisfied"),
+      advisory: count("advisory"),
+      unverifiablePolicies: policies.filter((result) => result.status === "unverifiable").length,
+    },
   };
-}
-
-export function loadDegreeData(json: unknown): DegreeData {
-  return json as DegreeData;
 }

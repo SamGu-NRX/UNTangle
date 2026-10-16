@@ -6,7 +6,10 @@ import { readCatalogPage } from "./sections";
 import type { CatalogPage } from "./sections";
 import type { CourseScope, CourseSlot, DegreeData, OptionGroup, PolicyNode, ProgramData, RequirementNode } from "@untangle/core/degree/types";
 
-const CATALOG_ID = "catoid-40";
+// The planner's CatalogId form (packages/contracts/src/ids.ts) for the UNT
+// 2026-2027 Undergraduate Catalog, Acalog catoid 40. An academic record names
+// its catalog in this form, and the audit route compares the two.
+const CATALOG_ID = "unt-2026-27";
 const CATALOG_YEAR = "2026-2027";
 
 type ManifestPage = { file: string; url: string; title: string; capturedAt: string; sha256: string };
@@ -16,8 +19,8 @@ function collectCodes(node: RequirementNode, into: Set<string>): void {
   const optionsOf = (slots: CourseSlot[]): OptionGroup[] => slots.flatMap((slot) => slot.alternatives);
   const addAll = (option: OptionGroup): void => { for (const code of option.must) into.add(code); };
   switch (node.kind) {
-    case "all": for (const option of optionsOf(node.items)) addAll(option); break;
-    case "choose":
+    case "all":
+    case "choose": for (const option of optionsOf(node.items)) addAll(option); break;
     case "hours": for (const option of node.options) addAll(option); break;
     case "pool": break;
     case "choice": for (const branch of node.branches) collectCodes(branch.node, into); break;
@@ -83,29 +86,24 @@ function dedupePolicies(nodes: RequirementNode[], seen: Set<string> = new Set())
 /**
  * Resolve the catalog's scope wording into typed course scopes. The
  * Communication floor applies to the University Core's Communication area
- * (codes from the core page); a foundation floor applies to the program's
- * own foundation subtree. A wording with no matching subtree stays a plain
- * string, which the audit reports as unverifiable rather than guessing.
+ * (codes from the core page); the major floor applies to the courses the
+ * audit applied to the program's requirements. Any other wording fails the
+ * build: an unresolved scope would ship a check that can never run.
  */
 function resolveCourseScopes(nodes: RequirementNode[], communicationCodes: string[]): RequirementNode[] {
-  const resolve = (scope: string): CourseScope | null => {
+  const resolve = (scope: string): CourseScope => {
     if (scope === "overall") return { kind: "overall" };
     if (scope === "unt") return { kind: "unt" };
-    if (scope === "all courses required in the major") return { kind: "major" };
+    if (scope === "all courses required in the major") return { kind: "applied" };
     if (scope === "Communication core requirement" && communicationCodes.length > 0) return { kind: "codes", codes: communicationCodes };
-    if (scope === "foundation courses") {
-      const codes = codesFromNamedNode(nodes, /foundation/i);
-      return codes.length > 0 ? { kind: "codes", codes } : null;
-    }
-    return null;
+    throw new Error(`no course scope resolves the catalog wording "${scope}"`);
   };
   const walk = (list: RequirementNode[]): RequirementNode[] =>
     list.map((node) => {
       if (node.kind === "policy") {
         const p = node.policy;
         if ((p.type === "minGrade" || p.type === "gpa") && p.courseScope === undefined) {
-          const scope = resolve(p.scope);
-          return scope ? { ...node, policy: { ...p, courseScope: scope } } : node;
+          return { ...node, policy: { ...p, courseScope: resolve(p.scope) } };
         }
         return node;
       }
@@ -162,11 +160,6 @@ export function buildDegreeData(dataDir: string, builtAt: string): DegreeData {
     sourceUrl: corePage.url,
     requirements: resolveCourseScopes(dedupePolicies(coreRequirements), communicationCodes),
     coreSharedCourses: [...coreCodes].sort(),
-    // The core page's own double-dip note: each course counts toward at most
-    // one core area, so the audit allocates in tree order — the eight areas
-    // claim their courses before the Component Area Option choice reads what
-    // is left.
-    oneCourseOneArea: true,
   };
 
   return {
@@ -188,7 +181,9 @@ export function toGeneratedModuleSource(data: DegreeData): string {
     "// Do not edit by hand: rebuild with `bun packages/ingest/src/degree/build.ts`.",
     "// Source: UNT 2026-2027 catalog pages captured in packages/ingest/data/catalog/unt-2026-27.",
   ];
-  return header.join("\n") + "\n" + "export const DEGREE_DATA = " + JSON.stringify(data, null, 2) + ";\n";
+  // The annotation makes the frontend typecheck the generated data against
+  // the engine's types, so the routes read it without a cast.
+  return [...header, 'import type { DegreeData } from "@untangle/core/degree/types";', ""].join("\n") + "\n" + "export const DEGREE_DATA: DegreeData = " + JSON.stringify(data, null, 2) + ";\n";
 }
 
 const isMain = process.argv[1] !== undefined && import.meta.url.endsWith(path.basename(process.argv[1]));

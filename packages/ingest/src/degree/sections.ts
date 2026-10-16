@@ -42,15 +42,21 @@ export type CatalogPage = {
 
 const COURSE_PATTERN = /^([A-Z]{3,5})\s?(\d{4})\s*[-\u2013]\s*(.+)$/;
 const COURSE_LOOKAHEAD_SPLIT = /\s+(and\/or|with either|and|or)(?=\s+[A-Z]{3,5}\s?\d{4}\s*[-\u2013])/gi;
-const TRAILING_CONNECTOR = /\s*(and\/or|with either|and|or)\s*$/i;
+// The conjunction must stand as its own word: "UNT Braven Career and
+// Leadership Accelerator" ends in the letters "or" but not in the word.
+const TRAILING_CONNECTOR = /\s+(and\/or|with either|and|or)\s*$/i;
 const MARKER_PATTERN = /^(or|and|with either|or with)$/i;
 
-/** Connectors the catalog prints in course titles: "and/or" reads as "or". */
+/**
+ * Connectors the catalog prints in course titles. "and/or" keeps its own
+ * meaning, either course or both, rather than collapsing to "or": the CS lab
+ * science list's "BIOL 1710 and/or BIOL 1720, and BIOL 1760" needs the lab
+ * with whichever lectures the student takes.
+ */
 export function normalizeConnector(raw: string): string | null {
   const text = raw.trim().toLowerCase();
-  if (text === "and/or") return "or";
   if (text === "or with") return "with either";
-  if (text === "or" || text === "and" || text === "with either") return text;
+  if (text === "or" || text === "and" || text === "and/or" || text === "with either") return text;
   return null;
 }
 

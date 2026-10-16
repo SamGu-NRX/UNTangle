@@ -21,22 +21,6 @@
       "sha256": "d7feeb0c09892efec3a5621a90c3ce1e365d0be7e1c227c7aecfca8bd904c390"
     },
     {
-      "file": "math-bsmth.html",
-      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
-      "title": "Program: Mathematics, BSMTH (non–teacher certification) - University of North Texas",
-      "httpStatus": 200,
-      "capturedAt": "2026-10-15T12:22:01.320Z",
-      "sha256": "3ac9ec2968c3b9b96b4f2aaee251ba90d11fd854b84c27f10a4761f59e832a77"
-    },
-    {
-      "file": "biology-bsbio.html",
-      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
-      "title": "Program: Biology, BSBIO - University of North Texas",
-      "httpStatus": 200,
-      "capturedAt": "2026-10-15T12:22:01.320Z",
-      "sha256": "45450c58fabc4a0b20e7269473482750bd553a69099c294ef2a548f405bab094"
-    },
-    {
       "file": "core-curriculum.html",
       "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
       "title": "Program: University Core Curriculum - University of North Texas",

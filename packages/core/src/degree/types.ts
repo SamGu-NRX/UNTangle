@@ -26,6 +26,13 @@ export type Citation = {
  */
 export type OptionGroup = {
   must: string[];
+  /**
+   * How many of a choose node's picks this option fills; 1 when absent. The
+   * catalog's "BIOL 1710 and/or BIOL 1720, and BIOL 1760" lets a student take
+   * both lectures with the one lab, and that combination is two of the
+   * "choose 2" lab-science courses.
+   */
+  counts?: number;
 };
 
 /**
@@ -41,8 +48,13 @@ type Base = { name: string; citation: Citation };
 /** Courses every student must complete; each slot is one course or its listed alternatives. */
 export type AllNode = Base & { kind: "all"; items: CourseSlot[] };
 
-/** Complete exactly `count` option groups (a lecture-plus-lab pair is one). */
-export type ChooseNode = Base & { kind: "choose"; count: number; options: OptionGroup[] };
+/**
+ * Complete `count` picks from the slots. A slot's alternatives are the
+ * catalog's "A or B" equivalents, so one slot fills at most one alternative's
+ * worth of picks however many of its alternatives the record holds: CHEM 1410
+ * with its lab and CHEM 1415 with its lab are one lab-science course, not two.
+ */
+export type ChooseNode = Base & { kind: "choose"; count: number; items: CourseSlot[] };
 
 /** `hours` credit hours from the listed option groups. */
 export type HoursNode = Base & { kind: "hours"; hours: number; options: OptionGroup[] };
@@ -73,19 +85,20 @@ export type GroupNode = Base & { kind: "group"; children: RequirementNode[] };
 export type CourseScope =
   | { kind: "overall" }
   | { kind: "unt" }
-  /** Courses the audit confirmed toward the major by satisfying requirements. */
-  | { kind: "major" }
-  /** An explicit course set: one core area's list, or a program's foundation subtree. */
-  | { kind: "codes"; codes: string[] }
-  /** A subject/level rule, e.g. mathematics courses numbered 3350 or above. */
-  | { kind: "subjectLevel"; subjects: string[]; minLevel: number | null };
+  /**
+   * Courses the audit applied to this program's requirement nodes. Every
+   * program allocates, so this is the set of courses the nodes claimed: the
+   * major's courses for a major, the areas' courses for the core.
+   */
+  | { kind: "applied" }
+  /** An explicit course set, such as the core's Communication area list. */
+  | { kind: "codes"; codes: string[] };
 
 export type Policy =
   | { type: "totalHours"; hours: number; courseScope?: CourseScope }
   | { type: "advancedHours"; hours: number }
   | { type: "residencyPercent"; percent: number }
   | { type: "advancedHoursAtUnt"; hours: number }
-  | { type: "subjectHours"; hours: number; subjects: string[]; courseScope?: CourseScope }
   | { type: "minGrade"; grade: string; scope: string; courseScope?: CourseScope }
   | { type: "gpa"; minimum: number; scope: string; courseScope?: CourseScope }
   /** A rule the audit cannot measure; shown, never silently dropped. */
@@ -111,18 +124,11 @@ export type ProgramData = {
    * computed from the two captured pages.
    */
   coreSharedCourses: string[];
-  /**
-   * True for the core program: the catalog's double-dip rule counts each
-   * course toward at most one core area, so the audit allocates courses to
-   * nodes in tree order (areas claim theirs before the Component Area
-   * Option choice reads what is left) instead of every node reading the
-   * full record independently.
-   */
-  oneCourseOneArea?: boolean;
 };
 
 /** The built dataset: the captured-page manifest plus the programs. */
 export type DegreeData = {
+  /** The catalog year in the planner's CatalogId form, e.g. "unt-2026-27"; an academic record names the same id. */
   catalogId: string;
   catalogYear: string;
   builtAt: string;

@@ -7,18 +7,17 @@ import { documentRepository } from "@/lib/document-sync/repository";
 import { db, hasDatabaseUrl } from "@/lib/db";
 import { withRateLimit } from "@/lib/rate-limit/server";
 import { DEGREE_DATA } from "@/lib/degree/programs.generated";
+import { parseAcademicTerm } from "@/lib/term-chronology";
 
 export const runtime = "nodejs";
 
-// The four majors plus the University Core: the core's Component Area Option
-// is where the one-course-one-area allocation is visible in an audit, so
-// students audit their core progress directly. The listing route includes the
-// core, and every major audit returns the core audit beside it.
-const AUDITABLE_PROGRAM_IDS = ["cs-bs", "ce-bs", "math-bsmth", "biology-bsbio", "core"];
+// The served set: CS BS, CE BS and the University Core, all from the
+// 2026-2027 catalog. Every major audit returns the core audit beside it.
+const AUDITABLE_PROGRAM_IDS = ["cs-bs", "ce-bs", "core"];
 
 function findProgram(id: string): ProgramData | null {
   if (!AUDITABLE_PROGRAM_IDS.includes(id)) return null;
-  const programs = DEGREE_DATA.programs as ProgramData[];
+  const programs: ProgramData[] = DEGREE_DATA.programs;
   return programs.find((program) => program.id === id) ?? null;
 }
 
@@ -39,56 +38,54 @@ async function readAcademicRecord(userId: string): Promise<AcademicRecordBody | 
   return null;
 }
 
-// Semester ranks inside a calendar year: Spring before Summer before Fall.
-const SEASON_RANK: [RegExp, number][] = [
-  [/spring/i, 1],
-  [/summer/i, 2],
-  [/fall|autumn/i, 3],
-  [/winter/i, 4],
-];
-
 /**
- * Chronological term key: the calendar year times ten plus the semester's
- * rank, so "2025 Spring" orders before "2025 Fall" (and "2024 Fall" before
- * "2025 Spring") whichever way the transcript lists the rows. Both UNT row
- * formats ("2025 Fall", "Fall 2025") parse. An unparsable term sorts oldest,
- * and rows with equal keys keep transcript row order (the later row replaces
- * the earlier), so the resolution stays deterministic.
+ * A row's place in time for the engine's "latest attempt" reads, in the
+ * planner's chronology (@/lib/term-chronology): Spring, Summer, Fall, Winter
+ * within a year, and a term it cannot read after every known term.
  */
-function termKey(term: string): number {
-  const year = /\d{4}/.exec(term);
-  const season = SEASON_RANK.find(([pattern]) => pattern.test(term));
-  if (!year || !season) return 0;
-  return Number(year[0]) * 10 + season[1];
+function termRank(term: string): number {
+  const parsed = parseAcademicTerm(term);
+  return parsed ? parsed.year * 10 + parsed.seasonRank : Number.MAX_SAFE_INTEGER;
 }
 
+/** Grades that record an attempt without credit. The importer marks these rows ignored. */
+const NO_CREDIT_GRADES = new Set(["F", "W", "I", "NP"]);
+
+type Evidence = { attempts: AuditCourse[]; unreviewed: string[] };
+
 /**
- * Maps the planner's academic record to the audit engine's course inputs.
- * Only transcript rows go in: they are the record's sourced evidence. The
- * planner's hand-marked statuses and manual credit claims carry no grade or
- * hour evidence, so an audit over them would guess.
+ * Maps the planner's transcript rows to the engine's attempts. Only
+ * transcript rows go in: the planner's hand-marked statuses and manual
+ * credit claims carry no grade or hour evidence.
+ *
+ * - A completed or in-progress row the student has confirmed is an attempt.
+ * - An ignored row with an F, W, I or NP grade is still an attempt on the
+ *   transcript: it earns nothing, and an F counts in the GPA. Ignored rows
+ *   with any other grade are rows the student excluded.
+ * - A row still waiting for review counts for nothing, as in the planner's
+ *   evidence path, and is reported back so the student knows it was left out.
+ * - A duplicate-excluded row repeats another row and is dropped.
+ * Every attempt is kept, so an in-progress retake sits beside the completed
+ * attempt it repeats instead of replacing it.
  */
-function auditCourses(record: AcademicRecordBody): AuditCourse[] {
-  const courses = new Map<string, { course: AuditCourse; term: number }>();
+function auditEvidence(record: AcademicRecordBody): Evidence {
+  const attempts: AuditCourse[] = [];
+  const unreviewed: string[] = [];
   for (const row of record.transcriptRecords) {
-    // Ignored rows are excluded by the student; duplicate-excluded and
-    // needs-review rows are still working through the registrar process, and
-    // a review-required row (low-confidence import, provisional pass) counts
-    // for nothing until reviewed — the planner's evidence path excludes all
-    // of these regardless of the applied status, and so does the audit.
-    // None of them is completed evidence an audit may read.
-    if (row.appliedStatus === "ignored" || row.appliedStatus === "needsReview" || row.duplicateExcluded || row.reviewRequired) continue;
-    const inProgress = row.appliedStatus === "inProgress";
-    // Current-term rows carry an empty grade; the engine then reads the slot
-    // as in progress rather than completed without a grade.
+    if (row.duplicateExcluded) continue;
     const grade = row.grade === "" ? null : row.grade;
-    const attempt = { course: { code: row.code, grade, credits: row.credits, sourceKind: row.sourceKind, inProgress }, term: termKey(row.term) };
-    const existing = courses.get(row.code);
-    // Under UNT's repeat rule the most recent attempt counts: a later-term
-    // row replaces an earlier one, including a failing grade.
-    if (!existing || attempt.term >= existing.term) courses.set(row.code, attempt);
+    const attempt = { code: row.code, grade, credits: row.credits, sourceKind: row.sourceKind, term: termRank(row.term) };
+    if (row.appliedStatus === "ignored") {
+      if (grade !== null && NO_CREDIT_GRADES.has(grade)) attempts.push({ ...attempt, inProgress: false });
+      continue;
+    }
+    if (row.appliedStatus === "needsReview" || row.reviewRequired) {
+      unreviewed.push(`${row.code} (${row.term})`);
+      continue;
+    }
+    attempts.push({ ...attempt, inProgress: row.appliedStatus === "inProgress" });
   }
-  return [...courses.values()].map((entry) => entry.course);
+  return { attempts, unreviewed };
 }
 
 /**
@@ -116,17 +113,35 @@ export const GET = withRateLimit("degreeAudit", async (request: Request, context
       { status: 404, headers: { "Cache-Control": "no-store" } },
     );
   }
-  const courses = auditCourses(record);
-  const audit = auditProgram(program, courses);
-  // Every major audit carries the University Core audit beside it: both are
-  // audited against the same record, and the core's Component Area Option
-  // shows where otherwise double-counted courses land.
+  // Requirements differ between catalog years, so a record that names
+  // another year is not audited against this one.
+  if (record.catalogId !== null && record.catalogId !== DEGREE_DATA.catalogId) {
+    return NextResponse.json(
+      { error: `Your record follows the ${record.catalogId} catalog. Degree audits are only available for ${DEGREE_DATA.catalogId} so far.` },
+      { status: 409, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  const warnings: string[] = [];
+  if (record.catalogId === null) {
+    warnings.push(`Your record does not name a catalog year, so it was audited against the ${DEGREE_DATA.catalogYear} catalog. Check your catalog year on your degree audit.`);
+  }
+  const { attempts, unreviewed } = auditEvidence(record);
+  if (unreviewed.length > 0) {
+    warnings.push(`Not counted until you review them in the planner: ${unreviewed.join(", ")}.`);
+  }
+  // A saved record holds the rows the student confirmed at import, and the
+  // import leaves failed and withdrawn rows unsaved unless the student picks
+  // them (frontend/src/lib/connect/review.ts, importSelection). It cannot
+  // show every graded attempt, so GPA checks report unverifiable.
+  const options = { gradeHistoryComplete: false };
+  const audit = auditProgram(program, attempts, options);
   const coreProgram = id === "core" ? null : findProgram("core");
-  const core = coreProgram ? auditProgram(coreProgram, courses) : null;
+  const core = coreProgram ? auditProgram(coreProgram, attempts, options) : null;
   return NextResponse.json(
     {
       program: { id: program.id, name: program.name, catalogId: program.catalogId, sourceUrl: program.sourceUrl },
       catalogYear: DEGREE_DATA.catalogYear,
+      warnings,
       audit,
       core,
     },

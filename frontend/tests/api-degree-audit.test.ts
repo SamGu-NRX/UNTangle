@@ -1,4 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import type { TranscriptCourseRecord } from "@/lib/types";
+import { buildLocalFallbackPayload, reconcileTranscriptCourses } from "@/lib/transcript-import";
+import { importSelection, type CheckDecision } from "@/lib/connect/review";
 
 type SessionFn = (request?: Request) => Promise<{ user: { id: string } } | null>;
 type PullFn = (userId: string) => Promise<{ documentId: string; kind: string; revision: number; deleted: boolean }[]>;
@@ -26,360 +29,197 @@ beforeEach(() => {
   get.mockClear();
 });
 
-const recordBody = {
-  institutionId: "unt",
-  courseStatuses: {},
-  manualCredit: [],
-  major: null,
-  catalogId: null,
-  transcriptRecords: [
-    {
-      id: "row-1",
-      code: "CSCE 1030",
-      title: "Computer Science I",
-      term: "2025 Fall",
-      grade: "A",
-      credits: 3,
-      sourceKind: "unt",
-      confidence: 1,
-      rationale: "",
-      duplicateExcluded: false,
-      appliedStatus: "completed",
-      prerequisiteSatisfied: true,
-      reviewRequired: false,
-    },
-    {
-      id: "row-2",
-      code: "CSCE 2110",
-      title: "Discrete Structures",
-      term: "2026 Spring",
-      grade: "",
-      credits: null,
-      sourceKind: "current",
-      confidence: 1,
-      rationale: "",
-      duplicateExcluded: false,
-      appliedStatus: "inProgress",
-      prerequisiteSatisfied: true,
-      reviewRequired: false,
-    },
-    {
-      id: "row-3",
-      code: "MATH 1710",
-      title: "Calculus A",
-      term: "2025 Fall",
-      grade: "C-",
-      credits: 4,
-      sourceKind: "unt",
-      confidence: 1,
-      rationale: "",
-      duplicateExcluded: false,
-      appliedStatus: "completed",
-      prerequisiteSatisfied: true,
-      reviewRequired: false,
-    },
-  ],
+/**
+ * Synthetic UNT-format transcript text (no real student), read by the same
+ * parser the import page uses. Columns: attempted, earned, grade, points.
+ * The F and the W earn 0 hours, as on a real transcript.
+ */
+const TRANSCRIPT = `Transfer Credit
+ENGL 1310 First-Year Writing I  3.000  3.000  CR  0.000
+
+2025 Fall
+CSCE 1030 Computer Science I  3.000  3.000  B  9.000
+MATH 1710 Calculus I  4.000  0.000  F  0.000
+CSCE 1040 Computer Science II  3.000  3.000  D  3.000
+EENG 2710 Digital Logic Design  3.000  0.000  W  0.000
+
+2026 Spring
+MATH 1710 Calculus I  4.000  4.000  EN  0.000
+CSCE 1030 Computer Science I  3.000  3.000  EN  0.000`;
+
+/** The importer's rows for the transcript, exactly as the import page receives them. */
+function importedRows(): TranscriptCourseRecord[] {
+  return reconcileTranscriptCourses({ payload: buildLocalFallbackPayload(TRANSCRIPT), modelUsed: "local", extractionMode: "local" }).records;
+}
+
+/** The rows the import page saves for a set of decisions under "To check" (importSelection). */
+function savedRows(decisions: Record<string, CheckDecision> = {}): TranscriptCourseRecord[] {
+  const rows = importedRows();
+  const byCode = (code: string, grade: string) => rows.find((row) => row.code === code && row.grade === grade)!.id;
+  const resolved = Object.fromEntries(Object.entries(decisions).map(([key, decision]) => {
+    const [code, grade] = key.split("|") as [string, string];
+    return [byCode(code, grade), decision];
+  }));
+  return importSelection(rows, resolved);
+}
+
+function recordBody(transcriptRecords: TranscriptCourseRecord[], extra: { catalogId?: string | null; institutionId?: string } = {}) {
+  return { institutionId: extra.institutionId ?? "unt", courseStatuses: {}, manualCredit: [], major: null, catalogId: extra.catalogId === undefined ? null : extra.catalogId, transcriptRecords };
+}
+
+function serve(body: unknown) {
+  getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+  pull.mockImplementation(async () => [{ documentId: "doc-1", kind: "academic-record", revision: 1, deleted: false }]);
+  get.mockImplementation(async () => ({ kind: "academic-record", body }));
+}
+
+type Outcome = { name: string; status: string; detail: string; children?: Outcome[] };
+type AuditBody = {
+  error?: string;
+  warnings: string[];
+  catalogYear: string;
+  program: { id: string; catalogId: string };
+  audit: { requirements: Outcome[]; policies: Outcome[] };
+  core: { requirements: Outcome[]; policies: Outcome[] } | null;
 };
 
-describe("GET /api/v1/programs", () => {
-  test("lists the auditable programs with provenance", async () => {
-    const response = await programsRoute.GET(new Request("http://localhost:3000/api/v1/programs"));
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      catalogYear: string;
-      builtAt: string;
-      programs: { id: string; name: string; sourceUrl: string }[];
-      pages: { url: string; sha256: string }[];
-    };
-    expect(body.programs.map((program) => program.id)).toEqual(["cs-bs", "ce-bs", "math-bsmth", "biology-bsbio", "core"]);
-    for (const program of body.programs) expect(program.sourceUrl.startsWith("https://catalog.unt.edu")).toBe(true);
-    // Every page cites its capture provenance: url, time, and content hash.
-    expect(body.pages.length).toBeGreaterThan(0);
-    for (const page of body.pages) expect(page.sha256).toMatch(/^[0-9a-f]{64}$/);
+async function audit(id: string): Promise<{ status: number; body: AuditBody }> {
+  const response = await auditRoute.GET(new Request(`http://localhost:3000/api/v1/programs/${id}/audit`), { params: Promise.resolve({ id }) });
+  return { status: response.status, body: (await response.json()) as AuditBody };
+}
+
+const find = (outcomes: Outcome[], name: string): Outcome => {
+  for (const outcome of outcomes) {
+    if (outcome.name.startsWith(name)) return outcome;
+    const nested = outcome.children ? find(outcome.children, name) : null;
+    if (nested) return nested;
+  }
+  return null as never;
+};
+
+describe("the importer's rows, as the route sees them", () => {
+  test("the importer marks the F and W ignored and the D for review", () => {
+    const rows = importedRows();
+    const row = (code: string, grade: string) => rows.find((entry) => entry.code === code && entry.grade === grade)!;
+    expect([row("MATH 1710", "F").appliedStatus, row("MATH 1710", "F").credits]).toEqual(["ignored", 0]);
+    expect(row("EENG 2710", "W").appliedStatus).toBe("ignored");
+    expect([row("CSCE 1040", "D").appliedStatus, row("CSCE 1040", "D").reviewRequired]).toEqual(["completed", true]);
+    expect(row("ENGL 1310", "CR").sourceKind).toBe("transfer");
   });
 
-  test("lists the University Core alongside the majors: each major audit returns it", async () => {
+  test("with no decisions the import saves neither the F, the W nor the D", () => {
+    expect(savedRows().map((row) => `${row.code} ${row.grade} ${row.appliedStatus}`).sort()).toEqual(["CSCE 1030 B completed", "CSCE 1030 EN inProgress", "ENGL 1310 CR completed", "MATH 1710 EN inProgress"]);
+  });
+});
+
+describe("GET /api/v1/programs", () => {
+  test("lists CS BS, CE BS and the core, with page provenance", async () => {
     const response = await programsRoute.GET(new Request("http://localhost:3000/api/v1/programs"));
-    const body = (await response.json()) as { programs: { id: string }[] };
-    expect(body.programs.some((program) => program.id === "core")).toBe(true);
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { catalogId: string; programs: { id: string; sourceUrl: string }[]; pages: { sha256: string }[] };
+    expect(body.catalogId).toBe("unt-2026-27");
+    expect(body.programs.map((program) => program.id)).toEqual(["cs-bs", "ce-bs", "core"]);
+    for (const program of body.programs) expect(program.sourceUrl.startsWith("https://catalog.unt.edu")).toBe(true);
+    for (const page of body.pages) expect(page.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 });
 
 describe("GET /api/v1/programs/[id]/audit", () => {
   test("returns 401 signed out, for any program id", async () => {
-    const response = await auditRoute.GET(
-      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
-      { params: Promise.resolve({ id: "cs-bs" }) },
-    );
-    expect(response.status).toBe(401);
+    const { status } = await audit("cs-bs");
+    expect(status).toBe(401);
     expect(pull).not.toHaveBeenCalled();
   });
 
-  test("returns 404 for an unknown program id", async () => {
+  test("returns 404 for a program it does not serve, Mathematics and Biology included", async () => {
     getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
-    const response = await auditRoute.GET(
-      new Request("http://localhost:3000/api/v1/programs/chem-ms/audit"),
-      { params: Promise.resolve({ id: "chem-ms" }) },
-    );
-    expect(response.status).toBe(404);
+    for (const id of ["chem-ms", "math-bsmth", "biology-bsbio"]) expect((await audit(id)).status).toBe(404);
   });
 
   test("returns 404 when no academic record is synced", async () => {
     getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
-    const response = await auditRoute.GET(
-      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
-      { params: Promise.resolve({ id: "cs-bs" }) },
-    );
-    expect(response.status).toBe(404);
-    const body = (await response.json()) as { error: string };
+    const { status, body } = await audit("cs-bs");
+    expect(status).toBe(404);
     expect(body.error).toContain("transcript");
   });
 
-  test("audits the synced record: completed, in-progress, and grade-floor outcomes", async () => {
-    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
-    pull.mockImplementation(async () => [
-      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
-    ]);
-    get.mockImplementation(async () => ({ kind: "academic-record", body: recordBody }));
-
-    const response = await auditRoute.GET(
-      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
-      { params: Promise.resolve({ id: "cs-bs" }) },
-    );
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      program: { id: string; name: string; sourceUrl: string };
-      catalogYear: string;
-      audit: {
-        auditId: string;
-        requirements: { name: string; status: string; detail: string }[];
-        policies: { name: string; status: string; detail: string }[];
-        summary: Record<string, number>;
-      };
-    };
-    expect(body.program.id).toBe("cs-bs");
-    expect(body.catalogYear).toBe("2026-2027");
-
-    // CSCE 1030 (A) satisfies the first slot of the major's required courses;
-    // the current-term CSCE 2110 row reads in progress, not completed.
-    const majorRequirements = body.audit.requirements.find((node) => node.name === "Major requirements");
-    expect(majorRequirements?.status).toBe("inProgress");
-    expect(majorRequirements?.detail).toContain("1 in progress");
-    const otherRequired = body.audit.requirements.find((node) => node.name === "Other required courses");
-    expect(otherRequired?.detail).toContain("1/3 slots satisfied");
-    expect(body.audit.summary.inProgress).toBeGreaterThanOrEqual(1);
-
-    // The C floor sees the completed C- calculus in its scope.
-    const majorGrade = body.audit.policies.find((policy) => policy.name === "Minimum grade of C (major courses)");
-    expect(majorGrade?.status).toBe("unsatisfied");
-    expect(majorGrade?.detail).toContain("MATH 1710 (C-)");
-
-    // Institution-level policies the transcript cannot verify stay unverifiable.
-    expect(body.audit.policies.some((policy) => policy.status === "unverifiable")).toBe(true);
+  test("a default import: the GPA cannot be verified, because the saved rows leave out the F", async () => {
+    serve(recordBody(savedRows()));
+    const { status, body } = await audit("cs-bs");
+    expect(status).toBe(200);
+    const overall = find(body.audit.policies, "Overall GPA");
+    expect(overall.status).toBe("unverifiable");
+    expect(overall.detail).toStartWith("3.00 over 1 graded attempt of 2.0 required, but");
+    expect(overall.detail).toContain("leaves out failed and withdrawn attempts");
   });
 
-  test("audits the University Core: Social and Behavioral Sciences claims PADM 2100 before Option A reads it", async () => {
-    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
-    pull.mockImplementation(async () => [
-      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
-    ]);
-    get.mockImplementation(async () => ({
-      kind: "academic-record",
-      body: {
-        ...recordBody,
-        transcriptRecords: [
-          {
-            id: "row-1",
-            code: "PADM 2100",
-            title: "Public Administration",
-            term: "2025 Fall",
-            grade: "A",
-            credits: 3,
-            sourceKind: "unt",
-            confidence: 1,
-            rationale: "",
-            duplicateExcluded: false,
-            appliedStatus: "completed",
-            prerequisiteSatisfied: true,
-            reviewRequired: false,
-          },
-          {
-            id: "row-2",
-            code: "PHIL 2500",
-            title: "Introduction to Philosophy",
-            term: "2025 Fall",
-            grade: "A",
-            credits: 3,
-            sourceKind: "unt",
-            confidence: 1,
-            rationale: "",
-            duplicateExcluded: false,
-            appliedStatus: "completed",
-            prerequisiteSatisfied: true,
-            reviewRequired: false,
-          },
-        ],
-      },
-    }));
-
-    const response = await auditRoute.GET(
-      new Request("http://localhost:3000/api/v1/programs/core/audit"),
-      { params: Promise.resolve({ id: "core" }) },
-    );
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      program: { id: string };
-      audit: { requirements: { name: string; status: string; detail: string }[] };
-    };
-    expect(body.program.id).toBe("core");
-    // One course per core area: Social and Behavioral Sciences claims PADM
-    // 2100 in tree order, so Component Area Option A reads only PHIL 2500 —
-    // 1 course, 3 of 6 hours, in progress. Without the allocation the same
-    // record fills the option outright at 6/6.
-    const option = body.audit.requirements.find((node) => node.name.startsWith("Component Area Option"));
-    expect(option?.name).toContain("Option A");
-    expect(option?.status).toBe("inProgress");
-    expect(option?.detail).toContain("3/6");
+  test("an in-progress retake does not erase the completed attempt", async () => {
+    serve(recordBody(savedRows()));
+    const { body } = await audit("cs-bs");
+    const required = find(body.audit.requirements, "Required courses");
+    expect(required.status).toBe("unsatisfied");
+    expect(required.detail).toStartWith("1/17");
+    // CSCE 1030's B stands; MATH 1710 has only its current attempt.
+    expect(find(body.audit.requirements, "Other required courses").detail).toStartWith("0/3");
+    expect(find(body.audit.requirements, "Other required courses").detail).toContain("Counting in-progress courses: 1/3");
   });
 
-  test("a needsReview row is not read as completed evidence", async () => {
-    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
-    pull.mockImplementation(async () => [
-      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
-    ]);
-    get.mockImplementation(async () => ({
-      kind: "academic-record",
-      body: {
-        ...recordBody,
-        transcriptRecords: [{ ...recordBody.transcriptRecords[0]!, appliedStatus: "needsReview" }],
-      },
-    }));
-
-    const response = await auditRoute.GET(
-      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
-      { params: Promise.resolve({ id: "cs-bs" }) },
-    );
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { audit: { policies: { name: string; status: string }[] } };
-    // The only transcript row is awaiting review, so the GPA has no evidence
-    // and reports unverifiable instead of reading the row as completed.
-    const overall = body.audit.policies.find((policy) => policy.name === "Overall GPA");
-    expect(overall?.status).toBe("unverifiable");
+  test("a D the student confirms at import fails the major's C floor", async () => {
+    serve(recordBody(savedRows({ "CSCE 1040|D": "completed" })));
+    const { body } = await audit("cs-bs");
+    expect(find(body.audit.policies, "Minimum grade of C (major courses)")).toMatchObject({ status: "unsatisfied", detail: "Below C: CSCE 1040 (D)." });
   });
 
-  test("a reviewRequired row is not read as completed evidence", async () => {
-    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
-    pull.mockImplementation(async () => [
-      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
-    ]);
-    // The applied status reads completed, but the importer flagged the row
-    // for review (low-confidence import): the planner counts it for nothing,
-    // so the audit must not either.
-    get.mockImplementation(async () => ({
-      kind: "academic-record",
-      body: {
-        ...recordBody,
-        transcriptRecords: [{ ...recordBody.transcriptRecords[0]!, reviewRequired: true }],
-      },
-    }));
-
-    const response = await auditRoute.GET(
-      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
-      { params: Promise.resolve({ id: "cs-bs" }) },
-    );
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { audit: { policies: { name: string; status: string }[] } };
-    // The only transcript row is awaiting review, so the GPA has no evidence
-    // and reports unverifiable instead of reading the row as completed.
-    const overall = body.audit.policies.find((policy) => policy.name === "Overall GPA");
-    expect(overall?.status).toBe("unverifiable");
+  test("an F the student marks completed still earns no credit", async () => {
+    serve(recordBody(savedRows({ "MATH 1710|F": "completed" })));
+    const { body } = await audit("cs-bs");
+    expect(find(body.audit.requirements, "Other required courses").detail).toStartWith("0/3");
+    expect(find(body.audit.policies, "Overall GPA").detail).toContain("attempted hours unknown for MATH 1710 (F)");
   });
 
-  test("a passing retake replaces an earlier F under UNT's repeat rule", async () => {
-    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
-    pull.mockImplementation(async () => [
-      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
-    ]);
-    get.mockImplementation(async () => ({
-      kind: "academic-record",
-      body: {
-        ...recordBody,
-        transcriptRecords: [
-          { ...recordBody.transcriptRecords[0]!, term: "2024 Fall", grade: "F" },
-          { ...recordBody.transcriptRecords[0]!, id: "row-1b", term: "2025 Fall", grade: "B" },
-        ],
-      },
-    }));
-
-    const response = await auditRoute.GET(
-      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
-      { params: Promise.resolve({ id: "cs-bs" }) },
-    );
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { audit: { policies: { name: string; status: string; detail: string }[] } };
-    // The most recent attempt (the 2025 Fall B) counts, not the first row.
-    const overall = body.audit.policies.find((policy) => policy.name === "Overall GPA");
-    expect(overall?.status).toBe("satisfied");
-    expect(overall?.detail).toContain("3.00");
+  test("every importer row saved as-is: the F counts as an attempt, the unreviewed D is reported, not counted", async () => {
+    serve(recordBody(importedRows()));
+    const { body } = await audit("cs-bs");
+    expect(body.warnings).toContain("Not counted until you review them in the planner: CSCE 1040 (2025 Fall).");
+    expect(find(body.audit.policies, "Overall GPA").detail).toContain("attempted hours unknown for MATH 1710 (F)");
+    expect(find(body.audit.policies, "Minimum grade of C (major courses)").status).toBe("satisfied");
   });
 
-  test("the later term wins regardless of transcript row order", async () => {
-    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
-    pull.mockImplementation(async () => [
-      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
-    ]);
-    get.mockImplementation(async () => ({
-      kind: "academic-record",
-      body: {
-        ...recordBody,
-        transcriptRecords: [
-          { ...recordBody.transcriptRecords[0]!, term: "2025 Fall", grade: "F" },
-          { ...recordBody.transcriptRecords[0]!, id: "row-1b", term: "2025 Spring", grade: "B" },
-        ],
-      },
-    }));
-
-    const response = await auditRoute.GET(
-      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
-      { params: Promise.resolve({ id: "cs-bs" }) },
-    );
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { audit: { policies: { name: string; status: string; detail: string }[] } };
-    // 2025 Fall is the later term even though the Spring row is listed after
-    // it; the repeat rule must not depend on transcript row order.
-    const overall = body.audit.policies.find((policy) => policy.name === "Overall GPA");
-    expect(overall?.status).toBe("unsatisfied");
-    expect(overall?.detail).toContain("0.00");
+  test("exam and transfer credit rows are skipped by the GPA, not a reason to stop", async () => {
+    serve(recordBody(savedRows()));
+    const { body } = await audit("core");
+    expect(find(body.audit.requirements, "Communication, 6 hours").children?.[0]).toMatchObject({ status: "satisfied" });
+    expect(find(body.audit.policies, "Communication core grade").detail).toContain("Not checked, no letter grade: ENGL 1310 (CR).");
   });
 
-  test("a major audit returns the University Core audit alongside it", async () => {
-    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
-    pull.mockImplementation(async () => [
-      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
-    ]);
-    get.mockImplementation(async () => ({ kind: "academic-record", body: recordBody }));
+  test("a record without a catalog year is audited against 2026-27 with a warning", async () => {
+    serve(recordBody(savedRows()));
+    const { body } = await audit("cs-bs");
+    expect(body.program.catalogId).toBe("unt-2026-27");
+    expect(body.warnings[0]).toStartWith("Your record does not name a catalog year");
+  });
 
-    const response = await auditRoute.GET(
-      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
-      { params: Promise.resolve({ id: "cs-bs" }) },
-    );
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { core: { programId: string; requirements: { name: string }[] } | null };
-    expect(body.core?.programId).toBe("core");
-    expect(body.core?.requirements.length).toBeGreaterThan(0);
+  test("a record on the 2026-27 catalog gets no catalog warning", async () => {
+    serve(recordBody(savedRows(), { catalogId: "unt-2026-27" }));
+    const { body } = await audit("cs-bs");
+    expect(body.warnings).toEqual([]);
+  });
+
+  test("a record on another catalog year is refused, not audited against the wrong one", async () => {
+    serve(recordBody(savedRows(), { catalogId: "unt-2025-26" }));
+    const { status, body } = await audit("cs-bs");
+    expect(status).toBe(409);
+    expect(body.error).toContain("unt-2025-26");
+  });
+
+  test("a major audit returns the University Core audit beside it, and the core alone returns none", async () => {
+    serve(recordBody(savedRows()));
+    expect((await audit("ce-bs")).body.core?.requirements.length).toBeGreaterThan(0);
+    expect((await audit("core")).body.core).toBeNull();
   });
 
   test("does not read another institution's record", async () => {
-    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
-    pull.mockImplementation(async () => [
-      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
-    ]);
-    get.mockImplementation(async () => ({ kind: "academic-record", body: { ...recordBody, institutionId: "uta" } }));
-
-    const response = await auditRoute.GET(
-      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
-      { params: Promise.resolve({ id: "cs-bs" }) },
-    );
-    expect(response.status).toBe(404);
+    serve(recordBody(savedRows(), { institutionId: "utd" }));
+    expect((await audit("cs-bs")).status).toBe(404);
   });
 });

@@ -34,11 +34,11 @@ const CATOID = 40;
 const BASE = "https://catalog.unt.edu";
 const OUT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/catalog/unt-2026-27");
 
+// Mathematics (poid 21333) and Biology (poid 21206) were captured in #132 and
+// left out of the served set; their capture comes back with their derivation.
 const PAGES = [
   { file: "cs-bs.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21227`, expect: "Computer Science" },
   { file: "ce-bs.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21225`, expect: "Computer Engineering" },
-  { file: "math-bsmth.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21333`, expect: "Mathematics" },
-  { file: "biology-bsbio.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21206`, expect: "Biology" },
   { file: "core-curriculum.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21275`, expect: "University Core" },
   { file: "degree-requirements.html", url: `${BASE}/content.php?catoid=${CATOID}&navoid=4689`, expect: "Degree" },
 ];

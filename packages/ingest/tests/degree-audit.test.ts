@@ -1,367 +1,325 @@
 import { describe, expect, test } from "bun:test";
-import { cpSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { auditProgram, type AuditCourse } from "@untangle/core/degree/audit";
-import { buildDegreeData } from "../src/degree/build";
+import { auditProgram, type AuditCourse, type AuditResult, type NodeOutcome } from "@untangle/core/degree/audit";
 import type { ProgramData, RequirementNode } from "@untangle/core/degree/types";
+import { buildDegreeData } from "../src/degree/build";
+import { readFourYearPlan, type PlanEntry } from "../src/degree/plan";
+
+/**
+ * The audit against the real derived trees. The centerpiece audits each
+ * program's own published four-year plan, read from the captured page, as a
+ * finished student: every requirement the audit tracks must come back
+ * satisfied, or the derivation or the engine is wrong about the catalog.
+ */
 
 const dataDir = path.resolve(import.meta.dir, "../data/catalog/unt-2026-27");
 const data = buildDegreeData(dataDir, "2026-10-15T00:00:00.000Z");
-const program = (id: string) => {
+const COMPLETE = { gradeHistoryComplete: true };
+
+function program(id: string): ProgramData {
   const found = data.programs.find((candidate) => candidate.id === id);
   if (!found) throw new Error(`missing program ${id}`);
   return found;
-};
+}
 
-/** Depth-first find, since interesting nodes often sit inside groups. */
-const findNode = (name: string, nodes: RequirementNode[]): RequirementNode | null => {
-  for (const node of nodes) {
-    if (node.name === name) return node;
-    if (node.kind === "group") {
-      const nested = findNode(name, node.children);
+/** Codes a derived node lists, so every placeholder fill can be checked against the catalog. */
+function listedCodes(programId: string, name: string): string[] {
+  const walk = (nodes: RequirementNode[]): RequirementNode | null => {
+    for (const node of nodes) {
+      if (node.name === name) return node;
+      const nested = node.kind === "group" ? walk(node.children) : node.kind === "choice" ? walk(node.branches.map((branch) => branch.node)) : null;
       if (nested) return nested;
     }
-    if (node.kind === "choice") {
-      for (const branch of node.branches) {
-        const nested = findNode(name, [branch.node]);
-        if (nested) return nested;
-      }
+    return null;
+  };
+  const node = walk(program(programId).requirements);
+  if (!node) throw new Error(`no node ${name} in ${programId}`);
+  switch (node.kind) {
+    case "all":
+    case "choose":
+      return node.items.flatMap((slot) => slot.alternatives.flatMap((option) => option.must));
+    case "hours":
+      return node.options.flatMap((option) => option.must);
+    default:
+      throw new Error(`${name} lists no courses`);
+  }
+}
+
+/** A finished UNT attempt. */
+function done(code: string, credits: number | null = 3, grade = "B", extra: Partial<AuditCourse> = {}): AuditCourse {
+  return { code, grade, credits, sourceKind: "unt", inProgress: false, term: 1, ...extra };
+}
+
+/**
+ * A code no UNT list names, standing in for an elective the plan leaves
+ * open. Its subject matches no requirement, so it adds hours and nothing else.
+ */
+const FREE_ELECTIVE = "XFRE 1000";
+
+type Fill = { code: string; hours: number }[];
+
+/**
+ * The plan as a finished record. Each placeholder cell ("American History
+ * core", "Elective") takes the next fill listed for its label, and a fill must
+ * add up to the hours the plan prints for the cell. A label without a fill,
+ * or a fill left over, fails: the record must be exactly the plan.
+ */
+function planRecord(entries: PlanEntry[], fills: Record<string, Fill[]>, options: { inProgressFrom?: number } = {}): AuditCourse[] {
+  const queues = new Map(Object.entries(fills).map(([label, list]) => [label, [...list]]));
+  const courses: AuditCourse[] = [];
+  for (const entry of entries) {
+    const term = entry.year * 2 + entry.semester;
+    const inProgress = options.inProgressFrom !== undefined && term >= options.inProgressFrom;
+    const parts = entry.code ? [{ code: entry.code, hours: entry.hours }] : queues.get(entry.label)?.shift();
+    if (!parts) throw new Error(`no fill for the plan's "${entry.label}" (year ${entry.year}, semester ${entry.semester})`);
+    const sum = parts.reduce((total, part) => total + part.hours, 0);
+    if (sum !== entry.hours) throw new Error(`the fill for "${entry.label}" is ${sum} hours; the plan prints ${entry.hours}`);
+    for (const part of parts) {
+      courses.push(inProgress
+        ? { code: part.code, grade: null, credits: part.hours, sourceKind: "current", inProgress: true, term }
+        : done(part.code, part.hours, "B", { term }));
     }
   }
-  return null;
+  const unused = [...queues].filter(([, list]) => list.length > 0).map(([label]) => label);
+  if (unused.length > 0) throw new Error(`fills left over for ${unused.join(", ")}`);
+  return courses;
+}
+
+const one = (code: string, hours = 3): Fill => [{ code, hours }];
+
+/**
+ * Every node the audit tracks satisfied. A group or a choice is judged by its
+ * parts: pools and prose notes are advisory by design, and a group holding
+ * one reads advisory with every tracked part satisfied.
+ */
+function unmetTracked(outcomes: NodeOutcome[], path: string[] = []): string[] {
+  return outcomes.flatMap((outcome) => {
+    const here = [...path, outcome.name];
+    if (outcome.kind === "pool" || outcome.kind === "note") return outcome.status === "advisory" ? [] : [`${here.join(" > ")}: ${outcome.status}`];
+    if (outcome.kind === "group") {
+      const inside = unmetTracked(outcome.children ?? [], here);
+      const expected = (outcome.children ?? []).some((child) => child.kind === "pool" || child.kind === "note") ? "advisory" : "satisfied";
+      return outcome.status === expected ? inside : [`${here.join(" > ")}: ${outcome.status}`, ...inside];
+    }
+    return outcome.status === "satisfied" ? [] : [`${here.join(" > ")}: ${outcome.status} (${outcome.detail})`];
+  });
+}
+
+/** Policies other than residency, which the audit leaves to an advisor by design. */
+function unmetPolicies(result: AuditResult): string[] {
+  return result.policies.filter((outcome) => outcome.name !== "Residency" && outcome.status !== "satisfied").map((outcome) => `${outcome.name}: ${outcome.status} (${outcome.detail})`);
+}
+
+const csPlan = readFourYearPlan(readFileSync(path.join(dataDir, "cs-bs.html"), "utf8"));
+const cePlan = readFourYearPlan(readFileSync(path.join(dataDir, "ce-bs.html"), "utf8"));
+
+// Core placeholders take courses from the core page's own lists; each is
+// checked against the derived area below. Where an area lists honors twins
+// (PSCI 2315 beside PSCI 2305), the fill takes the two distinct courses a
+// student takes, not the first two listed.
+const coreFills = {
+  history: [one("HIST 2610"), one("HIST 2620")],
+  government: [one("PSCI 2305"), one("PSCI 2306")],
+  communication: [one("ENGL 1310")],
+  creativeArts: [one("ANTH 2400")],
+  culture: [one("AGER 2250")],
+  social: [one("ANTH 1010")],
 };
 
-const course = (code: string, grade: string | null = "A", credits: number | null = 3, extra: Partial<AuditCourse> = {}): AuditCourse => ({
-  code,
-  grade,
-  credits,
-  sourceKind: "unt",
-  inProgress: false,
-  ...extra,
-});
+const csFills: Record<string, Fill[]> = {
+  "American History core": coreFills.history,
+  "Communication Core": coreFills.communication,
+  "Creative Arts Core": coreFills.creativeArts,
+  "Government/Political Science core": coreFills.government,
+  "Language, Philosophy and Culture core": coreFills.culture,
+  "Social and Behavioral Sciences core": coreFills.social,
+  // The CS plan's named courses leave the Component Area Option three hours
+  // short (CSCE 1010 covers Option B; no named course is spare for Option A),
+  // so one free elective must be an Option A course. ANTH 1150 is the first
+  // Option A lists. The other two electives stay free.
+  Elective: [one("ANTH 1150"), one(FREE_ELECTIVE, 2), one(FREE_ELECTIVE.replace("1000", "1001"))],
+  "TECM 4000 Elective": [one("TECM 4180")],
+  // The CS plan never schedules CSCE 4350, which Major requirements list as
+  // required. Its "CSCE Elective" cell is the only CSCE cell without a named
+  // list, and the plan's CSCE hours add up only with CSCE 4350 in it: the 49
+  // listed hours plus 6 core, 6 breadth and 6 advanced elective hours.
+  "CSCE Elective": [one("CSCE 4350")],
+  "CSCE Core Elective": [one("CSCE 3530"), one("CSCE 4115")],
+  "CSCE Breadth Elective": [one("CSCE 4201"), one("CSCE 4210")],
+  // The CSCE Advanced Elective Courses list is not captured; two 4000-level
+  // CSCE courses outside the core and breadth picks stand in for it.
+  "CSCE Elective-advanced": [one("CSCE 4230"), one("CSCE 4240")],
+};
 
-describe("auditProgram on synthetic records", () => {
-  test("an empty record leaves tracked nodes unsatisfied, not errored", () => {
-    const result = auditProgram(program("cs-bs"), []);
-    expect(result.summary.satisfied).toBe(0);
-    expect(result.summary.unsatisfied).toBeGreaterThan(0);
-    expect(result.summary.advisory).toBeGreaterThan(0);
+const ceFills: Record<string, Fill[]> = {
+  "American History core": coreFills.history,
+  "Communication core": coreFills.communication,
+  "Creative Arts core": coreFills.creativeArts,
+  "Political Science core": coreFills.government,
+  "Language, Philosophy and Culture core": coreFills.culture,
+  "Social and Behavioral Sciences core": coreFills.social,
+  // "*See Other required courses above": the first chemistry alternative there.
+  "CHEM selection*": [[{ code: "CHEM 1410", hours: 3 }, { code: "CHEM 1430", hours: 1 }]],
+  // The first three Communication and Networks courses the page lists.
+  "Communication and Networks specialization selection": [one("CSCE 3420"), one("CSCE 3530")],
+  "Communication and Networks Specialization": [one("CSCE 3550")],
+  Elective: [one(FREE_ELECTIVE, 2)],
+};
+
+describe("placeholder fills come from the catalog's own lists", () => {
+  test("core fills sit in their core areas", () => {
+    expect(listedCodes("core", "American History, 6 hours")).toEqual(expect.arrayContaining(["HIST 2610", "HIST 2620"]));
+    expect(listedCodes("core", "Government/Political Science, 6 hours")).toEqual(expect.arrayContaining(["PSCI 2305", "PSCI 2306"]));
+    expect(listedCodes("core", "Communication Group 1")[0]).toBe("ENGL 1310");
+    expect(listedCodes("core", "Creative Arts, 3 hours")[0]).toBe("ANTH 2400");
+    expect(listedCodes("core", "Language, Philosophy and Culture, 3 hours")[0]).toBe("AGER 2250");
+    expect(listedCodes("core", "Social and Behavioral Sciences, 3 hours")).toContain("ANTH 1010");
+    expect(listedCodes("core", "Six hours from Component Area Option A")[0]).toBe("ANTH 1150");
   });
 
-  test("in-progress courses mark a node in progress, not satisfied", () => {
-    const math = program("math-bsmth");
-    const coreName = "Mathematics core, 19 hours";
-    const coreNode = findNode(coreName, math.requirements);
-    if (!coreNode) throw new Error("math core node missing");
-    const status = (courses: AuditCourse[]) => auditProgram({ ...math, requirements: [coreNode] }, courses).requirements[0]!.status;
-    const done = ["MATH 1710", "MATH 1720", "MATH 1810", "MATH 1820", "MATH 1830", "MATH 2000", "MATH 2700", "MATH 2730", "MATH 3000"].map((code) => course(code, "A", 3));
-    const started: AuditCourse[] = [{ code: "MATH 1710", grade: null, credits: 4, sourceKind: "current", inProgress: true }];
-    expect(status(done)).toBe("satisfied");
-    expect(status(started)).toBe("inProgress");
-    expect(status([])).toBe("unsatisfied");
+  test("major fills sit in their major lists", () => {
+    expect(listedCodes("cs-bs", "CSCE core, 6 hours").slice(0, 2)).toEqual(["CSCE 3530", "CSCE 4115"]);
+    expect(listedCodes("cs-bs", "CSCE breadth courses, 6 hours").slice(0, 4)).toEqual(["CSCE 4201", "CSCE 4210", "CSCE 4230", "CSCE 4240"]);
+    expect(listedCodes("cs-bs", "Required courses")).toContain("CSCE 4350");
+    expect(listedCodes("ce-bs", "Three courses from Communication and Networks").slice(0, 3)).toEqual(["CSCE 3420", "CSCE 3530", "CSCE 3550"]);
+    expect(listedCodes("ce-bs", "Other required courses").slice(0, 2)).toEqual(["CHEM 1410", "CHEM 1430"]);
   });
 
-  test("choose counts distinct courses, not one course twice", () => {
-    const cs = program("cs-bs");
-    const lab = cs.requirements.find((node) => node.name === "Laboratory science, 6-8 hours (choose 2)");
-    if (lab?.kind !== "choose") throw new Error("lab science node missing");
-    // Build the record from the node's own options so the test follows the data.
-    const [first, second] = lab.options;
-    const single = auditProgram(cs, [course(first.must[0]!)]);
-    const pair = auditProgram(cs, [course(first.must[0]!), course(second!.must[0]!)]);
-    const status = (result: ReturnType<typeof auditProgram>) => result.requirements.find((node) => node.name === lab.name)?.status;
-    expect(status(single)).not.toBe("satisfied");
-    expect(status(pair)).toBe("satisfied");
-  });
-
-  test("one course counts toward a core component area and a major requirement at once", () => {
-    // Hand-checked against the captured pages. The core page allows sharing:
-    // "Students who wish to take courses that will fulfill both core and major
-    // requirements simultaneously should check with academic advisors for
-    // assistance in selecting core courses. Students may also choose to use
-    // core courses to meet the minimum number of advanced hours required for
-    // their degree." (core-curriculum.html, UNT Core Curriculum intro).
-    // MATH 1710 (4 h) is listed in the core "Mathematics, 3 hours" area
-    // (core-curriculum.html) and in the CS major's "Other required courses"
-    // block — "MATH 1710 - Calculus I or MATH 1810 - Calculus for Science and
-    // Engineering I and MATH 1820 - Calculus for Science and Engineering II"
-    // (cs-bs.html, anchor majorrequirements). One record, one course, counted
-    // toward both: the core audit satisfies the Mathematics area and the CS
-    // audit counts the same course toward its required slot.
-    const record = [course("MATH 1710", "A", 4)];
-    const coreResult = auditProgram(program("core"), record);
-    const mathArea = coreResult.requirements.find((node) => node.name === "Mathematics, 3 hours");
-    expect(mathArea?.status).toBe("satisfied");
-
-    const cs = program("cs-bs");
-    expect(cs.coreSharedCourses).toContain("MATH 1710");
-    // The same one course counts toward the major: with an empty record no
-    // slot is covered, with only MATH 1710 exactly its slot is. (The node
-    // stays "unsatisfied" until every slot completes; the slot detail is the
-    // counting evidence.)
-    const otherDetail = (courses: AuditCourse[]) =>
-      auditProgram(cs, courses).requirements.find((node) => node.name === "Other required courses")!.detail;
-    expect(otherDetail([])).toMatch(/^0\/\d+ slots satisfied/);
-    expect(otherDetail(record)).toMatch(/^1\/\d+ slots satisfied/);
-  });
-
-  test("a course the catalog forbids from double counting counts once", () => {
-    // Hand-checked against the captured core page (Component Area Option A
-    // section): "Note: Students may not “double-dip” courses to complete the
-    // University Core Curriculum. If a student completes PADM 2100 for the
-    // Social and Behavioral Sciences area, PADM 2100 may not count toward
-    // Component Area Option A." (core-curriculum.html). With PADM 2100 used
-    // for Social and Behavioral Sciences, the audit counts it there and only
-    // there: were double-dipping possible, PADM 2100 plus PHIL 2500 would
-    // cover all six Component Area Option A hours outright, and the option
-    // would read satisfied. It does not — the option stays short of six hours,
-    // and the audit carries the catalog's rule as a cited advisory note.
-    const record = [course("PADM 2100", "A", 3), course("PHIL 2500", "A", 3)];
-    const result = auditProgram(program("core"), record);
-    const sbs = result.requirements.find((node) => node.name === "Social and Behavioral Sciences, 3 hours");
-    expect(sbs?.status).toBe("satisfied");
-    const option = result.requirements.find((node) => node.name.startsWith("Component Area Option"));
-    expect(option?.status).not.toBe("satisfied");
-    expect(option?.detail).toContain("3/6");
-    const rule = result.requirements.find((node) => node.name === "Component Area Option double-dip rule");
-    expect(rule?.status).toBe("advisory");
-    expect(rule?.detail).toContain("double-dip");
-  });
-
-  test("or-alternatives satisfy a slot through either option", () => {
-    const cs = program("cs-bs");
-    const track = auditProgram(cs, [course("MATH 1810"), course("MATH 1820")]);
-    const other = track.requirements.find((node) => node.name === "Other required courses");
-    expect(other).toBeDefined();
-    expect(other!.status).not.toBe("satisfied");
-    const canonical = auditProgram(cs, [course("MATH 1710"), course("MATH 1720")]);
-    // Neither pair alone completes all of "Other required courses", but each
-    // slot the pair covers must read as satisfied rather than unsatisfied.
-    expect(canonical.requirements.find((node) => node.name === "Other required courses")!.detail).toMatch(/\d+\/\d+ slots satisfied/);
-  });
-
-  test("policy checks: total hours, advanced hours, and grade floors from the record", () => {
-    const filler: AuditCourse[] = Array.from({ length: 36 }, (_, index) => course(`MATH 1${String(index).padStart(3, "0")}`, "A", 3));
-    const advanced: AuditCourse[] = Array.from({ length: 14 }, (_, index) => course(`CSCE 4${String(index).padStart(3, "0")}`, "A", 3));
-    const result = auditProgram(program("cs-bs"), [...filler, ...advanced]);
-    const totalHours = result.policies.find((policy) => policy.name === "Total hours: 120");
-    expect(totalHours?.status).toBe("satisfied");
-    const advancedHours = result.policies.find((policy) => policy.name === "Advanced hours: 42");
-    expect(advancedHours?.status).toBe("satisfied");
-
-    const failingGrade = auditProgram(program("cs-bs"), [course("CSCE 1030", "D", 3)]);
-    const majorGrade = failingGrade.policies.find((policy) => policy.name === "Minimum grade of C (major courses)");
-    expect(majorGrade?.status).toBe("unsatisfied");
-    expect(majorGrade?.detail).toContain("CSCE 1030");
-  });
-
-  test("checks that need data the record lacks come back unverifiable, never guessed", () => {
-    const result = auditProgram(program("cs-bs"), [course("CSCE 1030", null, 3)]);
-    const gpa = result.policies.find((policy) => policy.name === "Overall GPA");
-    expect(gpa?.status).toBe("unverifiable");
-    const residency = result.policies.find((policy) => policy.name === "Residency");
-    expect(residency?.status).toBe("unverifiable");
-  });
-
-  test("core Component Area Option stays a choice between its two branches", () => {
-    const core = program("core");
-    const option = core.requirements.find((node) => node.kind === "choice" && node.name.startsWith("Component Area Option"));
-    expect(option).toBeDefined();
-    const satisfied = auditProgram(core, [course("MATH 1720", "B", 4), course("PHIL 2500", "B", 3)]);
-    const coa = satisfied.requirements.find((node) => node.name.startsWith("Component Area Option"));
-    expect(coa?.status).toBe("satisfied");
-    expect(coa?.name).toContain("Option A");
-  });
-
-  test("Option A accepts another core area's course when that area did not use it", () => {
-    // The allowance printed inside the Option A list: "Or any course included
-    // in the other core areas listed above". ANTH 1010 satisfies Social and
-    // Behavioral Sciences, which frees PADM 2100 — an SBS course reachable in
-    // the A list only through the derived expansion — to fill Option A beside
-    // PHIL 2500: three hours plus three hours makes the option satisfied.
-    // Were PADM 2100 not an option at all, the walk would stop at 3/6.
-    const record = [course("ANTH 1010"), course("PADM 2100"), course("PHIL 2500")];
-    const result = auditProgram(program("core"), record);
-    const sbs = result.requirements.find((node) => node.name === "Social and Behavioral Sciences, 3 hours");
-    expect(sbs?.status).toBe("satisfied");
-    expect(sbs?.detail).toContain("3/3");
-    const option = result.requirements.find((node) => node.name.startsWith("Component Area Option"));
-    expect(option?.status).toBe("satisfied");
-    expect(option?.detail).toContain("2 courses, 6/6 hours");
-    expect(option?.name).toContain("Option A");
-  });
-
-  test("oneCourseOneArea is what makes the audit count a course once", () => {
-    // The same tree and record with and without the flag: without it every
-    // node reads the full record, so MATH 1720 fills Mathematics and keeps
-    // counting toward the option (major-style sharing). With it Mathematics
-    // claims the course first and the option falls short at 3/6.
-    const citation = { page: "core.html", url: "https://catalog.example/core.html", anchor: "x", heading: "h" };
-    const requirements: RequirementNode[] = [
-      { kind: "hours", name: "Mathematics, 3 hours", hours: 3, options: [{ must: ["MATH 1720"] }], citation },
-      { kind: "hours", name: "Component Area Option A", hours: 6, options: [{ must: ["MATH 1720"] }, { must: ["PHIL 2500"] }], citation },
-    ];
-    const base = {
-      id: "synthetic",
-      name: "Synthetic",
-      catalogId: "2026-2027",
-      sourceUrl: "https://catalog.example/core.html",
-      coreSharedCourses: [] as string[],
-    } satisfies Omit<ProgramData, "requirements">;
-    const record = [course("MATH 1720", "B", 4), course("PHIL 2500", "B", 3)];
-
-    const shared = auditProgram({ ...base, requirements: structuredClone(requirements) } satisfies ProgramData, record);
-    const sharedOption = shared.requirements.find((node) => node.name === "Component Area Option A");
-    expect(sharedOption?.status).toBe("satisfied");
-    expect(sharedOption?.detail).toContain("7/6");
-
-    const allocated = auditProgram({ ...base, oneCourseOneArea: true, requirements: structuredClone(requirements) } satisfies ProgramData, record);
-    const math = allocated.requirements.find((node) => node.name === "Mathematics, 3 hours");
-    expect(math?.status).toBe("satisfied");
-    const allocatedOption = allocated.requirements.find((node) => node.name === "Component Area Option A");
-    expect(allocatedOption?.status).toBe("inProgress");
-    expect(allocatedOption?.detail).toContain("1 course, 3/6 hours");
-  });
-
-  test("the summary counts every outcome", () => {
-    const result = auditProgram(program("core"), [course("ENGL 1310", "B"), course("MATH 1710", "B", 4), course("BIOL 1710", "B", 3), course("BIOL 1711", "B", 1)]);
-    expect(result.summary.satisfied + result.summary.inProgress + result.summary.unsatisfied + result.summary.advisory).toBe(result.requirements.length);
+  test("each plan adds up to the 120 hours its page prints", () => {
+    expect(csPlan.reduce((total, entry) => total + entry.hours, 0)).toBe(120);
+    expect(cePlan.reduce((total, entry) => total + entry.hours, 0)).toBe(120);
   });
 });
 
-describe("records the packet names", () => {
-  test("a transfer student with the core complete reads satisfied, credited, and flagged for residence", () => {
-    const transfer = (code: string, credits: number): AuditCourse => ({
-      code,
-      grade: "B",
-      credits,
-      sourceKind: "transfer",
-      inProgress: false,
-    });
-    const result = auditProgram(program("core"), [
-      transfer("ENGL 1310", 3),
-      transfer("ENGL 1320", 3),
-      transfer("MATH 1710", 4),
-      transfer("HIST 2610", 3),
-      transfer("HIST 2620", 3),
-      transfer("PSCI 2305", 3),
-      transfer("PSCI 2306", 3),
-      transfer("BIOL 1710", 3),
-      transfer("BIOL 1711", 1),
-      transfer("BIOL 1132", 3),
-      transfer("MATH 1720", 4),
-      transfer("AGER 2250", 3),
-      transfer("ART 1300", 3),
-      transfer("ANTH 1010", 3),
-      transfer("CSCE 1010", 3),
+describe("CS BS: the catalog's four-year plan, finished", () => {
+  const record = planRecord(csPlan, csFills);
+
+  test("every tracked major requirement and policy is satisfied", () => {
+    const result = auditProgram(program("cs-bs"), record, COMPLETE);
+    expect(unmetTracked(result.requirements)).toEqual([]);
+    expect(unmetPolicies(result)).toEqual([]);
+    // The two parts the audit cannot check stay with an advisor.
+    expect(result.requirements.find((outcome) => outcome.name === "Major requirements")?.status).toBe("advisory");
+    expect(result.requirements.find((outcome) => outcome.name === "Technical writing, 3 hours")?.detail).toContain("TECM 4180");
+  });
+
+  test("every core area is satisfied, through Option A plus Option B", () => {
+    const result = auditProgram(program("core"), record, COMPLETE);
+    expect(unmetTracked(result.requirements)).toEqual([]);
+    expect(unmetPolicies(result)).toEqual([]);
+    expect(result.requirements.find((outcome) => outcome.name.startsWith("Component Area Option, 6 hours"))?.name).toBe("Component Area Option, 6 hours — 3 hours from Option A and 3 hours from Option B");
+    expect(result.policies.find((outcome) => outcome.name === "Core total: 42 hours")?.detail).toBe("43 completed hours of 42");
+  });
+
+  test("the plan as printed leaves CSCE 4350 unscheduled, and the audit says so", () => {
+    const printed = planRecord(csPlan, { ...csFills, "CSCE Elective": [one(FREE_ELECTIVE.replace("1000", "1002"))] });
+    const result = auditProgram(program("cs-bs"), printed, COMPLETE);
+    expect(unmetTracked(result.requirements)).toEqual([
+      "Major requirements: unsatisfied",
+      "Major requirements > Required courses: unsatisfied (16/17 required courses or sequences complete)",
     ]);
-    const communication = result.requirements.find((node) => node.name.startsWith("Communication"));
-    expect(communication?.status).toBe("satisfied");
-    // Every component area plus both Component Area Options reads satisfied.
-    expect(result.summary.satisfied).toBeGreaterThanOrEqual(9);
-    // Transfer credit still counts, but the audit keeps the residence caveat visible.
-    expect(result.policies.some((policy) => policy.status === "unverifiable")).toBe(true);
   });
 
-  test("a change of major: a finished mathematics record audited against CS keeps its math credit and shows the CS gap", () => {
-    const record: AuditCourse[] = [
-      course("MATH 1710", "A", 4),
-      course("MATH 1720", "A", 4),
-      course("MATH 1810", "A", 3),
-      course("MATH 1820", "A", 3),
-      course("MATH 1830", "A", 3),
-      course("MATH 2000", "A", 3),
-      course("MATH 2700", "A", 3),
-      course("MATH 2730", "A", 3),
-      course("MATH 3000", "A", 3),
-      course("CSCE 1030", "B", 3),
-    ];
-    const result = auditProgram(program("cs-bs"), record);
-    // The math slots the record covers read as satisfied inside the shared
-    // all-node ("1/3 slots satisfied" against the captured tree), while the
-    // CS-only slots keep the requirement open.
-    const mathNode = result.requirements.find((node) => node.name === "Other required courses");
-    expect(mathNode?.status).not.toBe("satisfied");
-    const progress = /^(\d+)\/(\d+) slots satisfied/.exec(mathNode?.detail ?? "");
-    if (!progress) throw new Error(`unexpected detail: ${mathNode?.detail}`);
-    expect(Number(progress[1])).toBeGreaterThanOrEqual(1);
-    expect(Number(progress[2])).toBeGreaterThan(Number(progress[1]));
-    // No CSCE courses beyond the first, so the major's own core stays open.
-    const csceCore = result.requirements.find((node) => node.name === "CSCE core, 6 hours");
-    expect(csceCore?.status).toBe("unsatisfied");
-    // The math record clears the major's C floor, vacuously for CS courses it has not taken.
-    const majorGrade = result.policies.find((policy) => policy.name === "Minimum grade of C (major courses)");
-    expect(majorGrade?.status).toBe("satisfied");
-  });
-
-  test("the C floor boundary against the derived CS tree: C+ and C pass, C- and D+ and D fail", () => {
-    const cs = program("cs-bs");
-    const required = findNode("Required courses", cs.requirements);
-    if (!required || required.kind !== "all") throw new Error("CS required-courses node missing");
-    // The record is built from the tree's own slots so the test follows the data.
-    const codes = required.items.map((slot) => slot.alternatives[0]!.must[0]!);
-    const boundary: [string, "C+" | "C" | "C-" | "D+" | "D"][] = [
-      [codes[0]!, "C+"],
-      [codes[1]!, "C"],
-      [codes[2]!, "C-"],
-      [codes[3]!, "D+"],
-      [codes[4]!, "D"],
-    ];
-    const result = auditProgram(cs, boundary.map(([code, grade]) => course(code, grade, 3)));
-    const majorGrade = result.policies.find((policy) => policy.name === "Minimum grade of C (major courses)");
-    expect(majorGrade?.status).toBe("unsatisfied");
-    const below = majorGrade?.detail ?? "";
-    for (const [code] of boundary.slice(2)) expect(below).toContain(code);
-    for (const [code] of boundary.slice(0, 2)) expect(below).not.toContain(`${code} (C`);
+  test("with the final semester in progress, nothing reads unsatisfied", () => {
+    const result = auditProgram(program("cs-bs"), planRecord(csPlan, csFills, { inProgressFrom: 4 * 2 + 2 }), COMPLETE);
+    const statuses = result.requirements.map((outcome) => [outcome.name, outcome.status]);
+    expect(statuses.filter(([, status]) => status === "unsatisfied")).toEqual([]);
+    expect(result.requirements.find((outcome) => outcome.name === "CSCE breadth courses, 6 hours")?.status).toBe("satisfied");
+    const major = result.requirements.find((outcome) => outcome.name === "Major requirements")!;
+    expect(major.children?.find((child) => child.name === "Required courses")?.status).toBe("inProgress");
   });
 });
 
-describe("typed grade scopes from the catalog wording", () => {
-  test("the mathematics GPA floor reads only 3350+ mathematics courses", () => {
-    const result = auditProgram(program("math-bsmth"), [
-      course("MATH 1710", "F", 4),
-      course("MATH 1720", "D-", 4),
-      course("MATH 3350", "A", 3),
-    ]);
-    const gpaPolicy = result.policies.find((policy) => policy.name === "GPA 2.0 (mathematics courses 3350+ in the major)");
-    expect(gpaPolicy?.status).toBe("satisfied");
-    expect(gpaPolicy?.detail).toContain("4.00");
+describe("CE BS: the catalog's four-year plan, finished", () => {
+  // The CE plan never schedules MATH 2730, which Other required courses list,
+  // and its 120 hours fall short of the page's own 121-hour minimum. The test
+  // adds the missing course; the next test pins the printed plan's gaps.
+  const record = [...planRecord(cePlan, ceFills), done("MATH 2730", 3, "B", { term: 10 })];
+
+  test("every tracked major requirement and policy is satisfied", () => {
+    const result = auditProgram(program("ce-bs"), record, COMPLETE);
+    expect(unmetTracked(result.requirements)).toEqual([]);
+    expect(unmetPolicies(result)).toEqual([]);
+    expect(result.requirements.find((outcome) => outcome.name.startsWith("Specialization area"))?.name).toBe("Specialization area, 9 hours — Communication and Networks");
   });
 
-  test("the Communication core grade floor sees only the core Communication area", () => {
-    const result = auditProgram(program("math-bsmth"), [course("MATH 1710", "F", 4)]);
-    const communication = result.policies.find((policy) => policy.name === "Communication core grade");
-    // Zero courses in scope reads "nothing to check": an out-of-scope F must
-    // neither fail the floor nor count as clearing it.
-    expect(communication?.status).toBe("unverifiable");
-    expect(communication?.detail ?? "").not.toContain("MATH 1710");
+  test("every core area is satisfied, through six hours of Option A", () => {
+    const result = auditProgram(program("core"), record, COMPLETE);
+    expect(unmetTracked(result.requirements)).toEqual([]);
+    expect(unmetPolicies(result)).toEqual([]);
+    expect(result.requirements.find((outcome) => outcome.name.startsWith("Component Area Option, 6 hours"))?.name).toBe("Component Area Option, 6 hours — 6 hours from Component Area Option A");
   });
 
-  test("nested biology foundation policies resolve their subtree as the scope", () => {
-    const foundation = findNode("Biology foundation courses", program("biology-bsbio").requirements);
-    if (!foundation || foundation.kind !== "all") throw new Error("biology foundation node missing");
-    const firstCourse = foundation.items[0]!.alternatives[0]!.must[0]!;
-    const result = auditProgram(program("biology-bsbio"), [course(firstCourse, "D", 4)]);
-    const rules = result.policies.find((policy) => policy.name === "Foundation grade rules");
-    expect(rules?.status).toBe("unsatisfied");
-    expect(rules?.detail).toContain(firstCourse);
-    const foundationGpa = result.policies.find((policy) => policy.name === "Foundation GPA 2.5");
-    expect(foundationGpa?.status).toBe("unsatisfied");
+  test("the plan as printed misses MATH 2730 and the 121-hour minimum, and the audit says so", () => {
+    const result = auditProgram(program("ce-bs"), planRecord(cePlan, ceFills), COMPLETE);
+    expect(unmetTracked(result.requirements)).toEqual(["Other required courses: unsatisfied (9/10 required courses or sequences complete)"]);
+    expect(unmetPolicies(result)).toEqual(["Total hours: 121: unsatisfied (120 completed hours of 121)"]);
+  });
+});
+
+describe("the review's probe records against the real trees", () => {
+  const status = (result: AuditResult, prefix: string) => result.requirements.find((outcome) => outcome.name.startsWith(prefix))!;
+
+  test("CS lab science: BIOL 1710 without BIOL 1760 is not a lab science", () => {
+    expect(status(auditProgram(program("cs-bs"), [done("BIOL 1710"), done("GEOL 1610")], COMPLETE), "Laboratory science").detail).toStartWith("1/2 chosen");
+    expect(status(auditProgram(program("cs-bs"), [done("BIOL 1710"), done("BIOL 1760", 1), done("GEOL 1610")], COMPLETE), "Laboratory science").status).toBe("satisfied");
+    expect(status(auditProgram(program("cs-bs"), [done("BIOL 1710"), done("BIOL 1720"), done("BIOL 1760", 1)], COMPLETE), "Laboratory science").status).toBe("satisfied");
   });
 
+  test("CS lab science: equivalent chemistry pairs count once", () => {
+    const record = [done("CHEM 1410"), done("CHEM 1430", 1), done("CHEM 1415"), done("CHEM 1435", 1)];
+    expect(status(auditProgram(program("cs-bs"), record, COMPLETE), "Laboratory science").detail).toStartWith("1/2 chosen");
+  });
+
+  test("CE: required CSCE 3610 is not also a VLSI specialization course", () => {
+    const result = auditProgram(program("ce-bs"), [done("CSCE 3610"), done("CSCE 4610"), done("CSCE 4730")], COMPLETE);
+    expect(status(result, "Specialization area").status).toBe("unsatisfied");
+    const vlsi = status(result, "Specialization area").children!.find((child) => child.name === "Three courses from VLSI and Electronics")!;
+    expect(vlsi.detail).toBe("2/3 chosen (CSCE 4610, CSCE 4730)");
+  });
+
+  test("core: two math courses of unknown credit do not starve the Component Area Option", () => {
+    const result = auditProgram(program("core"), [done("MATH 1650", null, "B", { sourceKind: "transfer" }), done("MATH 1710", null, "B", { sourceKind: "transfer" })], COMPLETE);
+    expect(status(result, "Mathematics").status).toBe("advisory");
+    expect(status(result, "Mathematics").detail).toContain("credit hours unknown for MATH 1650");
+    expect(status(result, "Component Area Option").children![0]!.detail).toContain("MATH 1710");
+  });
+
+  test("an exam credit row does not stop the GPA", () => {
+    const result = auditProgram(program("cs-bs"), [done("MATH 1710", 4, "CR", { sourceKind: "exam" }), done("CSCE 1030", 3, "A")], COMPLETE);
+    expect(result.policies.find((outcome) => outcome.name === "Overall GPA")?.detail).toBe("4.00 over 1 graded attempt of 2.0 required");
+  });
+
+  test("CSCE core half done with nothing enrolled is unsatisfied", () => {
+    expect(status(auditProgram(program("cs-bs"), [done("CSCE 3530")], COMPLETE), "CSCE core").status).toBe("unsatisfied");
+  });
+
+  test("required CSCE courses never appear as advanced elective candidates", () => {
+    const required = listedCodes("cs-bs", "Required courses").map((code) => done(code, code === "CSCE 1015" ? 1 : 3));
+    const major = status(auditProgram(program("cs-bs"), required, COMPLETE), "Major requirements");
+    expect(major.status).toBe("advisory");
+    expect(major.children!.find((child) => child.name.startsWith("CSCE advanced electives"))!.detail).toContain("matching the subject and level rule: none");
+  });
+
+  test("B, F, F is below a 2.0 GPA", () => {
+    const result = auditProgram(program("cs-bs"), [done("CSCE 1030", 3, "B"), done("MATH 1710", 4, "F"), done("EENG 2710", 3, "F")], COMPLETE);
+    expect(result.policies.find((outcome) => outcome.name === "Overall GPA")?.status).toBe("unsatisfied");
+  });
+
+  test("a D in a major course fails the major's C floor", () => {
+    const result = auditProgram(program("cs-bs"), [done("CSCE 1030", 3, "D"), done("CSCE 1040", 3, "A")], COMPLETE);
+    expect(result.policies.find((outcome) => outcome.name === "Minimum grade of C (major courses)")?.detail).toBe("Below C: CSCE 1030 (D).");
+  });
+});
+
+describe("build guards", () => {
   test("policies deduplicate across the program and university scans", () => {
     const names = (nodes: RequirementNode[]): string[] =>
-      nodes.flatMap((node) =>
-        node.kind === "policy" ? [node.name]
-        : node.kind === "group" ? names(node.children)
-        : node.kind === "choice" ? node.branches.flatMap((branch) => names([branch.node]))
-        : [],
-      );
-    const totalHours = names(program("cs-bs").requirements).filter((name) => name === "Total hours: 120");
-    expect(totalHours.length).toBe(1);
-    const communication = names(program("core").requirements).filter((name) => name === "Communication core grade");
-    expect(communication.length).toBe(1);
+      nodes.flatMap((node) => (node.kind === "policy" ? [node.name] : node.kind === "group" ? names(node.children) : []));
+    expect(names(program("cs-bs").requirements).filter((name) => name === "Total hours: 120")).toHaveLength(1);
+    expect(names(program("core").requirements).filter((name) => name === "Communication core grade")).toHaveLength(1);
   });
 
   test("a catalog page that no longer matches its manifest hash stops the build", () => {
@@ -375,35 +333,8 @@ describe("typed grade scopes from the catalog wording", () => {
     }
   });
 
-  test("an in-progress record can already reach Component Area Option A's hours", () => {
-    const result = auditProgram(program("core"), [
-      course("ANTH 1010", "A", 3),
-      course("PADM 2100", null, 3, { inProgress: true }),
-      course("PHIL 2500", null, 3, { inProgress: true }),
-    ]);
-    const option = result.requirements.find((node) => node.name.startsWith("Component Area Option"));
-    expect(option?.status).toBe("inProgress");
-    expect(option?.detail).toContain("6 planned");
+  test("the plan reader checks each semester against the page's printed total", () => {
+    const html = readFileSync(path.join(dataDir, "cs-bs.html"), "utf8").replace("<td>16 hours</td>", "<td>17 hours</td>");
+    expect(() => readFourYearPlan(html)).toThrow("year 1 semester 1: the page prints a total of 17 hours, the rows add up to 16");
   });
 });
-
-test("the generated core-total policy is scoped to the core's own courses", () => {
-  const core = program("core");
-  const totalHours = findNode("Core total: 42 hours", core.requirements);
-  expect(totalHours).toBeDefined();
-  if (totalHours?.kind !== "policy" || totalHours.policy.type !== "totalHours") throw new Error("unexpected node shape");
-  const scope = totalHours.policy.courseScope;
-  expect(scope?.kind).toBe("codes");
-  if (scope?.kind !== "codes") throw new Error("missing codes scope");
-  expect(scope.codes).toContain("PHIL 2500");
-  // Major-only courses stay out of the core's hour total.
-  expect(scope.codes).not.toContain("CSCE 2110");
-  expect(scope.codes).not.toContain("CSCE 1030");
-  // The majors' degree totals still count the whole record.
-  const cs = program("cs-bs");
-  const degreeTotal = findNode("Total hours: 120", cs.requirements);
-  expect(degreeTotal).toBeDefined();
-  if (degreeTotal?.kind !== "policy" || degreeTotal.policy.type !== "totalHours") throw new Error("unexpected node shape");
-  expect(degreeTotal.policy.courseScope).toBeUndefined();
-});
-
