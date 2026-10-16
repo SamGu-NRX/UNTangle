@@ -1,0 +1,1465 @@
+/*
+ * Week (03-schedule-builder.html as amended by untangle-v3.md). The grid is
+ * the one surface on the page; the strip and the panel are the only other
+ * boxes. Motion: only transform and opacity move (MOTION.md §11), and only
+ * from a pointer; colors change on hover with --t-hover.
+ */
+
+.page {
+  --hh: 64px;
+  --gut: 52px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+/* From 1200px the panel pushes the page aside; narrow the page so both fit (ScheduleBuilder MAIN_MAX). */
+@media (min-width: 1200px) {
+  .page {
+    max-width: min(960px, 100vw - var(--context-w) - var(--context-gap) - 48px);
+  }
+}
+
+/* Course colors (DESIGN.md §7): one hue per course, set where it's drawn. Browse all's list is portaled into the panel, outside .page. */
+:is(.page, .grid, .combos) [data-hue="1"] { --c: var(--c1); --ct: var(--c1t); }
+:is(.page, .grid, .combos) [data-hue="2"] { --c: var(--c2); --ct: var(--c2t); }
+:is(.page, .grid, .combos) [data-hue="3"] { --c: var(--c3); --ct: var(--c3t); }
+:is(.page, .grid, .combos) [data-hue="4"] { --c: var(--c4); --ct: var(--c4t); }
+:is(.page, .grid, .combos) [data-hue="5"] { --c: var(--c5); --ct: var(--c5t); }
+:is(.page, .grid, .combos) [data-hue="6"] { --c: var(--c6); --ct: var(--c6t); }
+
+.label {
+  margin: 0;
+  font: 650 11px/16px var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.meta {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+.hint {
+  margin: 0;
+  padding: 12px 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.code {
+  font: 600 13px/1.2 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.start {
+  justify-self: start;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chevron {
+  color: var(--ink-3);
+  flex: none;
+}
+
+/* ───────── Header: the term, then Courses and Preferences (r3 mockup) ───────── */
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  margin-bottom: 2px;
+}
+.title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+.title b {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.012em;
+  white-space: nowrap;
+}
+.title span {
+  font-size: 13px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.headActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.headRule {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--line);
+}
+.topButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  transition:
+    transform var(--t-press) var(--ease-out),
+    background-color var(--t-hover) ease,
+    border-color var(--t-hover) ease,
+    box-shadow var(--t-hover) ease;
+}
+.topButton svg {
+  flex: none;
+  color: var(--ink-2);
+}
+.topButton:active {
+  transform: scale(0.97);
+}
+.topButton[aria-expanded="true"] {
+  border-color: color-mix(in oklab, var(--brand-2) 40%, var(--line));
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.topButton[aria-expanded="true"] svg {
+  color: var(--brand);
+}
+.topButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/*
+ * After Set up Auto finishes with no course to build, one ring leaves the
+ * Preferences button twice, so the student sees where the answers now live.
+ * (With courses, Auto's reveal runs instead and nothing else moves, MOTION.md
+ * §8.) It waits for the dialog's exit (--t-exit), then grows and fades
+ * (--t-reveal, the rare-moment duration); r3's onboarding mockup draws the
+ * same ring. Reduced motion keeps only the fade.
+ */
+.topButton[data-ring] {
+  position: relative;
+}
+.topButton[data-ring]::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 2px solid var(--brand-2);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  animation: ring var(--t-reveal) var(--ease-out) var(--t-exit) 2;
+}
+@keyframes ring {
+  from {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+}
+@keyframes ring-fade {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topButton[data-ring]::after {
+    animation-name: ring-fade;
+  }
+}
+.count {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--paper-2);
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.topButton[aria-expanded="true"] .count {
+  background: color-mix(in oklab, var(--brand-2) 14%, var(--paper));
+  color: var(--brand);
+}
+@media (hover: hover) and (pointer: fine) {
+  .topButton:hover:not([aria-expanded="true"]) {
+    border-color: var(--line-2);
+    box-shadow: var(--shadow-1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topButton:active {
+    transform: none;
+  }
+}
+/* Touch: controls reach 44px (DESIGN.md §5), and wrapped chip rows sit far enough
+   apart that their extended hit areas never overlap. */
+@media (pointer: coarse) {
+  .topButton,
+  .pill {
+    min-height: 44px;
+  }
+  .course {
+    min-height: 48px;
+  }
+  .chips,
+  .filterRow {
+    row-gap: 16px;
+  }
+}
+@media (max-width: 420px) {
+  .head {
+    gap: 8px;
+  }
+  .headActions {
+    gap: 2px;
+  }
+  .headRule {
+    display: none;
+  }
+  .topButton {
+    padding: 0 10px;
+  }
+}
+@media (max-width: 370px) {
+  .title span {
+    display: none;
+  }
+}
+
+/* ───────── The answer: one line, or one alternative ───────── */
+
+/* As tall as the strip, so the grid doesn't drop when an alternative appears (MOTION.md §4: heights snap). */
+.answerSlot {
+  min-height: 52px;
+  margin-bottom: 8px;
+}
+.answer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 4px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.answer[data-tone="attention"] {
+  color: var(--attention);
+}
+.answer[data-tone="danger"] {
+  color: var(--danger);
+}
+.answer > :global(.ui-glyph),
+.answerGlyph {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.answer > button {
+  margin-left: auto;
+  flex: none;
+}
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 6px 8px 6px 16px;
+  border-radius: var(--r-md);
+  background: var(--brand-soft);
+}
+.strip[data-tone="danger"] {
+  background: var(--danger-soft);
+}
+.stripGlyph {
+  flex: none;
+  color: var(--danger);
+}
+.stripCount {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  /* Fits "Updating" and the dot, so the sentence never shifts when the count changes. */
+  min-width: 84px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand);
+  white-space: nowrap;
+}
+.stripCount > span,
+.stripSentence {
+  display: inline-block;
+}
+/* Still searching: a quiet pulse. Reduced motion keeps the dot still. */
+.pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pulse {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+.stripSentence {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.stripActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.stripBrowse {
+  flex: none;
+}
+
+/* ───────── Browse all (CombinationsList.tsx) ───────── */
+
+.comboSummary {
+  margin: 0 0 8px;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--ink-2);
+}
+.comboNote {
+  margin: 0 0 12px;
+  padding: 4px 0 0;
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  color: var(--ink-2);
+}
+.comboNote[data-tone="danger"] {
+  color: var(--danger);
+}
+/* Most lists arrive within a frame or two; the waiting line only shows when one doesn't.
+   data-ui keeps the delay under reduced motion (globals.css zeroes delays elsewhere); it only fades. */
+.comboNote[data-loading] {
+  opacity: 0;
+  animation: comboLate var(--t-swap) var(--ease-out) 240ms forwards;
+}
+@keyframes comboLate {
+  to {
+    opacity: 1;
+  }
+}
+.comboActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Rows sit at fixed offsets (virtual-rows.ts); the list is as tall as all of them. */
+.combos {
+  position: relative;
+  margin: 0 -12px;
+  border-radius: var(--r-md);
+  outline: none;
+}
+.combo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--row-h);
+  display: grid;
+  grid-template-columns: 20px 76px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  /* A tap uses the whole week: no text selection or callout on a long press. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  /* The highlight follows the previewed row, tens of times a minute, so it changes at once; only staleness fades. */
+  transition: opacity var(--t-swap) var(--ease-out);
+}
+/* A hairline between rows, inside the row so it moves with it. */
+.combo::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 1px;
+  background: var(--line);
+}
+.combo[data-active] {
+  background: var(--brand-soft);
+}
+.combo[data-active]::after {
+  opacity: 0;
+}
+.combos:not([aria-disabled="true"]) .combo:not([data-active]):active {
+  background: var(--paper-2);
+}
+/* The row the keyboard is on: an inset accent ring, as in menus (ui.css), whatever the pointer previews. */
+.combos:focus-visible .combo[aria-selected="true"] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+@media (forced-colors: active) {
+  .combos:focus-visible .combo[aria-selected="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+/* Settings changed under the list: it stays for reference, and nothing in it can be used. */
+.combos[aria-disabled="true"] .combo {
+  opacity: 0.5;
+  cursor: default;
+}
+.comboRank {
+  font: 600 12px/20px var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink-2);
+}
+/* Every row's week is drawn on one time scale, so rows compare at a glance. */
+.comboWeek {
+  display: grid;
+  grid-template-columns: repeat(var(--days, 5), 1fr);
+  gap: 2px;
+  height: 56px;
+  padding: 4px;
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.comboWeek > span {
+  position: relative;
+}
+.comboWeek i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  min-height: 2px;
+  border-radius: 2px;
+  background: var(--c);
+}
+/* The row's classes that stay where your week has them are drawn faint: the strong ones are what it moves. */
+.comboWeek i[data-same] {
+  background: color-mix(in oklab, var(--c) 30%, var(--paper));
+}
+.comboText {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.comboHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 var(--text-body) / var(--lh-body) var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.comboYours {
+  padding: 0 7px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  font: 650 11px/18px var(--font-ui);
+  color: var(--brand);
+}
+.comboNames {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 12px;
+  font-size: var(--text-meta);
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.comboNames[data-columns="1"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+/* Block, not flex, so a name that still doesn't fit ends in an ellipsis. */
+.comboNames > span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.comboNames > span::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--c);
+}
+.comboNames b {
+  font-weight: 600;
+}
+.comboNames > span[data-same] {
+  color: var(--ink-2);
+}
+.comboNames > span[data-same] b {
+  font-weight: 500;
+}
+.comboNames > span[data-same]::before {
+  background: color-mix(in oklab, var(--c) 30%, var(--paper));
+}
+
+/* ───────── The grid ───────── */
+
+.grid {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--shadow-1);
+}
+.gridHead,
+.gridBody {
+  display: grid;
+  grid-template-columns: var(--gut) repeat(var(--cols), minmax(0, 1fr));
+}
+.gridHead {
+  height: 36px;
+  align-items: center;
+}
+.gridHead span {
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--ink-2);
+}
+/*
+ * Room above the first hour, so a class starting on the hour doesn't sit on
+ * the day header and the hour can carry its label. The columns span it, so
+ * their dividers run up to the header; WeekGrid's `at` adds it to every top.
+ */
+.gridBody {
+  --grid-top: 10px;
+  position: relative;
+  border-top: 1px solid var(--line);
+}
+.gutter {
+  position: relative;
+}
+.gutter span {
+  position: absolute;
+  right: 8px;
+  font-size: 11px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+.day {
+  position: relative;
+  border-left: 1px solid var(--line);
+  background-image: linear-gradient(var(--line) 1px, transparent 1px);
+  background-size: 100% var(--hh);
+  background-position: 0 var(--grid-top);
+}
+@media (hover: hover) and (pointer: fine) {
+  .day {
+    cursor: cell;
+  }
+}
+
+/*
+ * The color bar is a straight ::before clipped by the block's own rounded
+ * corner; an inset shadow inside a radius curls into a bracket. The block is
+ * a size container, so its code can size itself to the room it has.
+ */
+.event {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  container-type: size;
+  padding: 6px 8px 6px 10px;
+  border-radius: 8px;
+  background: var(--ct);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--t-hover) ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .event {
+    touch-action: none;
+  }
+  /* 8% of the hue keeps ink-2 times at 4.77:1 or better on every course color (16% fell to 4.28). */
+  .event:hover {
+    background: color-mix(in srgb, var(--ct) 92%, var(--c));
+  }
+}
+.event::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: var(--c);
+}
+/*
+ * Event codes are DM Sans, not Syne (Syne is the wordmark's). The code wraps
+ * at its space, subject over number; only whole lines show, so nothing is cut
+ * mid-glyph, and a word too wide for a narrow lane breaks rather than clips.
+ */
+.eventCode {
+  max-height: round(down, 100cqh, 1.25em);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font: 600 12px/1.25 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+/* Too short for two lines: subject and number on one line at 11px, ended with an ellipsis if it still can't fit. */
+@container (max-height: 25px) {
+  .event .eventCode {
+    max-height: none;
+    font-size: 11px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+/*
+ * A clash lane on a phone is about 25px wide: too narrow for a word across.
+ * The code runs up the block instead, read bottom to top like a chart label,
+ * on one line that ends in an ellipsis rather than a cut glyph.
+ */
+/* Too short as well for the whole code up the block: the number alone. The answer line names both courses in full. */
+@container (max-width: 30px) and (max-height: 76px) {
+  .event .eventSubject {
+    display: none;
+  }
+}
+@container (max-width: 30px) {
+  .event .eventCode {
+    /* In vertical writing the line runs along the height, so the height bounds the ellipsis. */
+    max-height: 100cqh;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+.eventTime {
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.eventLock {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  color: var(--ink-2);
+}
+.event[aria-pressed="true"] {
+  z-index: 4;
+  box-shadow: 0 0 0 2px var(--c), var(--shadow-2);
+}
+.event[data-conflict] {
+  background: var(--danger-soft);
+  box-shadow: 0 0 0 1.5px var(--danger);
+}
+/* Selected in a clash: the selection ring outside the danger ring, so it differs from the event it clashes with. */
+.event[data-conflict][aria-pressed="true"] {
+  box-shadow: 0 0 0 1.5px var(--danger), 0 0 0 3.5px var(--c), var(--shadow-2);
+}
+.event[data-conflict]::before {
+  background: var(--danger);
+}
+/* The dated busy time a class meets during, and when: "Work, Feb 16". */
+.eventBusy {
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--danger);
+}
+.event[data-dragging] {
+  z-index: 6;
+  box-shadow: var(--shadow-3);
+  cursor: grabbing;
+}
+.event:focus-visible,
+.outline:focus-visible,
+.pill:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.outline {
+  position: absolute;
+  z-index: 3;
+  left: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--c);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55);
+  font: 600 11px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--c);
+  cursor: pointer;
+  transition: background-color var(--t-hover) ease;
+}
+.outline[data-clash] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.outline[data-near] {
+  background: var(--ct);
+}
+@media (hover: hover) and (pointer: fine) {
+  .outline:hover {
+    background: var(--ct);
+  }
+}
+
+/* Pointing at a section in search paints it here; a clash takes the right half, in red. */
+.ghost {
+  position: absolute;
+  z-index: 5;
+  left: 4px;
+  right: 4px;
+  padding: 6px 8px;
+  border: 1.5px dashed var(--brand-2);
+  border-radius: 8px;
+  background: rgba(0, 122, 64, 0.07);
+  font: 600 11px/1.2 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-2);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 120ms var(--ease-out);
+}
+@starting-style {
+  .ghost {
+    opacity: 0;
+  }
+}
+.ghost[data-clash] {
+  left: 50%;
+  border-color: var(--danger);
+  background: rgba(251, 234, 232, 0.94);
+  color: var(--danger);
+}
+
+.busy {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  padding: 4px 8px;
+  background: repeating-linear-gradient(135deg, rgba(79, 101, 79, 0.1) 0 6px, transparent 6px 12px);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+/* Outside class hours, or a day off: hatched like the painted grid in Preferences. */
+.limit {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  background-color: color-mix(in oklab, var(--paper-2) 70%, transparent);
+  background-image: repeating-linear-gradient(135deg, rgba(79, 101, 79, 0.16) 0 1px, transparent 1px 7px);
+  pointer-events: none;
+}
+.limit[data-edge="start"] {
+  border-bottom: 1.5px solid color-mix(in oklab, var(--brand-2) 70%, transparent);
+}
+.limit[data-edge="end"] {
+  border-top: 1.5px solid color-mix(in oklab, var(--brand-2) 70%, transparent);
+}
+.busy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  row-gap: 1px;
+  overflow: hidden;
+}
+.busyLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.busyNote {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* One calendar event, kept free on its date only: the student's own stripes, with the date under the name. */
+.busy[data-kind="dated"] .busyNote {
+  color: var(--ink-2);
+}
+/*
+ * A connected calendar's busy time: dotted rather than striped, with a rule
+ * down its edge and the calendar glyph, so it never reads as a class or as
+ * time the student painted by hand.
+ */
+.busy[data-kind="calendar"] {
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 4px;
+  padding-left: 7px;
+  border-left: 2px solid color-mix(in oklab, var(--ink-2) 50%, transparent);
+  background-color: color-mix(in oklab, var(--paper-2) 60%, transparent);
+  background-image: radial-gradient(color-mix(in oklab, var(--ink-2) 35%, transparent) 1px, transparent 1.5px);
+  background-size: 6px 6px;
+  color: var(--ink);
+}
+.busy[data-kind="calendar"] .busyNote {
+  grid-column: 2;
+  color: var(--ink-2);
+}
+/* The words sit on a wash of the page so the dots never run through them. */
+.busy[data-kind="calendar"] .busyLabel,
+.busy[data-kind="calendar"] .busyNote {
+  justify-self: start;
+  max-width: 100%;
+  padding: 0 3px;
+  margin-left: -3px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--paper) 85%, transparent);
+}
+.busyGlyph {
+  margin-top: 1px;
+  color: var(--ink-2);
+}
+.busy[data-draft] {
+  box-shadow: inset 0 0 0 1.5px var(--brand-2);
+  color: var(--brand);
+}
+
+/* The drawn walk: a 2px line between consecutive classes, its minutes on it. */
+.walkLine {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--brand-2);
+  pointer-events: none;
+}
+.walkLine[data-kind="tight"] {
+  background: var(--attention);
+}
+.walkLine[data-kind="late"] {
+  background: var(--danger);
+}
+.walkChip {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 7px 0 5px;
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: 0 0 0 1.5px var(--brand-2);
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--brand);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+.walkChip[data-kind="tight"] {
+  background: var(--attention-soft);
+  box-shadow: 0 0 0 1.5px var(--attention);
+  color: var(--attention);
+}
+.walkChip[data-kind="late"] {
+  background: var(--danger-soft);
+  box-shadow: 0 0 0 1.5px var(--danger);
+  color: var(--danger);
+}
+
+.gridFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 12px 8px 16px;
+  border-top: 1px solid var(--line);
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--ct);
+  box-shadow: inset 3px 0 0 var(--c);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.pill .code {
+  font-size: 12px;
+}
+.tag {
+  margin-left: auto;
+}
+
+/* An empty week: the grid fades toward a card in its middle, rather than being cut by a box. */
+.empty {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(closest-side, var(--paper) 45%, color-mix(in oklab, var(--paper) 0%, transparent));
+  pointer-events: none;
+}
+.empty > div {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 360px;
+  padding: 28px 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--shadow-2);
+  text-align: center;
+  pointer-events: auto;
+}
+.empty h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.012em;
+}
+
+/* ───────── Panel contents ───────── */
+
+.panelBody,
+.find,
+.export {
+  display: grid;
+  gap: 16px;
+}
+.note {
+  margin: 0;
+  font-size: 14px;
+  color: var(--attention);
+}
+.keep {
+  padding: 4px 0;
+}
+.danger {
+  color: var(--danger);
+}
+
+.filters {
+  display: grid;
+  gap: 10px;
+}
+.filters[hidden] {
+  display: none;
+}
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.filterRow .label {
+  width: 52px;
+}
+.group {
+  padding: 4px 0;
+}
+.courses,
+.sections,
+.changes,
+.numbers {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.course {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% + 24px);
+  margin: 0 -12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-align: left;
+  transition: background-color var(--t-hover) ease;
+}
+.course[aria-expanded="true"] {
+  background: var(--paper-2);
+}
+.course[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+@media (hover: hover) and (pointer: fine) {
+  .course:hover {
+    background: var(--paper-2);
+  }
+}
+/* Brand, not accent: the ring sits on paper-2 when the row is open, where accent is under 3:1. */
+.course:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+.courseText {
+  display: grid;
+  min-width: 0;
+}
+.courseTitle {
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.courseSections {
+  padding: 4px 0 8px;
+}
+.section {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: start;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  transition: background-color var(--t-hover) ease;
+}
+.section[data-highlight] {
+  background: var(--brand-soft);
+}
+@media (hover: hover) and (pointer: fine) {
+  .section:hover {
+    background: var(--paper-2);
+  }
+}
+.place {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--brand);
+  color: #fff;
+  transition: transform var(--t-press) var(--ease-out);
+}
+/* A pointer press only: Space or Enter from the keyboard never animates (MOTION.md §3). */
+@media (prefers-reduced-motion: no-preference) {
+  .place:active:not(:disabled):not([aria-disabled]):not(:focus-visible) {
+    transform: scale(0.97);
+  }
+}
+@media (pointer: coarse) {
+  .place {
+    width: 44px;
+    height: 44px;
+  }
+  .section {
+    grid-template-columns: 44px 1fr;
+  }
+}
+.place[data-state="clash"] {
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+  color: var(--danger);
+}
+.place[data-state="on"] {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.place[data-state="full"] {
+  background: var(--paper-3);
+  color: var(--ink-4);
+}
+.place:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.sectionText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 2px;
+}
+.sectionLine {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.sectionCode {
+  margin-right: 6px;
+  font: 600 11.5px var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.clash {
+  font-size: 13px;
+  color: var(--danger);
+}
+
+.reasons {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--ink);
+}
+.reasons li[data-warning] {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--attention);
+}
+.reasons li[data-warning] svg {
+  flex: none;
+  margin-top: 2px;
+}
+.compare {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.compare th,
+.compare td {
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  text-align: right;
+  font-weight: 400;
+}
+.compare thead th,
+.compare thead td {
+  padding-top: 0;
+  border-top: 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+.compare tbody th {
+  text-align: left;
+}
+.compare td[data-change="better"] {
+  font-weight: 650;
+  color: var(--brand);
+}
+.compare td[data-change="worse"] {
+  font-weight: 650;
+  color: var(--attention);
+}
+.changes li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 14px;
+}
+.changes s {
+  color: var(--ink-2);
+  text-decoration-color: var(--ink-4);
+}
+
+/* ───────── Export ───────── */
+
+.export {
+  gap: 0;
+}
+.exportSection {
+  display: grid;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.exportSection:first-child {
+  padding-top: 4px;
+  border-top: 0;
+}
+.exportHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+.exportHead > :first-child {
+  width: 18px;
+  color: var(--brand-2);
+  text-align: center;
+}
+.numbers {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--paper-2);
+  font-size: 13px;
+  line-height: 1.9;
+}
+/* Numbers in one column, so a lecture and its lab ("12043 12237") line up with single numbers. */
+.numbers li {
+  display: grid;
+  grid-template-columns: 7.5em 1fr auto;
+  gap: 12px;
+}
+.numbers b {
+  font-weight: 650;
+}
+.numbers span {
+  color: var(--ink-2);
+}
+.numbers em {
+  font-style: normal;
+  color: var(--attention);
+}
+.sheetTitle {
+  margin: 0;
+  padding: 4px 0 8px;
+  font: 620 var(--text-title) / var(--lh-title) var(--font-ui);
+}
+
+/* ───────── Paper (PrintWeek) ───────── */
+
+.print {
+  --hh: 44px;
+  --gut: 52px;
+  display: grid;
+  gap: 16px;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.printControls {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.printTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.012em;
+}
+.printTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.printTable th,
+.printTable td {
+  padding: 6px 8px 6px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+}
+.printTable thead th {
+  border-top: 0;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+@media print {
+  .printControls {
+    display: none;
+  }
+  .print {
+    max-width: none;
+    padding: 0;
+  }
+  .print .grid {
+    box-shadow: 0 0 0 1px var(--line);
+    break-inside: avoid;
+  }
+}
+
+/* ───────── Phone ───────── */
+
+.actionBar {
+  display: none;
+}
+
+@media (max-width: 759px) {
+  .answerSlot {
+    min-height: 40px;
+  }
+  .page {
+    --hh: 52px;
+    --gut: 30px;
+    padding-bottom: 84px;
+  }
+  .head {
+    margin: 0 4px 4px;
+  }
+  .answer {
+    min-height: 40px;
+    padding: 0 6px;
+    font-size: 13.5px;
+  }
+  .strip {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 10px 10px 10px 14px;
+  }
+  .stripSentence {
+    flex-basis: calc(100% - 80px);
+  }
+  .stripActions {
+    width: 100%;
+    order: 3;
+  }
+  /* Browse all shares the count's line, so the actions keep their width. */
+  .stripCount {
+    order: 0;
+  }
+  .stripBrowse {
+    order: 1;
+    margin-left: auto;
+  }
+  .stripSentence {
+    order: 2;
+  }
+  .stripActions > :not(:global(.ui-btn--icon)) {
+    flex: 1;
+  }
+  .grid {
+    border-radius: 14px;
+  }
+  .gridHead {
+    height: 30px;
+  }
+  .gridHead span {
+    font-size: 11px;
+  }
+  .gutter span {
+    right: 4px;
+    font-size: 11px;
+  }
+  /* 8px from the block's edge on the left (5px clear of the bar), 5px at the top, 4px on the right. */
+  .event {
+    padding: 5px 4px 4px 8px;
+    border-radius: 6px;
+  }
+  /* 11px is the smallest type on a phone (visual QA checklist). */
+  .eventCode {
+    font-size: 11px;
+    line-height: 13px;
+    max-height: round(down, 100cqh, 13px);
+  }
+  .walkChip {
+    height: 17px;
+    padding: 0 5px 0 3px;
+    font-size: 11px;
+  }
+  .walkWords,
+  .tag {
+    display: none;
+  }
+  .actionBar {
+    --glass-fill: rgba(255, 255, 255, 0.84);
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: calc(var(--shell-bottom-h, 0px) + 8px + var(--safe-b));
+    z-index: 35;
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+  }
+  .actionBar > button {
+    flex: 1;
+    height: 44px;
+  }
+}
+/*
+ * Phone columns are narrow: the calendar glyph goes (the edge rule and dots
+ * still say where the time came from), and the name and its weeks wrap
+ * rather than cut to a letter or two, since the weeks are the band's one fact.
+ */
+.grid[data-phone] .busy {
+  padding: 3px 5px;
+}
+.grid[data-phone] .busy[data-kind="calendar"] {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 3px 4px 3px 5px;
+}
+.grid[data-phone] .busy[data-kind="calendar"] .busyGlyph {
+  display: none;
+}
+.grid[data-phone] .busy[data-kind="calendar"] .busyNote {
+  grid-column: 1;
+}
+.grid[data-phone] .busyLabel,
+.grid[data-phone] .busyNote {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.25;
+}
+/* Beside a class, the band has a narrow strip: its name and weeks wrap rather than cut off. */
+.busy[data-beside] .busyLabel,
+.busy[data-beside] .busyNote {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.25;
+}
+.grid[data-phone] .eventBusy {
+  font-size: 11px;
+}

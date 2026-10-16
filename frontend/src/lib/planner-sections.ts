@@ -9,7 +9,12 @@ import { courses as catalogCourses, sections as seedSections } from "@/lib/seed-
 import type { CourseSections, Day, Meeting, SampleCourseSections, Section } from "@/lib/sections";
 import { sampleResult } from "@/lib/sections/sample";
 import type { DateRange } from "@/lib/sections/model";
+import { hasOpenSeats } from "@/lib/sections/open-seats";
+import { fullSession } from "@/lib/terms";
 import type { ScheduleEvent } from "@/lib/types";
+
+// Callers across the app import it from here.
+export { hasOpenSeats };
 
 /**
  * The term the planner schedules. Spring 2027 is the next registration term
@@ -18,16 +23,18 @@ import type { ScheduleEvent } from "@/lib/types";
  */
 export const planningTerm = { id: "spring-2027", label: "Spring 2027" } as const;
 
+const spring2027 = fullSession("Spring 2027");
+
 /**
- * First and last day of classes, per term: the dates of a meeting without
- * its own, and the optimizer's term boundary. vsb's file names the term but
- * carries no term dates, so this is a table. Spring 2027 is the range of
- * every "Regular Academic Session" option in vsb's file (8,047 options, all
- * 01/11/2027 - 05/07/2027, checked 2026-10-13). The v3 design handoff's
- * "Jan 19 – May 7" is a mockup value and does not match it.
+ * First and last day of each term's full session, from the registrar's
+ * calendar (lib/terms/terms.ts): the dates of a meeting without its own, and
+ * the optimizer's term boundary. It runs to the session's end, finals
+ * included, because that is the range vsb gives every "Regular Academic
+ * Session" option (8,047 options, all 01/11/2027 - 05/07/2027, checked
+ * 2026-10-13).
  */
 export const termDates: Record<string, { start: string; end: string }> = {
-  "spring-2027": { start: "2027-01-11", end: "2027-05-07" },
+  "spring-2027": { start: spring2027.classesBegin, end: spring2027.sessionEnd },
 };
 
 /** One course's options as the planner knows them right now. */
@@ -239,12 +246,6 @@ export function otherSiteOf(section: Section): string | null {
     }
   }
   return null;
-}
-
-/** Open per INTEGRATION.md: not closed or wait-listed, and every component with known seats has one open. */
-export function hasOpenSeats(section: Pick<Section, "status" | "components">): boolean {
-  if (section.status === "closed" || section.status === "waitlist" || section.status === "cancelled") return false;
-  return section.components.every((component) => component.seats.open === null || component.seats.open > 0);
 }
 
 /** Whether the optimizer may suggest this option. */

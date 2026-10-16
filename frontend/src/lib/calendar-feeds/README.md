@@ -5,7 +5,46 @@ occurrence lists over a range, plus weekly recurring busy blocks for the
 schedule grid. Designed for club and event calendars published as `.ics`
 URLs. Nothing here persists anything; the preview route in
 `frontend/src/app/api/calendar-feeds/preview/route.ts` fetches, parses, and
-returns the result without storing it.
+returns the result without storing it. Both routes answer guests too,
+counted by address, because a guest connects calendars on the device.
+
+## Connected calendars and the feed address
+
+A private feed address is a password (a Google secret address reads the
+whole calendar), and `docs/architecture/README.md` requires feed URLs to be
+encrypted and never logged. So the address is never stored as written,
+anywhere:
+
+- `seal.ts`: AES-256-GCM under `CALENDAR_FEED_KEY` (32 random bytes in
+  base64), with the owner as associated data, so a token opens for its owner
+  only. A signed-in student's owner is the account (`user:<id>`). A guest's
+  is the browser (`guest:<id>`): a random id in the
+  `__Host-untangle-calendar-guest` cookie (HttpOnly, Secure, SameSite=Lax,
+  Path=/, no Domain), which the busy route sets the first time a guest
+  connects. The `__Host-` prefix requires Path=/, so the browser sends it
+  with every same-origin request; only the calendar-feed routes read it. A token copied out of
+  a guest's localStorage opens nowhere without that cookie. A guest token
+  stops opening 30 days after it was issued and 90 days after the first in
+  its line; each guest refresh reseals it with the first issue time kept. A
+  guest token sent with that cookie by a student who signed in on the same
+  browser comes back sealed for the account, within the same limits. A
+  token sealed under a key the server no longer has fails as `other-key`.
+- The busy route seals on request (`seal: true` with a `url`) and refreshes
+  from a token (`sealedUrl`). The preview route never takes a token: event
+  titles leave the server only for someone holding the address itself.
+- `client.ts` is the browser side: check a feed (preview route, over the
+  planning term), connect it (busy route, sealed), refresh it, and turn one
+  event into a named busy time on its date. The pasted address lives only in
+  the Preferences form's state.
+- What is kept is a `ConnectedCalendar` (packages/contracts, `CalendarSchema`):
+  name, sealed address, a feed id (an HMAC of the address under the sealing
+  key, so pasting an address already connected replaces that calendar rather
+  than adding a second), term, when it was read, and title-free busy slots,
+  each a start and end with the dates it falls on. A signed-in student's
+  live in the preferences document, so every device sees them; a guest's
+  live in the guest's preferences on the device. `lib/calendar-busy.ts`
+  turns them into dated blocked times for Auto, the extension's clash rows
+  and the week grid.
 
 ## Public API
 
@@ -20,6 +59,23 @@ returns the result without storing it.
   when it is over `MAX_PREVIEW_RESPONSE_BYTES` (1 MiB). The route answers
   null with 422 and "This calendar has too many events to preview"; it never
   cuts a response short.
+- `busyFromFeed(parsed, termRange, timeZone?)`: the title-free dated busy
+  pieces the planner consumes as dated blocked times. It runs the same
+  occurrence pipeline as `occurrences` over the term's inclusive ISO-date
+  range, then keeps only busy pieces and drops every free-text field: a
+  piece is `{ eventId, date, startMinutes, endMinutes, start, end, allDay,
+  busy }`, with weekday and minutes derivable from `date` and local
+  midnight. Recurring series, canceled instances and transparent events
+  behave exactly as in the events API, because it is the same pipeline.
+  The busy route (`frontend/src/app/api/v1/calendar-feeds/busy/route.ts`)
+  fetches, parses, and returns these pieces through a serializer that maps
+  fields explicitly — occurrences carry only `{ date, startMinutes,
+  endMinutes, allDay }` and skipped entries only `{ index, reason }`, the
+  reason a fixed code because the parser's reasons quote feed values (no summary,
+  UID, or feed URL: a Google secret-address URL carries a private token), so
+  a future field on the internal types cannot leak event text into the
+  response by accident; the planner converts them to dated blocked times in
+  `busyOccurrencesToBlockedTime` (`src/lib/planner.ts`).
 - `fetchCalendarIcs(url, deps?)`: fetch a feed over https with the SSRF
   guards below and return the raw text. Throws `CalendarFetchError` with a
   `kind` of `blocked` / `invalid` (the route answers 400) or `unreachable` /

@@ -11,12 +11,16 @@ import { createV1Auth } from "@/server/auth/v1-auth";
 import { createUserLimit } from "@/lib/rate-limit/wrapper";
 import { postgresStore } from "@/lib/rate-limit/store";
 import { bytes, schedule, versionBody, write } from "./fixtures";
+import * as contract from "../../../packages/contracts/tests/fixtures";
+import { legacyDocuments } from "@/lib/document-sync/legacy-migration";
+import { savePlannerState } from "@/lib/persistence";
 
 // Same opt-in as auth/rate-limit live tests; only a disposable schema on localhost.
 const url = process.env.RATE_LIMIT_TEST_DATABASE_URL;
 const namespace = `document_sync_test_${crypto.randomUUID().replaceAll("-", "")}`;
 let pool: Pool;
 let repo: DocumentRepository;
+let database: ReturnType<typeof drizzle<typeof schema>>;
 
 function put(id: string, overrides: Parameters<typeof write>[0] = {}, userId = "alice") {
   return repo.write(userId, bytes({ ...write(), documentId: id, operationId: crypto.randomUUID(), ...overrides }), id);
@@ -33,7 +37,8 @@ describe.skipIf(!url)("document sync on Postgres", () => {
     }
     await pool.query(`INSERT INTO "user" (id, name, email, email_verified) VALUES
       ('alice', 'Alice', 'alice@example.invalid', true), ('bob', 'Bob', 'bob@example.invalid', true)`);
-    repo = documentRepository(drizzle(pool, { schema }));
+    database = drizzle(pool, { schema });
+    repo = documentRepository(database);
   });
   afterAll(async () => {
     if (pool) {
@@ -264,11 +269,65 @@ describe.skipIf(!url)("document sync on Postgres", () => {
     expect((await pull()).status).toBe(200);
     const change = await grants.beginSecurityChange("alice", stamped);
     const during = await pull();
-    expect(during.status).toBe(401);
-    expect(await during.json()).toMatchObject({ code: "UNAUTHORIZED" });
+    expect(during.status).toBe(409);
+    expect(await during.json()).toMatchObject({ code: "security_change_in_progress" });
     await grants.finishSecurityChange("alice", change.changeId);
     expect((await pull()).status).toBe(401);
     stamped = await grants.readSecurityGeneration("alice");
     expect((await pull()).status).toBe(200);
+  });
+
+  test("a legacy row moves into three documents on the first pull, once, and the legacy write path closes in the same step", async () => {
+    await pool.query(`INSERT INTO "user" (id, name, email, email_verified) VALUES
+      ('carol', 'Carol', 'carol@example.invalid', true), ('dave', 'Dave', 'dave@example.invalid', true)`);
+    // The row as the legacy route writes it.
+    expect(await savePlannerState("carol", contract.savedPlan, 0, database)).toMatchObject({ kind: "saved", revision: 1 });
+
+    const listed = await repo.pull("carol");
+    expect(listed.map((entry): unknown[] => [entry.documentId, entry.kind, entry.revision, entry.deleted])).toEqual([
+      ["academic-record-unt", "academic-record", 1, false],
+      ["main-unt-spring-2027", "schedule", 1, false],
+      ["preferences-unt", "preferences", 1, false],
+    ]);
+    for (const document of legacyDocuments(contract.savedPlan)) {
+      expect(await repo.get("carol", document.documentId)).toMatchObject({ kind: document.kind, revision: 1, body: JSON.parse(JSON.stringify(document.body)) });
+    }
+    expect((await repo.get("carol", "main-unt-spring-2027")).body).toMatchObject({ courses: ["CSCE 1040", "MATH 1720"], lastAuto: { id: "auto-7f3a" } });
+
+    // From here an old tab's save is refused, never acknowledged and dropped.
+    expect(await savePlannerState("carol", { ...contract.savedPlan, selectedMajor: "engl" }, 1, database)).toEqual({ kind: "upgrade-required" });
+    expect((await pool.query(`SELECT revision, selected_major FROM planner_state WHERE user_id = 'carol'`)).rows).toEqual([{ revision: 1, selected_major: "cs" }]);
+
+    // Edits go to documents; a later pull never migrates again.
+    const record = (await repo.get("carol", "academic-record-unt")).body as typeof contract.academicRecord;
+    await put("academic-record-unt", { kind: "academic-record", baseRevision: 1, body: { ...record, major: "math" } }, "carol");
+    expect((await repo.pull("carol")).map((entry) => entry.revision)).toEqual([2, 1, 1]);
+    expect((await repo.get("carol", "academic-record-unt")).body).toMatchObject({ major: "math", transcriptRecords: record.transcriptRecords });
+
+    // A student with no legacy row gets the marker too, so no legacy row can appear later.
+    expect(await repo.pull("dave")).toEqual([]);
+    expect(await savePlannerState("dave", contract.savedPlan, 0, database)).toEqual({ kind: "upgrade-required" });
+    expect((await pool.query(`SELECT count(*)::int AS n FROM planner_state WHERE user_id = 'dave'`)).rows).toEqual([{ n: 0 }]);
+  });
+
+  test("a write that arrives before any pull and is refused still leaves the migrated documents readable", async () => {
+    await pool.query(`INSERT INTO "user" (id, name, email, email_verified) VALUES ('frank', 'Frank', 'frank@example.invalid', true)`);
+    await savePlannerState("frank", contract.savedPlan, 0, database);
+    // A device that never pulled writes the first schedule id from revision 0.
+    await expect(put("main-unt-spring-2027", { baseRevision: 0 }, "frank")).rejects.toMatchObject({ code: "REVISION_CONFLICT", revision: 1 });
+    expect(await repo.get("frank", "main-unt-spring-2027")).toMatchObject({ revision: 1, body: { courses: ["CSCE 1040", "MATH 1720"] } });
+  });
+
+  test("a legacy save racing the migration either lands before it and is migrated, or is refused", async () => {
+    await pool.query(`INSERT INTO "user" (id, name, email, email_verified) VALUES ('erin', 'Erin', 'erin@example.invalid', true)`);
+    const [saved] = await Promise.all([savePlannerState("erin", contract.savedPlan, 0, database), repo.pull("erin")]);
+    const documents = await repo.pull("erin");
+    if (saved?.kind === "saved") {
+      expect(documents.map((entry): string => entry.documentId)).toEqual(["academic-record-unt", "main-unt-spring-2027", "preferences-unt"]);
+    } else {
+      expect(saved).toEqual({ kind: "upgrade-required" });
+      expect(documents).toEqual([]);
+      expect((await pool.query(`SELECT count(*)::int AS n FROM planner_state WHERE user_id = 'erin'`)).rows).toEqual([{ n: 0 }]);
+    }
   });
 });

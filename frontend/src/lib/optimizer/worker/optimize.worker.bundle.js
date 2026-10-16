@@ -360,6 +360,13 @@ function validateRequest(request, checkDeadline = () => {}) {
     if (!DAY_INDEX.has(block.day) || !isInteger(block.start, 0, 24 * 60) || !isInteger(block.end, 0, 24 * 60) || block.end <= block.start) {
       throw new OptimizerInputError(`blocked time ${block.id} is invalid`);
     }
+    if (block.dates !== undefined && block.dates !== null) {
+      if (!Array.isArray(block.dates)) {
+        throw new OptimizerInputError(`blocked time ${block.id} has invalid dates: expected an array of ranges`);
+      }
+      for (const range of block.dates)
+        validateDates(range, `blocked time ${block.id}`);
+    }
   }
   const fixedCredits = request.fixedCredits ?? 0;
   if (!(Number.isFinite(fixedCredits) && fixedCredits >= 0)) {
@@ -378,7 +385,7 @@ function validateRequest(request, checkDeadline = () => {}) {
 function overlaps(a, b) {
   return a.day === b.day && a.start < b.end && b.start < a.end && (a.weeks & b.weeks) !== 0;
 }
-function passesTimeConstraints(section, constraints) {
+function passesTimeConstraints(section, constraints, term = null) {
   const off = new Set(constraints.daysOff);
   for (const meeting of section.meetings) {
     if (constraints.earliestStart !== null && meeting.start < constraints.earliestStart)
@@ -388,11 +395,42 @@ function passesTimeConstraints(section, constraints) {
     if (off.has(meeting.day))
       return false;
     for (const block of constraints.blocked) {
-      if (block.day === meeting.day && meeting.start < block.end && block.start < meeting.end)
+      if (blockConflicts(block, meeting, term))
         return false;
     }
   }
   return true;
+}
+function blockConflicts(block, meeting, term) {
+  if (block.day !== meeting.day)
+    return false;
+  if (meeting.start >= block.end || block.start >= meeting.end)
+    return false;
+  const ranges = block.dates;
+  if (!ranges || ranges.length === 0)
+    return true;
+  const own = meeting.dates ?? term;
+  if (!own)
+    return true;
+  const ownStart = dayNumber(own.start);
+  const ownEnd = dayNumber(own.end);
+  if (ownStart === null || ownEnd === null)
+    return true;
+  const weekday = OPT_DAYS.indexOf(block.day);
+  for (const range of ranges) {
+    const start = dayNumber(range.start);
+    const end = dayNumber(range.end);
+    if (start === null || end === null)
+      continue;
+    const first = Math.max(start, ownStart);
+    const last = Math.min(end, ownEnd);
+    if (first > last)
+      continue;
+    const firstMatch = first + (weekday - (first + 3) % 7 + 7) % 7;
+    if (firstMatch <= last)
+      return true;
+  }
+  return false;
 }
 var datesKey = (m) => m.dates ? `${m.dates.start}/${m.dates.end}` : "";
 function timeSignatureOf(meetings) {
@@ -409,7 +447,7 @@ function allowedSections(course, request) {
 function minDifferentCourses(request) {
   let variable = 0;
   for (const course of request.courses) {
-    const signatures = new Set(allowedSections(course, request).filter((section) => passesTimeConstraints(section, request.constraints)).map((section) => timeSignatureOf(section.meetings)));
+    const signatures = new Set(allowedSections(course, request).filter((section) => passesTimeConstraints(section, request.constraints, request.term ?? null)).map((section) => timeSignatureOf(section.meetings)));
     if (signatures.size >= 2)
       variable += 1;
   }
@@ -426,7 +464,7 @@ class PrepareBudgetExhausted extends Error {
     super("optimizer: time budget ran out while preparing");
   }
 }
-function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => performance.now()) {
+function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => performance.now(), options = {}) {
   const checkDeadline = () => {
     if (deadline !== Number.POSITIVE_INFINITY && now() > deadline)
       throw new PrepareBudgetExhausted;
@@ -446,7 +484,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     }
     return index;
   };
-  const allowedByCourse = sortedCourses.map((course) => allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints)));
+  const allowedByCourse = sortedCourses.map((course) => allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints, request.term ?? null)));
   const segments = weekSegments(allowedByCourse.flatMap((list) => list.flatMap((section) => section.meetings)), request.term, checkDeadline);
   let globalMinDuration = Number.POSITIVE_INFINITY;
   for (const list of allowedByCourse) {
@@ -519,7 +557,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
       });
     }
     const walkingMatters2 = weights.walking > 0 || constraints.walking !== null;
-    const ordered = dropTwins(kept, walkingMatters2).sort((a, b) => a.self - b.self || compareIds(a.section.id, b.section.id));
+    const ordered = (options.keepTwins ? kept : dropTwins(kept, walkingMatters2)).sort((a, b) => a.self - b.self || compareIds(a.section.id, b.section.id));
     const wordLo = word;
     ordered.forEach((candidate, index) => {
       candidate.bit = wordLo * 32 + index;
@@ -1034,6 +1072,10 @@ function search(prepared, budget, options) {
     if (options.stopAtFirst) {
       best = leaf;
       throw new FoundOne;
+    }
+    if (options.collect) {
+      best = options.collect(leaf);
+      return;
     }
     if (best === null || leafBefore(leaf, best))
       best = leaf;
@@ -1714,6 +1756,10 @@ function explainSentence(request, members) {
     const onlyB = onlySection(b);
     if (conditions.length === 0) {
       if (onlyA && onlyB) {
+        if (locked.has(a) || locked.has(b)) {
+          const named = (code, only) => locked.has(code) ? describe(code) : `${code} (${pattern(only)})`;
+          return `${named(a, onlyA)} and ${named(b, onlyB)} overlap.`.replace(/^./, (s) => s.toUpperCase());
+        }
         const datesA = dated ? datesOf(onlyA) : null;
         const datesB = dated ? datesOf(onlyB) : null;
         const both = datesA && datesB ? `: ${describePattern(onlyA)} (${datesA}) and ${describePattern(onlyB)} (${datesB})` : ` (${describePattern(onlyA)} and ${describePattern(onlyB)})`;
@@ -1948,6 +1994,84 @@ function toRanked(request, prepared, leaf, proven) {
   };
 }
 
+// src/lib/optimizer/enumerate.ts
+var MAX_LIST_LIMIT = 2000;
+var DEFAULT_LIST_LIMIT = 500;
+var DEFAULT_RANK_NODES = 400000;
+var DEFAULT_COUNT_NODES = 1e6;
+var DEFAULT_EXPLAIN_BUDGET_MS2 = 250;
+var NO_WEIGHTS = { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 };
+function positiveInteger(value, label, max = Number.MAX_SAFE_INTEGER) {
+  if (!Number.isInteger(value) || value < 1 || value > max)
+    throw new OptimizerInputError(`${label} must be an integer 1..${max}, got ${value}`);
+  return value;
+}
+function enumerateSchedules(request) {
+  const { limit: askedLimit, rankNodes: askedRank, countNodes: askedCount, timeBudgetMs, ...rest } = request;
+  const limit = positiveInteger(askedLimit ?? DEFAULT_LIST_LIMIT, "limit", MAX_LIST_LIMIT);
+  const rankNodes = positiveInteger(askedRank ?? DEFAULT_RANK_NODES, "rankNodes");
+  const countNodes = positiveInteger(askedCount ?? DEFAULT_COUNT_NODES, "countNodes");
+  const engineRequest = { ...rest };
+  const now = engineRequest.now ?? (() => performance.now());
+  const started = now();
+  const deadline = timeBudgetMs === undefined ? Number.POSITIVE_INFINITY : started + timeBudgetMs;
+  let prepared;
+  try {
+    prepared = prepare(engineRequest, deadline, now, { keepTwins: true });
+  } catch (error) {
+    if (!(error instanceof PrepareBudgetExhausted))
+      throw error;
+    return { status: "timeout", schedules: [], total: 0, totalExact: false, stats: { rankNodes: 0, countNodes: 0, elapsedMs: now() - started, candidates: {} } };
+  }
+  const kept = [];
+  const collect = (leaf) => {
+    if (kept.length === limit && !leafBefore(leaf, kept[limit - 1]))
+      return kept[limit - 1];
+    let index = kept.length;
+    while (index > 0 && leafBefore(leaf, kept[index - 1]))
+      index -= 1;
+    kept.splice(index, 0, leaf);
+    if (kept.length > limit)
+      kept.pop();
+    return kept.length === limit ? kept[limit - 1] : null;
+  };
+  const rankBudget = { deadline, maxNodes: rankNodes, now, nodes: 0 };
+  const ranked = search(prepared, rankBudget, { previous: [], minDifferent: 0, stopAtFirst: false, incumbent: null, collect });
+  const countBudget = { deadline, maxNodes: countNodes, now, nodes: 0 };
+  const stats = () => ({
+    rankNodes: rankBudget.nodes,
+    countNodes: countBudget.nodes,
+    elapsedMs: now() - started,
+    candidates: Object.fromEntries(prepared.courses.map((course) => [course.code, course.candidates.length]))
+  });
+  if (kept.length === 0) {
+    if (!ranked.complete)
+      return { status: "timeout", schedules: [], total: 0, totalExact: false, stats: stats() };
+    const explanation = explainInfeasible(engineRequest, engineRequest.explainBudgetMs ?? DEFAULT_EXPLAIN_BUDGET_MS2, now);
+    return { status: "infeasible", schedules: [], total: 0, totalExact: true, explanation, stats: stats() };
+  }
+  let total = kept.length;
+  let totalExact = ranked.complete;
+  if (!ranked.complete || kept.length === limit) {
+    let count = 0;
+    const counted = search({ ...prepared, weights: NO_WEIGHTS }, countBudget, {
+      previous: [],
+      minDifferent: 0,
+      stopAtFirst: false,
+      incumbent: null,
+      collect: () => {
+        count += 1;
+        return null;
+      }
+    });
+    total = Math.max(count, kept.length);
+    totalExact = counted.complete;
+  }
+  const proven = ranked.complete || totalExact && total === kept.length;
+  const schedules = kept.map((leaf) => toRanked(engineRequest, prepared, leaf, proven));
+  return { status: "listed", schedules, total, totalExact, stats: stats() };
+}
+
 // src/lib/optimizer/worker/protocol.ts
 var FIRST_BUDGET_MS = 300;
 var FINAL_BUDGET_MS = 3000;
@@ -1982,9 +2106,27 @@ function runJob(job, deps) {
     deps.post({ id: job.id, phase: "error", message: error instanceof Error ? error.message : String(error) });
   }
 }
+var BROWSE_LIMIT = 500;
+var BROWSE_BUDGET_MS = 4000;
+function browseRequest(plain) {
+  const { walking, k: _k, ...rest } = plain;
+  return { ...rest, walkingTime: walkingFromTable(walking), limit: BROWSE_LIMIT, timeBudgetMs: BROWSE_BUDGET_MS };
+}
+function runBrowseJob(job, deps) {
+  try {
+    deps.post({ id: job.id, phase: "browse", result: deps.enumerate(browseRequest(job.request)), settled: true });
+  } catch (error) {
+    deps.post({ id: job.id, phase: "error", message: error instanceof Error ? error.message : String(error) });
+  }
+}
 
 // src/lib/optimizer/worker/optimize.worker.ts
 var scope = self;
 scope.onmessage = (event) => {
-  runJob(event.data, { optimize, post: (reply) => scope.postMessage(reply) });
+  const job = event.data;
+  if ("kind" in job && job.kind === "browse") {
+    runBrowseJob(job, { enumerate: enumerateSchedules, post: (reply) => scope.postMessage(reply) });
+    return;
+  }
+  runJob(job, { optimize, post: (reply) => scope.postMessage(reply) });
 };

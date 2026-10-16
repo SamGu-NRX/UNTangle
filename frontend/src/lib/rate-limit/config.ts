@@ -22,16 +22,32 @@ export const budgets = {
   deviceInspect: { ip: 30, windowSeconds: 600 },
   deviceApprove: { user: 10, ip: 10, windowSeconds: 600 },
   deviceToken: { ip: 120 },
+  // The extension routes share the device routes' unmeasured per-IP cap: one
+  // extension worker polls previews and resends commands through one token.
+  extensionPreview: { ip: 120 },
+  extensionCommand: { ip: 120 },
   // Each preview fetches an outside URL; this is an unmeasured starting value.
-  calendarFeedPreview: { user: 10, ip: 5, windowSeconds: 600 },
+  // Guests connect calendars too, counted by address, and students on one
+  // campus network share an address, so the address budget matches a
+  // signed-in student's rather than sitting below it. Unmeasured.
+  calendarFeedPreview: { user: 10, ip: 10, windowSeconds: 600 },
+  // Same cost as a preview (one outside fetch); connecting and refreshing a
+  // calendar each call it once. Unmeasured, raised for guests as above.
+  calendarFeedBusy: { user: 30, ip: 30, windowSeconds: 600 },
   grades: { user: 60, ip: 180 },
   mapRoute: { user: 60, ip: 60 },
   mapResolve: { user: 60, ip: 60 },
+  // Serves cached directory feeds; upstream refresh is bounded by the cache, not by callers.
+  campusEvents: { user: 60, ip: 60 },
   // /api/v1 document routes, counted by address before sign-in is checked;
-  // each student is then counted against plannerRead or plannerSave. Loose
-  // because many phones can share one carrier NAT address: room for 25
-  // students reading at their full budget. Unmeasured starting value.
-  documentFlood: { ip: 3000 },
+  // each student is then counted against plannerRead or plannerSave. Many
+  // phones can share one carrier NAT address, so this is a flood guard, not a
+  // per-student limit. 600 a minute leaves room for about a hundred students
+  // at the client's normal pace (docs/architecture/README.md: a pull a minute
+  // while visible, plus saves), or five at their full per-student burst.
+  // Beyond that, one address is more likely one misbehaving client than a
+  // crowd. Unmeasured: no production traffic has been looked at.
+  documentFlood: { ip: 600 },
   plannerRead: { user: 120, ip: 360 },
   plannerSave: { user: 60, ip: 180 },
   sections: { user: 60, ip: 180 },

@@ -84,6 +84,13 @@ export type OptBlockedTime = {
   day: OptDay;
   start: number;
   end: number;
+  /**
+   * The real date ranges the block applies to, when it is not weekly
+   * (calendar busy time). Absent, null or empty means every week. A meeting
+   * is only blocked when its own dates (or the request's term dates) overlap
+   * a range that also covers the block's weekday.
+   */
+  dates?: OptDateRange[] | null;
 };
 
 /**

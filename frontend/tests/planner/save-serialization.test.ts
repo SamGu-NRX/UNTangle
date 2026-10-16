@@ -1,19 +1,24 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import {
-  FakePlannerServer,
+  FakeDocumentServer,
   installDom,
   mountPlanner,
   removeDom,
+  resetDocumentStore,
   setSession,
   advanceTime,
   waitFor,
+  type PersistedDocumentStore,
 } from "./test-dom";
 
-// Item 2: an acknowledgement for an older save must not show `Saved` while a
-// newer edit is queued behind it.
+// One write per document at a time: an edit made while an earlier write is
+// in flight goes into this device's outbox at once, is sent only after the
+// earlier receipt, on the revision that receipt confirmed, and "Synced" waits
+// for the last receipt.
 
 const user = { id: "u2", email: "serial@my.unt.edu", name: "Serial Saver" };
-let server: FakePlannerServer;
+let server: FakeDocumentServer;
+let store: PersistedDocumentStore;
 let previousFetch: typeof fetch;
 const mounted: Array<() => Promise<void>> = [];
 
@@ -25,7 +30,8 @@ afterAll(() => {
 });
 beforeEach(() => {
   window.localStorage.clear();
-  server = new FakePlannerServer();
+  store = resetDocumentStore();
+  server = new FakeDocumentServer();
   previousFetch = globalThis.fetch;
   globalThis.fetch = server.fetch as typeof fetch;
   setSession(user);
@@ -36,58 +42,51 @@ afterEach(async () => {
   setSession(null);
 });
 
-describe("serialized server saves", () => {
-  test("slow save A, then edit B: Saved is not shown when A resolves, and is shown after B", async () => {
+const pending = async () =>
+  (await store.stored(user.id)).documents.find((document) => document.documentId === "preferences-unt")?.pending.length ?? 0;
+
+describe("one write per document at a time", () => {
+  test("slow write A, then edit B: B waits on this device, goes out on A's revision, and Synced waits for B", async () => {
     const planner = await mountPlanner();
     mounted.push(planner.unmount);
     await planner.get().afterHydration();
 
-    const releaseA = server.holdNextPost();
+    const releaseA = server.holdNextPut();
     await planner.run((p) => p.setOptimization("compact"));
-    await waitFor(() => server.posts.length === 0 && planner.get().saveState.label === "Saving…", "A in flight");
-    // Let the debounce fire so request A is actually waiting at the gate.
-    await advanceTime(350);
-    expect(server.postsStarted).toBe(1);
+    await waitFor(() => server.putsStarted === 1, "A in flight");
+    expect(planner.get().saveState.label).toBe("Waiting to sync");
 
-    await planner.run((p) => p.setActiveDay("Wed"));
-    // B's debounce fires while A is still in flight: B is queued, not sent.
-    await advanceTime(350);
-    expect(server.postsStarted).toBe(1);
-    expect(server.posts).toHaveLength(0);
+    await planner.run((p) => p.setSchedulePreferences((current) => ({ ...current, constraints: { ...current.constraints, daysOff: ["Wed"] } })));
+    // B reaches the outbox while A is still in flight, behind it, and is not sent.
+    for (let waited = 0; (await pending()) < 2 && waited < 2000; waited += 20) await advanceTime(20);
+    expect(await pending()).toBe(2);
+    expect(planner.get().saveState.label).toBe("Waiting to sync");
+    expect(server.putsStarted).toBe(1);
 
-    // Hold B at the server too, so the moment between "A acknowledged" and
-    // "B acknowledged" can be observed.
-    const releaseB = server.holdNextPost();
+    const releaseB = server.holdNextPut();
     releaseA();
-    // B reaching the server proves the provider has processed A's response.
-    await waitFor(() => server.postsStarted === 2, "A acknowledged and B sent");
-    expect(server.posts).toHaveLength(1);
-    expect(server.posts[0].body.optimization).toBe("compact");
-    expect(server.posts[0].body.activeDay).toBe("Mon");
-    // A resolved, but B is pending: never Saved here.
-    expect(planner.get().saveState.label).toBe("Saving…");
+    await waitFor(() => server.putsStarted === 2, "A confirmed and B sent");
+    expect(server.puts.map((put) => (put.write.body as { goal: string }).goal)).toEqual(["compact"]);
+    expect(planner.get().saveState.label).not.toBe("Synced");
 
     releaseB();
-    await waitFor(() => planner.get().saveState.label === "Saved", "B acknowledged");
-    expect(server.posts).toHaveLength(2);
-    expect(server.posts[1].body.activeDay).toBe("Wed");
-    // B was based on the revision A produced.
-    expect(server.posts[1].baseRevision).toBe("1");
-    expect(server.row?.revision).toBe(2);
-    expect(server.row?.state.activeDay).toBe("Wed");
+    await waitFor(() => planner.get().saveState.label === "Synced", "B confirmed");
+    expect(server.puts.map((put) => put.write.baseRevision)).toEqual([0, 1]);
+    expect(server.document(user.id, "preferences-unt")?.revision).toBe(2);
+    expect(await pending()).toBe(0);
   });
 
-  test("an edit after the last acknowledgement is never displayed as Saved", async () => {
+  test("an edit after the last receipt is never displayed as Synced", async () => {
     const planner = await mountPlanner();
     mounted.push(planner.unmount);
     await planner.get().afterHydration();
 
-    await planner.run((p) => p.setOptimization("compact"));
-    await waitFor(() => planner.get().saveState.label === "Saved", "first save");
-    await planner.run((p) => p.setActiveDay("Thu"));
-    // Before the debounce fires the state on screen is newer than the ack.
+    await planner.run((p) => p.setSelectedMajor("cs"));
+    await waitFor(() => planner.get().saveState.label === "Synced", "first write");
+    await planner.run((p) => p.setSelectedMajor("math"));
+    // Before the debounce fires the plan on screen is newer than the receipt.
     expect(planner.get().saveState.label).toBe("Saving…");
-    await waitFor(() => planner.get().saveState.label === "Saved", "second save");
-    expect(server.row?.state.activeDay).toBe("Thu");
+    await waitFor(() => planner.get().saveState.label === "Synced", "second write");
+    expect(server.plan(user.id)?.selectedMajor).toBe("math");
   });
 });

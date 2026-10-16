@@ -7,15 +7,27 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Check, ChevronDown, ChevronRight, Close } from "@/components/ui/icons";
 import { PLANNING_TERM } from "@/lib/terms";
-import { SCHEDULE_NAME, chipStatusLabel, chipTone, savedWhere, type ChipTone } from "./plan-status";
+import { openSyncNotice } from "@/components/sync-notice";
+import { SCHEDULE_NAME, chipStatusLabel, chipTone, type ChipTone } from "./plan-status";
 import { SCHEDULES_HREF } from "./routes";
 
 function useScheduleState() {
   const { saveState, isRegistered, hydrated, retrySave } = usePlanner();
+  // Retry helps only when a request can go through again: a network failure or an ended session, or a
+  // guest's browser storage. A conflict is settled by a choice; a refused write, a failed local save or
+  // an updated app need a reload.
+  const canRetry = isRegistered ? saveState.reason === "network" || saveState.reason === "session" : saveState.reason !== "conflict";
+  // A signed-in conflict's choices are in the notice: the status itself opens them.
+  const toNotice = saveState.reason === "conflict" && isRegistered ? openSyncNotice : null;
   const tone: ChipTone = hydrated ? chipTone(saveState.status) : "saving";
   const status =
-    tone === "saved" ? savedWhere(isRegistered) : hydrated ? chipStatusLabel(saveState.status, saveState.label) : "Loading";
-  return { tone, status, detail: saveState.detail, isRegistered, retrySave };
+    tone === "saved"
+      ? // Signed in, the label is the sync state ("Synced", "Saved on this device").
+        isRegistered ? saveState.label : "Saved on this device"
+      : hydrated
+        ? chipStatusLabel(saveState.status, saveState.label)
+        : "Loading";
+  return { tone, status, detail: saveState.detail, isRegistered, retrySave, canRetry, toNotice };
 }
 
 /**
@@ -50,7 +62,7 @@ export function PillText({ showTerm, status, action }: { showTerm: boolean; stat
  * beside it, because the library is the wrong place to fix that.
  */
 export function SchedulePill() {
-  const { tone, status, retrySave } = useScheduleState();
+  const { tone, status, retrySave, canRetry, toNotice } = useScheduleState();
   return (
     <span className="shell-pill-group">
       <Link
@@ -61,12 +73,21 @@ export function SchedulePill() {
         <PillText showTerm status={status} action="Open all schedules" />
       </Link>
       {tone === "error" ? (
-        <>
-          <span className="shell-pill-error">{status}</span>
-          <Button size="sm" variant="quiet" onClick={retrySave}>
-            Retry
+        toNotice ? (
+          // One control for the conflict: its status, which opens the choice.
+          <Button size="sm" variant="quiet" className="shell-pill-error" onClick={toNotice}>
+            {status}
           </Button>
-        </>
+        ) : (
+          <>
+            <span className="shell-pill-error">{status}</span>
+            {canRetry ? (
+              <Button size="sm" variant="quiet" onClick={retrySave}>
+                Retry
+              </Button>
+            ) : null}
+          </>
+        )
       ) : null}
     </span>
   );
@@ -77,7 +98,7 @@ export function SchedulePill() {
  * a link to the library. Picking a schedule never leaves the lens you are on.
  */
 export function PhoneSchedulePill() {
-  const { tone, status, detail, isRegistered, retrySave } = useScheduleState();
+  const { tone, status, detail, isRegistered, retrySave, canRetry, toNotice } = useScheduleState();
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -118,9 +139,22 @@ export function PhoneSchedulePill() {
         {tone === "error" ? (
           <div className="shell-sheet-error">
             {detail ? <p>{detail}</p> : null}
-            <Button variant="secondary" onClick={retrySave}>
-              Retry saving
-            </Button>
+            {canRetry ? (
+              <Button variant="secondary" onClick={retrySave}>
+                Retry saving
+              </Button>
+            ) : toNotice ? (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  // The sheet covers the notice; close it first, then focus the notice once it's back in view.
+                  setOpen(false);
+                  setTimeout(toNotice, 200);
+                }}
+              >
+                {status}
+              </Button>
+            ) : null}
           </div>
         ) : null}
         <Link href={SCHEDULES_HREF} className="ui-btn ui-btn--secondary shell-sheet-link" data-ui="" onClick={() => setOpen(false)}>

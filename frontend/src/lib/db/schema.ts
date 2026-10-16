@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, jsonb, pgTable, text, timestamp, boolean, bigint, primaryKey } from "drizzle-orm/pg-core";
+import { check, index, integer, jsonb, pgTable, text, timestamp, boolean, bigint, primaryKey, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const users = pgTable("user", {
   id: text("id").primaryKey(),
@@ -55,7 +55,11 @@ export const accounts = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("account_user_id_idx").on(table.userId)],
+  (table) => [
+    index("account_user_id_idx").on(table.userId),
+    // One password per account (0015); DeviceStore.writeCredential relies on it.
+    uniqueIndex("account_credential_user_idx").on(table.userId).where(sql`${table.providerId} = 'credential'`),
+  ],
 );
 
 export const verifications = pgTable(
@@ -173,6 +177,14 @@ export const receipts = pgTable("receipts", {
   check("receipts_revision", sql`${table.committedRevision} > 0`),
 ]);
 
+// A row means the user's planner_state row has moved into documents
+// (lib/document-sync/legacy-migration.ts). It is written even for a user with
+// no legacy row, so the legacy write path can refuse every later write.
+export const plannerMigrations = pgTable("planner_migration", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  migratedAt: timestamp("migrated_at", { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+});
+
 // Versions have no update path. The migration also rejects direct SQL updates.
 export const versions = pgTable("versions", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -233,6 +245,7 @@ export const schema = {
   verifications,
   magicLinkClaims,
   plannerStates,
+  plannerMigrations,
   apiRateLimits,
   authRateLimits,
   gradesHistoryCache,

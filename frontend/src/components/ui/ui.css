@@ -1690,8 +1690,9 @@
   pointer-events: none;
 }
 @media (max-width: 759px) {
+  /* A lens with its own bottom bar (Week's Add and Auto) lifts toasts above it with --toast-lift. */
   .ui-toaster {
-    bottom: calc(var(--tabbar-h) + 12px + var(--safe-b));
+    bottom: calc(var(--tabbar-h) + 12px + var(--safe-b) + var(--toast-lift, 0px));
   }
 }
 .ui-toast {
@@ -1848,6 +1849,10 @@
   gap: 16px;
   padding: 20px 16px 0 24px;
 }
+/* Focused on open by script (Dialog focusTitle); not a control, so no ring. */
+.ui-dialog [data-dialog-start]:focus {
+  outline: none;
+}
 .ui-dialog__title {
   margin: 0;
   padding-top: 6px;
@@ -1867,8 +1872,14 @@
   overscroll-behavior: contain;
   padding: 16px 24px 24px;
 }
+/* A dialog with no body: its buttons keep their distance from the description. */
+.ui-dialog__description + .ui-dialog__foot {
+  padding-top: 20px;
+}
 .ui-dialog__foot {
   display: flex;
+  /* Two long labels don't fit a phone's width side by side; the last (primary) button wraps onto the top line. */
+  flex-wrap: wrap-reverse;
   justify-content: flex-end;
   gap: 8px;
   padding: 0 24px 20px;

@@ -127,6 +127,20 @@ const motionOf = (page, selector) =>
   }, selector);
 const byTransition = (motion, properties) => motion.animation === "none" && motion.transition === properties;
 
+/**
+ * A new guest's first visit to Week opens Set up Auto by itself (its own
+ * journey is output/playwright/onboarding/journey.mjs). This journey starts
+ * past it: skip it, then dismiss the "Skipped setup" toast it leaves.
+ */
+async function skipSetup(page) {
+  const setup = page.getByRole("dialog", { name: "Set up Auto" });
+  await setup.waitFor({ timeout: 15000 });
+  await page.keyboard.press("Escape");
+  await setup.waitFor({ state: "hidden", timeout: 5000 });
+  await page.locator(".ui-toast").getByRole("button", { name: "Dismiss" }).click();
+  await page.waitForTimeout(200);
+}
+
 async function openWeek(browser, viewport, options = {}) {
   const context = await browser.newContext({ viewport, ...options });
   await context.addInitScript(installStub, plannerDoc);
@@ -136,6 +150,7 @@ async function openWeek(browser, viewport, options = {}) {
   await page.goto(`${BASE}/schedule`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__webmcp.tools.size === 11, null, { timeout: 30000 });
   await page.waitForLoadState("networkidle").catch(() => undefined);
+  await skipSetup(page);
   return { context, page, errors };
 }
 

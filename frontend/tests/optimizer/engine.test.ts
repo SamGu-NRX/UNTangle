@@ -211,7 +211,7 @@ describe("instructor evidence tie-break", () => {
     expect(result.schedules[0]?.byCourse).toEqual({ "ECON 1110": "econ-a", "MATH 1650": "math-001" });
     expect(result.schedules[1]?.byCourse).toEqual({ "ECON 1110": "econ-b", "MATH 1650": "math-002" });
     expect(result.schedules[0]?.cost).toBe(result.schedules[1]?.cost);
-    const reasons = scheduleReasons({ alternatives: result.schedules, index: 0, request: req });
+    const reasons = scheduleReasons({ alternatives: result.schedules, index: 0, request: req, optionName: (index) => `option ${index + 1}` });
     const tie = reasons.find((reason) => reason.kind === "grade-history" && reason.preference === null);
     expect(tie?.sentence).toBe("Students in this instructor's sections averaged a 3.9.");
     expect(tie?.evidence.numbers).toContainEqual({ label: "average grade points of sections with grade history", value: 3.9 });

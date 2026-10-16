@@ -1,5 +1,6 @@
 import type { DeviceGrantErrorCode, DeviceScope } from "../../../../packages/contracts/src/device-grant";
 import { DocumentIdSchema } from "../../../../packages/contracts/src/ids";
+import { ACCOUNT_HEADER } from "../../../../packages/contracts/src/sync";
 import { DeviceGrantError } from "@/server/auth/device-grants";
 import { SyncError } from "./decision";
 import type { DocumentRepository } from "./repository";
@@ -64,6 +65,7 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
     } catch (error) {
       if (!(error instanceof DeviceGrantError)) throw error;
       if (error.code === "unauthorized") throw new SyncError(401, "UNAUTHORIZED", "Sign in to sync documents.");
+      if (error.code === "security_change_in_progress") throw new SyncError(409, error.code, "A change to this account's security settings is in progress. Try again in a moment.");
       const message = deviceRefusals[error.code as keyof typeof deviceRefusals];
       if (!message) throw error;
       throw new SyncError(error.status, error.code, message);
@@ -72,12 +74,18 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
   async function handle(request: Request, scope: DeviceScope, action: (identity: Identity) => Promise<unknown>): Promise<Response> {
     try {
       const identity = await identify(request, scope);
+      const expected = request.headers.get(ACCOUNT_HEADER);
+      if (expected !== null && expected !== identity.userId) {
+        throw new SyncError(401, "ACCOUNT_CHANGED", "This tab is syncing for another account. Sign in again to continue.");
+      }
       // Counted per student once identified, so phones sharing a carrier NAT
       // address don't share a budget. The route's withRateLimit guards by address.
       let retryAfter: number | null;
       try {
         retryAfter = await limit(scope === "documents:write" ? "plannerSave" : "plannerRead", identity.userId);
-      } catch {
+      } catch (error) {
+        // The error's name and code only: the store's messages can carry query values.
+        console.error("Document rate limiting unavailable", { name: (error as Error)?.name, code: (error as { code?: unknown })?.code });
         return Response.json({ error: "Abuse prevention unavailable. Try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
           { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
       }
@@ -91,9 +99,17 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
       if (error instanceof SyncError) {
         return Response.json({ error: error.message, code: error.code,
           ...(error.revision === undefined ? {} : { revision: error.revision }) },
-        { status: error.status, headers: { "Cache-Control": "no-store" } });
+        { status: error.status, headers: {
+          "Cache-Control": "no-store",
+          // A security change normally finishes within its one request. A few
+          // seconds keeps clients from polling hard at one stuck until its
+          // 15-minute timeout. Unmeasured.
+          ...(error.code === "security_change_in_progress" ? { "Retry-After": "5" } : {}),
+        } });
       }
-      // Database failures must never return a receipt or expose a student's body.
+      // Database failures must never return a receipt or expose a student's body. The log takes the
+      // error's name and code only: messages can carry query values or a body.
+      console.error("Document request failed", { name: (error as Error)?.name, code: (error as { code?: unknown })?.code });
       return Response.json({ error: "Document storage is unavailable.", code: "STORAGE_UNAVAILABLE" },
         { status: 503, headers: { "Cache-Control": "no-store" } });
     }

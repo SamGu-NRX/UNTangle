@@ -98,8 +98,6 @@ export type PlannerStore = {
    * refused with the incoming document so the caller can arbitrate.
    */
   write(state: PlannerState, baseRevision: number): PlannerStoreWrite;
-  /** Silent best-effort mirror write (used as a registered-user backup); never conflicts. */
-  writeMirror(state: PlannerState): void;
   subscribe(listener: () => void): () => void;
   /** Keys of quarantined corrupt documents, oldest first. */
   listQuarantined(): string[];
@@ -185,8 +183,16 @@ function parseDocument(raw: string): {
   };
 }
 
+/**
+ * The plan's content, for matching an ownerless key with an account's plan.
+ * The save time and the day on screen aren't content, and an account's
+ * documents keep neither (docs/architecture/README.md, "Saved state").
+ */
 function canonicalPlannerState(state: PlannerState): string {
-  return JSON.stringify(normalizePlannerState(state), (_key, value: unknown) =>
+  const content: Partial<PlannerState> = { ...normalizePlannerState(state) };
+  delete content.updatedAt;
+  delete content.activeDay;
+  return JSON.stringify(content, (_key, value: unknown) =>
     isRecord(value)
       ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, value[key]]))
       : value,
@@ -396,33 +402,6 @@ export function createPlannerStateStore(storage?: Storage | null, userId: string
       return { ok: true, revision: doc.revision, savedAt };
     },
 
-    writeMirror(state) {
-      migrateLegacy();
-      if (!resolvedStorage) {
-        return;
-      }
-      try {
-        const rawRead = readRaw();
-        let currentRevision = 0;
-        if (!rawRead.failed && rawRead.raw !== null) {
-          const parsed = parseDocument(rawRead.raw);
-          if (parsed.doc) {
-            currentRevision = parsed.doc.revision;
-          } else if (!quarantine(rawRead.raw).quarantinedTo) {
-            return;
-          }
-        }
-        const doc: PlannerStoreDocument = {
-          storeSchemaVersion: PLANNER_STATE_STORE_SCHEMA_VERSION,
-          revision: currentRevision + 1,
-          savedAt: new Date().toISOString(),
-          state: normalizePlannerState(state),
-        };
-        resolvedStorage.setItem(storeKey, JSON.stringify(doc));
-      } catch {
-        // Best-effort mirror: a failure here never blocks the server save.
-      }
-    },
 
     subscribe(listener) {
       if (typeof window === "undefined") {

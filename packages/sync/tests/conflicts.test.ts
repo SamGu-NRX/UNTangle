@@ -28,6 +28,39 @@ test('an unchanged preference draft takes every latest group', () => {
   expect(mergePreferences(base, preferences(), latest)).toEqual(latest);
 });
 
+const calendar = (id: string, name = id, dates = ['2027-01-12']) => ({
+  id, name, sealedUrl: `cf1.key.iv.${id}`, feedId: "FeedIdAAAAAAAAAAAAAAAA", termId: 'spring-2027', checkedAt: '2026-10-15T12:00:00.000Z',
+  busy: [{ start: 900, end: 1080, dates }], allDayDates: [], countAllDay: false,
+});
+
+test('calendars connected on two devices are both kept', () => {
+  const base = preferences(), mine = preferences(), theirs = preferences();
+  mine.calendars = [calendar('cal-phone')];
+  theirs.calendars = [calendar('cal-laptop')];
+  expect(mergePreferences(base, mine, theirs).calendars?.map((c) => c.id)).toEqual(['cal-laptop', 'cal-phone']);
+});
+
+test('a calendar removed on one side and refreshed on the other settles per calendar', () => {
+  const base = preferences(); base.calendars = [calendar('work'), calendar('club')];
+  const mine = preferences(); mine.calendars = [calendar('club')];
+  const theirs = preferences(); theirs.calendars = [calendar('work', 'work', ['2027-01-12', '2027-01-19']), calendar('club', 'Club refreshed')];
+  // This side removed work and left club alone; the other refreshed both. Both sides touched work, so this side wins it.
+  expect(mergePreferences(base, mine, theirs).calendars).toEqual([calendar('club', 'Club refreshed')]);
+});
+
+test('removing the last calendar leaves the field absent, as a document without calendars has it', () => {
+  const base = preferences(); base.calendars = [calendar('work')];
+  const merged = mergePreferences(base, preferences(), base);
+  expect('calendars' in merged).toBe(false);
+});
+
+test("a merge past the calendar limit keeps the latest and drops this side's newest rather than stopping sync", () => {
+  const base = preferences(), mine = preferences(), theirs = preferences();
+  theirs.calendars = Array.from({ length: 6 }, (_, i) => calendar(`latest-${i}`));
+  mine.calendars = Array.from({ length: 4 }, (_, i) => calendar(`mine-${i}`));
+  expect(mergePreferences(base, mine, theirs).calendars?.map((c) => c.id)).toEqual([...Array.from({ length: 6 }, (_, i) => `latest-${i}`), 'mine-0', 'mine-1']);
+});
+
 test('academic records merge disjoint courses, manual credit and transcript rows as course facts', () => {
   const base = academic(), mine = academic(), latest = academic();
   mine.courseStatuses['CSCE 1030'] = 'completed'; mine.manualCredit = ['CSCE 1030'];
@@ -107,4 +140,20 @@ test('concurrent first academic writes combine disjoint courses but ask about ov
   if (result.kind !== 'academic-record') throw new Error('Expected a course question');
   expect(result.body.courseStatuses).toEqual({ A: 'inProgress', B: 'inProgress', C: 'completed' });
   expect(result.questions.map((question) => question.kind === 'course' ? question.course : question.kind)).toEqual(['A']);
+});
+
+test('a first write made on starting values merges preferences against them, so groups it never touched take the server copy', async () => {
+  const { SyncEngine } = await import('../src/engine');
+  const { MemoryStore } = await import('../src/store');
+  const { io, preferences, remote } = await import('./fixtures');
+  const start = preferences();
+  const server = { ...start, constraints: { ...start.constraints, earliestStart: 540, latestEnd: 1020 } };
+  const engine = new SyncEngine(new MemoryStore(), { kind: 'user', id: 'student-a' }, io({
+    push: async () => ({ kind: 'conflict', latest: remote(server, 3, 'preferences') }),
+  }));
+  const mine = { ...start, constraints: { ...start.constraints, daysOff: ['Fri'] } };
+  await engine.save({ documentId: 'doc', kind: 'preferences', body: mine, expectedGeneration: 0, startedFrom: start });
+  await engine.syncNext('doc');
+  const draft = (await engine.read()).documents[0].draft as typeof start;
+  expect([draft.constraints.daysOff, draft.constraints.earliestStart, draft.constraints.latestEnd]).toEqual([['Fri'], 540, 1020]);
 });

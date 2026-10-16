@@ -67,7 +67,7 @@ describe("sheetHeights", () => {
   // https://github.com/SamGu-NRX/UNTangle/pull/25#discussion_r4259595855
   test("a short map area keeps half below full", () => {
     // The reported case: before, half was 142 and full 138.
-    const { peek, half, full } = sheetHeights(150, 112);
+    const { peek, half, full } = sheetHeights(150, 112, 138);
     expect(full).toBe(138);
     expect(peek).toBe(62);
     expect(half).toBe(100);
@@ -76,15 +76,27 @@ describe("sheetHeights", () => {
   test("detents stay ordered across short areas and tall headers", () => {
     for (let area = 40; area <= 1000; area += 7) {
       for (const header of [60, 112, 224, 400]) {
-        const { peek, half, full } = sheetHeights(area, header);
-        expect(peek).toBeLessThanOrEqual(half);
-        expect(half).toBeLessThanOrEqual(full);
+        for (const full of [area * 0.92, area - 120, 0]) {
+          const { peek, half, full: top } = sheetHeights(area, header, Math.max(0, full));
+          expect(peek).toBeLessThanOrEqual(half);
+          expect(half).toBeLessThanOrEqual(top);
+        }
       }
     }
   });
 
   test("a phone-sized area keeps the designed half", () => {
     // 390x844 with the shell's bars leaves about 700px of map.
-    expect(sheetHeights(700, 112)).toEqual({ peek: 112, half: 350, full: 644 });
+    expect(sheetHeights(700, 112, 644)).toEqual({ peek: 112, half: 350, full: 644 });
+  });
+
+  test("half keeps its 320px floor when the area has room for it", () => {
+    // Half of a 600px area is 300; the midpoint (330) leaves room for 320.
+    expect(sheetHeights(600, 112, 548).half).toBe(320);
+  });
+
+  test("full is the caller's measured height", () => {
+    // Day measures full below the stepper and the attribution row.
+    expect(sheetHeights(700, 112, 590.6).full).toBe(591);
   });
 });

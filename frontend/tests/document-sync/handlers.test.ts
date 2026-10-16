@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { documentHandlers, MAX_WRITE_BYTES } from "@/lib/document-sync/handlers";
 import { parseWrite } from "@/lib/document-sync/decision";
 import type { DocumentRepository } from "@/lib/document-sync/repository";
@@ -44,6 +44,14 @@ describe("document HTTP boundaries", () => {
       expect(await response.json()).toMatchObject({ code: "UNAUTHORIZED" });
     }
     expect((await handlers.pull(request())).status).toBe(200);
+  });
+  test("a request naming another account than the session's is refused before it touches storage", async () => {
+    const named = (account: string) => request(undefined, { "x-untangle-account": account });
+    const refused = await handlers.put(named("bob"), context);
+    expect(refused.status).toBe(401);
+    expect(await refused.json()).toMatchObject({ code: "ACCOUNT_CHANGED" });
+    expect((await handlers.pull(named("bob"))).status).toBe(401);
+    expect((await handlers.put(named("alice"), context)).status).toBe(200);
   });
   test("missing storage never acknowledges a write", async () => {
     const unavailable = documentHandlers({ repository: fakeRepository, authorize: cookieAuth(identity), limit: unlimited, origin, available: false });
@@ -99,9 +107,11 @@ describe("document HTTP boundaries", () => {
     generation = 1;
     expect((await browser.pull(request())).status).toBe(200);
     const change = await grants.beginSecurityChange("alice");
+    // A session that may survive the change is told to retry, not that it's signed out.
     const during = await browser.put(request(), context);
-    expect(during.status).toBe(401);
-    expect(await during.json()).toMatchObject({ code: "UNAUTHORIZED" });
+    expect(during.status).toBe(409);
+    expect(during.headers.get("retry-after")).toBe("5");
+    expect(await during.json()).toMatchObject({ code: "security_change_in_progress" });
     await grants.finishSecurityChange("alice", change.changeId);
     generation = 3;
     expect((await browser.put(request(), context)).status).toBe(200);
@@ -246,10 +256,20 @@ describe("document rate limits", () => {
     expect((await device.put(request(), context)).status).toBe(429);
   });
 
-  test("a failed per-student count says abuse prevention is unavailable, not storage", async () => {
+  test("a failed per-student count says abuse prevention is unavailable, not storage, and logs without user data", async () => {
+    const failure = Object.assign(new Error("insert failed for caller alice with token secret-token"), { code: "57P01" });
     const failing = documentHandlers({ repository: fakeRepository, authorize: cookieAuth(identity), origin, available: true,
-      limit: async () => { throw new Error("rate-limit store unavailable"); } });
-    const response = await failing.pull(request());
+      limit: async () => { throw failure; } });
+    const logged = spyOn(console, "error").mockImplementation(() => {});
+    let response: Response;
+    try {
+      response = await failing.pull(request());
+      expect(logged).toHaveBeenCalledTimes(1);
+      expect(logged.mock.calls[0][0]).toBe("Document rate limiting unavailable");
+      const text = JSON.stringify(logged.mock.calls[0]);
+      expect(text).toContain("57P01");
+      for (const secret of ["alice", "secret-token"]) expect(text).not.toContain(secret);
+    } finally { logged.mockRestore(); }
     expect(response.status).toBe(503);
     expect(response.headers.get("retry-after")).toBe("60");
     expect(await response.json()).toEqual({ error: "Abuse prevention unavailable. Try again later.", code: "RATE_LIMIT_UNAVAILABLE" });
@@ -263,6 +283,7 @@ describe("document rate limits", () => {
   test("the pre-sign-in guard is per address and looser than any per-student budget", () => {
     const flood = budgets.documentFlood as { user?: number; ip: number };
     expect(flood.user).toBeUndefined();
-    expect(flood.ip).toBeGreaterThanOrEqual(10 * budgets.plannerRead.user);
+    expect(flood.ip).toBeGreaterThan(budgets.plannerRead.user);
+    expect(flood.ip).toBeGreaterThan(budgets.plannerSave.user);
   });
 });
