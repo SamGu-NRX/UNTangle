@@ -39,7 +39,7 @@ import {
   writeStoredPreferences,
   type WriteOutcome,
 } from "@/components/schedule/preferences-store";
-import { clearPlannerIdentity, createPlannerStateStore } from "@/lib/planner-store";
+import { clearPlannerIdentity, createPlannerStateStore, PLANNER_STATE_STORE_KEY } from "@/lib/planner-store";
 import { clearSavedPlansIdentity, getSavedPlanIdentity, setSavedPlanIdentity, subscribeSavedPlans } from "@/lib/saved-plans/store";
 import {
   plannerBox,
@@ -54,14 +54,15 @@ import {
 import type { PlannerStoreIncoming } from "@/lib/planner-store";
 import type { AcademicRecordBody } from "../../../packages/contracts/src/documents";
 import { createSavedPlanStore } from "@/lib/saved-plans/store";
+import { forgetGuestWork, guestWorkIsThisSession, stampGuestWork } from "@/lib/guest-session";
+import { joinPlanner, splitPlanner } from "@/lib/planner-documents";
 import {
   applyGuestSignIn,
   asksStudent,
   dropsGuestWork,
-  forgetGuestHere,
-  guestWasHere,
-  markGuestHere,
+  hasCopyableWork,
   planGuestSignIn,
+  sameQuestions,
   type GuestChoice,
   type GuestSignIn,
 } from "@/lib/guest-sign-in";
@@ -560,7 +561,9 @@ function IdentityPlannerProvider({
   const [syncProblem, setSyncProblem] = useState<"offline" | "signed-out" | "outdated" | "storage" | "save-failed" | null>(null);
   const [guestSignIn, setGuestSignIn] = useState<GuestSignIn | null>(null);
   // Resolves the open guest sign-in question; null means the instance retired before an answer.
-  const guestAnswer = useRef<((choice: GuestChoice | null) => void) | null>(null);
+  const guestAnswer = useRef<((choice: GuestChoice | "recheck" | null) => void) | null>(null);
+  // An answer waiting for the lock, applied only if the account still asks the same questions.
+  const pendingChoice = useRef<GuestChoice | null>(null);
   const syncProblemRef = useRef(syncProblem);
   useEffect(() => {
     syncProblemRef.current = syncProblem;
@@ -586,6 +589,12 @@ function IdentityPlannerProvider({
   const [planEpoch, setPlanEpoch] = useState(0);
   const bumpPlanEpoch = useCallback(() => setPlanEpoch((n) => n + 1), []);
   const preferencesRef = useRef(schedulePreferences);
+  // The server confirmed no one is signed in, so guest writes are this guest's (lib/guest-session.ts). A failed
+  // lookup may hide someone's session, and work written then is never carried into an account.
+  const guestConfirmed = useRef(false);
+  useEffect(() => {
+    guestConfirmed.current = sessionKnown && !sessionData?.user;
+  }, [sessionKnown, sessionData]);
   // Signed in: the account's documents on this device and the server (lib/sync/planner-sync.ts).
   const syncRef = useRef<PlannerSync | null>(null);
   const preferencesKeyRef = useRef<string | null>(null);
@@ -629,6 +638,7 @@ function IdentityPlannerProvider({
           ? writeStoredPreferences(storage, key, preferencesRevision.current, preferencesRef.current, update)
           : { kind: "not-stored", revision: preferencesRevision.current, preferences: update(preferencesRef.current) };
       preferencesRevision.current = outcome.revision;
+      if (outcome.kind !== "not-stored" && guestConfirmed.current) stampGuestWork();
       adoptPreferences(outcome.preferences);
       setPreferencesStorage(outcome.kind);
     },
@@ -998,6 +1008,7 @@ function IdentityPlannerProvider({
       if (!instanceActive.current) return;
       const result = guestStore.write(state, baseRevision.current);
       if (result.ok) {
+        if (guestConfirmed.current) stampGuestWork();
         baseRevision.current = result.revision;
         markSaved(workingStateFingerprint(state));
         return;
@@ -1268,92 +1279,52 @@ function IdentityPlannerProvider({
       }
       if (!current()) return;
 
-      if (!guestWasHere()) return;
-      await oneTabAtATime("untangle-guest-sign-in", async () => {
-        if (!current()) return;
-        // Guest library entries move whole (every SavedPlanSnapshot field) before anything is decided.
-        const guestLibrary = createSavedPlanStore(storage, null).list();
-        if (guestLibrary.ok && guestLibrary.doc.plans.length > 0) {
-          if (!createSavedPlanStore().addSnapshots(guestLibrary.doc.plans).ok) return;
-          // Entries this version can't read stay where they are, with the guest's recovery notice.
-          if (guestLibrary.doc.unreadable.length === 0) clearSavedPlansIdentity(null);
-        }
+      // Only work a guest wrote in this browser session (lib/guest-session.ts): older work may be someone else's.
+      if (!guestWorkIsThisSession()) return;
+      const library = createSavedPlanStore(storage, userId);
+      const stamp = shortDate(new Date());
+
+      /** This browser's guest work against the account as it is now; null once nothing is left to settle. */
+      const read = async () => {
         const guestPlan = createPlannerStateStore(storage, null).read();
-        if (!guestPlan.ok) return;
+        if (!guestPlan.ok || !guestWorkIsThisSession()) return null;
         const guestId = storage.getItem(GUEST_ID_KEY);
-        const guestPreferencesKey = guestId ? preferencesKey({ kind: "guest", id: guestId }) : null;
-        const guestPreferences = guestPreferencesKey ? readStoredPreferences(storage, guestPreferencesKey) : ({ kind: "absent" } as const);
-        const clearGuestWork = () => {
+        const prefsKey = guestId ? preferencesKey({ kind: "guest", id: guestId }) : null;
+        const prefs = prefsKey ? readStoredPreferences(storage, prefsKey) : ({ kind: "absent" } as const);
+        const clear = () => {
           clearPlannerIdentity(null);
-          if (guestPreferencesKey) storage.removeItem(guestPreferencesKey);
-          forgetGuestHere();
+          if (prefsKey) storage.removeItem(prefsKey);
+          forgetGuestWork();
         };
-        if (!guestPlan.state && guestPreferences.kind !== "ok") return;
-        const guestState = guestPlan.state ?? getInitialPlannerState();
-        const signIn = planGuestSignIn(
-          { state: guestState, preferences: initialPreferences(guestPreferences, guestState.optimization) },
-          await sync.drafts(),
-          planningTerm.id,
-        );
-        if (!current()) return;
+        if (!guestPlan.state && prefs.kind !== "ok") {
+          clear();
+          return null;
+        }
+        const state = guestPlan.state ?? getInitialPlannerState();
+        const signIn = planGuestSignIn({ state, preferences: initialPreferences(prefs, state.optimization) }, await sync.drafts(), planningTerm.id);
         if (!signIn) {
-          clearGuestWork();
-          return;
+          clear();
+          return null;
         }
-        const before = { state: stateRef.current, preferences: preferencesRef.current };
-        const library = createSavedPlanStore();
-        const fromThisBrowser = () => library.savePlan({ state: guestState, name: `From this browser, ${shortDate(new Date())}` });
-        const apply = async (choice: GuestChoice) => {
-          showDocuments(applyGuestSignIn(signIn, choice, stateRef.current.activeDay), false);
-          const saved = await runSync((s) => s.save(readPlanner), { saving: true });
-          void runSync((s) => s.drain());
-          return saved;
-        };
+        return { state, signIn, clear };
+      };
 
-        if (!asksStudent(signIn)) {
-          if (!(await apply({ schedule: "guest", answers: [], preferences: "guest" })) || !current()) return;
-          clearGuestWork();
-          const parts = [signIn.schedule === "save" && "schedule", signIn.record === "save" && "courses", signIn.preferences === "save" && "preferences"].filter(Boolean);
-          toast({
-            message: `Saved your ${parts.join(" and ")} to your account`,
-            action: {
-              label: "Undo",
-              onClick: () => {
-                // The account goes back to how it was; this browser's work stays in Schedules.
-                const kept = fromThisBrowser();
-                if (!kept.ok) {
-                  toast({ message: "Couldn't keep this browser's work in Schedules, so nothing changed.", tone: "error" });
-                  return;
-                }
-                showDocuments(before, false);
-                void runSync((s) => s.save(readPlanner), { saving: true }).then(() => runSync((s) => s.drain()));
-                toast(`Your account is back to how it was. This browser's work is in Schedules as "${kept.value.name}"`);
-              },
-            },
-          });
-          return;
-        }
-
-        // The account has different work too: the student chooses. Nothing is written or cleared until then,
-        // so closing the page asks again on the next load.
-        setGuestSignIn(signIn);
-        const choice = await new Promise<GuestChoice | null>((resolve) => {
-          guestAnswer.current = resolve;
-        });
-        guestAnswer.current = null;
-        setGuestSignIn(null);
-        if (!choice || !current()) return;
-        const keptGuest = dropsGuestWork(signIn, choice) ? fromThisBrowser() : null;
+      /** Writes the choice, keeping in Schedules what it leaves out. False when nothing changed. */
+      const apply = async (found: NonNullable<Awaited<ReturnType<typeof read>>>, choice: GuestChoice): Promise<boolean> => {
+        const { signIn, state } = found;
+        const keptGuest = dropsGuestWork(signIn, choice) && hasCopyableWork(signIn) ? library.savePlan({ state, name: `From this browser, ${stamp}` }) : null;
         const keptAccount =
-          signIn.schedule === "ask" && choice.schedule === "guest"
-            ? library.savePlan({ state: before.state, name: `Main from your account, ${shortDate(new Date())}` })
-            : null;
+          signIn.schedule === "ask" && choice.schedule === "guest" ? library.savePlan({ state: stateRef.current, name: `Main from your account, ${stamp}` }) : null;
         if (keptGuest?.ok === false || keptAccount?.ok === false) {
-          toast({ message: "Couldn't keep a copy in Schedules, so nothing changed. Sign in again here to choose.", tone: "error" });
-          return;
+          toast({ message: "Couldn't keep a copy in Schedules, so nothing changed. Reload to choose again.", tone: "error" });
+          return false;
         }
-        if (!(await apply(choice)) || !current()) return;
-        clearGuestWork();
+        const now = splitPlanner(stateRef.current, preferencesRef.current, planningTerm.id);
+        showDocuments(applyGuestSignIn(signIn, choice, now, stateRef.current.activeDay), false);
+        const saved = await runSync((s) => s.save(readPlanner), { saving: true });
+        void runSync((s) => s.drain());
+        if (!saved || !current()) return false;
+        found.clear();
         toast(
           keptAccount?.ok
             ? `Using this browser's schedule. Your account's Main is in Schedules as "${keptAccount.value.name}"`
@@ -1361,7 +1332,90 @@ function IdentityPlannerProvider({
               ? `Kept this browser's version in Schedules as "${keptGuest.value.name}"`
               : "Saved your choices",
         );
-      });
+        return true;
+      };
+
+      // One tab reads and writes at a time; the question itself waits outside the lock, so the sheet can show
+      // in every signed-in tab and the first answer settles it for all of them.
+      let asked: GuestSignIn | null = null;
+      for (;;) {
+        const outcome = await oneTabAtATime("untangle-guest-sign-in", async (): Promise<"done" | GuestSignIn> => {
+          if (!current()) return "done";
+          if (asked === null) {
+            // Library entries move whole (every SavedPlanSnapshot field) before anything is decided.
+            const guestLibrary = createSavedPlanStore(storage, null).list();
+            if (guestLibrary.ok && guestLibrary.doc.plans.length > 0) {
+              if (!library.addSnapshots(guestLibrary.doc.plans).ok) return "done";
+              // Entries this version can't read stay, with the guest's recovery notice.
+              if (guestLibrary.doc.unreadable.length === 0) clearSavedPlansIdentity(null);
+            }
+          }
+          const found = await read();
+          if (!found || !current()) return "done";
+          const choice = pendingChoice.current;
+          pendingChoice.current = null;
+          if (!asksStudent(found.signIn)) {
+            await carryOver(found);
+            return "done";
+          }
+          if (choice && asked !== null && sameQuestions(asked, found.signIn)) {
+            await apply(found, choice);
+            return "done";
+          }
+          return found.signIn;
+        });
+        if (outcome === "done") return;
+        // Ask (again, when the account changed while the sheet was open): nothing is written or cleared until
+        // the student answers, so closing the page asks again on the next load.
+        asked = outcome;
+        setGuestSignIn(outcome);
+        const choice = await new Promise<GuestChoice | "recheck" | null>((resolve) => {
+          guestAnswer.current = resolve;
+        });
+        guestAnswer.current = null;
+        setGuestSignIn(null);
+        if (choice === null || !current()) return;
+        pendingChoice.current = choice === "recheck" ? null : choice;
+        if (choice === "recheck") asked = null;
+      }
+
+      /** No question: the guest's work goes into the account, with Undo. */
+      async function carryOver(found: NonNullable<Awaited<ReturnType<typeof read>>>) {
+        const { signIn, state } = found;
+        const before = splitPlanner(stateRef.current, preferencesRef.current, planningTerm.id);
+        showDocuments(applyGuestSignIn(signIn, { schedule: "guest", answers: [], preferences: "guest" }, before, stateRef.current.activeDay), false);
+        if (!(await runSync((s) => s.save(readPlanner), { saving: true })) || !current()) return;
+        void runSync((s) => s.drain());
+        found.clear();
+        const carried = (["schedule", "academic-record", "preferences"] as const).filter((kind) =>
+          kind === "schedule" ? signIn.schedule === "save" : kind === "preferences" ? signIn.preferences === "save" : signIn.record === "save",
+        );
+        const words = carried.map((kind) => ({ schedule: "schedule", "academic-record": "courses", preferences: "preferences" })[kind]);
+        toast({
+          message: `Saved your ${words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : words[0]} to your account`,
+          action: {
+            label: "Undo",
+            onClick: () => {
+              if (!current()) return;
+              // The carried parts go back to how the account had them; anything edited since stays.
+              const kept = hasCopyableWork(signIn) ? library.savePlan({ state, name: `From this browser, ${stamp}` }) : null;
+              if (kept?.ok === false) {
+                toast({ message: "Couldn't keep this browser's work in Schedules, so nothing changed.", tone: "error" });
+                return;
+              }
+              const latest = splitPlanner(stateRef.current, preferencesRef.current, planningTerm.id);
+              const restored = { ...latest, ...Object.fromEntries(carried.map((kind) => [kind, before[kind]])) } as typeof latest;
+              showDocuments(joinPlanner(restored, stateRef.current.activeDay), false);
+              void runSync((s) => s.save(readPlanner), { saving: true }).then(() => runSync((s) => s.drain()));
+              toast(
+                kept?.ok
+                  ? `Your account is back to how it was. This browser's work is in Schedules as "${kept.value.name}"`
+                  : "Your account's preferences are back to how they were",
+              );
+            },
+          },
+        });
+      }
     },
     [adoptPreferences, readPlanner, runSync, showDocuments, userId],
   );
@@ -1369,13 +1423,17 @@ function IdentityPlannerProvider({
     afterFirstSyncRef.current = afterFirstSync;
   }, [afterFirstSync]);
 
-  // A guest the server confirmed is using this browser session (lib/guest-sign-in.ts). Not on a failed
-  // lookup: that may hide someone's session, and their work isn't a guest's to carry into an account.
-  useEffect(() => {
-    if (prepared && sessionKnown && !userId) markGuestHere();
-  }, [prepared, sessionKnown, userId]);
-
   const settleGuestSignIn = useCallback((choice: GuestChoice) => guestAnswer.current?.(choice), []);
+
+  // Another tab settled or cleared the guest work: this tab's open question is stale, so it checks again.
+  useEffect(() => {
+    if (!guestSignIn) return;
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === PLANNER_STATE_STORE_KEY || event.key.startsWith("untangle.guest-session")) guestAnswer.current?.("recheck");
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [guestSignIn]);
 
   const prepareSignOut = useCallback(async () => {
     const sync = syncRef.current;

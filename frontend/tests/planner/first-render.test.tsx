@@ -315,8 +315,8 @@ for (const failure of ["rejects", "returns an error"] as const) {
       : async () => ({ data: null, error: { message: "Server error", status: 500 } }));
     await chooseSignOut(planner);
     // The saved copy lives only on this browser, so signing out asks before removing it.
-    await waitFor(() => dialogButton("Sign out and remove them") !== undefined, "saved schedules warning");
-    await planner.run(() => dialogButton("Sign out and remove them")!.click());
+    await waitFor(() => dialogButton("Remove and sign out") !== undefined, "saved schedules warning");
+    await planner.run(() => dialogButton("Remove and sign out")!.click());
     await waitFor(() => toastText() !== null, "failure toast");
     expect(toastText()).toBe("Couldn't sign out. You're still signed in on this device.");
     expect(document.querySelector(".ui-toast")?.getAttribute("data-tone")).toBe("error");
@@ -348,7 +348,7 @@ test("signing out names the saved schedules only this browser keeps, and keeps t
   await chooseSignOut(planner);
   await waitFor(() => document.querySelector('[role="alertdialog"]') !== null, "warning");
   expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain(
-    "1 saved schedule is kept only on this browser, and signing out removes it. Export it from Schedules to keep a copy.",
+    "1 saved schedule is kept only on this browser. Export it from Schedules to keep a copy.",
   );
   await planner.run(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
   expect(pushes).toEqual([]);
@@ -356,8 +356,28 @@ test("signing out names the saved schedules only this browser keeps, and keeps t
   expect(window.localStorage.getItem(savedPlansKey(userA.id))).toBe(library);
 
   await chooseSignOut(planner);
-  await waitFor(() => dialogButton("Sign out and remove them") !== undefined, "warning again");
-  await planner.run(() => dialogButton("Sign out and remove them")!.click());
+  await waitFor(() => dialogButton("Remove and sign out") !== undefined, "warning again");
+  await planner.run(() => dialogButton("Remove and sign out")!.click());
   await waitFor(() => pushes.length === 1, "signed out");
   expect(window.localStorage.getItem(savedPlansKey(userA.id))).toBeNull();
+});
+
+test("signing out while guest work waits for an answer says so before removing it", async () => {
+  const { stampGuestWork } = await import("@/lib/guest-session");
+  // The account's Main plans a course the guest's doesn't, so signing in asks.
+  server.seedPlan(userA.id, { ...stateA(), courseStatuses: { ...stateA().courseStatuses, "MATH 1720": "inProgress" } });
+  const guest = getInitialPlannerState();
+  expect(createPlannerStateStore(window.localStorage, null).write({ ...guest, courseStatuses: { ...guest.courseStatuses, "ENGL 1310": "inProgress" } }, 0).ok).toBe(true);
+  stampGuestWork();
+  setSession(userA);
+  const planner = await mountAccountMenu();
+  await waitFor(() => planner.get().guestSignIn !== null, "asked about the guest work");
+
+  await chooseSignOut(planner);
+  await waitFor(() => document.querySelector('[role="alertdialog"]') !== null, "warning");
+  expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain("What you did as a guest before signing in hasn't been added to your account yet.");
+  expect(pushes).toEqual([]);
+  await planner.run(() => dialogButton("Remove and sign out")!.click());
+  await waitFor(() => pushes.length === 1, "signed out");
+  expect(window.localStorage.getItem(plannerStateKey(null))).toBeNull();
 });

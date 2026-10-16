@@ -566,10 +566,10 @@ export class PlannerSync {
 
 /* ---------- settling a conflict ---------- */
 
-/** The questions an academic-record conflict asks, one per course (or major, catalog year, transcript row) both sides changed. */
 /** Two sides of a document and the body both started from: a sync conflict, or guest work meeting an account. */
 export type ThreeWay = { kind: PlannerKind; base: Body | null; mine: Body; latest: Body | null };
 
+/** The questions an academic-record conflict asks, one per course (or major, catalog year, transcript row) both sides changed. */
 export function academicQuestions(conflict: ThreeWay): AcademicQuestion[] {
   if (conflict.kind !== "academic-record" || conflict.latest === null) return [];
   const resolution = resolveConflict("academic-record", conflict.base, conflict.mine, conflict.latest);
@@ -618,4 +618,9 @@ export function scheduleDifference(mine: Body | null, latest: Body | null): numb
   const a = read(mine), b = read(latest);
   const courses = new Set([...(a?.courses ?? []), ...(b?.courses ?? [])]);
   return [...courses].filter((code) => !a?.courses.includes(code) || !b?.courses.includes(code) || a.selectedSections[code] !== b.selectedSections[code]).length;
+}
+
+/** What a question is about, so its answer stays with it. */
+export function questionKey(question: AcademicQuestion): string {
+  return question.kind === "course" ? `course:${question.course}` : question.kind === "transcript-id" ? `row:${question.id}` : question.kind;
 }

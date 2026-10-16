@@ -4,19 +4,26 @@ import { useId, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { usePlanner } from "@/components/planner-provider";
-import { Question, questionKey, type QuestionSides } from "@/components/sync-notice";
-import { KEEP_ACCOUNT, type GuestSignIn } from "@/lib/guest-sign-in";
+import { Question, type QuestionSides } from "@/components/sync-notice";
+import { hasCopyableWork, preferenceDifferences, type GuestSignIn } from "@/lib/guest-sign-in";
+import { questionKey } from "@/lib/sync/planner-sync";
 import "./sync-notice.css";
 
 const SIDES: QuestionSides = { latest: "Your account", mine: "This browser", latestOf: "your account", mineOf: "this browser" };
 
-/** Preferences as one choice: they are compared as a whole, and a mix of groups from two people's settings means nothing. */
-function PreferencesQuestion({ value, onChange }: { value: "account" | "guest"; onChange: (value: "account" | "guest") => void }) {
+/** "a", "a and b", "a, b and c". */
+function inWords(items: readonly string[]): string {
+  return items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items.at(-1)}` : (items[0] ?? "");
+}
+
+/** Preferences as one choice, with what differs in a sentence, since the two sets can't be shown side by side here. */
+function PreferencesQuestion({ signIn, value, onChange }: { signIn: GuestSignIn; value: "account" | "guest"; onChange: (value: "account" | "guest") => void }) {
   const name = useId();
   const options = [
     { side: "account", label: "Your account's preferences" },
     { side: "guest", label: "This browser's preferences" },
   ] as const;
+  const differ = preferenceDifferences(signIn);
   return (
     <fieldset className="sync-question">
       <legend>Preferences</legend>
@@ -26,11 +33,14 @@ function PreferencesQuestion({ value, onChange }: { value: "account" | "guest"; 
           <span>{label}</span>
         </label>
       ))}
+      <p className="guest-sign-in__lead">
+        {differ.length ? `They differ in ${inWords(differ)}. ` : ""}The set you don&apos;t choose is replaced.
+      </p>
     </fieldset>
   );
 }
 
-function Sheet({ signIn }: { signIn: GuestSignIn }) {
+function Sheet({ signIn, open }: { signIn: GuestSignIn; open: boolean }) {
   const { settleGuestSignIn } = usePlanner();
   const [answers, setAnswers] = useState<Record<string, "latest" | "mine">>({});
   const [preferences, setPreferences] = useState<"account" | "guest">("account");
@@ -40,10 +50,10 @@ function Sheet({ signIn }: { signIn: GuestSignIn }) {
   const differ = signIn.scheduleDifference;
   return (
     <Dialog
-      open
-      // Escape and the scrim keep everything the account has; this browser's work is kept in Schedules.
-      onOpenChange={(open) => (open ? undefined : settleGuestSignIn(KEEP_ACCOUNT(signIn)))}
-      title={asksSchedule ? "You made a schedule before signing in." : "You made changes before signing in."}
+      open={open}
+      // Escape and the scrim choose "Keep my saved schedule", with the answers as they stand (guest-sync.md).
+      onOpenChange={(next) => (next ? undefined : choose("account"))}
+      title={asksSchedule ? "You made a schedule before signing in" : "You made changes before signing in"}
       description={
         asksSchedule
           ? differ === 0
@@ -55,7 +65,7 @@ function Sheet({ signIn }: { signIn: GuestSignIn }) {
       footer={
         asksSchedule ? (
           <>
-            <Button variant="ghost" onClick={() => choose("account")}>
+            <Button variant="secondary" onClick={() => choose("account")}>
               Keep my saved schedule
             </Button>
             <Button onClick={() => choose("guest")}>Use this one</Button>
@@ -77,10 +87,12 @@ function Sheet({ signIn }: { signIn: GuestSignIn }) {
               onChange={(side) => setAnswers((current) => ({ ...current, [questionKey(question)]: side }))}
             />
           ))}
-          {signIn.preferences === "ask" ? <PreferencesQuestion value={preferences} onChange={setPreferences} /> : null}
+          {signIn.preferences === "ask" ? <PreferencesQuestion signIn={signIn} value={preferences} onChange={setPreferences} /> : null}
         </div>
       ) : null}
-      <p className="guest-sign-in__foot">Whatever you don&apos;t choose from this browser is kept in Schedules.</p>
+      {hasCopyableWork(signIn) ? (
+        <p className="guest-sign-in__foot">A schedule or courses you don&apos;t choose from this browser are kept in Schedules.</p>
+      ) : null}
     </Dialog>
   );
 }
@@ -88,9 +100,17 @@ function Sheet({ signIn }: { signIn: GuestSignIn }) {
 /**
  * The one question signing in asks when this browser's guest work and the
  * account both have different work (docs/architecture/guest-sync.md). The
- * account's values are chosen until the student picks otherwise.
+ * account's values are chosen until the student picks otherwise. The last
+ * question stays rendered while the dialog plays its exit.
  */
 export function GuestSignInSheet() {
   const { guestSignIn } = usePlanner();
-  return guestSignIn ? <Sheet signIn={guestSignIn} /> : null;
+  const [shown, setShown] = useState(guestSignIn);
+  if (guestSignIn && guestSignIn !== shown) setShown(guestSignIn);
+  return shown ? <Sheet key={questionsKey(shown)} signIn={shown} open={guestSignIn !== null} /> : null;
+}
+
+/** A new set of questions starts with fresh answers. */
+function questionsKey(signIn: GuestSignIn): string {
+  return [signIn.schedule, signIn.record, signIn.preferences, ...signIn.questions.map(questionKey)].join("|");
 }

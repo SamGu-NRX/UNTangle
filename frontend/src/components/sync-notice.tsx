@@ -6,7 +6,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { toast } from "@/components/ui/Toast";
 import { usePlanner, type SyncConflict } from "@/components/planner-provider";
 import { getMajorById } from "@/lib/planner";
-import { academicQuestions, answerAcademicQuestions, scheduleDifference } from "@/lib/sync/planner-sync";
+import { academicQuestions, answerAcademicQuestions, questionKey, scheduleDifference } from "@/lib/sync/planner-sync";
 import type { AcademicQuestion, CourseFacts } from "@untangle/sync";
 import "./sync-notice.css";
 
@@ -54,11 +54,6 @@ function sides(question: AcademicQuestion, where: QuestionSides): { name: string
       // A transcript row moved to another course on one side; the row itself names no course to show.
       return { name: "A transcript entry", latest: `Keep ${where.latestOf}'s`, mine: `Keep ${where.mineOf}'s`, where: false };
   }
-}
-
-/** What a question is about, so its answer stays with it. */
-export function questionKey(question: AcademicQuestion): string {
-  return question.kind === "course" ? `course:${question.course}` : question.kind === "transcript-id" ? `row:${question.id}` : question.kind;
 }
 
 /** One question as a pair of radios; the other device's value is chosen until the student picks. */

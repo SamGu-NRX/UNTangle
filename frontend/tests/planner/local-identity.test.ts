@@ -166,7 +166,7 @@ async function signOutFromMenu(planner: Awaited<ReturnType<typeof mount>>) {
   await planner.run(() => item!.click());
   // Saved schedules live only on this browser, so signing out asks before removing them.
   const remove = () =>
-    [...document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')].find((el) => el.textContent?.trim().startsWith("Sign out and remove them"));
+    [...document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')].find((el) => el.textContent?.trim().startsWith("Remove and sign out"));
   await waitFor(() => pushes.length === 1 || remove() !== undefined, "signed out or asked");
   if (pushes.length === 0) await planner.run(() => remove()!.click());
   await waitFor(() => pushes.length === 1, "signed out");

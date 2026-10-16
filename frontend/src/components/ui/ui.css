@@ -1868,8 +1868,14 @@
   overscroll-behavior: contain;
   padding: 16px 24px 24px;
 }
+/* A dialog with no body: its buttons keep their distance from the description. */
+.ui-dialog__description + .ui-dialog__foot {
+  padding-top: 20px;
+}
 .ui-dialog__foot {
   display: flex;
+  /* Two long labels don't fit a phone's width side by side; the last (primary) button wraps onto the top line. */
+  flex-wrap: wrap-reverse;
   justify-content: flex-end;
   gap: 8px;
   padding: 0 24px 20px;

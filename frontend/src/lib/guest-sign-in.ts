@@ -1,9 +1,8 @@
 /**
  * What a guest's work on this browser becomes when they sign in
- * (docs/architecture/guest-sync.md, "Guest work on sign-in"). Pure apart
- * from the session cookie at the end: the provider reads the guest stores
- * and the account's documents, asks the student what this says to ask, and
- * writes the result.
+ * (docs/architecture/guest-sync.md, "Guest work on sign-in"). Pure: the
+ * provider reads the guest stores and the account's documents, asks the
+ * student what this says to ask, and writes the result.
  *
  * Each part is compared in the planner's own terms (split through
  * planner-documents.ts), so a field the planner can't show never makes two
@@ -15,13 +14,14 @@
  *   (or major, catalog year, transcript row) both sides have differently;
  * - preferences: carried over when the account has only the defaults, asked
  *   about when both differ.
- * Whatever the student doesn't choose from this browser is kept as a saved
- * copy (`dropsGuestWork`), so nothing is lost.
+ * A schedule or courses the student doesn't choose from this browser are
+ * kept as a saved copy (`dropsGuestWork`). Saved copies hold no preferences,
+ * so preferences not chosen are replaced, and the sheet says so.
  */
 import { equal, type AcademicQuestion } from "@untangle/sync";
 import { defaultSchedulePreferences, getInitialPlannerState } from "@/lib/planner";
 import { joinPlanner, splitPlanner, type PlannerBodies, type StoredBodies } from "@/lib/planner-documents";
-import { academicQuestions, answerAcademicQuestions, scheduleDifference } from "@/lib/sync/planner-sync";
+import { academicQuestions, answerAcademicQuestions, questionKey, scheduleDifference } from "@/lib/sync/planner-sync";
 import type { ClassDay, PlannerState, SchedulePreferences } from "@/lib/types";
 
 export type GuestWork = { state: PlannerState; preferences: SchedulePreferences };
@@ -50,13 +50,6 @@ export type GuestChoice = {
   answers: ReadonlyArray<"latest" | "mine">;
   preferences: "guest" | "account";
 };
-
-/** The choice Escape and the scrim make: the account keeps everything. */
-export const KEEP_ACCOUNT = (signIn: GuestSignIn): GuestChoice => ({
-  schedule: "account",
-  answers: signIn.questions.map(() => "latest"),
-  preferences: "account",
-});
 
 function emptyBodies(termId: string): PlannerBodies {
   const initial = getInitialPlannerState();
@@ -100,16 +93,30 @@ export function asksStudent(signIn: GuestSignIn): boolean {
   return signIn.schedule === "ask" || signIn.questions.length > 0 || signIn.preferences === "ask";
 }
 
-/** The planner after signing in, for this choice. */
-export function applyGuestSignIn(signIn: GuestSignIn, choice: GuestChoice, activeDay: ClassDay): { state: PlannerState; preferences: SchedulePreferences } {
+/** True when the student would be asked the same questions about both: the account didn't change in a way that matters. */
+export function sameQuestions(a: GuestSignIn, b: GuestSignIn): boolean {
+  return (
+    a.schedule === b.schedule &&
+    a.record === b.record &&
+    a.preferences === b.preferences &&
+    equal(a.questions.map(questionKey), b.questions.map(questionKey))
+  );
+}
+
+/**
+ * The planner after signing in, for this choice. Parts the account keeps
+ * come from `current`, the planner as it is now, so applying the choice never
+ * writes an older copy of the account over a newer one.
+ */
+export function applyGuestSignIn(signIn: GuestSignIn, choice: GuestChoice, current: PlannerBodies, activeDay: ClassDay): { state: PlannerState; preferences: SchedulePreferences } {
   const pick = <K extends keyof PlannerBodies>(kind: K, outcome: PartOutcome, guestChosen: boolean): PlannerBodies[K] =>
-    outcome === "save" || (outcome === "ask" && guestChosen) ? signIn.guest[kind] : signIn.account[kind];
+    outcome === "save" || (outcome === "ask" && guestChosen) ? signIn.guest[kind] : current[kind];
   const record =
     signIn.record === "none"
-      ? signIn.account["academic-record"]
+      ? current["academic-record"]
       : // Merged per course even when nothing is asked, so a course only the account has stays.
         answerAcademicQuestions(
-          { kind: "academic-record", base: signIn.empty["academic-record"], mine: signIn.guest["academic-record"], latest: signIn.account["academic-record"] },
+          { kind: "academic-record", base: signIn.empty["academic-record"], mine: signIn.guest["academic-record"], latest: current["academic-record"] },
           choice.answers,
         );
   return joinPlanner(
@@ -122,6 +129,27 @@ export function applyGuestSignIn(signIn: GuestSignIn, choice: GuestChoice, activ
   );
 }
 
+/** True when this browser has a schedule or courses worth a saved copy; a saved copy can't hold preferences. */
+export function hasCopyableWork(signIn: GuestSignIn): boolean {
+  return !equal(signIn.guest.schedule, signIn.empty.schedule) || !equal(signIn.guest["academic-record"], signIn.empty["academic-record"]);
+}
+
+const PREFERENCE_GROUPS: Array<[string, (p: PlannerBodies["preferences"]) => unknown]> = [
+  ["what Auto favors", (p) => [p.goal, p.weights]],
+  ["class hours", (p) => [p.constraints.earliestStart, p.constraints.latestEnd]],
+  ["days off", (p) => p.constraints.daysOff],
+  ["busy time", (p) => p.constraints.blocked],
+  ["credit limit", (p) => p.constraints.maxCredits],
+  ["walking time", (p) => p.constraints.walkingBufferMinutes],
+  ["sections you never want", (p) => p.constraints.excludedSections],
+  ["which sections Auto suggests", (p) => [p.constraints.openSeatsOnly, p.constraints.otherSites]],
+];
+
+/** The preference groups this browser and the account set differently, in words. */
+export function preferenceDifferences(signIn: GuestSignIn): string[] {
+  return PREFERENCE_GROUPS.filter(([, read]) => !equal(read(signIn.guest.preferences), read(signIn.account.preferences))).map(([name]) => name);
+}
+
 /** True when the choice leaves out any of this browser's work, which is then kept as a saved copy. */
 export function dropsGuestWork(signIn: GuestSignIn, choice: GuestChoice): boolean {
   return (
@@ -131,26 +159,3 @@ export function dropsGuestWork(signIn: GuestSignIn, choice: GuestChoice): boolea
   );
 }
 
-/*
- * Whose guest work is it? The guest stores outlive the browser session, so
- * on a shared computer they can hold an earlier visitor's plan and
- * transcript. Only work a confirmed guest used in this browser session is
- * carried into an account on sign-in; the cookie below, which has no expiry
- * and so ends when the browser closes, says so. Older guest work is left for
- * the guest guards in docs/architecture/README.md ("Guests") to settle, and
- * signing out clears it.
- */
-const GUEST_HERE_COOKIE = "untangle_guest_here";
-
-/** A confirmed guest used the planner in this browser session. */
-export function markGuestHere(): void {
-  document.cookie = `${GUEST_HERE_COOKIE}=1; path=/; SameSite=Lax`;
-}
-
-export function guestWasHere(): boolean {
-  return document.cookie.split(";").some((part) => part.trim() === `${GUEST_HERE_COOKIE}=1`);
-}
-
-export function forgetGuestHere(): void {
-  document.cookie = `${GUEST_HERE_COOKIE}=; path=/; SameSite=Lax; Max-Age=0`;
-}

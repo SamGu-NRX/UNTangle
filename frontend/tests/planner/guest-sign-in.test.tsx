@@ -5,12 +5,12 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import * as fixtures from "../../../packages/contracts/tests/fixtures";
-import { FakeDocumentServer, installDom, mountPlanner, removeDom, resetDocumentStore, setSession, waitFor } from "./test-dom";
+import { FakeDocumentServer, flushSaves, installDom, mountPlanner, removeDom, resetDocumentStore, setSession, waitFor } from "./test-dom";
 import { GUEST_ID_KEY, preferencesKey } from "@/components/schedule/preferences-store";
-import { forgetGuestHere, markGuestHere } from "@/lib/guest-sign-in";
+import { guestWorkIsThisSession, stampGuestWork } from "@/lib/guest-session";
 import { defaultSchedulePreferences, getInitialPlannerState } from "@/lib/planner";
 import { createPlannerStateStore, PLANNER_STATE_STORE_KEY } from "@/lib/planner-store";
-import { createSavedPlanStore, SAVED_PLANS_STORE_KEY } from "@/lib/saved-plans/store";
+import { createSavedPlanStore, SAVED_PLANS_STORE_KEY, setSavedPlanIdentity } from "@/lib/saved-plans/store";
 import type { PlannerState, SchedulePreferences } from "@/lib/types";
 
 const user = { id: "student-1", email: "student@my.unt.edu", name: "Student" };
@@ -27,7 +27,8 @@ afterAll(() => {
 });
 beforeEach(() => {
   window.localStorage.clear();
-  forgetGuestHere();
+  // A fresh page load: no identity prepared yet.
+  setSavedPlanIdentity(undefined);
   document.body.innerHTML = "";
   resetDocumentStore();
   server = new FakeDocumentServer();
@@ -52,15 +53,20 @@ const plan = (planned: string[], done: string[] = []): PlannerState => ({
   },
 });
 
-/** What a confirmed guest left on this browser earlier in this browser session. */
+/** What a guest wrote on this browser earlier in this browser session. */
 function guestLeft(state: PlannerState | null, preferences?: SchedulePreferences) {
-  markGuestHere();
   if (state) expect(createPlannerStateStore(window.localStorage, null).write(state, 0).ok).toBe(true);
   if (preferences) {
     window.localStorage.setItem(GUEST_ID_KEY, "guest-0001");
     window.localStorage.setItem(preferencesKey({ kind: "guest", id: "guest-0001" }), JSON.stringify({ revision: 1, preferences }));
   }
+  stampGuestWork();
 }
+
+/** The browser closed and opened again: session cookies are gone, local storage isn't. */
+const closeBrowser = () => {
+  document.cookie = "untangle_guest_session=; path=/; Max-Age=0";
+};
 
 async function signIn() {
   const React = await import("react");
@@ -120,7 +126,7 @@ describe("the plan, by guest-sync.md's table", () => {
     guestLeft(plan(["CSCE 1040"]));
     const planner = await signIn();
     await waitFor(() => sheet() !== null, "the sheet");
-    expect(sheet()?.textContent).toContain("You made a schedule before signing in.");
+    expect(sheet()?.textContent).toContain("You made a schedule before signing in");
     expect(sheet()?.textContent).toContain("2 courses differ from your saved schedule.");
     // Nothing is written or cleared while the student decides.
     expect(server.putsStarted).toBe(0);
@@ -163,7 +169,7 @@ describe("the academic record and preferences", () => {
     const planner = await signIn();
     // CSCE 1030 has different facts on each side (only the guest has its transcript row), and so does the major.
     await waitFor(() => sheet() !== null, "the sheet");
-    expect(sheet()?.textContent).toContain("You made changes before signing in.");
+    expect(sheet()?.textContent).toContain("You made changes before signing in");
     expect([...document.querySelectorAll(".sync-question legend")].map((legend) => legend.textContent)).toEqual(["CSCE 1030", "Major"]);
     expect(guestCleared()).toBe(false);
 
@@ -232,28 +238,63 @@ test("a guest plan the student never chose is asked about again on the next sign
   await waitFor(() => sheet() !== null, "asked again");
 });
 
-test("guest work from an earlier browser session isn't carried into the account: it may be someone else's", async () => {
+test("an earlier visitor's guest work isn't carried into the next student's account, even after they open the site signed out", async () => {
   guestLeft(plan(["CSCE 1040"]));
-  // The browser closed since: the session cookie is gone, the guest store isn't.
-  forgetGuestHere();
+  closeBrowser();
+  // The next student opens the site signed out, then signs in.
+  const visit = await mountPlanner();
+  mounted.push(visit.unmount);
+  await waitFor(() => visit.get().hydrated && !visit.get().isRegistered, "signed-out visit");
+  expect(guestWorkIsThisSession()).toBe(false);
+  await visit.unmount();
+  mounted.splice(mounted.indexOf(visit.unmount), 1);
   const planner = await signIn();
   await waitFor(() => planner.get().saveState.label === "Not saved yet", "account loaded");
+  await flushSaves();
   expect(sheet()).toBeNull();
   expect(server.putsStarted).toBe(0);
   expect(guestCleared()).toBe(false);
   expect(planned(planner.get().plannerState, "CSCE 1040")).toBe(false);
 });
 
-test("a guest who used the planner in this browser session marks it, and only a confirmed guest does", async () => {
-  const React = await import("react");
-  const { guestWasHere } = await import("@/lib/guest-sign-in");
-  const { failSessionLookup } = await import("./test-dom");
-  failSessionLookup(0);
-  const unknown = await mountPlanner(() => React.createElement("span"));
-  mounted.push(unknown.unmount);
-  await waitFor(() => unknown.get().hydrated, "unknown session as guest");
-  expect(guestWasHere()).toBe(false);
-  await unknown.run(() => setSession(null));
-  await waitFor(() => guestWasHere(), "confirmed guest");
+test("a guest's own edits in this browser session are carried in on sign-in", async () => {
+  const guest = await mountPlanner();
+  mounted.push(guest.unmount);
+  await waitFor(() => guest.get().hydrated, "guest");
+  expect(guestWorkIsThisSession()).toBe(false);
+  await guest.run((p) => p.setCourseStatus("CSCE 1040", "inProgress"));
+  await waitFor(() => guestWorkIsThisSession(), "guest edit stamped");
+  await guest.unmount();
+  mounted.splice(mounted.indexOf(guest.unmount), 1);
+  await signIn();
+  await waitFor(() => toastText() === "Saved your schedule to your account", "carried");
+  expect(planned(server.plan(user.id), "CSCE 1040")).toBe(true);
 });
 
+test("an answer is applied to the account as it is then: another device's edit made while the sheet was open stays", async () => {
+  server.seedPlan(user.id, plan(["MATH 1720"]));
+  guestLeft(plan(["CSCE 1040"]));
+  const planner = await signIn();
+  await waitFor(() => sheet() !== null, "the sheet");
+  server.seedPlan(user.id, plan(["MATH 1720", "ENGL 1310"]));
+  await planner.run(() => window.dispatchEvent(new Event("focus")));
+  await waitFor(() => planned(planner.get().plannerState, "ENGL 1310"), "the newer Main shown behind the sheet");
+  await planner.run(() => button("Keep my saved schedule").click());
+  await waitFor(() => guestCleared(), "settled");
+  expect([planned(server.plan(user.id), "MATH 1720"), planned(server.plan(user.id), "ENGL 1310"), planned(server.plan(user.id), "CSCE 1040")]).toEqual([true, true, false]);
+});
+
+test("two signed-in tabs: the first answer settles the guest work once, and the other tab's answer changes nothing", async () => {
+  server.seedPlan(user.id, plan(["MATH 1720"]));
+  guestLeft(plan(["CSCE 1040"]));
+  const first = await signIn();
+  const second = await mountPlanner();
+  mounted.push(second.unmount);
+  await waitFor(() => first.get().guestSignIn !== null && second.get().guestSignIn !== null, "asked in both tabs");
+  await first.run((p) => p.settleGuestSignIn({ schedule: "guest", answers: [], preferences: "account" }));
+  await waitFor(() => guestCleared() && planned(server.plan(user.id), "CSCE 1040"), "first tab's answer");
+  await second.run((p) => p.settleGuestSignIn({ schedule: "account", answers: [], preferences: "account" }));
+  await waitFor(() => second.get().guestSignIn === null, "second tab closed");
+  expect(planned(server.plan(user.id), "CSCE 1040")).toBe(true);
+  expect(library().map((entry) => entry.name.startsWith("Main from your account"))).toEqual([true]);
+});
