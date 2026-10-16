@@ -8,7 +8,8 @@
  * in the Preferences popover (sun knob to 9 AM, Thursdays off, a work block
  * painted on its grid, 15 credits at most) and read them back in the
  * summary the Preferences button carries; run Auto and walk its options
- * one at a time; use one and undo it with ⌘Z; keep a section and check
+ * one at a time; use one and undo it with ⌘Z; browse every combination,
+ * preview one and choose it, then undo it; keep a section and check
  * Auto's options never move it; see options refresh when a setting changes
  * under them; hit an impossible case and apply its one-click fix; reload
  * and check the sections, the kept section and the preferences survived.
@@ -244,6 +245,53 @@ for (const vp of [
   await page.waitForTimeout(250);
   const undone = await weekEvents(page);
   check(`${tag}: ⌘Z puts the previous week back`, undone.length > 0 && JSON.stringify(undone) !== JSON.stringify(afterPick), `${undone.length} events`);
+
+  // Browse all: every combination that fits, best first, each a small week with its section names.
+  // Pointing at a row previews it; choosing one (Enter on desktop, a tap on the phone) uses exactly it, with Undo.
+  await autoMeasured("before browse", strip);
+  const browseAt = await page.evaluate(() => performance.now());
+  await strip.getByRole("button", { name: "Browse all" }).click();
+  const list = page.getByRole("listbox", { name: "Combinations, best first" });
+  await list.waitFor({ timeout: 10000 });
+  await page.waitForTimeout(phone ? 600 : 400);
+  const browseTasks = await page.evaluate((t0) => window.__longtasks.filter((t) => t.start >= t0), browseAt);
+  const browseMax = browseTasks.reduce((m, t) => Math.max(m, t.duration), 0);
+  report.longtasks.push({ viewport: tag, label: "browse all", count: browseTasks.length, maxMs: Math.round(browseMax) });
+  check(`${tag}: no main-thread task of 50 ms or more while Browse all lists`, browseMax < 50, `${browseTasks.length} long tasks, max ${Math.round(browseMax)} ms`);
+  const listSummary = ((await page.getByText(/combinations? fits?\./).first().textContent()) ?? "").trim();
+  check(`${tag}: Browse all says how many fit`, /^(At least )?[\d,]+ combinations? fits?\./.test(listSummary) || /^1 combination fits\./.test(listSummary), listSummary);
+  const rows = list.getByRole("option");
+  const firstLabel = (await rows.first().getAttribute("aria-label")) ?? "";
+  check(`${tag}: each row names its sections`, /^Combination 1\b/.test(firstLabel) && / section /.test(firstLabel), firstLabel);
+  const setSize = Number(await rows.first().getAttribute("aria-setsize"));
+  check(`${tag}: only rows near the view are in the page`, (await rows.count()) <= Math.min(setSize, 30), `${await rows.count()} of ${setSize} rendered`);
+  await shot("03b-browse-all");
+  await axe(page, `${tag} browse all`);
+  const browsing = page.getByRole("region", { name: "Combination on the grid" });
+  if (!phone && setSize > 2) {
+    await rows.nth(2).hover();
+    await page.waitForTimeout(150);
+    check(`${tag}: pointing at a row previews it`, ((await browsing.locator('[data-part="count"]').textContent()) ?? "").trim().startsWith("3 of"));
+    await list.focus();
+    await page.keyboard.press("Home");
+    await page.keyboard.press("ArrowDown");
+    check(`${tag}: arrows move through the rows`, (await list.getAttribute("aria-activedescendant")) === "combination-1");
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(150);
+  }
+  const previewed = await weekEvents(page);
+  if (phone) await rows.nth(Math.min(1, setSize - 1)).click();
+  else await page.keyboard.press("Enter");
+  const used = page.locator(".ui-toast", { hasText: /Using combination \d+/ });
+  await used.waitFor({ timeout: 5000 });
+  await page.waitForTimeout(500);
+  const chosen = await weekEvents(page);
+  check(`${tag}: choosing a row uses it and closes the list`, (await list.count()) === 0 && (phone || JSON.stringify(chosen) === JSON.stringify(previewed)), ((await used.textContent()) ?? "").trim());
+  await shot("03c-browse-chosen");
+  await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
+  await page.waitForTimeout(250);
+  check(`${tag}: ⌘Z takes the combination back`, JSON.stringify(await weekEvents(page)) === JSON.stringify(undone));
   await main.getByRole("button", { name: /^(Auto|Build)/ }).first().click();
   await strip.waitFor();
   await strip.getByRole("button", { name: "Use this" }).click();
