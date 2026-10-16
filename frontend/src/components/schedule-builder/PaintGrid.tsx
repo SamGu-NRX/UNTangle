@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { MoonGlyph, SunriseGlyph } from "@/components/ui/icons";
 import type { SchedulePreferences, WeekDay } from "@/lib/types";
-import { GRID_END, GRID_START, isBusy, paint, STEP, toggleDayOff, UNNAMED, withHours } from "./limits";
+import { GRID_END, GRID_START, isBusy, isWeekly, paint, STEP, toggleDayOff, UNNAMED, withHours } from "./limits";
 import styles from "./prefs.module.css";
 import { WEEKDAYS } from "./preferences";
 import { clockWithSuffix, DAY_NAME } from "./week";
@@ -268,7 +268,7 @@ export function PaintGrid({ preferences: p, onChange, newId, touch }: Props) {
         <div className={styles.outside} data-edge="top" style={{ height: pct(start) }} />
         <div className={styles.outside} data-edge="bottom" style={{ top: pct(end) }} />
         {WEEKDAYS.map((day, d) => (c.daysOff.includes(day) ? <div key={day} className={styles.dayOff} style={{ left: `${d * 20}%` }} /> : null))}
-        {c.blocked.map((b) => {
+        {c.blocked.filter(isWeekly).map((b) => {
           const d = WEEKDAYS.indexOf(b.day);
           if (d < 0) return null;
           const s = Math.max(GRID_START, b.start);

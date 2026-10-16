@@ -153,6 +153,19 @@ export function meetingOccurrences(
 }
 
 /**
+ * Thrown when a feed would expand into more pieces than the caller allows.
+ * Checked before each occurrence's pieces are made, so a feed built to
+ * expand into millions of pieces is refused after about `limit` of work,
+ * never after building them.
+ */
+export class OccurrenceBudgetError extends RangeError {
+  constructor(readonly limit: number) {
+    super(`The feed expands into more than ${limit} dated pieces`);
+    this.name = "OccurrenceBudgetError";
+  }
+}
+
+/**
  * A parsed calendar feed's occurrences as local pieces in `timeZone`, kept
  * when their date is inside `range`.
  *
@@ -165,9 +178,16 @@ export function meetingOccurrences(
  *
  * Ordered by start instant, then eventId. Throws on an invalid time zone or
  * date, a range whose last day is before its first, or an occurrence whose
- * event isn't in `events`.
+ * event isn't in `events`. With `maxPieces`, throws OccurrenceBudgetError as
+ * soon as the pieces would pass it, counted across the whole feed; a caller
+ * serving untrusted feeds passes one.
  */
-export function feedOccurrences(feed: ParsedFeed, range: DateRange, timeZone: string): FeedOccurrence[] {
+export function feedOccurrences(
+  feed: ParsedFeed,
+  range: DateRange,
+  timeZone: string,
+  { maxPieces = Number.POSITIVE_INFINITY }: { maxPieces?: number } = {},
+): FeedOccurrence[] {
   const zone = new OccurrenceZone(timeZone);
   const bounds = dateBounds(range.first, range.last);
   const windowStart = zone.resolve(bounds.first);
@@ -184,7 +204,10 @@ export function feedOccurrences(feed: ParsedFeed, range: DateRange, timeZone: st
       if (start % DAY_MS !== 0 || end % DAY_MS !== 0) {
         throw new RangeError(`All-day event ${event.id} must name dates at UTC midnight`);
       }
-      for (let date = Math.max(start, bounds.first); date < end && date <= bounds.last; date += DAY_MS) {
+      const from = Math.max(start, bounds.first);
+      const days = Math.max(0, Math.ceil((Math.min(end, bounds.last + DAY_MS) - from) / DAY_MS));
+      if (pieces.length + days > maxPieces) throw new OccurrenceBudgetError(maxPieces);
+      for (let date = from; date < end && date <= bounds.last; date += DAY_MS) {
         pieces.push({
           date: isoDate(date),
           startMinutes: 0,
@@ -197,7 +220,11 @@ export function feedOccurrences(feed: ParsedFeed, range: DateRange, timeZone: st
     } else {
       const clippedStart = Math.max(start, windowStart);
       const clippedEnd = Math.min(end, windowEnd);
-      pieces.push(...zone.split(clippedStart, clippedEnd).map((piece) => ({ ...piece, ...flags })));
+      const room = maxPieces - pieces.length;
+      const split = zone.split(clippedStart, clippedEnd, room, () => {
+        throw new OccurrenceBudgetError(maxPieces);
+      });
+      for (const piece of split) pieces.push({ ...piece, ...flags });
     }
   }
   return pieces.sort((a, b) => a.start.localeCompare(b.start) || a.eventId - b.eventId);

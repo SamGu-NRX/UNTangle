@@ -5,8 +5,9 @@
  * folder reads a store, the prerequisite engine or the app shell: if the
  * builder needs something, it comes through here.
  */
+import type { CheckedFeed, FeedTerm, Outcome } from "@/lib/calendar-busy";
 import type { Section } from "@/lib/sections";
-import type { SchedulePreferences } from "@/lib/types";
+import type { ConnectedCalendar, SchedulePreferences } from "@/lib/types";
 import type { WalkFn } from "./week";
 
 export type BuilderBrand = {
@@ -106,6 +107,22 @@ export type OptionsFeed = {
   close: () => void;
 };
 
+/**
+ * Connecting calendar feeds as busy time. The address the student pastes is
+ * passed straight through and never kept; what comes back is the calendar
+ * with its address sealed, for the builder to add to the preferences.
+ */
+export type BuilderCalendars = {
+  /** The term busy time is read for, with its first and last day. */
+  term: FeedTerm;
+  /** Reads a feed over the term: its busy count and its events. */
+  check: (url: string) => Promise<Outcome<CheckedFeed>>;
+  /** Reads a feed's busy time and seals its address. Nothing is saved until the builder adds it. */
+  connect: (url: string, name: string, options: { countAllDay: boolean }) => Promise<Outcome<ConnectedCalendar>>;
+  /** Why a connected calendar couldn't be refreshed, by calendar id; absent when it's current. */
+  problems: Readonly<Record<string, string>>;
+};
+
 /** One row of Browse all: a whole week, with the figures its row shows. */
 export type BrowseRow = {
   /** Course code -> section id, every course the search placed. */
@@ -182,4 +199,6 @@ export type BuilderHost = {
   /** Where Export's Print goes, and the address a share link opens. */
   printHref: string;
   shareUrl: (encoded: string) => string;
+  /** Calendar feeds as busy time; null where the host can't connect them. */
+  calendars: BuilderCalendars | null;
 };

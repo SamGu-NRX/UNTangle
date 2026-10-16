@@ -106,9 +106,11 @@ export class OccurrenceZone {
     throw new RangeError(`Cannot resolve campus wall time: ${new Date(naive).toISOString()}`);
   }
 
-  split(start: number, end: number): DatedPiece[] {
+  split(start: number, end: number, maxPieces: number = Number.POSITIVE_INFINITY, onOverBudget?: () => never): DatedPiece[] {
     const pieces: DatedPiece[] = [];
     for (let cursor = start; cursor < end;) {
+      // Checked before each piece, so a caller's budget is exact however many DST changes the span crosses.
+      if (pieces.length >= maxPieces) onOverBudget?.();
       const offset = this.offsetAt(cursor);
       const local = cursor + offset;
       const date = isoDate(local);

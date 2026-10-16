@@ -63,8 +63,17 @@ beforeEach(() => {
   store = resetDocumentStore();
   previousFetch = globalThis.fetch;
   server = new FakeDocumentServer();
-  globalThis.fetch = server.fetch as typeof fetch;
+  forgets = 0;
+  // The calendar route that drops a guest's HttpOnly calendar cookie; everything else goes to the document server.
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    if (String(input) === "/api/v1/calendar-feeds/forget") {
+      forgets += 1;
+      return new Response(null, { status: 204 });
+    }
+    return server.fetch(input, init);
+  }) as typeof fetch;
 });
+let forgets = 0;
 afterEach(async () => {
   while (mounted.length) await mounted.pop()!();
   setSession(null);
@@ -196,6 +205,8 @@ test("A signs out, the guest starts empty, and A's local planner, library and do
   expect((await store.stored(userA.id)).documents).toEqual([]);
   expect(readPlanner(null).state).toBeNull();
   expect(plans(library(null))).toEqual([]);
+  // Guest calendars on this browser end with the guest's work: their cookie is dropped by the server.
+  expect(forgets).toBeGreaterThan(0);
   expect(server.plan(userA.id)?.transcriptRecords).toEqual([transcript]);
   expect(server.plan(userA.id)?.selectedMajor).toBe("math");
 });
@@ -343,6 +354,7 @@ test("sign-out deletes old guest work too, so the next guest starts empty", asyn
   expect(planner.get().plannerState.transcriptRecords).toEqual([]);
   expect(readPlanner(null).state).toBeNull();
   expect(plans(createSavedPlanStore())).toEqual([]);
+  expect(forgets).toBeGreaterThan(0);
 });
 
 test("quarantine recovery and sign-out cleanup cannot cross account ids with a common prefix", () => {

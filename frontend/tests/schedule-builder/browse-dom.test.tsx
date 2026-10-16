@@ -94,6 +94,7 @@ function host(feed: Partial<BrowseFeed> = {}, options: Partial<OptionsFeed> = {}
     find: (code, id) => ALL.find((s) => s.courseCode === code && s.id === id),
     printHref: "/schedule/print",
     shareUrl: (encoded) => `http://localhost/schedule?week=${encoded}`,
+    calendars: null,
   };
   return { value, edits, optimizer, browse };
 }

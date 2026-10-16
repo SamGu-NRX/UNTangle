@@ -102,10 +102,10 @@ The planner blob becomes separate documents. Each has its own revision:
 |---|---|---|
 | `academic-record` | user and institution | course statuses, approved transcript rows, manual credit, major, catalog year |
 | `schedule` | user, institution and term; many allowed | name, courses, selected options, locks, Auto's last transaction |
-| `preferences` | user and institution | hard limits, leanings, the 1 to 5 importance scale, presets, calendar busy-time selections |
+| `preferences` | user and institution | hard limits, leanings, the 1 to 5 importance scale, presets, connected calendars |
 | `version` | schedule; append-only | an immutable snapshot ("Before Auto", restore points, imports) |
 
-Roadmaps and calendar or notification subscriptions get documents when their features are built, not before.
+Roadmaps and notification subscriptions get documents when their features are built, not before. Connected calendars were built into `preferences`: each holds its name, its title-free busy slots for one term and its feed address sealed by the server (`frontend/src/lib/calendar-feeds/README.md`), merged per calendar on a conflict. A separate document would have split one setting the student changes in one place across two writes.
 
 Each fact lives in exactly one document. Planned courses for a term belong to that term's schedule. The academic record holds only facts about the student's history: completed courses, courses in progress now, transfer and exam credit. Today `PlannerState` marks a planned course `inProgress`, and the migration moves those courses into the schedule. Auto plans and unplans courses for a term, so in this model it writes only that term's schedule, and its Undo record (`lastAuto`) commits in the same write as its effect. It never changes the academic record. A write carries its document's `kind`, so the server can check the body of a document's first write; on later writes the kind must match the stored document.
 
@@ -305,7 +305,7 @@ Fetching an unchanged file today doesn't mean its seat counts were true today. W
 | RateMyProfessors | a link only | nothing | no fetching or storing |
 | Syllabi | reviewed host list, robots-aware, conditional requests | hashes, short quotes, locators, extractor version | public by Texas Education Code 51.974; no bulk crawl until permissions are recorded |
 | Degree plans and policy | curated from official pages | reviewed releases in `data/` | every value cites its page and date |
-| Calendar feeds | the existing SSRF-safe fetcher; 30-minute starting interval for directory feeds | dated occurrences in Postgres | private feed URLs are encrypted and never logged |
+| Calendar feeds | the existing SSRF-safe fetcher; 30-minute starting interval for directory feeds; a student's connected calendar is read again when Week opens and it is over 6 hours old | dated busy slots in the `preferences` document (Postgres when signed in, the device for a guest) | private feed URLs are encrypted (AES-256-GCM under `CALENDAR_FEED_KEY`, sealed to the account, or for a guest to the browser's HttpOnly cookie, for at most 90 days) and never logged; only the sealed token is stored |
 | Campus map (OSM) | the existing geodata kit | versioned static graphs | keep ODbL attribution |
 
 Feature rules that follow from evidence:

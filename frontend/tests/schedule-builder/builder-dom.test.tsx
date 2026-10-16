@@ -83,6 +83,7 @@ function host(courses: WeekCourse[], feed: Partial<OptionsFeed> = {}) {
     find: (code, id) => OPTIONS[code]?.find((s) => s.id === id),
     printHref: "/schedule/print",
     shareUrl: (encoded) => `http://localhost/schedule?week=${encoded}`,
+    calendars: null,
   };
   return { value, edits, optimizer };
 }
@@ -99,6 +100,34 @@ const buttons = (root: ParentNode, name: RegExp) =>
 const events = (root: ParentNode) => [...root.querySelectorAll<HTMLButtonElement>("[data-event]")].map((b) => b.textContent);
 
 describe("Week", () => {
+  test("a class that meets during a calendar's busy time is marked with the date, and the busy time shows beside it", async () => {
+    const { value } = host([course(statsTr)]);
+    const work = {
+      id: "cal-work",
+      name: "Work",
+      sealedUrl: "cf1.k.i.s",
+      feedId: "WorkFeedIdAAAAAAAAAAAA",
+      termId: "spring-2027",
+      checkedAt: "2026-10-15T12:00:00.000Z",
+      busy: [{ start: 540, end: 600, dates: ["2027-02-16"] }],
+      allDayDates: [],
+      countAllDay: false,
+    };
+    const calendars = { term: { id: "spring-2027", label: "Spring 2027", start: "2027-01-11", end: "2027-05-07" }, check: async () => ({ ok: false as const, problem: { kind: "offline" as const, message: "" } }), connect: async () => ({ ok: false as const, problem: { kind: "offline" as const, message: "" } }), problems: {} };
+    const view = await render({ ...value, preferences: { ...preferences, calendars: [work] }, calendars });
+    const tuesday = view.container.querySelector<HTMLElement>('[data-key="MATH 3680#0"]')!;
+    const thursday = view.container.querySelector<HTMLElement>('[data-key="MATH 3680#1"]')!;
+    expect(tuesday.hasAttribute("data-conflict")).toBe(true);
+    expect(tuesday.textContent).toContain("Work, Feb 16");
+    expect(tuesday.textContent).toContain("meets during Work, Feb 16");
+    expect(thursday.hasAttribute("data-conflict")).toBe(false);
+    const band = view.container.querySelector<HTMLElement>('[data-kind="calendar"]')!;
+    expect(band.hasAttribute("data-beside")).toBe(true);
+    expect(band.textContent).toContain("Feb 16 only");
+    expect(view.container.textContent?.replace(/\u00a0/g, " ")).toContain("MATH 3680 meets during work on Tuesday, Feb 16.");
+    await view.unmount();
+  });
+
   test("the answer line names the tight walk once, with a fix that runs Auto", async () => {
     const { value, optimizer } = host([course(csce), course(math), course(phys)]);
     const view = await render(value);

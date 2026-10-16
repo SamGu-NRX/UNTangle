@@ -33,6 +33,11 @@ export function clockWithSuffix(minutes: number): string {
 
 export const timeRange = (start: number, end: number) => `${clock(start)}–${clock(end)}`;
 
+/** "Feb 3": an ISO date as Week says it. */
+export function shortDate(date: string): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+}
+
 /** How Week names Auto's alternative at a rank, inside a sentence ("option 2"); the strip shows "2 of 3". */
 export const optionName = (index: number) => `option ${index + 1}`;
 const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);

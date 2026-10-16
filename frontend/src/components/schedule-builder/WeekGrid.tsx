@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { LockGlyph, Walk } from "@/components/ui/icons";
+import { CalendarGlyph, LockGlyph, Walk } from "@/components/ui/icons";
 import type { Day } from "@/lib/sections";
 import { EXIT_MOVE_MS, flip, measure, MOVE_MS, settleBack, visualOf } from "./motion";
 import styles from "./builder.module.css";
@@ -22,7 +22,35 @@ export type Outline = {
 };
 /** One meeting of the section being pointed at in search. */
 export type Ghost = { courseCode: string; day: Day; start: number; end: number; clash: boolean };
-export type Busy = { id: string; label: string; day: Day; start: number; end: number };
+/**
+ * Busy time the grid hatches. Without a kind, the student's own weekly busy
+ * time; `dated`, one they made from a calendar event, on its date only;
+ * `calendar`, a connected calendar's. `note` says which weeks it holds.
+ */
+export type Busy = {
+  id: string;
+  label: string;
+  day: Day;
+  start: number;
+  end: number;
+  kind?: "dated" | "calendar";
+  note?: string;
+  /** A class meets during this busy time: the class takes the band's left part, so the band's words show beside it. */
+  beside?: boolean;
+};
+
+/**
+ * How much of its lane a class keeps when it meets during dated busy time,
+ * leaving the rest for the busy band's words. Phone columns are too narrow to
+ * share, so there the class keeps its lane and carries the busy time's name
+ * and date itself.
+ */
+const BESIDE_SHARE = 0.6;
+
+/** Calendar busy time can run all day; the grid stretches for it only within these hours. */
+const CALENDAR_REACH = { start: 8 * 60, end: 21 * 60 };
+const reach = (block: Busy) =>
+  block.kind === "calendar" ? { start: Math.max(block.start, CALENDAR_REACH.start), end: Math.min(block.end, CALENDAR_REACH.end) } : block;
 
 type Props = {
   label: string;
@@ -35,6 +63,12 @@ type Props = {
   outlines: readonly Outline[];
   ghost: readonly Ghost[];
   busy: readonly Busy[];
+  /**
+   * Classes that meet during dated busy time (a calendar's, or one event's),
+   * by event key: what to say on the class, such as "Work, Feb 16". Marked
+   * the way a clash between classes is.
+   */
+  busyClash?: ReadonlyMap<string, string>;
   /** Class hours and days off from Preferences, hatched so the week shows what Auto avoids. */
   limits?: { earliestStart: number | null; latestEnd: number | null; daysOff: readonly Day[] };
   /**
@@ -68,18 +102,18 @@ const SNAP_RADIUS = 90;
 const at = (minutes: number, first: number): string => `calc(var(--grid-top) + ${(minutes - first * 60) / 60} * var(--hh))`;
 const span = (start: number, end: number): string => `calc(${(end - start) / 60} * var(--hh))`;
 
-function lane(placement: Placement | undefined): CSSProperties {
+function lane(placement: Placement | undefined, share = 1): CSSProperties {
   const { lane: index = 0, lanes = 1 } = placement ?? {};
   return {
     left: `calc(${index} * (100% - 8px) / ${lanes} + 4px)`,
-    width: `calc((100% - 8px) / ${lanes} - ${lanes > 1 ? 2 : 0}px)`,
+    width: share === 1 ? `calc((100% - 8px) / ${lanes} - ${lanes > 1 ? 2 : 0}px)` : `calc(((100% - 8px) / ${lanes} - ${lanes > 1 ? 2 : 0}px) * ${share})`,
   };
 }
 
 export function WeekGrid(props: Props) {
   const { events, placements, walks, outlines, ghost, busy, phone, interactive } = props;
   const days = daysShown([...events, ...busy, ...ghost, ...outlines]);
-  const { first, last } = hourRange([...events, ...busy, ...ghost, ...outlines]);
+  const { first, last } = hourRange([...events, ...busy.map(reach).filter((span) => span.end > span.start), ...ghost, ...outlines]);
   const body = useRef<HTMLDivElement>(null);
   const positions = useRef<Map<string, { x: number; y: number }> | null>(null);
   const lastMotion = useRef(props.motion.key);
@@ -270,15 +304,32 @@ export function WeekGrid(props: Props) {
             ) : null}
             {busy
               .filter((block) => block.day === day)
-              .map((block) => (
-                <div key={block.id} className={styles.busy} style={{ top: at(block.start, first), height: span(block.start, block.end) }}>
-                  {block.label}
-                  <span className="sr-only-v2">
-                    {" "}
-                    busy {timeRange(block.start, block.end)}
-                  </span>
-                </div>
-              ))}
+              .map((block) => {
+                const top = Math.max(block.start, first * 60);
+                const bottom = Math.min(block.end, last * 60);
+                if (bottom <= top) return null;
+                return (
+                  <div
+                    key={block.id}
+                    className={styles.busy}
+                    data-kind={block.kind}
+                    data-beside={block.beside && !phone ? "" : undefined}
+                    style={{
+                      top: at(top, first),
+                      height: span(top, bottom),
+                      ...(block.beside && !phone ? { paddingLeft: `calc(8px + (100% - 8px) * ${BESIDE_SHARE})` } : {}),
+                    }}
+                  >
+                    {block.kind === "calendar" ? <CalendarGlyph size={12} className={styles.busyGlyph} /> : null}
+                    <span className={styles.busyLabel}>{block.label}</span>
+                    {block.note ? <span className={styles.busyNote} aria-hidden="true">{block.note}</span> : null}
+                    <span className="sr-only-v2">
+                      {block.kind === "calendar" ? ", from your calendar," : ""} busy {timeRange(block.start, block.end)}
+                      {block.note ? `, ${block.note}` : ""}
+                    </span>
+                  </div>
+                );
+              })}
             {draft?.day === day && draft.from !== draft.to ? (
               <div
                 className={styles.busy}
@@ -295,6 +346,7 @@ export function WeekGrid(props: Props) {
                 const placement = placements.get(event.key);
                 const kept = props.kept.has(event.courseCode);
                 const tall = event.end - event.start >= 40;
+                const busyClash = props.busyClash?.get(event.key) ?? null;
                 return (
                   <button
                     key={event.key}
@@ -303,10 +355,10 @@ export function WeekGrid(props: Props) {
                     data-event=""
                     data-key={event.key}
                     data-hue={props.hueOf(event.courseCode)}
-                    data-conflict={placement?.conflict ? "" : undefined}
+                    data-conflict={placement?.conflict || busyClash ? "" : undefined}
                     aria-pressed={props.selectedCourse === event.courseCode}
                     tabIndex={interactive ? 0 : -1}
-                    style={{ top: at(event.start, first), height: `calc(${span(event.start, event.end)} - 2px)`, ...lane(placement) }}
+                    style={{ top: at(event.start, first), height: `calc(${span(event.start, event.end)} - 2px)`, ...lane(placement, busyClash && !phone ? BESIDE_SHARE : 1) }}
                     onClick={(click) => {
                       if (swallowClick.current) {
                         swallowClick.current = false;
@@ -324,10 +376,16 @@ export function WeekGrid(props: Props) {
                       <span className={styles.eventSubject}>{event.courseCode.split(" ")[0]}</span> {event.courseCode.split(" ").slice(1).join(" ")}
                     </span>{" "}
                     <span className={tall && !phone ? styles.eventTime : "sr-only-v2"}>{timeRange(event.start, event.end)}</span>
+                    {busyClash && tall ? (
+                      <span className={styles.eventBusy} aria-hidden="true">
+                        {busyClash}
+                      </span>
+                    ) : null}
                     <span className="sr-only-v2">
                       , {DAY_NAME[event.day]}
                       {kept ? ", kept" : ""}
                       {placement?.conflict ? ", overlaps another class" : ""}
+                      {busyClash ? `, meets during ${busyClash}` : ""}
                     </span>
                     {kept && !phone ? <LockGlyph size={13} className={styles.eventLock} /> : null}
                   </button>

@@ -187,6 +187,16 @@ describe("the answer line", () => {
     expect(answer([csce2110, csce2610])).toEqual({ tone: "quiet", text: "This week fits your preferences.", action: null, fits: true });
   });
 
+  test("busy time on one date clashes only with a class that meets that date, and names it", () => {
+    const tr = (dates?: { start: string; end: string }) =>
+      section({ courseCode: "ENGL 1310", meetings: (["Tue", "Thu"] as const).map((day) => meeting({ day, at: "8:00", until: "9:20", dates })) });
+    const shift = { id: "calendar-cal-work-Tue-480-570", label: "Work", day: "Tue" as const, start: 480, end: 570, dates: [{ start: "2027-02-16", end: "2027-02-16" }] };
+    const busy = { ...defaults, constraints: { ...defaults.constraints, blocked: [shift] } };
+    expect(answer([tr()], busy)?.text).toBe("ENGL 1310 meets during work on Tuesday, Feb 16.");
+    // The second eight weeks start in March, after the shift.
+    expect(answer([tr({ start: "2027-03-08", end: "2027-05-07" })], busy)?.text).toBe("This week fits your preferences.");
+  });
+
   test("the saved spare-minutes setting is a preference the week can break", () => {
     const buffered = { ...defaults, constraints: { ...defaults.constraints, walkingBufferMinutes: 10 } };
     // GAB to CURY is 4 minutes in a 10-minute break: fine at 2 spare minutes, short of 10.
