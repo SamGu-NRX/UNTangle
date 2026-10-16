@@ -331,6 +331,20 @@ describe("Set up Auto on Week", () => {
     await view.unmount();
   });
 
+  test("it waits for a later visit when Preferences or Export opened before preferences loaded", async () => {
+    for (const opener of ["Preferences", "Export"]) {
+      const { host } = weekHost({ due: true, markSeen: () => {} });
+      host.preferencesReady = false;
+      const view = await renderWeek(host);
+      await click(button(opener));
+      host.preferencesReady = true;
+      await view.refresh();
+      // Only the setup has this progress bar; Export's own dialog doesn't count.
+      expect(document.querySelector('[role="progressbar"][aria-label="Setup progress"]') !== null).toBe(false);
+      await view.unmount();
+    }
+  });
+
   test("Preferences reopens it with the answers Auto follows now", async () => {
     const view = await renderWeek(weekHost({ due: false, markSeen: () => {} }).host);
     await click(button("Preferences"));

@@ -164,11 +164,11 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   }
   // Set up Auto opens by itself at most once per mount of Week, decided when preferences first load.
   // A sign-in remounts Week under the new identity, so an account with nothing saved on this browser
-  // gets its own first run. A share link, a search from another lens or an open panel is what the
-  // student came for, so it waits for a later visit.
+  // gets its own first run. A share link, a search from another lens, an open panel, or Preferences or
+  // Export opened while preferences loaded is what the student came for, so it waits for a later visit.
   if (!setupDecided && host.preferencesReady) {
     setSetupDecided(true);
-    if (host.setup?.due && !shared && !searchRequest && !strip && !panel) setSetup({ open: true, mode: "first" });
+    if (host.setup?.due && !shared && !searchRequest && !strip && !panel && !prefsOpen && !exporting) setSetup({ open: true, mode: "first" });
   }
 
   const selectedCourse = panel?.kind === "event" ? host.courses.find((course) => course.code === panel.code) ?? null : null;
