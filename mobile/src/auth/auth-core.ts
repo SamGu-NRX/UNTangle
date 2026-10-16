@@ -216,10 +216,15 @@ export function createAuth(deps: AuthDeps) {
         scheduleRefreshRetry();
         return null;
       }
-      // Only the contract's own refusals end the grant: a 400 or 401 naming
-      // invalid_token or invalid_grant.
-      const refused = outcome.status === 400 || outcome.status === 401;
-      if (refused && (outcome.error === "invalid_token" || outcome.error === "invalid_grant")) {
+      // Only the contract's own refusals end the grant: any 4xx naming
+      // invalid_token, invalid_grant, or account_changed. The server reports
+      // a moved security generation at refresh time as invalid_token today;
+      // account_changed is the contract's code for that refusal class, and a
+      // grant that cannot come back must never land in the retry branch
+      // below. Everything else (insufficient_scope, invalid_request, ...)
+      // leaves the grant alive.
+      const refused = outcome.status !== null && outcome.status >= 400 && outcome.status < 500;
+      if (refused && (outcome.error === "invalid_token" || outcome.error === "invalid_grant" || outcome.error === "account_changed")) {
         await handleGrantLost();
         return null;
       }
@@ -264,8 +269,18 @@ export function createAuth(deps: AuthDeps) {
     // stored afterwards rejected the single-flight promise with a TypeError
     // and left the proactive rotation timer dead for the session. The moved
     // world's own transition owns state and timers; null is the graceful
-    // single-flight result callers already handle.
-    if (stored !== candidate) return null;
+    // single-flight result callers already handle. And the moved world's
+    // clears are direct — they beat this parked write by design, so the
+    // write lands on the cleaned world and re-persists the candidate the
+    // clear just erased, with no generation-based repair behind it (grant
+    // loss moves no generation). Erase that stray copy best-effort,
+    // grant-conditional like every other moved-world cleanup: a newer
+    // grant's envelope in the store is never touched, and its own queued
+    // save lands after this one anyway.
+    if (stored !== candidate) {
+      await clearDurableGrantIfUnowned(candidate.grantId).catch(() => undefined);
+      return null;
+    }
     if (state.status === "signed-in") {
       replaceState({ ...state, grantId: candidate.grantId, scopes: candidate.scopes });
       scheduleRefresh();

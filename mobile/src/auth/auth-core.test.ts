@@ -1737,4 +1737,56 @@ describe("refresh rotation liveness", () => {
     expect(harness.store.clear).toHaveBeenCalled();
     expect(harness.timers).toHaveLength(1);
   });
+
+  it("erases the rotated candidate a parked save re-persisted after a grant-loss clear beat it", async () => {
+    let syncCalls = 0;
+    const fetchLike: FetchLike = async url => {
+      if (url.endsWith("/api/v1/device/refresh")) return jsonResponse(TOKENS_B, 200);
+      syncCalls += 1;
+      return syncCalls === 2 ? jsonResponse({ error: "invalid_token" }, 401) : jsonResponse(SYNC_200, 200);
+    };
+    const harness = makeHarness([], { fetchLike });
+    const durableLoad = harness.store.load;
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    const { entered, release } = parkFirstSave(harness, "resolve");
+    const refresh = startTimerRefresh(harness);
+    await entered;
+    // The count read's 401 runs grant-loss cleanup mid-save: the direct clear
+    // beats the parked rotation save, whose write then lands on the cleaned
+    // world and re-persists the candidate. Grant loss moves no generation, so
+    // the post-save moved-world return must repair the durable store itself —
+    // grant-conditional, like every other moved-world cleanup.
+    await harness.auth.refreshDocumentCount();
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    release();
+    await expect(refresh).resolves.toBeNull();
+    await flush();
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    expect(await durableLoad()).toBeNull();
+  });
+
+  it("signs out when refresh reports account_changed instead of retrying it", async () => {
+    const fetchLike: FetchLike = async url => {
+      if (url.endsWith("/api/v1/device/refresh")) return jsonResponse({ error: "account_changed" }, 409);
+      return jsonResponse(SYNC_200, 200);
+    };
+    const harness = makeHarness([], { fetchLike });
+    const durableLoad = harness.store.load;
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    const refresh = startTimerRefresh(harness);
+    await expect(refresh).resolves.toBeNull();
+    await flush();
+    // account_changed is a contract-legal terminal refusal: the grant cannot
+    // come back, so the 30-second refresh retry loop must never arm for it.
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    expect(await durableLoad()).toBeNull();
+    expect(harness.timers.some(timer => timer.ms === 30_000 && !timer.cleared)).toBe(false);
+  });
 });
+
