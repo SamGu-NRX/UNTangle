@@ -154,7 +154,7 @@ describe("a busy time made from one calendar event", () => {
   });
 
   test("a connected calendar counts once on the Preferences button", () => {
-    const calendar = { id: "cal-work", name: "Work", sealedUrl: "cf1.a.b.c", termId: "spring-2027", checkedAt: "2026-10-15T12:00:00.000Z", busy: [], allDayDates: [], countAllDay: false };
+    const calendar = { id: "cal-work", name: "Work", sealedUrl: "cf1.a.b.c", feedId: "WorkFeedIdAAAAAAAAAAAA", termId: "spring-2027", checkedAt: "2026-10-15T12:00:00.000Z", busy: [], allDayDates: [], countAllDay: false };
     expect(changedCount({ ...defaults, calendars: [calendar] }, defaults)).toBe(1);
   });
 });

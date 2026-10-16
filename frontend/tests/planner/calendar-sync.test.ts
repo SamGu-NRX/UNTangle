@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { FakeDocumentServer, installDom, mountPlanner, removeDom, resetDocumentStore, setSession, waitFor, type PersistedDocumentStore } from "./test-dom";
 import { busyFromFeed } from "@/lib/calendar-feeds/busy";
 import { parseCalendarFeed } from "@/lib/calendar-feeds/parse";
-import { sealFeedUrl } from "@/lib/calendar-feeds/seal";
+import { feedIdOf, sealFeedUrl } from "@/lib/calendar-feeds/seal";
 import { buildOptimizeRequest } from "@/lib/planner";
 import { readingOf } from "@/lib/calendar-busy";
 import type { ConnectedCalendar, SchedulePreferences } from "@/lib/types";
@@ -31,6 +31,7 @@ function workCalendar(owner: { kind: "user" | "guest"; id: string }, countAllDay
     id: "cal-work",
     name: "Work",
     sealedUrl: sealFeedUrl(WORK_URL, owner, KEY),
+    feedId: feedIdOf(WORK_URL, KEY),
     termId: "spring-2027",
     checkedAt: "2026-10-15T12:00:00.000Z",
     ...readingOf(pieces, term),

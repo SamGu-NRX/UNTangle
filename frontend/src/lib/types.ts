@@ -311,6 +311,8 @@ export type ConnectedCalendar = {
   id: string;
   name: string;
   sealedUrl: string;
+  /** A keyed fingerprint of the feed's address: one per address, so connecting it again replaces this calendar. */
+  feedId: string;
   /** The term the busy times were read for. */
   termId: string;
   /** When the feed was last read, ISO 8601. */

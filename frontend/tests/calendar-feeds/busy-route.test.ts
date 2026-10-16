@@ -544,6 +544,24 @@ describe("sealed addresses", () => {
 
   const refresh = (sealedUrl: string) => ({ sealedUrl, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd });
 
+  test("sealing also returns a feed id: the same for one address however it is sealed, and saying nothing of it", async () =>
+    withKey(KEY, async () => {
+      setSession({ user: { id: "user-feed-id" } });
+      const first = await (await POST(busyRequest({ ...VALID_BODY, url: SECRET_URL, seal: true }, "192.0.2.98"))).json();
+      const again = await (await POST(busyRequest({ ...VALID_BODY, url: SECRET_URL, seal: true }, "192.0.2.98"))).json();
+      setSession(null);
+      const asGuest = await (await POST(busyRequest({ ...VALID_BODY, url: SECRET_URL, seal: true }, "192.0.2.98"))).json();
+      const other = await (await POST(busyRequest({ ...VALID_BODY, seal: true }, "192.0.2.98"))).json();
+      expect(first.feedId).toMatch(/^[A-Za-z0-9_-]{22}$/);
+      expect(first.sealedUrl).not.toBe(again.sealedUrl);
+      expect([again.feedId, asGuest.feedId]).toEqual([first.feedId, first.feedId]);
+      expect(other.feedId).not.toBe(first.feedId);
+      expect(first.feedId).not.toContain(SECRET_TOKEN.slice(0, 8));
+      // A refresh returns no feed id: the calendar keeps the one it was connected with.
+      const refreshed = await (await POST(busyRequest({ sealedUrl: other.sealedUrl, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.98"))).json();
+      expect(refreshed.feedId).toBeUndefined();
+    }));
+
   test("a guest's token is sealed to the browser's HttpOnly cookie, and refreshes on that browser only", async () =>
     withKey(KEY, async () => {
       setSession(null);

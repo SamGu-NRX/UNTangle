@@ -8,6 +8,7 @@ const calendar = (id: string, over: Partial<ConnectedCalendar> = {}): ConnectedC
   id,
   name: id,
   sealedUrl: `cf1.k.i.${id}`,
+  feedId: `${id}-feed-id-0000000000`.slice(0, 22).padEnd(22, "0"),
   termId: "spring-2027",
   checkedAt: new Date(NOW - 60_000).toISOString(),
   busy: [{ start: 900, end: 1080, dates: ["2027-01-12"] }],

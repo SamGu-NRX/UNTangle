@@ -33,6 +33,7 @@ const work: ConnectedCalendar = {
   id: "cal-work",
   name: "Work",
   sealedUrl: "cf1.key.iv.sealed",
+  feedId: "WorkFeedIdAAAAAAAAAAAA",
   termId: "spring-2027",
   checkedAt: "2026-10-15T12:00:00.000Z",
   busy: [
@@ -143,6 +144,25 @@ describe("connecting a calendar in Preferences", () => {
     const rowSwitch = rows.container.querySelector<HTMLButtonElement>('[role="switch"]')!;
     await click(rowSwitch);
     expect(rows.preferences().calendars?.[0].countAllDay).toBe(true);
+  });
+
+  test("connecting an address already connected replaces that calendar instead of adding a second", async () => {
+    const resealed = { ...work, id: "cal-new-random-id", sealedUrl: "cf1.key.iv.resealed", checkedAt: "2026-10-16T12:00:00.000Z" };
+    const connect = mock(async (_url: string, name: string) => ({ ok: true as const, value: { ...resealed, name } }));
+    const { host } = fakeHost({ connect });
+    const view = await render(host, { ...start, calendars: [work] });
+    await click(button(view.container, "Add a calendar"));
+    await type(field(view.container, "Calendar address"), "https://calendar.example.edu/work.ics");
+    await click(button(view.container, "Check"));
+    await settle();
+    await click(button(view.container, "Add calendar"));
+    await settle();
+    expect(connect).toHaveBeenCalledTimes(1);
+    // One calendar, in its place, under its id and name, with the new token and reading.
+    expect(view.preferences().calendars).toEqual([{ ...resealed, id: "cal-work", name: "Work" }]);
+    expect(document.body.textContent).toContain("Updated Work. Auto keeps its busy times free.");
+    await click(button(document.body, "Undo"));
+    expect(view.preferences().calendars).toEqual([work]);
   });
 
   test("an unreachable feed shows its error under the address and keeps what was typed", async () => {

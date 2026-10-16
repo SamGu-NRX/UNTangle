@@ -229,13 +229,27 @@ export function CalendarFeeds({ host, preferences, onChange }: { host: BuilderCa
       setFlow({ ...now, adding: false, error: outcome.problem.message });
       return;
     }
-    const calendar = outcome.value;
-    onChange((p) => ({ ...p, calendars: [...(p.calendars ?? []).filter((c) => c.id !== calendar.id), calendar] }));
+    // The same address again (pasted to reconnect, or a second time) replaces the calendar it already is:
+    // its place, its id and, unless a new name was typed, its name. Tokens differ on every seal, so the
+    // server's keyed fingerprint of the address (feedId) is what matches them.
+    const existing = calendars.find((c) => c.feedId === outcome.value.feedId) ?? null;
+    const calendar = existing ? { ...outcome.value, id: existing.id, name: name.trim() ? outcome.value.name : existing.name } : outcome.value;
+    onChange((p) => {
+      const now = p.calendars ?? [];
+      const same = now.find((c) => c.feedId === calendar.feedId);
+      return { ...p, calendars: same ? now.map((c) => (c === same ? calendar : c)) : [...now, calendar] };
+    });
     setFlow({ step: "closed" });
     addButton.current?.focus({ preventScroll: true });
     toast({
-      message: `Added ${calendar.name}. Auto keeps its busy times free.`,
-      action: { label: "Undo", onClick: () => onChange((p) => withoutCalendar(p, calendar.id)) },
+      message: `${existing ? "Updated" : "Added"} ${calendar.name}. Auto keeps its busy times free.`,
+      action: {
+        label: "Undo",
+        onClick: () =>
+          onChange((p) =>
+            existing ? { ...p, calendars: p.calendars?.map((c) => (c.id === existing.id ? existing : c)) } : withoutCalendar(p, calendar.id),
+          ),
+      },
     });
   };
 

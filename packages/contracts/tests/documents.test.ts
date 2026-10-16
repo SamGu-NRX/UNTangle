@@ -44,6 +44,7 @@ const calendar = {
   id: "cal-work",
   name: "Work",
   sealedUrl: "cf1.AbCdEfGh.aXZpdml2aXZpdg.Y2lwaGVydGV4dA",
+  feedId: "WorkFeedIdAAAAAAAAAAAA",
   termId: "spring-2027",
   checkedAt: "2026-10-15T12:00:00.000Z",
   busy: [{ start: 900, end: 1080, dates: ["2027-01-12", "2027-01-19"] }],
@@ -206,6 +207,10 @@ describe("document bodies reject what the app could not have written", () => {
     ]);
     expect(rejections(PreferencesBodySchema, { ...preferences, calendars: [{ ...calendar, url: "https://example.com/a.ics" }] })).toEqual([
       'calendars.0: Unrecognized key: "url"',
+    ]);
+    // The feed id is a fixed-length fingerprint, never the address.
+    expect(rejections(PreferencesBodySchema, { ...preferences, calendars: [{ ...calendar, feedId: "https://example.com/a.ics" }] })).toEqual([
+      "calendars.0.feedId: A feed id is 22 base64url characters.",
     ]);
   });
 

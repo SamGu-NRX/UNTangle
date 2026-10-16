@@ -18,9 +18,11 @@ anywhere:
 - `seal.ts`: AES-256-GCM under `CALENDAR_FEED_KEY` (32 random bytes in
   base64), with the owner as associated data, so a token opens for its owner
   only. A signed-in student's owner is the account (`user:<id>`). A guest's
-  is the browser (`guest:<id>`): a random id in the `untangle-calendar-guest`
-  cookie, HttpOnly, Secure, SameSite=Lax and sent only to these routes, which
-  the busy route sets the first time a guest connects. A token copied out of
+  is the browser (`guest:<id>`): a random id in the
+  `__Host-untangle-calendar-guest` cookie (HttpOnly, Secure, SameSite=Lax,
+  Path=/, no Domain), which the busy route sets the first time a guest
+  connects. The `__Host-` prefix requires Path=/, so the browser sends it
+  with every same-origin request; only the calendar-feed routes read it. A token copied out of
   a guest's localStorage opens nowhere without that cookie. A guest token
   stops opening 30 days after it was issued and 90 days after the first in
   its line; each guest refresh reseals it with the first issue time kept. A
@@ -35,7 +37,9 @@ anywhere:
   event into a named busy time on its date. The pasted address lives only in
   the Preferences form's state.
 - What is kept is a `ConnectedCalendar` (packages/contracts, `CalendarSchema`):
-  name, sealed address, term, when it was read, and title-free busy slots,
+  name, sealed address, a feed id (an HMAC of the address under the sealing
+  key, so pasting an address already connected replaces that calendar rather
+  than adding a second), term, when it was read, and title-free busy slots,
   each a start and end with the dates it falls on. A signed-in student's
   live in the preferences document, so every device sees them; a guest's
   live in the guest's preferences on the device. `lib/calendar-busy.ts`

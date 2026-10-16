@@ -14,6 +14,7 @@ import {
   FeedSealError,
   guestCookie,
   guestIdFrom,
+  feedIdOf,
   newGuestId,
   openFeedToken,
   sealFeedUrl,
@@ -74,7 +75,8 @@ type BusyBody = {
  * inside the feed (no TZID, no Z) also read as America/Chicago, or the
  * feed's own `X-WR-TIMEZONE` when it has one.
  *
- * 200 response: `{ range, occurrences, skipped }`, plus `sealedUrl` when
+ * 200 response: `{ range, occurrences, skipped }`, plus `sealedUrl` and
+ * `feedId` (a keyed fingerprint of the address, feedIdOf in seal.ts) when
  * asked to seal. Occurrences are
  * `{ date, startMinutes, endMinutes, allDay }` — weekday and minutes are
  * derived by the caller, `allDay` marks a piece of an all-day event, and no
@@ -130,6 +132,7 @@ async function busyHandler(request: Request) {
   }
   let url: string;
   let sealedUrl: string | undefined;
+  let feedId: string | undefined;
   // Set when this response names the browser's guest id: a new one, or the same one with its lifetime renewed.
   let guestId: string | null = null;
   try {
@@ -142,6 +145,7 @@ async function busyHandler(request: Request) {
     } else {
       url = body.url as string;
       if (body.seal) {
+        feedId = feedIdOf(url, key);
         if (userId) sealedUrl = sealFeedUrl(url, { kind: "user", id: userId }, key);
         else {
           guestId = cookieGuest ?? newGuestId();
@@ -193,6 +197,7 @@ async function busyHandler(request: Request) {
     occurrences: pieces,
     skipped: result.skipped,
     sealedUrl,
+    feedId,
   });
   if (json === null) {
     return NextResponse.json({ error: TOO_MANY_EVENTS_MESSAGE }, { status: 422 });

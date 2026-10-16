@@ -38,7 +38,7 @@ describe("splitting a plan into documents", () => {
 
 describe("rebase", () => {
   test("removing the last calendar this side knew of keeps one only the stored body has", () => {
-    const calendar = (id: string) => ({ id, name: id, sealedUrl: `cf1.k.i.${id}`, termId: "spring-2027", checkedAt: "2026-10-15T12:00:00.000Z", busy: [], allDayDates: [], countAllDay: false });
+    const calendar = (id: string) => ({ id, name: id, sealedUrl: `cf1.k.i.${id}`, feedId: "FeedIdAAAAAAAAAAAAAAAA", termId: "spring-2027", checkedAt: "2026-10-15T12:00:00.000Z", busy: [], allDayDates: [], countAllDay: false });
     const stored = { goal: "compact", calendars: [calendar("mine"), calendar("from-the-phone")] };
     expect(rebase(stored, { goal: "compact", calendars: [calendar("mine")] }, { goal: "compact" })).toEqual({ goal: "compact", calendars: [calendar("from-the-phone")] });
     expect(rebase({ goal: "compact", calendars: [calendar("mine")] }, { goal: "compact", calendars: [calendar("mine")] }, { goal: "compact" })).toEqual({ goal: "compact" });

@@ -101,7 +101,7 @@ export async function checkFeed(url: string, term: FeedTerm, fetchImpl: FetchLik
   return { ok: true, value: { busyCount: busyCount(reading), allDayEvents, events } };
 }
 
-type BusyResponse = { occurrences: BusyPiece[]; sealedUrl?: string };
+type BusyResponse = { occurrences: BusyPiece[]; sealedUrl?: string; feedId?: string };
 
 async function readBusy(fetchImpl: FetchLike, body: Record<string, unknown>, term: FeedTerm): Promise<Outcome<BusyResponse>> {
   const response = await post(fetchImpl, "/api/v1/calendar-feeds/busy", { ...body, termStart: term.start, termEnd: term.end });
@@ -138,11 +138,12 @@ export async function connectFeed(
 ): Promise<Outcome<ConnectedCalendar>> {
   const read = await readBusy(options.fetchImpl ?? globalThis.fetch, { url: url.trim(), seal: true }, term);
   if (!read.ok) return read;
-  if (!read.value.sealedUrl) throw new Error("The busy route didn't return the sealed address it was asked for.");
+  if (!read.value.sealedUrl || !read.value.feedId) throw new Error("The busy route didn't return the sealed address and feed id it was asked for.");
   return kept({
     id: options.id ?? newCalendarId(),
     name: name.trim().slice(0, 40) || "Calendar",
     sealedUrl: read.value.sealedUrl,
+    feedId: read.value.feedId,
     termId: term.id,
     checkedAt: (options.now ?? (() => new Date()))().toISOString(),
     ...readingOf(read.value.occurrences, term),

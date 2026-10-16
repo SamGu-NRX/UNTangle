@@ -79,6 +79,8 @@ export function serializeBusy(payload: {
   skipped: ReadonlyArray<{ reason: string }>;
   /** The feed's address sealed for the caller (lib/calendar-feeds/seal.ts), when the request asked for it. */
   sealedUrl?: string;
+  /** A keyed fingerprint of the address (seal.ts, feedIdOf), when it was sealed. */
+  feedId?: string;
 }): string | null {
   const body = {
     range: payload.range,
@@ -93,6 +95,7 @@ export function serializeBusy(payload: {
       reason: skipCode(entry.reason),
     })),
     ...(payload.sealedUrl ? { sealedUrl: payload.sealedUrl } : {}),
+    ...(payload.feedId ? { feedId: payload.feedId } : {}),
   };
   const json = JSON.stringify(body);
   return Buffer.byteLength(json, "utf8") > MAX_BUSY_RESPONSE_BYTES ? null : json;

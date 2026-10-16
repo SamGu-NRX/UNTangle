@@ -269,6 +269,12 @@ export const CalendarSchema = z
     id: z.string().regex(/^[A-Za-z0-9-]{1,64}$/, "A calendar id is 1 to 64 letters, digits or hyphens."),
     name: z.string().min(1).max(40),
     sealedUrl: SealedFeedUrlSchema,
+    /**
+     * A keyed fingerprint of the feed's address (feedIdOf in seal.ts), the same
+     * for every seal of one address, so connecting it again replaces this
+     * calendar instead of adding a second one.
+     */
+    feedId: z.string().regex(/^[A-Za-z0-9_-]{22}$/, "A feed id is 22 base64url characters."),
     /** The term the busy times were read for, a plain string as the planner holds it. */
     // TermIdSchema's rule, without its brand: ConnectedCalendar in frontend/src/lib/types.ts holds a string.
     termId: z.string().max(64).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'A term id is lowercase words joined by hyphens, like "spring-2027".'),

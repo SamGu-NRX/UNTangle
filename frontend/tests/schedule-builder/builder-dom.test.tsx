@@ -105,6 +105,7 @@ describe("Week", () => {
       id: "cal-work",
       name: "Work",
       sealedUrl: "cf1.k.i.s",
+      feedId: "WorkFeedIdAAAAAAAAAAAA",
       termId: "spring-2027",
       checkedAt: "2026-10-15T12:00:00.000Z",
       busy: [{ start: 540, end: 600, dates: ["2027-02-16"] }],

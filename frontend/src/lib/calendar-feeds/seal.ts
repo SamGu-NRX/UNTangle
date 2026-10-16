@@ -34,7 +34,7 @@
  * key's SHA-256, so a token sealed under a key the server no longer has fails
  * as "sealed with another key" instead of as a corrupt token.
  */
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from "node:crypto";
 
 /** The environment variable holding the sealing key. */
 export const CALENDAR_FEED_KEY_ENV = "CALENDAR_FEED_KEY";
@@ -206,4 +206,23 @@ export function openFeedToken(token: string, owner: FeedOwner, key: Buffer | nul
 /** The address inside `token`; see openFeedToken. */
 export function openFeedUrl(token: string, owner: FeedOwner, key: Buffer | null, now: number = Date.now()): string {
   return openFeedToken(token, owner, key, now).url;
+}
+
+/**
+ * A stable id for a feed address that doesn't reveal it: HMAC-SHA256 under
+ * the sealing key of the address as the URL parser writes it, cut to 128
+ * bits. Sealed tokens differ on every seal, so this is what tells the client
+ * that a pasted address is a calendar it already has. It is the same for
+ * every owner, which reveals only that two of one student's calendars share
+ * an address. Changing the key changes it, along with every token.
+ */
+export function feedIdOf(url: string, key: Buffer | null): string {
+  if (!key) throw new FeedSealError("not-configured");
+  let address = url;
+  try {
+    address = new URL(url).href;
+  } catch {
+    // A caller validates the address first; an unparsable one is fingerprinted as written.
+  }
+  return createHmac("sha256", key).update(`untangle calendar feed id v1 ${address}`, "utf8").digest().subarray(0, 16).toString("base64url");
 }
