@@ -35,10 +35,12 @@ export function verdictOf(p: Preview): Verdict {
 }
 
 /**
- * Whether the panel offers "Add to Main". An add can't succeed when nothing
- * could be checked against Main: Main is missing, plans another term, or the
- * section isn't in UNTangle's term data. UNTangle refuses each of those adds
- * (frontend/src/server/extension/commands.ts), so the panel doesn't offer one.
+ * Whether the panel offers "Add to Main". Nothing could be checked against
+ * Main when it is missing, plans another term, or UNTangle's term data lacks
+ * the section. UNTangle refuses the add in the first and last cases
+ * (frontend/tests/extension/routes.test.ts pins it). For a Main of another
+ * term it could add that term's section with the same class number, which is
+ * not the one on screen. The panel offers no add in any of them.
  */
 export function canAdd(p: Preview): boolean {
   if (p.inSchedule === true)

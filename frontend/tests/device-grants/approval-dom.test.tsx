@@ -194,6 +194,7 @@ test("a personal email address is refused on the page, before any code is sent",
   await click(button(container, "Send sign-in code"));
   expect(container.textContent).toContain("Use a UNT email address ending in @unt.edu or @my.unt.edu.");
   expect(container.querySelector('input[name="email"]')?.getAttribute("aria-invalid")).toBe("true");
+  expect(document.activeElement).toBe(container.querySelector('input[name="email"]'));
   expect(requests.some((request) => request.path.endsWith("send-verification-otp"))).toBe(false);
   await input(container, "UNT email", "student@my.unt.edu");
   expect(container.querySelector('input[name="email"]')?.getAttribute("aria-invalid")).not.toBe("true");

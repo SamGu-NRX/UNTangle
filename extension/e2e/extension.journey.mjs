@@ -396,7 +396,7 @@ async function main() {
     await knobs({ noMain: true });
     await propose(restartedPage, restartedPanel, "SSR_CLSRCH_R2", "no Main schedule");
     if (await restartedPanel.locator("#confirm").count()) throw new Error("The panel offered an add that UNTangle refuses without a Main schedule");
-    if ((await restartedPanel.locator("#view").innerText()).match(/no Main schedule/g)?.length !== 1) throw new Error("The no-Main reason should show once, as the verdict");
+    if (!(await restartedPanel.locator("#verdict-title + p.sentence").innerText()).includes("no Main schedule") || await restartedPanel.locator("#more-title").count()) throw new Error("The no-Main reason should be the verdict, and not repeat under More");
     await shootPanel(restartedPanel, "no-main");
     await knobs({ noMain: false });
     step("an account with no Main sees why and gets no add that would fail");

@@ -94,6 +94,7 @@ export function DeviceApproval({ initialUserCode = "" }: { initialUserCode?: str
   const inFlight = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const otpField = useRef<HTMLInputElement>(null);
+  const emailField = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -143,6 +144,8 @@ export function DeviceApproval({ initialUserCode = "" }: { initialUserCode?: str
     event?.preventDefault();
     if (!isUntEmail(email)) {
       setEmailError(untEmailRequirementMessage());
+      // Focus moves to the field, so a screen reader reads the error it describes.
+      emailField.current?.focus();
       return;
     }
     void run(async () => {
@@ -248,7 +251,7 @@ export function DeviceApproval({ initialUserCode = "" }: { initialUserCode?: str
             </div>
             : !codeSent ? <form className={styles.stack} onSubmit={sendEmailCode}>
               <p>Sign in to choose whether to connect this device.</p>
-              <TextField label="UNT email" name="email" type="email" autoComplete="email" autoCapitalize="none" value={email} onChange={(event) => { setEmail(event.target.value); setEmailError(""); }} required disabled={busy} help="Your @unt.edu or @my.unt.edu address." error={emailError || undefined} />
+              <TextField ref={emailField} label="UNT email" name="email" type="email" autoComplete="email" autoCapitalize="none" value={email} onChange={(event) => { setEmail(event.target.value); setEmailError(""); }} required disabled={busy} help="Your @unt.edu or @my.unt.edu address." error={emailError || undefined} />
               <Button type="submit" size="lg" disabled={busy}>Send sign-in code</Button>
             </form>
             : <form className={styles.stack} onSubmit={signIn}>

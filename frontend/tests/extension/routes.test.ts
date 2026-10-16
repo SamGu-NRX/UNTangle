@@ -185,6 +185,19 @@ describe("extension previews", () => {
     expect(preview.details).toEqual(["3 of 40 seats open."]);
   });
 
+  test("meeting days read Monday first, and a dayless meeting keeps its own row", async () => {
+    const mixed = section("BIOL 1710", "001", ["4000"], [
+      meeting({ day: "Wed", room: "LS 110" }), meeting({ day: "Mon", room: "LS 110" }),
+      meeting({ day: null, startMinutes: null, endMinutes: null, room: "LS 110" }),
+    ]);
+    const h = setup({ sections: [csce1030, mixed], scheduleBody: scheduleBody() });
+    const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl(term, "4000")));
+    expect(preview.meetings).toEqual([
+      { days: "Mon Wed", time: "9:00 AM to 10:30 AM", room: "LS 110" },
+      { days: "No set day", time: null, room: "LS 110" },
+    ]);
+  });
+
   test("an online section with no meeting day is never listed on Monday", async () => {
     const online = section("ENGL 1310", "401", ["1397"], [meeting({ day: null, startMinutes: null, endMinutes: null, room: "UNT Internet Course" })]);
     const h = setup({ sections: [csce1030, online], scheduleBody: scheduleBody() });
@@ -227,6 +240,14 @@ describe("extension previews", () => {
     expect(stalePick.conflict).toBe("unknown");
     expect(stalePick.unknownReason).toBe("schedule-time-missing");
     expect(stalePick.details[0]).toContain("MATH 2000");
+
+    const hTbaPick = setup({
+      sections,
+      scheduleBody: scheduleBody({ courses: ["CSCE 1030", "ENGR 1000"], selectedSections: { "CSCE 1030": csce1030.id, "ENGR 1000": engrTba.id } }),
+    });
+    const tbaPick = await readPreview(await hTbaPick.preview(await hTbaPick.issue(), hTbaPick.previewUrl(term, "20111")));
+    expect(tbaPick.unknownReason).toBe("schedule-time-missing");
+    expect(tbaPick.details[0]).toContain("ENGR 1000");
 
     const hDown = setup({ sections: null, scheduleBody: null });
     const down = await readPreview(await hDown.preview(await hDown.issue()));
@@ -408,6 +429,22 @@ describe("extension add-option commands", () => {
     const foreignBody = await readAddReply(foreignReply);
     if (foreignBody.kind !== "rejection") throw new Error(`expected a rejection, got ${foreignBody.kind}`);
     expect(foreignBody.reason).toBe("forbidden");
+  });
+
+  // The extension offers no Add for these previews (extension/src/shared/preview-view.ts canAdd).
+  test("an add built from a schedule-unavailable preview is refused: no Main, term data down, unknown class number", async () => {
+    const cases = [
+      { name: "no Main", h: setup({ sections, scheduleBody: null }), classNumber: "10234" },
+      { name: "term data down", h: setup({ sections: null, scheduleBody: scheduleBody() }), classNumber: "10234" },
+      { name: "unknown class number", h: setup({ sections, scheduleBody: scheduleBody() }), classNumber: "99999" },
+    ];
+    for (const { name, h, classNumber } of cases) {
+      const token = await h.issue();
+      const preview = await readPreview(await h.preview(token, h.previewUrl(term, classNumber)));
+      expect(`${name}: ${preview.unknownReason}`).toBe(`${name}: schedule-unavailable`);
+      const response = await h.add(token, addCommand({ optionId: preview.optionId, expectedRevision: preview.revision }));
+      expect(`${name}: ${response.status}`).toBe(`${name}: 422`);
+    }
   });
 
   test("an unknown option id is not-found and keeps the operation uncommitted", async () => {

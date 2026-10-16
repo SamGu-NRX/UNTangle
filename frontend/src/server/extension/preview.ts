@@ -45,20 +45,23 @@ const wordRange = (start: number, end: number) => `${wordTime(start)} to ${wordT
  * Arranged one) says so instead of borrowing a weekday.
  */
 function wordMeetings(meetings: Meeting[]) {
-  const rows: { days: string[]; time: string | null; room: string | null }[] = [];
+  const rows: { days: Day[] | null; time: string | null; room: string | null }[] = [];
   for (const meeting of meetings) {
     const time = meeting.day && meeting.startMinutes !== null && meeting.endMinutes !== null
       ? wordRange(meeting.startMinutes, meeting.endMinutes)
       : null;
     // The guard bounds a room line at 40 characters; a longer room stays out rather than breaking the preview.
     const room = meeting.room && meeting.room.length <= 40 ? meeting.room : null;
-    const day = meeting.day ?? "No set day";
-    const same = rows.find((row) => row.time === time && row.room === room);
-    if (!same) rows.push({ days: [day], time, room });
-    else if (!same.days.includes(day)) same.days.push(day);
+    // A dayless meeting is its own row, never merged into a weekday's.
+    const same = rows.find((row) => row.time === time && row.room === room && (row.days === null) === (meeting.day === null));
+    if (!same) rows.push({ days: meeting.day ? [meeting.day] : null, time, room });
+    else if (meeting.day && same.days && !same.days.includes(meeting.day)) same.days.push(meeting.day);
   }
-  return rows.slice(0, 8).map((row) => ({ days: row.days.join(" "), time: row.time, room: row.room }));
+  return rows.slice(0, 8).map((row) => ({ days: row.days ? sortedDays(row.days).join(" ") : "No set day", time: row.time, room: row.room }));
 }
+
+const WEEK: readonly Day[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const sortedDays = (days: Day[]) => [...days].sort((a, b) => WEEK.indexOf(a) - WEEK.indexOf(b));
 
 /** One busy interval: a day plus a start and end in minutes after midnight. */
 type Interval = { day: Day; start: number; end: number };
@@ -85,7 +88,7 @@ function groupClashes(found: { kind: "course" | "busy"; name: string; overlap: I
     if (!same) groups.push({ kind, name, start: overlap.start, end: overlap.end, days: [overlap.day] });
     else if (!same.days.includes(overlap.day)) same.days.push(overlap.day);
   }
-  return groups.map((group) => ({ kind: group.kind, name: clamp(group.name, 80), when: clamp(`${group.days.join(" ")} ${wordRange(group.start, group.end)}`, 80) }));
+  return groups.map((group) => ({ kind: group.kind, name: clamp(group.name, 80), when: clamp(`${sortedDays(group.days).join(" ")} ${wordRange(group.start, group.end)}`, 80) }));
 }
 
 const clamp = (value: string, max: number) => (value.length <= max ? value : `${value.slice(0, max - 1)}…`);
