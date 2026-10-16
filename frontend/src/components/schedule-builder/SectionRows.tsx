@@ -56,7 +56,7 @@ export function SectionRows({ courseCode, sections, week, currentId, verb, highl
           : full
             ? `Section ${sectionLabel(section)}, full`
             : `${verb === "move" ? "Move to" : "Add"} section ${sectionLabel(section)}${overlaps.length ? `, overlaps ${andList(overlaps)}` : ""}${
-                examClashes.length ? `, final at the same time as ${andList(examClashes)}` : ""
+                examClashes.length ? `, final overlaps ${andList(examClashes)}` : ""
               }`;
         return (
           <li
@@ -99,7 +99,7 @@ export function SectionRows({ courseCode, sections, week, currentId, verb, highl
                   Overlaps {conflict.courseCode} on {andList(conflict.days)}
                 </div>
               ))}
-              {examClashes.length ? <div className={styles.clash}>Final at the same time as {andList(examClashes)}</div> : null}
+              {examClashes.length ? <div className={styles.clash}>Final overlaps {andList(examClashes)}</div> : null}
             </div>
           </li>
         );

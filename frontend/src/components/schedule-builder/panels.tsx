@@ -27,7 +27,7 @@ function FinalExam({ section, week, finals }: { section: Section; week: readonly
           </p>
           {clashes.length > 0 ? (
             <p className={styles.clash}>
-              {clashes.length === 1 ? `Same time as the ${clashes[0]} final.` : `Same time as the ${andList(clashes)} finals.`}
+              {clashes.length === 1 ? `Overlaps the ${clashes[0]} final.` : `Overlaps the ${andList(clashes)} finals.`}
             </p>
           ) : null}
           {exam.projected && finals.projected ? <p className={styles.meta}>{finals.projected.source}</p> : null}

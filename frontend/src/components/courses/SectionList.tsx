@@ -4,9 +4,10 @@ import { useState, type MouseEvent } from "react";
 import { SectionsTag, summarizeProvenance } from "@/components/sections-provenance";
 import { Check, Plus } from "@/components/ui/icons";
 import { Plate } from "@/components/ui/Plate";
+import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
 import type { Hue } from "@/lib/course-colors";
 import { examDay, examStartTime } from "@/components/schedule-builder/finals";
-import { examOf } from "@/lib/final-exams";
+import { examOf, PROJECTED_FINALS_NOTE } from "@/lib/final-exams";
 import { meetingsConflict, optionLabel, rangeLabel, sampleOption, type CourseOptions } from "@/lib/planner-sections";
 import type { Day, Meeting, Section } from "@/lib/sections";
 import styles from "./courses.module.css";
@@ -237,6 +238,10 @@ export function SectionList({ courseId, term, options, placed, chosenId, canAdd,
       ) : null}
       <div className={styles.source}>
         <SectionsTag provenance={summarizeProvenance([result])} compact={false} />
+        {/* The rows' finals read as fact beside "Real sections" unless the list says they are projected. */}
+        {PROJECTED_FINALS_NOTE && shown.some((section) => examOf(section).kind === "known") ? (
+          <ProvenanceTag source={PROJECTED_FINALS_NOTE}>Projected finals</ProvenanceTag>
+        ) : null}
       </div>
     </>
   );

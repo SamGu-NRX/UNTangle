@@ -53,7 +53,7 @@ describe("examOf on real Spring 2027 sections", () => {
       [first(catalog, "ADES 5510"), "no-set-time", "It has no set meeting time, so the syllabus sets the final."],
       [first(catalog, "DBAS 6003"), "other-site", "Frisco lists its own finals, and UNTangle doesn't read that list yet."],
       // Its dates are the first eight weeks even though vsb's label says the full term.
-      [first(eightWeek, "SPAN 2040"), "unpublished", "First eight-week finals fall on one day UNT hasn't set for Spring 2027."],
+      [first(eightWeek, "SPAN 2040"), "unpublished", "First eight-week finals go by subject, and UNT hasn't set Spring 2027's times yet."],
       [first(catalog, "CSCE 1030"), "sample", "This sample section is made up, so it has no final."],
     ] as const;
     for (const [section, reason, sentence] of cases) {

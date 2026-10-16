@@ -76,7 +76,7 @@ describe("acceptance: overlapping finals", () => {
     ]);
     expect(result.explanation.minimal).toBe(true);
     expect(result.explanation.sentence).toBe(
-      "CSCE 2110 (MWF 9 AM) and MATH 1710 (TTh 9:30 AM) have finals at the same time (Mon, May 3, 8 AM to 10 AM and 9 AM to 11 AM).",
+      "CSCE 2110 (MWF 9 AM) and MATH 1710 (TTh 9:30 AM) have overlapping finals (Mon, May 3, 8 AM to 10 AM and 9 AM to 11 AM).",
     );
     // UNT sets exam times, so the finals rule itself offers no one-click change.
     expect(result.explanation.suggestions).toEqual([]);
@@ -85,7 +85,7 @@ describe("acceptance: overlapping finals", () => {
   test("the same slot is named once", () => {
     const result = optimize(twoCourses(MON_8, { ...MON_8 }));
     expect(result.status === "infeasible" && result.explanation.sentence).toBe(
-      "CSCE 2110 (MWF 9 AM) and MATH 1710 (TTh 9:30 AM) have finals at the same time (both Mon, May 3, 8 AM to 10 AM).",
+      "CSCE 2110 (MWF 9 AM) and MATH 1710 (TTh 9:30 AM) have overlapping finals (both Mon, May 3, 8 AM to 10 AM).",
     );
   });
 
@@ -127,7 +127,7 @@ describe("acceptance: overlapping finals", () => {
       { kind: "lock", courseCode: "MATH 1710", sectionId: "math-002" },
     ]);
     expect(result.explanation.sentence).toBe(
-      "CSCE 2110 (MWF 9 AM) and your locked MATH 1710 section (TTh 9:30 AM) have finals at the same time (Mon, May 3, 8 AM to 10 AM and 9 AM to 11 AM).",
+      "CSCE 2110 (MWF 9 AM) and your locked MATH 1710 section (TTh 9:30 AM) have overlapping finals (Mon, May 3, 8 AM to 10 AM and 9 AM to 11 AM).",
     );
     expect(result.explanation.suggestions.map((s) => [s.label, s.resolves])).toEqual([["Unlock MATH 1710", true]]);
   });

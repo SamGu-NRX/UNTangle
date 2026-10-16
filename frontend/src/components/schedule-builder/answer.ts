@@ -29,7 +29,7 @@ export type AnswerCourse = {
 
 /**
  * The first that applies: loading, a clash, a course that needs a pick, two
- * finals at the same time, a tight or late walk, a broken preference, or
+ * overlapping finals, a tight or late walk, a broken preference, or
  * the all-clear. Null when the week is empty (the grid shows its own empty
  * state).
  */
@@ -63,7 +63,7 @@ export function answerFor(input: {
     // A projected time can still move when UNT publishes the term's finals, so it is a check, not a conflict.
     return {
       tone: final.exam.projected ? "attention" : "danger",
-      text: `${final.courseCode} and ${final.clashesWith[0]} have finals at the same time on ${examLongDay(final.exam.exam)}.`,
+      text: `${final.courseCode} and ${final.clashesWith[0]} finals overlap on ${examLongDay(final.exam.exam)}.`,
       action: "fix",
     };
   }
@@ -188,7 +188,7 @@ export function describeAlternative(
 
   const costs: string[] = [];
   if (b.clashes > a.clashes) costs.push("two classes overlap");
-  if (finalsNext > finalsNow) costs.push("two finals are at the same time");
+  if (finalsNext > finalsNow) costs.push("two finals overlap");
   if (added.length > 0) costs.push(`adds ${dayNames(added)}`);
   const later = DAY_ORDER.filter((day) => a.endOf.has(day) && (b.endOf.get(day) ?? -Infinity) - a.endOf.get(day)! >= NOTICE_MIN);
   if (later.length > 0) {

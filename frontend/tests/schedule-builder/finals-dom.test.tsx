@@ -107,7 +107,7 @@ describe("finals model and words", () => {
   test("the answer names a projected clash as a check with a fix, after class clashes", () => {
     const courses = [csce, math].map((s) => ({ code: s.courseCode, credits: 3, state: "placed" as const }));
     const answer = answerFor({ courses, events: [], walks: [], preferences, termLabel: "Spring 2027", finals: weekFinals([csce, math], finals) });
-    expect(answer).toEqual({ tone: "attention", text: "CSCE 2110 and MATH 1710 have finals at the same time on Monday, May 3.", action: "fix" });
+    expect(answer).toEqual({ tone: "attention", text: "CSCE 2110 and MATH 1710 finals overlap on Monday, May 3.", action: "fix" });
     const published = { ...finals, examOf: (s: Section) => ({ ...(EXAMS[s.id] as Extract<FinalExam, { kind: "known" }>), projected: false }) };
     expect(answerFor({ courses, events: [], walks: [], preferences, termLabel: "Spring 2027", finals: weekFinals([csce, math], published) })?.tone).toBe("danger");
     expect(answerFor({ courses, events: [], walks: [], preferences, termLabel: "Spring 2027" })?.text).toBe("This week fits your preferences.");
@@ -115,7 +115,7 @@ describe("finals model and words", () => {
 
   test("an alternative that removes the clash says so", () => {
     expect(describeAlternative({ events: [], walks: [], finalsClashes: 1 }, { events: [], walks: [], finalsClashes: 0 })).toBe("Fixes the finals clash.");
-    expect(describeAlternative({ events: [], walks: [], finalsClashes: 0 }, { events: [], walks: [], finalsClashes: 1 })).toBe("Two finals are at the same time.");
+    expect(describeAlternative({ events: [], walks: [], finalsClashes: 0 }, { events: [], walks: [], finalsClashes: 1 })).toBe("Two finals overlap.");
   });
 });
 
@@ -123,13 +123,13 @@ describe("Week with finals", () => {
   test("the Finals line lists each course's final, outlines the clash and says the times are projected", async () => {
     const { value, optimizer } = host([course(csce), course(math), course(engl)], true);
     const view = await render(value);
-    expect(pills(view.container).map((b) => [b.textContent, b.getAttribute("aria-label"), b.hasAttribute("data-clash")])).toEqual([
-      ["CSCE 2110Mon 8:00 AM", "CSCE 2110 final, Monday, May 3, 8:00 to 10:00 AM, same time as MATH 1710", true],
-      ["MATH 1710Mon 9:00 AM", "MATH 1710 final, Monday, May 3, 9:00 to 11:00 AM, same time as CSCE 2110", true],
-      ["ENGL 1310Not known", "ENGL 1310 final, not known", false],
+    expect(pills(view.container).map((b) => [b.textContent, b.getAttribute("aria-label"), b.getAttribute("data-clash")])).toEqual([
+      ["CSCE 2110Mon 8:00 AM", "CSCE 2110 Mon 8:00 AM, final on Monday, May 3, 8:00 to 10:00 AM, overlaps MATH 1710", "check"],
+      ["MATH 1710Mon 9:00 AM", "MATH 1710 Mon 9:00 AM, final on Monday, May 3, 9:00 to 11:00 AM, overlaps CSCE 2110", "check"],
+      ["ENGL 1310Not known", "ENGL 1310 Not known, final time", null],
     ]);
     expect(view.container.querySelector('[aria-labelledby="week-finals"]')!.textContent).toContain("Projected");
-    expect(view.container.textContent).toContain("CSCE 2110 and MATH 1710 have finals at the same time on Monday, May 3.");
+    expect(view.container.textContent).toContain("CSCE 2110 and MATH 1710 finals overlap on Monday, May 3.");
     const fix = [...view.container.querySelectorAll("button")].find((b) => b.textContent === "Show a fix")!;
     await click(fix);
     expect(optimizer.run).toHaveBeenCalledTimes(1);
@@ -146,11 +146,18 @@ describe("Week with finals", () => {
     expect(final.textContent).toBe("FinalTuesday, May 4, 3:30 to 5:30 PMUNT hasn't published Spring 2027 finals.");
     // Section 002's final would land on CSCE 2110's.
     const move = [...panel.querySelectorAll("button")].find((b) => b.getAttribute("aria-label")?.startsWith("Move to section 002"))!;
-    expect(move.getAttribute("aria-label")).toBe("Move to section 002, final at the same time as CSCE 2110");
-    expect(panel.textContent).toContain("Final at the same time as CSCE 2110");
+    expect(move.getAttribute("aria-label")).toBe("Move to section 002, final overlaps CSCE 2110");
+    expect(panel.textContent).toContain("Final overlaps CSCE 2110");
     expect(panel.textContent).toContain("Final Mon, May 3, 9:00 AM");
     await click(pills(view.container).find((b) => b.textContent?.startsWith("ENGL 1310"))!);
     expect(document.querySelector('aside [aria-labelledby="event-final"]')!.textContent).toBe("FinalIt has no set meeting time, so the syllabus sets the final.");
+    await view.unmount();
+  });
+
+  test("a week whose finals are all unknown shows no Finals line: there is nothing to check", async () => {
+    const { value } = host([course(engl)], true);
+    const view = await render(value);
+    expect(pills(view.container)).toHaveLength(0);
     await view.unmount();
   });
 

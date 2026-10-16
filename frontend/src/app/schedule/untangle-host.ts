@@ -10,7 +10,7 @@ import { useBrowseRuns, useOptimizerRuns } from "@/components/schedule/use-optim
 import { searchCourses } from "@/components/shell/course-search";
 import { toast } from "@/components/ui/Toast";
 import type { Brand } from "@/lib/brand";
-import { examOf, FINALS_SOURCE, unknownExamSentence } from "@/lib/final-exams";
+import { examOf, PROJECTED_FINALS_NOTE, unknownExamSentence } from "@/lib/final-exams";
 import type { RelaxSuggestion } from "@/lib/optimizer/types";
 import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
 import {
@@ -45,12 +45,7 @@ const finals: BuilderFinals = {
     const exam = examOf(section);
     return exam.kind === "known" ? exam : { kind: "unknown", note: unknownExamSentence(section, exam.reason) };
   },
-  projected: FINALS_SOURCE.projected
-    ? {
-        label: "Projected",
-        source: `UNT hasn't published ${FINALS_SOURCE.planningTerm} finals. These follow its ${FINALS_SOURCE.term} exam schedule, on the same weekdays of finals week.`,
-      }
-    : null,
+  projected: PROJECTED_FINALS_NOTE ? { label: "Projected", source: PROJECTED_FINALS_NOTE } : null,
 };
 
 /** Undo steps kept per visit. More than anyone presses; a bound, not a rule. */

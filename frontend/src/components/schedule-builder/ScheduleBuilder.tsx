@@ -741,7 +741,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
           toast({ message: "Added a busy time. Auto keeps it free.", action: { label: "Undo", onClick: () => host.setPreferences((p) => removeBusySpan(p, id, start, end, newBusyId)) } });
         }}
         footer={
-          noSetTime.length > 0 || host.provenance === "sample" || (finals && shown.finals.length > 0) ? (
+          noSetTime.length > 0 || host.provenance === "sample" || (finals && shown.finals.some((entry) => entry.exam.kind === "known")) ? (
             <>
             {noSetTime.length > 0 || host.provenance === "sample" ? (
             <div className={styles.gridFoot}>
@@ -770,7 +770,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
               ) : null}
             </div>
             ) : null}
-            {finals && shown.finals.length > 0 ? (
+            {finals && shown.finals.some((entry) => entry.exam.kind === "known") ? (
               <FinalsLine
                 list={shown.finals}
                 projected={finals.projected}
@@ -920,9 +920,11 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
 /**
  * The week's finals, one pill per course under the grid, beside No set time
  * and in the same shape: the course and when its final starts, or "Not
- * known". A pill whose final clashes is outlined in the danger color; the
- * day, the full time and the clash are in its accessible name and in the
- * course's panel, which the pill opens.
+ * known". A pill whose final overlaps another is outlined: attention for a
+ * projected time, which can still move, danger for a published one. The
+ * day, the full time and the overlap are in its accessible name, which
+ * starts with the pill's visible words, and in the course's panel, which the
+ * pill opens.
  */
 function FinalsLine({
   list,
@@ -938,23 +940,28 @@ function FinalsLine({
   onOpen: (code: string) => void;
 }) {
   return (
-    <div className={styles.gridFoot} role="group" aria-labelledby="week-finals">
+    <div className={`${styles.gridFoot} ${styles.finalsLine}`} role="group" aria-labelledby="week-finals">
       <span id="week-finals" className={styles.label}>
         Finals
       </span>
+      {projected ? (
+        // Beside the label, so it reads as the whole line's, and kept on phones (the sample tag hides there):
+        // it is the only place the line says its times may move.
+        <ProvenanceTag source={projected.source}>{projected.label}</ProvenanceTag>
+      ) : null}
       {list.map(({ courseCode, exam, clashesWith }) => {
         const clash = clashesWith.length > 0;
         const name =
           exam.kind === "known"
-            ? `${courseCode} final, ${examLongDay(exam.exam)}, ${examTimes(exam.exam)}${clash ? `, same time as ${andList(clashesWith)}` : ""}`
-            : `${courseCode} final, not known`;
+            ? `${courseCode} ${examStart(exam.exam)}, final on ${examLongDay(exam.exam)}, ${examTimes(exam.exam)}${clash ? `, overlaps ${andList(clashesWith)}` : ""}`
+            : `${courseCode} Not known, final time`;
         return (
           <button
             key={courseCode}
             type="button"
             className={styles.pill}
             data-hue={hueOf(courseCode)}
-            data-clash={clash || undefined}
+            data-clash={clash ? (exam.kind === "known" && exam.projected ? "check" : "conflict") : undefined}
             disabled={disabled}
             aria-label={name}
             onClick={() => onOpen(courseCode)}
@@ -964,12 +971,6 @@ function FinalsLine({
           </button>
         );
       })}
-      {projected ? (
-        // Unlike the sample tag, this one stays on phones: it is the only place the Finals line says its times may move.
-        <span className={styles.finalsTag}>
-          <ProvenanceTag source={projected.source}>{projected.label}</ProvenanceTag>
-        </span>
-      ) : null}
     </div>
   );
 }

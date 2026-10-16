@@ -1747,7 +1747,7 @@ function explainSentence(request, members) {
     const examB = onlyB?.exam;
     if (onlyA && onlyB && examA && examB && conditions.length === 1 && members.some((member) => member.kind === "exams")) {
       const named = (code, only) => locked.has(code) ? describe(code) : `${code} (${pattern(only)})`;
-      return `${named(a, onlyA)} and ${named(b, onlyB)} have finals at the same time (${examPair(examA, examB)}).`.replace(/^./, (s) => s.toUpperCase());
+      return `${named(a, onlyA)} and ${named(b, onlyB)} have overlapping finals (${examPair(examA, examB)}).`.replace(/^./, (s) => s.toUpperCase());
     }
     if (conditions.length === 0) {
       if (onlyA && onlyB) {

@@ -19,7 +19,7 @@
  * Auto checks only known finals, so Week names the unknown ones instead of
  * letting them pass as clash-free.
  */
-import { examFor, inWeek, moveToWeek, type ExamClass, type ExamDay, type ExamSlot, type ExamUnknownReason } from "@untangle/core/final-exams";
+import { examDayOf, examFor, inWeek, moveToWeek, type ExamClass, type ExamDay, type ExamSlot, type ExamUnknownReason } from "@untangle/core/final-exams";
 import { UNT_FINAL_EXAMS } from "@/lib/generated/unt-final-exams";
 import { DISCOVERY_PARK_ID, isTimed, otherSiteOf, planningTerm } from "@/lib/planner-sections";
 import type { Section } from "@/lib/sections";
@@ -60,6 +60,15 @@ export const FINALS_SOURCE = {
   url: UNT_FINAL_EXAMS.sourceUrl,
   capturedAt: UNT_FINAL_EXAMS.capturedAt,
 } as const;
+
+/** The one sentence a "Projected" tag explains, shared by Week and Courses; null when the finals are the term's own. */
+export const PROJECTED_FINALS_NOTE = projected
+  ? `UNT hasn't published ${planningTerm.label} finals yet. These times follow its ${UNT_FINAL_EXAMS.term} schedule, moved to the same weekday of finals week, so they may change.`
+  : null;
+// Checked once here, not on Week's render path: moving a slot between weeks that start on different weekdays would be a guess.
+if (projected && examDayOf(sourceWeekStart) !== examDayOf(planningWeekStart)) {
+  throw new Error(`final-exams: ${UNT_FINAL_EXAMS.term}'s finals week starts ${sourceWeekStart}, ${planningTerm.label}'s ${planningWeekStart}; they start on different weekdays`);
+}
 
 /** The planning term's sessions, from the registrar's calendar (lib/terms). */
 const planningSessions = getTermCalendar(planningTerm.label)?.sessions ?? [];
@@ -129,7 +138,7 @@ export function unknownExamSentence(section: Section, reason: SectionExamUnknown
     case "other-site":
       return `${otherSiteOf(section) ?? "Its site"} lists its own finals, and UNTangle doesn't read that list yet.`;
     case "unpublished":
-      return `First eight-week finals fall on one day UNT hasn't set for ${planningTerm.label}.`;
+      return `First eight-week finals go by subject, and UNT hasn't set ${planningTerm.label}'s times yet.`;
     case "session":
       return `UNT's exam schedule has no rule for its session (${section.session.label}).`;
     case "no-rule":
