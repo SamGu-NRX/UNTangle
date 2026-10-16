@@ -410,7 +410,11 @@ export class PersistedDocumentStore implements LocalStore {
     return parseStoreState(raw === undefined ? undefined : JSON.parse(raw), identity);
   }
 
+  /** While true, every write fails, as when the browser's storage is full. */
+  refuseWrites = false;
+
   async transact<T>(identity: Identity, change: (state: StoreState) => T): Promise<T> {
+    if (this.refuseWrites) throw new Error("QuotaExceededError");
     const state = await this.read(identity);
     const result = change(state);
     if (result instanceof Promise) throw new Error("A sync storage transaction callback must be synchronous.");

@@ -5,7 +5,7 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import * as fixtures from "../../../packages/contracts/tests/fixtures";
-import { FakeDocumentServer, flushSaves, installDom, mountPlanner, removeDom, resetDocumentStore, setSession, waitFor } from "./test-dom";
+import { FakeDocumentServer, flushSaves, installDom, type PersistedDocumentStore, mountPlanner, removeDom, resetDocumentStore, setSession, waitFor } from "./test-dom";
 import { GUEST_ID_KEY, preferencesKey } from "@/components/schedule/preferences-store";
 import { guestWorkIsThisSession, stampGuestWork } from "@/lib/guest-session";
 import { defaultSchedulePreferences, getInitialPlannerState } from "@/lib/planner";
@@ -16,6 +16,7 @@ import type { PlannerState, SchedulePreferences } from "@/lib/types";
 const user = { id: "student-1", email: "student@my.unt.edu", name: "Student" };
 const MAIN = "main-unt-spring-2027";
 let server: FakeDocumentServer;
+let store: PersistedDocumentStore;
 let previousFetch: typeof fetch;
 const mounted: Array<() => Promise<void>> = [];
 
@@ -30,7 +31,7 @@ beforeEach(() => {
   // A fresh page load: no identity prepared yet.
   setSavedPlanIdentity(undefined);
   document.body.innerHTML = "";
-  resetDocumentStore();
+  store = resetDocumentStore();
   server = new FakeDocumentServer();
   previousFetch = globalThis.fetch;
   globalThis.fetch = server.fetch as typeof fetch;
@@ -318,3 +319,41 @@ test("editing preferences on an earlier visitor's work carries the preferences, 
   // The earlier visitor's plan stays where it was; signing out clears it.
   expect(guestCleared()).toBe(false);
 });
+
+test("a guest who only saved a schedule in this session has it moved into the account's library", async () => {
+  const guest = await mountPlanner();
+  mounted.push(guest.unmount);
+  await waitFor(() => guest.get().hydrated, "guest");
+  await guest.run(() => {
+    expect(createSavedPlanStore().savePlan({ state: plan(["CSCE 1040"]), name: "Guest idea" }).ok).toBe(true);
+  });
+  await waitFor(() => guestWorkIsThisSession("library"), "library write stamped");
+  await guest.unmount();
+  mounted.splice(mounted.indexOf(guest.unmount), 1);
+  await signIn();
+  await waitFor(() => library().map((entry) => entry.name).includes("Guest idea"), "moved");
+  expect(window.localStorage.getItem(SAVED_PLANS_STORE_KEY)).toBeNull();
+  expect(guestWorkIsThisSession()).toBe(false);
+});
+
+test("when the answer can't be stored, the account stays on screen and the question opens again", async () => {
+  server.seedPlan(user.id, plan(["MATH 1720"]));
+  guestLeft(plan(["CSCE 1040"]));
+  const planner = await signIn();
+  await waitFor(() => sheet() !== null, "the sheet");
+  store.refuseWrites = true;
+  await planner.run(() => button("Use this one").click());
+  await waitFor(() => toastText().startsWith("Couldn't save your choice"), "failure said");
+  await waitFor(() => planner.get().guestSignIn !== null, "asked again");
+  expect(planned(planner.get().plannerState, "CSCE 1040")).toBe(false);
+  expect(planned(planner.get().plannerState, "MATH 1720")).toBe(true);
+  expect(guestCleared()).toBe(false);
+
+  store.refuseWrites = false;
+  await waitFor(() => button("Use this one") !== undefined, "sheet back");
+  await planner.run(() => button("Use this one").click());
+  await waitFor(() => guestCleared() && planned(server.plan(user.id), "CSCE 1040"), "applied on retry");
+  // The account's Main was copied once, not once per attempt.
+  expect(library().filter((entry) => entry.name.startsWith("Main from your account"))).toHaveLength(1);
+});
+

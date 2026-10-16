@@ -208,12 +208,18 @@ function unsettledGuestWork(): boolean {
     const guestId = window.localStorage.getItem(GUEST_ID_KEY);
     return (
       (guestWorkIsThisSession("plan") && plan.ok && plan.state !== null) ||
-      (guestWorkIsThisSession("preferences") && guestId !== null && window.localStorage.getItem(preferencesKey({ kind: "guest", id: guestId })) !== null)
+      (guestWorkIsThisSession("preferences") && guestId !== null && window.localStorage.getItem(preferencesKey({ kind: "guest", id: guestId })) !== null) ||
+      (guestWorkIsThisSession("library") && guestLibraryHasEntries())
     );
   } catch {
     // Storage denied: no guest work was kept.
     return false;
   }
+}
+
+function guestLibraryHasEntries(): boolean {
+  const read = createSavedPlanStore(window.localStorage, null).list();
+  return read.ok && read.doc.plans.length > 0;
 }
 
 /** The guest's preferences go with the rest of the guest's work. */
