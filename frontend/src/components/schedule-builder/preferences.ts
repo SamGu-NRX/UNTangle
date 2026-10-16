@@ -82,6 +82,21 @@ export function removeBusy(p: SchedulePreferences, ids: readonly string[]): Sche
 }
 
 /**
+ * Takes `start` to `end` back out of block `id`. Painting next to a block in
+ * Preferences grows it and keeps its id, so removing the whole block would
+ * also remove time painted on since; what lies outside the span stays.
+ */
+export function removeBusySpan(p: SchedulePreferences, id: string, start: number, end: number, newId: () => string): SchedulePreferences {
+  const block = p.constraints.blocked.find((b) => b.id === id);
+  if (!block) return p;
+  const rest: BlockedTime[] = [
+    ...(block.start < start ? [{ ...block, end: start }] : []),
+    ...(block.end > end ? [{ ...block, id: block.start < start ? newId() : block.id, start: end }] : []),
+  ];
+  return { ...p, constraints: { ...p.constraints, blocked: [...p.constraints.blocked.filter((b) => b.id !== id), ...rest] } };
+}
+
+/**
  * The Preferences line: only what differs from `defaults`, in plain words,
  * in a fixed order ("Fridays off, nothing before 9 AM, work Tue and Thu
  * 3:00–5:00"). Empty when everything is at its default.

@@ -20,7 +20,7 @@ import type { BuilderHost } from "./host";
 import { NoticeStrip, OptionsStrip } from "./OptionsStrip";
 import { EventPanel, OptionDetails } from "./panels";
 import { changedCount, newBusyId } from "./limits";
-import { addBusy, preferenceSummary, removeBusy } from "./preferences";
+import { addBusy, preferenceSummary, removeBusySpan } from "./preferences";
 import { PreferencesPopover } from "./PreferencesPopover";
 import { SearchPanel } from "./SearchPanel";
 import type { SharedWeek } from "./share";
@@ -536,9 +536,10 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
           const day = block.day;
           if (!isWeekDay(day)) return;
           const id = newBusyId();
-          host.setPreferences((p) => addBusy(p, { label: "Busy", day, start: block.start, end: block.end }, id));
-          // Undo takes back this block alone, keeping preferences changed since.
-          toast({ message: "Added a busy time. Auto keeps it free.", action: { label: "Undo", onClick: () => host.setPreferences((p) => removeBusy(p, [id])) } });
+          const { start, end } = block;
+          host.setPreferences((p) => addBusy(p, { label: "Busy", day, start, end }, id));
+          // Undo takes back this time alone, keeping preferences changed since.
+          toast({ message: "Added a busy time. Auto keeps it free.", action: { label: "Undo", onClick: () => host.setPreferences((p) => removeBusySpan(p, id, start, end, newBusyId)) } });
         }}
         footer={
           noSetTime.length > 0 || host.provenance === "sample" ? (

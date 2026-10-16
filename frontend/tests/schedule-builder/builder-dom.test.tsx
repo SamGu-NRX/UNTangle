@@ -9,6 +9,7 @@ import type { BuilderHost, OptionsFeed, WeekCourse } from "@/components/schedule
 import type { Section } from "@/lib/sections";
 import type { SchedulePreferences } from "@/lib/types";
 import { click, installDom, mount, press, removeDom } from "../ui/dom";
+import { newBusyId, paint } from "@/components/schedule-builder/limits";
 import { asyncMeeting, meeting, section } from "./fixtures";
 
 beforeAll(() => {
@@ -313,7 +314,7 @@ describe("Week's review fixes", () => {
     await view.unmount();
   });
 
-  test("Undo on a painted busy time removes that time and keeps later preference changes", async () => {
+  test("Undo on a painted busy time removes that time and keeps later preference changes, time painted on to it included", async () => {
     const toaster = await withToaster();
     let prefs = preferences;
     const h = host([course(csce)]);
@@ -329,9 +330,11 @@ describe("Week's review fixes", () => {
       });
     }
     expect(prefs.constraints.blocked.map(({ day, start, end }) => `${day} ${start}-${end}`)).toEqual(["Tue 780-900"]);
-    prefs = { ...prefs, constraints: { ...prefs.constraints, daysOff: ["Fri"] } };
+    // Later, in Preferences: Fridays off, and 3:00–3:30 painted on, which grows the same block.
+    prefs = paint({ ...prefs, constraints: { ...prefs.constraints, daysOff: ["Fri"] } }, ["Tue"], 900, 930, "busy", newBusyId);
+    expect(prefs.constraints.blocked.map(({ day, start, end }) => `${day} ${start}-${end}`)).toEqual(["Tue 780-930"]);
     await click(document.querySelector(".ui-toast__action")!);
-    expect(prefs.constraints.blocked).toEqual([]);
+    expect(prefs.constraints.blocked.map(({ day, start, end }) => `${day} ${start}-${end}`)).toEqual(["Tue 900-930"]);
     expect(prefs.constraints.daysOff).toEqual(["Fri"]);
     await view.unmount();
     await toaster.unmount();

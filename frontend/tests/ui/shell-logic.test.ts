@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { classNumberSection } from "@/components/shell/class-number-search";
+import { classNumberSection, paletteSections } from "@/components/shell/class-number-search";
 import { courseHref, searchCourses } from "@/components/shell/course-search";
 import { hasStartedPlan, landing, readClock, type LandingInput, type PlanProgress } from "@/components/shell/home-entry";
 import { chipStatusLabel, chipTone } from "@/components/shell/plan-status";
@@ -134,6 +134,17 @@ describe("class-number search", () => {
     expect(classNumberSection("7139", false)?.items.map((item) => item.title)).toEqual(["Find class 7139 in Week"]);
     expect(classNumberSection("2110", true)).toBeNull();
     for (const query of ["123", "123456", "21a43", "CSCE 2110"]) expect(classNumberSection(query, false)).toBeNull();
+  });
+
+  test("four digits is offered as a class number when the Courses list shown has no course, whatever the catalog matched", () => {
+    // The raw title "Computer Science I  (COSC 1336 or COSC 1436)" matches 1336; Courses drops that part and lists nothing.
+    const catalog = searchCourses([{ code: "CSCE 1030", title: "Computer Science I  (COSC 1336 or COSC 1436)", creditHours: 3 }], "1336");
+    expect(catalog.map((item) => item.code)).toEqual(["CSCE 1030"]);
+    const courses = [{ id: "courses", label: "Courses", items: [] }, { id: "instructors", label: "Instructors", items: [] }];
+    expect(paletteSections("1336", courses, catalog).map((section) => section.id)).toEqual(["class-number", "courses", "instructors"]);
+    // Week lists no courses in the palette; its own search matches the catalog, so a catalog match keeps 1336 a course number there.
+    expect(paletteSections("1336", [], catalog).map((section) => section.id)).toEqual([]);
+    expect(paletteSections("1336", null, catalog).map((section) => section.id)).toEqual(["courses"]);
   });
 });
 
