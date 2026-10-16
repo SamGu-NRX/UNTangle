@@ -393,6 +393,12 @@ async function journey(browser, viewport) {
   check(`${tag}: the deep link renders with grade history down`, response.status() === 200, String(response.status()));
   const deepPanel = panelFor("CSCE 2100");
   await deepPanel.getByText(/Couldn.t load grade history/).waitFor();
+  // The status chip renders from the plan rehydration, a separate fetch that
+  // can land after the grade-history error; wait for the expected status
+  // before reading the panel so the check below cannot race it. The read
+  // still asserts both strings — a missing status now fails this wait with a
+  // named timeout instead of a mismatched innerText.
+  await deepPanel.getByText(phone ? /You can take this/ : /Planned for Spring 2027/).waitFor();
   const deepText = await deepPanel.innerText();
   // Desktop kept the second Auto run's CSCE 2100; the phone undid its only run.
   check(
