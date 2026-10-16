@@ -226,17 +226,26 @@ export function SearchPanel({ host, query, onQuery, week, onPlace, onPreview, au
                         {filtered ? "No section matches these filters." : "No sections this term."}
                       </p>
                     ) : (
-                      <SectionRows
-                        courseCode={hit.code}
-                        sections={visible ?? []}
-                        week={week}
-                        currentId={onWeek.get(hit.code) ?? null}
-                        verb="add"
-                        highlightId={found?.state === "found" ? found.sectionId : null}
-                        onPlace={onPlace}
-                        onPreview={onPreview}
-                        finals={host.finals}
-                      />
+                      <>
+                        {/* Samples (term null) stand in when the term's sections can't be loaded; say so before one is picked. */}
+                        {options.some((section) => section.term === null) ? (
+                          <p className={styles.hint}>
+                            <strong>Sample sections.</strong> These times, rooms and instructors are made up for planning. Real {host.term.label}{" "}
+                            sections replace them when UNT&rsquo;s class schedule loads.
+                          </p>
+                        ) : null}
+                        <SectionRows
+                          courseCode={hit.code}
+                          sections={visible ?? []}
+                          week={week}
+                          currentId={onWeek.get(hit.code) ?? null}
+                          verb="add"
+                          highlightId={found?.state === "found" ? found.sectionId : null}
+                          onPlace={onPlace}
+                          onPreview={onPreview}
+                          finals={host.finals}
+                        />
+                      </>
                     )}
                   </div>
                 ) : null}

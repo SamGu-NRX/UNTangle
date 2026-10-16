@@ -11,7 +11,7 @@ import { getInitialPlannerState } from "@/lib/planner";
 import { PLANNING_TERM } from "@/lib/terms";
 import { hasStartedPlan, landing, readClock } from "./home-entry";
 import { readLastLens } from "./lens-memory";
-import { LENS_HREF } from "./routes";
+import { CHOOSE_MAJOR_HREF, LENS_HREF } from "./routes";
 
 const OPTIONS = [
   {
@@ -31,8 +31,8 @@ const OPTIONS = [
   {
     id: "manual",
     title: "Pick courses by hand",
-    meta: "Browse the catalog and mark what you've taken.",
-    href: "/courses",
+    meta: "Choose your major, then add its courses.",
+    href: CHOOSE_MAJOR_HREF,
     primary: false,
   },
 ];

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { CONNECT_PATH, OPEN_CONNECT_EVENT } from "@/components/connect/open-connect";
 import { usePlanner } from "@/components/planner-provider";
-import { LENS_HREF } from "@/components/shell/routes";
+import { asksForMajor, LENS_HREF } from "@/components/shell/routes";
 import { useShell, useShellSearch, type ShellSearchProvider } from "@/components/shell/shell-context";
 import { ContextPanel } from "@/components/ui/ContextPanel";
 import { ChevronDown } from "@/components/ui/icons";
@@ -124,6 +124,20 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
   const idle = hydrated && untouched && !major;
   const sampleOnly = model.hasTranscript && transcriptRecords.every((record) => record.id.startsWith("sample-"));
   const say = setAnnouncement;
+
+  // Arriving from the landing's "Pick courses by hand": the student already
+  // chose how to start, so the major comes next, not this page's start options.
+  // The landing's link that opened it is gone, so closing it focuses the degree line (focusDegreeOnClose).
+  const majorAsked = useRef(false);
+  const focusDegreeOnClose = useRef(false);
+  useEffect(() => {
+    if (!hydrated || majorAsked.current || !asksForMajor(window.location.search)) return;
+    majorAsked.current = true;
+    router.replace(window.location.pathname, { scroll: false });
+    if (!idle) return;
+    focusDegreeOnClose.current = true;
+    setDegreeOpen(true);
+  }, [hydrated, idle, router]);
 
   /* ---------- motion ---------- */
 
@@ -586,7 +600,11 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
               applyTranscriptRecords(sampleTranscript);
               say("Added the sample transcript. Choose your major, then press Auto.");
             }}
-            onByHand={() => setDegreeOpen(true)}
+            onByHand={() => {
+              // This empty state, opener included, unmounts once a major is chosen.
+              focusDegreeOnClose.current = true;
+              setDegreeOpen(true);
+            }}
           />
         ) : (
           <>
@@ -672,6 +690,12 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
       <DegreeDialog
         open={degreeOpen}
         onOpenChange={setDegreeOpen}
+        // Read once, as it closes, for an opener that may be gone by then; the degree line's own button stays.
+        returnFocus={() => {
+          if (!focusDegreeOnClose.current) return null;
+          focusDegreeOnClose.current = false;
+          return pageRef.current?.querySelector<HTMLElement>("[data-degree]") ?? null;
+        }}
         major={plannerState.selectedMajor}
         onChoose={(id: MajorId) => {
           setSelectedMajor(id);

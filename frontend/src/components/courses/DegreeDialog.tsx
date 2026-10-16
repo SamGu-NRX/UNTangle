@@ -21,6 +21,8 @@ type Props = {
   onSample: () => void;
   /** The major's core list against the student's record; null without a major. Covered courses show in Done. */
   core: { done: number; total: number } | null;
+  /** Where focus goes on close when the opener is gone (opened on arrival from the landing). */
+  returnFocus?: () => HTMLElement | null;
 };
 
 const SOURCE_TEXT = {
@@ -35,7 +37,7 @@ const SOURCE_TEXT = {
  * statuses came from with a way to import again.
  * There is no catalog-year control: the core lists carry no catalog year.
  */
-export function DegreeDialog({ open, onOpenChange, major, onChoose, source, onImport, onSample, core }: Props) {
+export function DegreeDialog({ open, onOpenChange, major, onChoose, source, onImport, onSample, core, returnFocus }: Props) {
   const [query, setQuery] = useState("");
   const shown = majors.filter((entry) => entry.name.toLowerCase().includes(query.trim().toLowerCase()));
   return (
@@ -47,6 +49,7 @@ export function DegreeDialog({ open, onOpenChange, major, onChoose, source, onIm
       }}
       title="Your degree"
       width={460}
+      returnFocus={returnFocus}
     >
       <SearchField
         label="Search majors"
