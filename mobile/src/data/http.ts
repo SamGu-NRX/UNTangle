@@ -22,6 +22,10 @@ export async function apiFetch(path: string, options: RequestOptions = {}): Prom
   const { method = "GET", body, headers = {}, fetchLike = fetch } = options;
   return fetchLike(`${API_BASE_URL}${path}`, {
     method,
+    // Credential selection is never implicit: the server refuses a device
+    // token that arrives with any cookie (ambiguous_credentials), so no
+    // request here may carry ambient browser or webview credentials.
+    credentials: "omit",
     headers: {
       Accept: "application/json",
       ...headers,
