@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { clockText, compareRows, gridDays, overlayBlocks, plannedCredits, plannedSections, sectionChanges, sectionGrid, spokenClock, usesSampleSections, weekBlocks, weekStats, type PlannedSection } from "@/lib/plan-library/week";
 import { getInitialPlannerState } from "@/lib/planner";
 import { sampleCatalog } from "@/lib/planner-sections";
-import type { WalkingTime } from "@/lib/planner-walking";
 import type { ClassDay, ScheduleEvent } from "@/lib/types";
 
 // Two sample schedules, compared by hand below. Buildings are made-up ids with
@@ -25,18 +24,6 @@ function meets(code: string, sectionId: string, days: ClassDay[], start: string,
     provenance: "sample",
   }));
 }
-
-const WALK_SECONDS: Record<string, number> = {
-  "GAB>CURY": 360, // 6 min
-  "CURY>PHYS": 450, // 7.5, rounds up to 8 min
-  "PHYS>LANG": 300, // 5 min
-  "WH>ESSC": 600, // 10 min
-};
-const travel = (from: string, to: string): WalkingTime => {
-  if (from === "GAB" && to === "NTDP") return { seconds: 1200, source: "straight-line" };
-  const seconds = WALK_SECONDS[`${from}>${to}`];
-  return seconds === undefined ? { seconds: null, source: "unknown" } : { seconds, source: "campus-network" };
-};
 
 /** The sections a week's blocks belong to, as plannedSections reports them. */
 function sectionsOf(events: ScheduleEvent[]): PlannedSection[] {
@@ -61,50 +48,40 @@ const fridaysOff = [
 ];
 
 describe("a week's figures", () => {
-  test("Main: five days, 9:00 to 1:50, 34 minutes walking, two tight walks", () => {
-    // Mon and Wed: GAB to CURY 6 (10 min break) + CURY to PHYS 8 (10 min break, 8 >= 10 - 2: tight); Fri: 6.
-    expect(weekStats(main, travel)).toEqual({ days: 5, first: 540, last: 830, walkMinutes: 34, tightWalks: 2 });
+  test("Main: five days, 9:00 to 1:50", () => {
+    expect(weekStats(main)).toEqual({ days: 5, first: 540, last: 830 });
   });
 
-  test("Fridays off: four days, 9:30 to 4:50, 30 minutes walking, no tight walk", () => {
-    // Mon and Wed: PHYS to LANG 5 (220 min break); Tue and Thu: WH to ESSC 10 (100 min break).
-    expect(weekStats(fridaysOff, travel)).toEqual({ days: 4, first: 570, last: 1010, walkMinutes: 30, tightWalks: 0 });
-  });
-
-  test("a walk with no known time makes the walking figures unknown, not shorter", () => {
-    const unknownWalk = [...meets("A 1", "1", ["Mon"], "09:00", "09:50", "GAB"), ...meets("B 1", "1", ["Mon"], "10:00", "10:50", "NOWHERE")];
-    expect(weekStats(unknownWalk, travel)).toMatchObject({ walkMinutes: null, tightWalks: null, days: 1 });
-  });
-
-  test("a shuttle ride to Discovery Park is not walking, though it can still be tight", () => {
-    // NTDP is Discovery Park: the trip is a 20-minute shuttle (planner-walking.ts), not on foot.
-    const shuttle = [...meets("A 1", "1", ["Mon"], "09:00", "09:50", "GAB"), ...meets("B 1", "1", ["Mon"], "10:00", "10:50", "NTDP")];
-    expect(weekStats(shuttle, travel)).toMatchObject({ walkMinutes: 0, tightWalks: 1 });
+  test("Fridays off: four days, 9:30 to 4:50", () => {
+    expect(weekStats(fridaysOff)).toEqual({ days: 4, first: 570, last: 1010 });
   });
 
   test("an empty week has no first or last class", () => {
-    expect(weekStats([], travel)).toEqual({ days: 0, first: null, last: null, walkMinutes: 0, tightWalks: 0 });
+    expect(weekStats([])).toEqual({ days: 0, first: null, last: null });
   });
 });
 
 describe("comparing Main (A) with Fridays off (B)", () => {
+  // Walking comes from weekWalking (tests/schedules-library-view-model.test.ts); these are its figures for the two weeks.
+  const mainFigures = { ...weekStats(main), walkMinutes: 34, tightWalks: 2, credits: 12 };
+  const fridaysOffFigures = { ...weekStats(fridaysOff), walkMinutes: 30, tightWalks: 0, credits: 12 };
+
   test("each row judges B against A", () => {
-    expect(compareRows({ ...weekStats(main, travel), credits: 12 }, { ...weekStats(fridaysOff, travel), credits: 12 })).toEqual([
+    expect(compareRows(mainFigures, fridaysOffFigures)).toEqual([
       { label: "Credits", a: "12", b: "12", verdict: "same" },
       { label: "Days on campus", a: "5", b: "4", verdict: "better" },
       { label: "First class", a: "9:00", b: "9:30", verdict: "better" },
       { label: "Last class ends", a: "1:50", b: "4:50", verdict: "worse" },
       { label: "Walking a week", a: "34 min", b: "30 min", verdict: "better" },
-      { label: "Tight walks", a: "2", b: "0", verdict: "better" },
+      { label: "Tight or late walks", a: "2", b: "0", verdict: "better" },
     ]);
   });
 
-  test("an unknown side judges nothing", () => {
-    const unknown = { days: 3, first: null, last: null, walkMinutes: null, tightWalks: null, credits: 12 };
-    const rows = compareRows({ ...weekStats(main, travel), credits: 12 }, unknown).slice(1);
-    expect(rows.map((row) => row.verdict)).toEqual(["better", "same", "same", "same", "same"]);
+  test("a week with no timed class has no first or last class to judge", () => {
+    const online = { days: 0, first: null, last: null, walkMinutes: 0, tightWalks: 0, credits: 12 };
+    const rows = compareRows(mainFigures, online).slice(1);
+    expect(rows.map((row) => row.verdict)).toEqual(["better", "same", "same", "better", "better"]);
     expect(rows[1].b).toBe("None");
-    expect(rows[3].b).toBe("Unknown");
   });
 
   test("sections that change, and the courses both share", () => {
@@ -236,7 +213,7 @@ describe("credits in the compare table", () => {
   });
 
   test("the first row is each plan's credits, shown and never judged", () => {
-    const week = weekStats(main, travel);
+    const week = { ...weekStats(main), walkMinutes: 0, tightWalks: 0 };
     const [credits] = compareRows({ ...week, credits: 12 }, { ...week, credits: 15 });
     expect(credits).toEqual({ label: "Credits", a: "12", b: "15", verdict: "unjudged" });
     expect(compareRows({ ...week, credits: 9 }, { ...week, credits: 9 })[0]).toEqual({ label: "Credits", a: "9", b: "9", verdict: "same" });

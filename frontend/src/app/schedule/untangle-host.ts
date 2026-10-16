@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildCourseModel, type CourseRowModel } from "@/components/courses/model/course-model";
+import { snapshotOf } from "@/components/courses/model/plan-edits";
+import { untProfile } from "@/components/courses/school";
 import { usePlanner } from "@/components/planner-provider";
 import type { BrowseFeed, BuilderEdits, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
 import type { Identity } from "@/components/schedule/preferences-store";
@@ -19,13 +22,12 @@ import {
   defaultSchedulePreferences,
   getCoreCoursesForMajor,
   getCourseByCode,
-  getMissingPrerequisites,
   getPlanningTermCourseCodes,
   takeFromAutoRun,
   type PlannedCourse,
 } from "@/lib/planner";
 import { findOption, optionIdLabel, planningTerm, sectionRef, termDates } from "@/lib/planner-sections";
-import { isShuttleLeg, plannerTravelTime } from "@/lib/planner-walking";
+import { weekTravel } from "@/lib/planner-walking";
 import { findClassNumber } from "@/lib/sections/client";
 import { optionReasons } from "./option-reasons";
 import { courses as catalog } from "@/lib/seed-data";
@@ -76,6 +78,24 @@ function noteFor(course: PlannedCourse): { state: WeekCourse["state"]; note?: st
       return { state: "none", note: `${course.code} isn't offered in ${planningTerm.label}.` };
     case "no-data":
       return { state: "none", note: `There are no ${planningTerm.label} sections for ${course.code}.` };
+  }
+}
+
+/**
+ * A search hit's status for a course the student hasn't done, planned or
+ * started, from Courses' row for it: a rule UNTangle can't read, or one that
+ * needs consent, is "check" (check with an advisor), never "locked".
+ */
+export function requirementStatus(row: Pick<CourseRowModel, "status"> | undefined): "available" | "locked" | "check" | "done" {
+  switch (row?.status) {
+    case "locked":
+    case "check":
+      return row.status;
+    case "done":
+    case "covered":
+      return "done";
+    default:
+      return "available";
   }
 }
 
@@ -453,6 +473,12 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     close: closeBrowse,
   };
 
+  // Courses' own model, so a course reads the same in Week's search as in Courses (CoursesView builds it from the same three fields).
+  const courseRows = useMemo(
+    () => buildCourseModel(untProfile(), snapshotOf(plannerState)).rows,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plannerState.courseStatuses, plannerState.transcriptRecords, plannerState.coursePlan],
+  );
   const hitFor = useCallback(
     (code: string, title: string): SearchHit => {
       const status = plannerState.courseStatuses[code];
@@ -466,12 +492,10 @@ export function useUntangleHost(brand: Brand): BuilderHost {
               ? "taking"
               : status === "inProgress"
                 ? "planned"
-                : getMissingPrerequisites(code, plannerState.courseStatuses, plannerState.transcriptRecords).length > 0
-                  ? "locked"
-                  : "available",
+                : requirementStatus(courseRows.get(code)),
       };
     },
-    [plannerState.courseStatuses, plannerState.transcriptRecords, takingNow],
+    [courseRows, plannerState.courseStatuses, takingNow],
   );
 
   const search = useMemo<BuilderHost["search"]>(
@@ -531,12 +555,6 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     [problems],
   );
 
-  const walk = useCallback((from: string, to: string) => {
-    const time = plannerTravelTime(from, to);
-    // Whole seconds, as the optimizer rounds them (walkSeconds in lib/optimizer/score.ts), so Week and Auto agree at the boundary.
-    return time.seconds === null ? null : { seconds: Math.round(time.seconds), shuttle: isShuttleLeg(from, to) };
-  }, []);
-
   return {
     brand: { id: brand.id, primaryLabel: brand.primaryLabel, primaryShort: brand.primaryShort, suggestions: brand.suggestions },
     term: { id: planningTerm.id, label: planningTerm.label },
@@ -548,7 +566,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     preferencesReady,
     // The setup speaks of Auto by name; the standalone builder's button is called something else.
     setup: brand.id === "untangle" ? setup : null,
-    walk,
+    walk: weekTravel,
     search,
     edits,
     optimizer,

@@ -589,6 +589,17 @@
   font: 600 var(--text-lg) / var(--lh-lg) var(--font-ui);
   color: var(--ink);
 }
+/* What UNTangle is for, said once between the heading and the ways to start. */
+.home-card__title:has(+ .home-card__lede) {
+  margin-bottom: 4px;
+}
+.home-card__lede {
+  margin: 0 0 16px;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
 .home-options {
   display: grid;
   overflow: hidden;

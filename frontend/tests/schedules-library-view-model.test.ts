@@ -174,3 +174,70 @@ describe("reading the library for an identity", () => {
     expect(readLibraryView(fakeStore(false).store, true)).toMatchObject({ storageDisabled: true });
   });
 });
+
+describe("a copy saved with no name", () => {
+  it("is Copy of Main, then Copy of Main 2, skipping names in use in any case", async () => {
+    const { defaultCopyName } = await import("@/components/schedules-library/view-model");
+    expect(defaultCopyName(["Main"], "Main")).toBe("Copy of Main");
+    expect(defaultCopyName(["Main", "Copy of Main"], "Main")).toBe("Copy of Main 2");
+    expect(defaultCopyName(["Main", "copy of main", "Copy of Main 2", "Fridays off"], "Main")).toBe("Copy of Main 3");
+    // A gap left by a deleted copy is reused.
+    expect(defaultCopyName(["Main", "Copy of Main 2"], "Main")).toBe("Copy of Main");
+  });
+});
+
+describe("using a copy that is already Main", () => {
+  it("is the same plan when only timestamps differ, and not once a course differs", async () => {
+    const { samePlan } = await import("@/components/schedules-library/view-model");
+    const main = stateWith({ courseStatuses: { ...stateWith({}).courseStatuses, "ENGL 1310": "inProgress" } });
+    expect(samePlan(main, { ...main, updatedAt: "2027-01-01T00:00:00.000Z" })).toBe(true);
+    expect(samePlan(main, { ...main, courseStatuses: { ...main.courseStatuses, "ANTH 1010": "inProgress" } })).toBe(false);
+  });
+});
+
+describe("a week's walking, as Week's Details counts it", () => {
+  // Made-up buildings with times from the table, so every figure can be worked out on paper.
+  const SECONDS: Record<string, number> = { "gab>cury": 360, "cury>phys": 540, "wh>essc": 600, "phys>lang": 300 };
+  const travel = (from: string, to: string) => {
+    if (from === "gab" && to === "ntdp") return { seconds: 1200, shuttle: true };
+    const seconds = SECONDS[`${from}>${to}`];
+    return seconds === undefined ? null : { seconds, shuttle: false };
+  };
+  const at = async (code: string, days: Array<"Mon" | "Tue" | "Wed" | "Thu" | "Fri">, from: string, until: string, building: string) => {
+    const { meeting, section } = await import("./schedule-builder/fixtures");
+    return section({ courseCode: code, meetings: days.map((day) => meeting({ day, at: from, until, building })) });
+  };
+
+  it("adds up walks across ten-minute breaks and counts a tight one", async () => {
+    const { weekWalking } = await import("@/components/schedules-library/view-model");
+    const week = [
+      await at("CSCE 2110", ["Mon", "Wed", "Fri"], "9:00", "9:50", "gab"),
+      await at("MATH 2700", ["Mon", "Wed", "Fri"], "10:00", "10:50", "cury"),
+      await at("PHYS 2220", ["Mon", "Wed"], "11:00", "11:50", "phys"),
+    ];
+    // Mon and Wed: 6 + 9 minutes; Fri: 6. CURY to PHYS takes 9 of a 10-minute break, under two to spare: tight.
+    expect(weekWalking(week, travel)).toEqual({ walkMinutes: 36, tightWalks: 2 });
+  });
+
+  it("leaves out breaks over 30 minutes, which Week draws no walk for", async () => {
+    const { weekWalking } = await import("@/components/schedules-library/view-model");
+    const week = [await at("PHYS 2220", ["Mon"], "11:00", "11:50", "phys"), await at("MATH 2700", ["Mon"], "15:30", "16:50", "lang")];
+    expect(weekWalking(week, travel)).toEqual({ walkMinutes: 0, tightWalks: 0 });
+  });
+
+  it("leaves out a walk with no known time, as Week leaves it off the grid, rather than making the week unknown", async () => {
+    const { weekWalking } = await import("@/components/schedules-library/view-model");
+    const week = [
+      await at("A 1", ["Mon"], "9:00", "9:50", "gab"),
+      await at("B 1", ["Mon"], "10:00", "10:50", "cury"),
+      await at("C 1", ["Mon"], "11:00", "11:50", "nowhere"),
+    ];
+    expect(weekWalking(week, travel)).toEqual({ walkMinutes: 6, tightWalks: 0 });
+  });
+
+  it("doesn't count a shuttle ride as walking, though it can still be tight", async () => {
+    const { weekWalking } = await import("@/components/schedules-library/view-model");
+    const week = [await at("A 1", ["Mon"], "9:00", "9:50", "gab"), await at("B 1", ["Mon"], "10:00", "10:50", "ntdp")];
+    expect(weekWalking(week, travel)).toEqual({ walkMinutes: 0, tightWalks: 1 });
+  });
+});

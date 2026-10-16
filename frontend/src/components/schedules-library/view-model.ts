@@ -1,11 +1,29 @@
-import { normalizePlannerState } from "@/lib/planner";
+import { figuresOf } from "@/components/schedule-builder/answer";
+import { eventsOf, walksOf, type WalkFn } from "@/components/schedule-builder/week";
+import { normalizePlannerState, resolveSectionPlan } from "@/lib/planner";
 import type { PlanLockChange } from "@/lib/plan-library/diff";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
-import { optionIdLabel, sectionRef } from "@/lib/planner-sections";
+import { optionIdLabel, sectionRef, type SectionCatalog } from "@/lib/planner-sections";
+import { weekTravel } from "@/lib/planner-walking";
+import type { Section } from "@/lib/sections";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import type { SavedPlanStore, SavedPlanStoreFailure, StoreReadResult } from "@/lib/saved-plans/store";
 import { workingStateFingerprint } from "@/lib/saved-plans/restore-adapter";
 import type { PlannerState } from "@/lib/types";
+
+/**
+ * What a copy saved with its name left blank is called: "Copy of Main",
+ * then "Copy of Main 2", "Copy of Main 3", skipping any already taken
+ * (archived copies included, in any letter case).
+ */
+export function defaultCopyName(taken: readonly string[], of: string): string {
+  const used = new Set(taken.map((name) => name.trim().toLowerCase()));
+  const base = `Copy of ${of}`;
+  for (let n = 1; ; n += 1) {
+    const name = n === 1 ? base : `${base} ${n}`;
+    if (!used.has(name.toLowerCase())) return name;
+  }
+}
 
 /** Download name for an exported schedule file. */
 export function exportFileName(plan: SavedPlanSnapshot): string {
@@ -55,14 +73,37 @@ export function versionTime(iso: string, now: Date): string {
   return `${at.toLocaleString("en-US", { month: "short" })} ${at.getDate()} at ${time}`;
 }
 
+/** Whether two schedules hold the same plan, ignoring timestamps: using one in place of the other changes nothing. */
+export function samePlan(a: PlannerState, b: PlannerState): boolean {
+  return workingStateFingerprint(normalizePlannerState(a)) === workingStateFingerprint(normalizePlannerState(b));
+}
+
 /**
  * Whether the working schedule already has a saved copy, ignoring
  * timestamps. When it doesn't, replacing it with another schedule loses it
  * once Undo is gone, so the library offers to save a copy first.
  */
 export function hasSavedCopy(working: PlannerState, plans: readonly SavedPlanSnapshot[]): boolean {
-  const mine = workingStateFingerprint(normalizePlannerState(working));
-  return plans.some((plan) => workingStateFingerprint(normalizePlannerState(plan.state)) === mine);
+  return plans.some((plan) => samePlan(working, plan.state));
+}
+
+/** The sections a saved schedule puts on the week, resolved the way Week resolves Main's. */
+export function placedSections(state: PlannerState, catalog: SectionCatalog): Section[] {
+  return resolveSectionPlan(normalizePlannerState(state), catalog).courses.flatMap((course) => (course.section ? [course.section] : []));
+}
+
+/**
+ * A week's walking as Week's Details counts it, so Compare and Week give one
+ * number: walks between classes in different buildings with 30 minutes or
+ * less between them (walksOf), timed by weekTravel. A walk with no known
+ * time is left out, as Week leaves it off the grid; a shuttle ride is not
+ * walking but can still be tight. Tight or late: less than two minutes to
+ * spare, or longer than the break.
+ */
+export function weekWalking(sections: readonly Section[], travel: WalkFn = weekTravel): { walkMinutes: number; tightWalks: number } {
+  const events = eventsOf(sections);
+  const figures = figuresOf(events, walksOf(events, travel));
+  return { walkMinutes: figures.walkMinutes, tightWalks: figures.badWalks };
 }
 
 /**

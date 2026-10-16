@@ -83,6 +83,36 @@ describe("Toaster", () => {
     await view.unmount();
   });
 
+  test("while a modal is open the toast steps aside, message only; Undo returns when it closes", async () => {
+    const { Toaster, toast, dismissToast } = await import("@/components/ui/Toast");
+    const { BottomSheet } = await import("@/components/ui/BottomSheet");
+    const { act } = await import("react");
+    const Harness = ({ open }: { open: boolean }) => (
+      <>
+        <BottomSheet open={open} onOpenChange={() => {}} title="Find courses">
+          <button type="button">Add section 001</button>
+        </BottomSheet>
+        <Toaster />
+      </>
+    );
+    const view = await mount(<Harness open />);
+    await act(async () => {
+      toast({ message: "Added CSCE 1030 section 001", action: { label: "Undo", onClick: () => {} } });
+    });
+    const toaster = () => document.querySelector(".ui-toaster")!;
+    // Over the sheet: marked so phones place it at the top, and with no buttons it couldn't use (the page is inert).
+    expect(toaster().hasAttribute("data-covered")).toBe(true);
+    expect(toaster().hasAttribute("inert")).toBe(true);
+    expect(toaster().textContent).toContain("Added CSCE 1030 section 001");
+    expect(toaster().querySelector("button")).toBeNull();
+    await view.rerender(<Harness open={false} />);
+    await act(async () => sleep(200));
+    expect(toaster().hasAttribute("data-covered")).toBe(false);
+    expect([...toaster().querySelectorAll("button")].map((b) => b.textContent || b.getAttribute("aria-label"))).toEqual(["Undo", "Dismiss"]);
+    await act(async () => dismissToast());
+    await view.unmount();
+  });
+
   test("the announcement region holds text only, so it can stay outside a modal's inert set", async () => {
     const { Toaster, toast } = await import("@/components/ui/Toast");
     const { act } = await import("react");

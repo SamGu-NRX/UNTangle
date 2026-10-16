@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { usePlanner } from "@/components/planner-provider";
+import { hasStartedPlan } from "@/components/shell/home-entry";
 import { SCHEDULE_NAME } from "@/components/shell/plan-status";
 import { Button, IconButton } from "@/components/ui/Button";
 import { ContextPanel } from "@/components/ui/ContextPanel";
@@ -18,6 +19,7 @@ import { eventsOf, usesSampleSections, weekBlocks, weekColors, type WeekBlock } 
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import { PLANNING_TERM } from "@/lib/terms";
 import { createSavedPlanStore, exportPlanJson, subscribeSavedPlans, type SavedPlanStoreFailure, type StoreReadResult } from "@/lib/saved-plans/store";
+import { getInitialPlannerState } from "@/lib/planner";
 import type { PlannerState } from "@/lib/types";
 import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
 import { saveOutcome } from "@/lib/connect/review";
@@ -25,7 +27,7 @@ import { adoptCopy, announcementStep, noteLanded, undoAdoption, type Adoption } 
 import { CompareView, MAX_COMPARED, type CompareSide } from "./compare-view";
 import { PushView } from "./push-view";
 import { ScheduleDetail } from "./schedule-detail";
-import { downloadFile, exportFileName, hasSavedCopy, importScheduleFile, keyedLines, readLibraryView, whenText, type LibraryView } from "./view-model";
+import { defaultCopyName, downloadFile, exportFileName, hasSavedCopy, importScheduleFile, keyedLines, readLibraryView, whenText, type LibraryView } from "./view-model";
 import { WeekThumb } from "./week-grid";
 import styles from "./library.module.css";
 
@@ -99,6 +101,7 @@ export function SchedulesClient() {
   const minute = useSyncExternalStore(subscribeMinute, currentMinute, () => 0);
 
   const plans = list.phase === "ready" ? list.doc.plans : [];
+  const blankName = defaultCopyName([SCHEDULE_NAME, ...plans.map((plan) => plan.name)], SCHEDULE_NAME);
   const live = plans.filter((plan) => !plan.archivedAt);
   const archived = plans.filter((plan) => plan.archivedAt);
 
@@ -115,7 +118,8 @@ export function SchedulesClient() {
     id: MAIN_ID,
     name: SCHEDULE_NAME,
     active: true,
-    fact: whenText("Edited", plannerState.updatedAt, now),
+    // A plan nobody has touched was only created, not edited.
+    fact: hasStartedPlan(plannerState, getInitialPlannerState()) ? whenText("Edited", plannerState.updatedAt, now) : "Nothing planned yet",
     state: plannerState,
     blocks: weekBlocks(scheduleEvents),
     snapshot: null,
@@ -272,7 +276,7 @@ export function SchedulesClient() {
   }
 
   function saveCopy(name: string) {
-    const saved = store.savePlan({ state: plannerState, name: name.trim() || undefined });
+    const saved = store.savePlan({ state: plannerState, name: name.trim() || blankName });
     if (!saved.ok) {
       toast({ message: saved.failure.message, tone: "error" });
       bump();
@@ -351,7 +355,8 @@ export function SchedulesClient() {
   // A signed-in conflict has its own notice (SyncNotice); this panel would only repeat it.
   const saveTrouble = !planner.syncConflict && ["conflict", "unsaved"].includes(saveOutcome(planner.saveState.status, Boolean(planner.conflict)));
   const sides: CompareSide[] = picks.map((id) => find(id)).filter((entry): entry is Entry => entry !== null);
-  const colors = weekColors(...all.map((entry) => entry.blocks));
+  // Main's courses first, in the order Week colors them (ScheduleBuilder assigns hues over host.courses, the section plan's order).
+  const colors = weekColors(planner.sectionPlan.courses.map((course) => course.code), ...all.map((entry) => entry.blocks.map((block) => block.code)));
 
   const sideNames = sides.map((side) => side.name);
   const panelTitle = comparing
@@ -434,17 +439,20 @@ export function SchedulesClient() {
       <header className={styles.head}>
         <h1 className={styles.title}>Schedules</h1>
         <div className={styles.headActions}>
-          <Button
-            ref={compareButton}
-            variant="secondary"
-            size="sm"
-            aria-pressed={comparing}
-            aria-label={phone ? "Compare" : undefined}
-            icon={<CompareGlyph />}
-            onClick={toggleCompare}
-          >
-            {phone ? null : "Compare"}
-          </Button>
+          {/* Compare needs a second schedule; until a copy exists it would only ask for one. */}
+          {all.length > 1 || comparing ? (
+            <Button
+              ref={compareButton}
+              variant="secondary"
+              size="sm"
+              aria-pressed={comparing}
+              aria-label={phone ? "Compare" : undefined}
+              icon={<CompareGlyph />}
+              onClick={toggleCompare}
+            >
+              {phone ? null : "Compare"}
+            </Button>
+          ) : null}
           <Button size="sm" icon={<Plus size={16} />} aria-label={phone ? "Save a copy" : undefined} disabled={!storeAvailable} onClick={startSaving}>
             {phone ? null : "Save a copy"}
           </Button>
@@ -580,7 +588,8 @@ export function SchedulesClient() {
             ref={nameRef}
             label="Name"
             value={nameValue}
-            placeholder={naming?.kind === "save" ? "Fridays off" : undefined}
+            // The name a blank field saves, so leaving it empty holds no surprise.
+            placeholder={naming?.kind === "save" ? blankName : undefined}
             onChange={(event) => setNameValue(event.target.value)}
             autoComplete="off"
           />

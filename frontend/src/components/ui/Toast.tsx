@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Close } from "./icons";
+import { modalOpen, subscribeModalStack } from "./modal-layer";
 
 export type ToastInput = {
   message: string;
@@ -58,6 +59,10 @@ export function useIsClient() {
 
 /**
  * Bottom-centre toast, above the tab bar on phones: 44px, ink, white 14px.
+ * While a modal is open the toast is inert, so it shows its message without
+ * its buttons, and on a phone it moves to the top of the screen, over the
+ * dimmed page rather than the sheet's rows and buttons. When the modal
+ * closes it enters again in its usual place, Undo and all.
  * Enters with 8px of rise and a fade over 220ms, leaves in 150ms. A plain
  * toast leaves after 5s, counting only while the page is visible and the
  * toast is neither hovered nor focused; one with an action or an error
@@ -126,6 +131,7 @@ export function Toaster() {
     };
   }, [shown, leaving, paused]);
 
+  const covered = useSyncExternalStore(subscribeModalStack, modalOpen, () => false);
   const isClient = useIsClient();
   if (!isClient) return null;
 
@@ -140,10 +146,11 @@ export function Toaster() {
         document.body,
       )}
       {createPortal(
-        <div className="ui-toaster" data-ui="">
+        <div className="ui-toaster" data-ui="" data-covered={covered ? "" : undefined}>
           {shown ? (
             <div
-              key={shown.id}
+              // A new key when a modal opens or closes: the toast enters again where it now sits, instead of jumping there.
+              key={`${shown.id}${covered ? ":covered" : ""}`}
               className="ui-toast"
               data-state={leaving ? "closed" : "open"}
               data-tone={shown.tone ?? "default"}
@@ -154,7 +161,7 @@ export function Toaster() {
               onBlur={() => setPausedFor(null)}
             >
               <span className="ui-toast__message">{shown.message}</span>
-              {shown.action ? (
+              {shown.action && !covered ? (
                 <button
                   type="button"
                   className="ui-toast__action"
@@ -166,7 +173,7 @@ export function Toaster() {
                   {shown.action.label}
                 </button>
               ) : null}
-              {isPersistent(shown) ? (
+              {isPersistent(shown) && !covered ? (
                 <button type="button" className="ui-toast__close" aria-label="Dismiss" onClick={() => dismissToast(shown.id)}>
                   <Close size={14} />
                 </button>

@@ -198,6 +198,29 @@ describe("Week", () => {
     await view.unmount();
   });
 
+  test("Auto's sentence and Details follow the student's time of day", async () => {
+    // Option 1 moves CSCE 2110 from 2:00 to 9:00, so the week starts at 9:00 instead of 10:00.
+    const week = [course(csceLate), course(math)];
+    const option1 = { "CSCE 2110": csce.id, "MATH 2700": math.id };
+    const cases = [
+      { mornings: 4, sentence: "Starts at 9:00 instead of 10:00 by moving CSCE 2110 to 9:00.", firstClass: "better" },
+      { mornings: 0, sentence: "Monday, Wednesday and Friday start at 9:00.", firstClass: "worse" },
+    ];
+    for (const { mornings, sentence, firstClass } of cases) {
+      const leaning = { ...preferences, weights: { ...preferences.weights, mornings } };
+      const start = host(week);
+      const view = await render({ ...start.value, preferences: leaning });
+      await click(buttons(view.container, /^Auto/)[0]);
+      await view.update({ ...host(week, { runId: 1, status: "done", options: [option1] }).value, preferences: leaning });
+      // The strip keeps course codes whole with a no-break space.
+      expect(view.container.querySelector('[aria-label="Other weeks Auto found"]')!.textContent?.replace(/\u00a0/g, " ")).toContain(sentence);
+      await click(buttons(view.container, /^Details$/)[0]);
+      const row = [...document.querySelectorAll("aside tr")].find((tr) => tr.querySelector("th")?.textContent === "First class")!;
+      expect(row.querySelectorAll("td")[1].getAttribute("data-change")).toBe(firstClass);
+      await view.unmount();
+    }
+  });
+
   test("a result from settings that changed since can't be used", async () => {
     const week = [course(csce), course(math)];
     const view = await render(host(week).value);

@@ -26,6 +26,19 @@ let savedOverflow: string | null = null;
  */
 const popoverOwners = new Map<Element, HTMLElement | null>();
 
+const stackListeners = new Set<() => void>();
+
+/** Calls `listener` whenever the stack changes; `modalOpen` reads it. The Toaster uses it to step out of a modal's way. */
+export function subscribeModalStack(listener: () => void): () => void {
+  stackListeners.add(listener);
+  return () => {
+    stackListeners.delete(listener);
+  };
+}
+
+/** Whether any modal layer (a dialog, a modal sheet, the search palette) is open. */
+export const modalOpen = () => layers.length > 0;
+
 /** Brings inert state and the scroll lock in line with the current stack. */
 function syncStack() {
   const top = layers[layers.length - 1];
@@ -61,6 +74,7 @@ function syncStack() {
       managedInert.add(el);
     }
   }
+  stackListeners.forEach((listener) => listener());
 }
 
 /**

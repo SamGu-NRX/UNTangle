@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { AlertGlyph, ChevronRight } from "@/components/ui/icons";
 import { Switch } from "@/components/ui/Switch";
 import type { Section } from "@/lib/sections";
-import { figuresOf } from "./answer";
+import { endGain, figuresOf, startGain, type TimeLean } from "./answer";
 import styles from "./builder.module.css";
 import type { WeekCourse } from "./host";
 import { SectionRows } from "./SectionRows";
@@ -66,10 +66,13 @@ export function OptionDetails({
   reasons,
   onUse,
   canUse,
+  lean,
 }: {
   now: Week;
   option: Week;
   label: string;
+  /** The student's time-of-day lean: an 8:00 start is better, not worse, for a student who asked for mornings. */
+  lean: TimeLean;
   /** One line each, seat warnings first (OptionsFeed.explain). */
   reasons: ReadonlyArray<{ sentence: string; warning: boolean }>;
   onUse: () => void;
@@ -81,8 +84,8 @@ export function OptionDetails({
   // [label, now, option, change: negative is better]
   const rows: Array<[string, string, string, number]> = [
     ["Days on campus", String(a.days.length), String(b.days.length), b.days.length - a.days.length],
-    ["First class", time(a.first), time(b.first), (a.first ?? 0) - (b.first ?? 0)],
-    ["Last class ends", time(a.last), time(b.last), (b.last ?? 0) - (a.last ?? 0)],
+    ["First class", time(a.first), time(b.first), -startGain(a.first ?? 0, b.first ?? 0, lean)],
+    ["Last class ends", time(a.last), time(b.last), -endGain(a.last ?? 0, b.last ?? 0, lean)],
     ["Walking a week", `${a.walkMinutes} min`, `${b.walkMinutes} min`, b.walkMinutes - a.walkMinutes],
     ["Tight or late walks", String(a.badWalks), String(b.badWalks), b.badWalks - a.badWalks],
   ];
