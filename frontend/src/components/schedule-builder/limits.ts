@@ -7,7 +7,9 @@
  */
 import type { BlockedTime, PreferenceWeights, SchedulePreferences, WeekDay } from "@/lib/types";
 import { isLunch, WEEKDAYS } from "./preferences";
-import { andList, clockWithSuffix } from "./week";
+import { andList, clockWithSuffix, shortDate } from "./week";
+
+export { shortDate };
 
 /** The painted grid's hours: 8 AM to 10 PM in half hours, as the mockup draws them. */
 export const GRID_START = 480;
@@ -23,17 +25,25 @@ export const UNNAMED = "Busy";
 
 /* ───────── Painting busy times ───────── */
 
+/**
+ * A busy time that holds every week. One made from a calendar event holds
+ * on its dates only; the painted grid draws a typical week, so it neither
+ * shows nor paints those, and the ledger lists them by date.
+ */
+export const isWeekly = (b: BlockedTime) => !b.dates || b.dates.length === 0;
+
+
 /** The busy minutes on `day`, merged, sorted, as [start, end) runs. */
 function runsOn(blocked: readonly BlockedTime[], day: WeekDay): Array<{ start: number; end: number; label: string }> {
   return blocked
-    .filter((b) => b.day === day)
+    .filter((b) => b.day === day && isWeekly(b))
     .map((b) => ({ start: b.start, end: b.end, label: b.label }))
     .sort((a, b) => a.start - b.start);
 }
 
 /** True when the half hour starting at `start` on `day` is busy. */
 export function isBusy(p: SchedulePreferences, day: WeekDay, start: number): boolean {
-  return p.constraints.blocked.some((b) => b.day === day && b.start < start + STEP && b.end > start);
+  return p.constraints.blocked.some((b) => isWeekly(b) && b.day === day && b.start < start + STEP && b.end > start);
 }
 
 /**
@@ -45,7 +55,8 @@ export function isBusy(p: SchedulePreferences, day: WeekDay, start: number): boo
  */
 export function paint(p: SchedulePreferences, days: readonly WeekDay[], start: number, end: number, mode: "busy" | "free", newId: () => string): SchedulePreferences {
   if (end <= start || days.length === 0) return p;
-  let blocked = [...p.constraints.blocked];
+  const dated = p.constraints.blocked.filter((b) => !isWeekly(b));
+  let blocked = p.constraints.blocked.filter(isWeekly);
   for (const day of days) {
     const others = blocked.filter((b) => b.day !== day);
     const today = blocked.filter((b) => b.day === day);
@@ -74,7 +85,7 @@ export function paint(p: SchedulePreferences, days: readonly WeekDay[], start: n
       blocked = [...others, ...next];
     }
   }
-  return { ...p, constraints: { ...p.constraints, blocked } };
+  return { ...p, constraints: { ...p.constraints, blocked: [...blocked, ...dated] } };
 }
 
 /* ───────── The ledger under the grid: one fact per row ───────── */
@@ -83,7 +94,8 @@ export type LedgerRow =
   | { kind: "start"; title: string }
   | { kind: "end"; title: string }
   | { kind: "off"; title: string }
-  | { kind: "busy"; title: string; detail: string; label: string; ids: string[]; unnamed: boolean };
+  /** `dated`: made from one calendar event, so it holds on its date only. */
+  | { kind: "busy"; title: string; detail: string; label: string; ids: string[]; unnamed: boolean; dated?: boolean };
 
 const PLURAL: Record<WeekDay, string> = { Mon: "Mondays", Tue: "Tuesdays", Wed: "Wednesdays", Thu: "Thursdays", Fri: "Fridays" };
 
@@ -113,14 +125,23 @@ export function ledger(p: SchedulePreferences): LedgerRow[] {
       groups.set(key, g);
     }
   }
-  for (const b of c.blocked) groups.get(`${b.label}|${b.start}|${b.end}`)?.ids.push(b.id);
+  for (const b of c.blocked.filter(isWeekly)) groups.get(`${b.label}|${b.start}|${b.end}`)?.ids.push(b.id);
   const sorted = [...groups.values()].sort((a, b) => a.start - b.start || WEEKDAYS.indexOf(a.days[0]) - WEEKDAYS.indexOf(b.days[0]));
   for (const g of sorted) {
     const days = g.days.length === 5 ? "Every weekday" : andList(g.days);
     rows.push({ kind: "busy", title: g.label, detail: `${days}, ${hourSpan(g.start, g.end)}`, label: g.label, ids: g.ids, unnamed: g.label === UNNAMED });
   }
+  // A busy time made from one calendar event: its own row, said by date.
+  const dated = c.blocked.filter((b) => !isWeekly(b)).sort((a, b) => firstDate(a).localeCompare(firstDate(b)) || a.start - b.start);
+  for (const b of dated) {
+    const dates = b.dates ?? [];
+    const when = dates.length === 1 && dates[0].start === dates[0].end ? shortDate(dates[0].start) : `From ${shortDate(dates[0].start)}`;
+    rows.push({ kind: "busy", title: b.label, detail: `${when}, ${hourSpan(b.start, b.end)}`, label: b.label, ids: [b.id], unnamed: b.label === UNNAMED, dated: true });
+  }
   return rows;
 }
+
+const firstDate = (b: BlockedTime) => b.dates?.[0]?.start ?? "";
 
 export function renameBusy(p: SchedulePreferences, ids: readonly string[], label: string): SchedulePreferences {
   const name = label.trim() || UNNAMED;
@@ -291,7 +312,8 @@ export function stepCredits(current: number | null, by: 1 | -1): number | null {
 
 /**
  * How many choices differ from the defaults, shown as the count on the
- * Preferences button. Busy times count once each group.
+ * Preferences button. Busy times count once each group, and each connected
+ * calendar once.
  */
 export function changedCount(p: SchedulePreferences, defaults: SchedulePreferences): number {
   const c = p.constraints;
@@ -301,6 +323,7 @@ export function changedCount(p: SchedulePreferences, defaults: SchedulePreferenc
   if (c.excludedSections.length > 0) n += 1;
   n += moreChanged(p, defaults);
   n += LEAN_ORDER.filter((k) => leanOf(p.weights, k) !== leanOf(defaults.weights, k)).length;
+  n += p.calendars?.length ?? 0;
   return Math.max(0, n);
 }
 

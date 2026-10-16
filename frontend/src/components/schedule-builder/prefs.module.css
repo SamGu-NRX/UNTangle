@@ -943,3 +943,94 @@
     height: auto;
   }
 }
+
+/* ───────── Calendars as busy time ───────── */
+
+/* Opened or added from the keyboard: no motion (MOTION.md §3, Sam's rule 10). */
+.picker[data-instant],
+.srows[data-instant] li {
+  animation: none;
+}
+
+.feeds {
+  margin-top: 10px;
+}
+.rowName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.srows li[data-kind="calendar"] .rowIcon {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+.private {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+.private svg {
+  flex: none;
+  margin-top: 2px;
+}
+.found {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.found svg {
+  flex: none;
+  color: var(--brand-2);
+}
+.pickerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 12px 0 2px;
+}
+.allDaySwitch {
+  margin: -2px 0 10px;
+}
+/* The all-day choice sits under its calendar's name, as the row's second line of controls. */
+.srows li[data-kind="calendar"] {
+  flex-wrap: wrap;
+}
+.rowSwitch {
+  flex-basis: 100%;
+  margin: 0 0 4px 38px;
+}
+.formError {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--danger);
+}
+.pickerAlt {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.pickerAlt > .add {
+  margin-left: -6px;
+}
+.eventPick {
+  margin-top: 8px;
+}
+.eventList .opt:first-child {
+  border-top: 0;
+}
+.eventList {
+  max-height: 280px;
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

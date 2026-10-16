@@ -220,9 +220,11 @@ function weekHost(setup: BuilderHost["setup"], courses: WeekCourse[] = [course])
     search: { find: () => [], suggestions: () => [], options: () => [csce], load: () => {}, classNumber: async () => null },
     edits: { place: mock((): string | null => null), remove: mock(() => {}), keep: mock(() => {}), use: mock((): string[] => []), clear: mock(() => {}), undo: mock(() => {}), canUndo: false },
     optimizer,
+    browse: null,
     find: () => csce,
     printHref: "/schedule/print",
     shareUrl: (encoded: string) => `http://localhost/schedule?week=${encoded}`,
+    calendars: null,
   } satisfies BuilderHost as BuilderHost;
   return { host, optimizer };
 }

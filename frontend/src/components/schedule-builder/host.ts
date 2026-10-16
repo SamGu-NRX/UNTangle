@@ -5,8 +5,9 @@
  * folder reads a store, the prerequisite engine or the app shell: if the
  * builder needs something, it comes through here.
  */
+import type { CheckedFeed, FeedTerm, Outcome } from "@/lib/calendar-busy";
 import type { Section } from "@/lib/sections";
-import type { SchedulePreferences } from "@/lib/types";
+import type { ConnectedCalendar, SchedulePreferences } from "@/lib/types";
 import type { WalkFn } from "./week";
 
 export type BuilderBrand = {
@@ -106,6 +107,57 @@ export type OptionsFeed = {
   close: () => void;
 };
 
+/**
+ * Connecting calendar feeds as busy time. The address the student pastes is
+ * passed straight through and never kept; what comes back is the calendar
+ * with its address sealed, for the builder to add to the preferences.
+ */
+export type BuilderCalendars = {
+  /** The term busy time is read for, with its first and last day. */
+  term: FeedTerm;
+  /** Reads a feed over the term: its busy count and its events. */
+  check: (url: string) => Promise<Outcome<CheckedFeed>>;
+  /** Reads a feed's busy time and seals its address. Nothing is saved until the builder adds it. */
+  connect: (url: string, name: string, options: { countAllDay: boolean }) => Promise<Outcome<ConnectedCalendar>>;
+  /** Why a connected calendar couldn't be refreshed, by calendar id; absent when it's current. */
+  problems: Readonly<Record<string, string>>;
+};
+
+/** One row of Browse all: a whole week, with the figures its row shows. */
+export type BrowseRow = {
+  /** Course code -> section id, every course the search placed. */
+  byCourse: Record<string, string>;
+  daysOnCampus: number;
+  /** Earliest start and latest end of the week, in minutes; null when nothing is timed. */
+  earliestStart: number | null;
+  latestEnd: number | null;
+};
+
+/**
+ * Every week that fits, best first by Auto's ranking (lib/optimizer/enumerate.ts),
+ * as Browse all reads it. The same inputs as Auto's run: pins, kept
+ * sections, blocked times and preferences.
+ */
+export type BrowseFeed = {
+  status: "idle" | "running" | "done" | "error";
+  /** At most the first 500, best first. */
+  rows: readonly BrowseRow[];
+  /** Weeks that fit; a lower bound unless `totalExact`. */
+  total: number;
+  totalExact: boolean;
+  /** False when the search ran out of time before proving these are the best ones. */
+  proven: boolean;
+  /** Settings changed since this list was found: shown, never applied. */
+  stale: boolean;
+  /** When nothing fits: why, and the fixes that would make something fit (Auto's explanation). */
+  infeasible: { sentence: string; fixes: BuilderFix[] } | null;
+  /** The search ran out before it found a week or ruled them all out. */
+  timedOut: boolean;
+  error: string | null;
+  run: () => void;
+  close: () => void;
+};
+
 /** "Set up Auto": the short first-run setup over Week (r3 mockup, onboarding.html). */
 export type BuilderSetup = {
   /**
@@ -117,6 +169,25 @@ export type BuilderSetup = {
   due: boolean;
   /** Skipping or finishing it: it never opens on its own again for this identity. */
   markSeen: () => void;
+};
+
+/** One exam sitting: an ISO date and minutes after midnight, half-open [start, end). */
+export type ExamSlot = { date: string; start: number; end: number };
+
+/**
+ * A section's final as Week shows it: when it is, and whether that time is
+ * projected from another term; or one sentence on why it isn't known.
+ */
+export type FinalExam = { kind: "known"; exam: ExamSlot; projected: boolean } | { kind: "unknown"; note: string };
+
+/** Each section's final exam, for the Finals line under the week and the section rows. */
+export type BuilderFinals = {
+  examOf: (section: Section) => FinalExam;
+  /**
+   * Where projected times come from, said once on the Finals line
+   * ("Projected"), or null when they are the term's own published finals.
+   */
+  projected: { label: string; source: string } | null;
 };
 
 export type BuilderHost = {
@@ -140,9 +211,15 @@ export type BuilderHost = {
   search: BuilderSearch;
   edits: BuilderEdits;
   optimizer: OptionsFeed;
+  /** Browse all, or null for a host that can't list every week; Week then leaves the button out. */
+  browse: BrowseFeed | null;
+  /** Final exams, or absent for a host that doesn't know them: Week then shows no Finals line. */
+  finals?: BuilderFinals | null;
   /** Section lookup for an alternative's ids, across every loaded option. */
   find: (courseCode: string, sectionId: string) => Section | undefined;
   /** Where Export's Print goes, and the address a share link opens. */
   printHref: string;
   shareUrl: (encoded: string) => string;
+  /** Calendar feeds as busy time; null where the host can't connect them. */
+  calendars: BuilderCalendars | null;
 };
