@@ -110,10 +110,13 @@ export function buildPreview(input: PreviewInput): ExtensionPreview {
   // Week shows Main only for the terms the planner plans, so another term's
   // class search has nothing to check against, and its add is refused.
   if (!isPlannedTerm(term)) {
+    const labels = plannedTerms.map((planned) => planned.label);
     return extensionPreviewSchema.parse({
       scheduleId, optionId: optionIdFromClassNumber(classNumber), revision, title: classNumber,
       conflict: "unknown", unknownReason: "schedule-unavailable",
-      details: [`UNTangle plans ${plannedTerms.map((planned) => planned.label).join(" and ")} right now; this class search is ${termName(term)}.`],
+      // Builds that predate plannedTerms show this line as the verdict.
+      details: [`UNTangle plans only ${labels.join(" and ")} for now. This class search is ${termName(term)}.`],
+      plannedTerms: labels,
     });
   }
 

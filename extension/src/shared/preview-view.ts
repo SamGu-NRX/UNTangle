@@ -10,9 +10,24 @@ const UNKNOWN_COPY: Record<UnknownReason, string> = {
   "schedule-unavailable": "UNTangle couldn't check this section against Main.",
 };
 
-/** "A", "A and B", "A, B and C". */
-export function joined(parts: string[]): string {
-  return parts.length <= 1 ? parts.join("") : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+/** "A", "A and B", "A, B and C"; or with "or". */
+export function joined(parts: string[], word: "and" | "or" = "and"): string {
+  return parts.length <= 1 ? parts.join("") : `${parts.slice(0, -1).join(", ")} ${word} ${parts.at(-1)}`;
+}
+
+/**
+ * The panel's screen for a class search in a term UNTangle doesn't plan, or
+ * null for any other preview. Nothing is broken there, so it says which terms
+ * UNTangle plans and how to get to one, instead of a "can't check" verdict.
+ * `searchTerm` is the class search's term as students say it, "Fall 2027".
+ */
+export function unplannedTerm(p: Preview, searchTerm: string): { title: string; lead: string } | null {
+  if (!p.plannedTerms)
+    return null;
+  return {
+    title: `UNTangle plans only ${joined(p.plannedTerms)} for now`,
+    lead: `This class search is for ${searchTerm}. Switch class search to ${joined(p.plannedTerms, "or")} to check sections against Main.`,
+  };
 }
 
 export function verdictOf(p: Preview): Verdict {

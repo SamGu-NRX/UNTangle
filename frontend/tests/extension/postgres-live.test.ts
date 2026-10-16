@@ -193,7 +193,7 @@ describe.skipIf(!url)("extension routes on Postgres", () => {
     const token = await extensionToken("alice");
     const shown = await preview(token, "fall-2027", "20111");
     expect(shown).toMatchObject({ conflict: "unknown", revision: 0 });
-    expect(shown.details).toEqual(["UNTangle plans Spring 2027 right now; this class search is Fall 2027."]);
+    expect(shown.details).toEqual(["UNTangle plans only Spring 2027 for now. This class search is Fall 2027."]);
     const refused = await add(token, { command: "add-option", operationId: "fall-op-1", scheduleId: "main", optionId: extensionOptionId(fallCsce2110), expectedRevision: 0 });
     expect(refused).toEqual({ status: 403, body: { kind: "rejection", operationId: "fall-op-1", reason: "forbidden" } });
     await expect(repo.get("alice", fallMain)).rejects.toMatchObject({ code: "NOT_FOUND" });

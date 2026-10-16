@@ -42,3 +42,8 @@ test("one malformed layout field rejects the whole preview", () => {
   for (const preview of broken)
     expect(isPreview(preview)).toBe(false);
 });
+test("plannedTerms is one to four term names when present", () => {
+  expect(isPreview({ ...base, plannedTerms: ["Spring 2027"] })).toBe(true);
+  for (const plannedTerms of [[], [""], "Spring 2027", [2027], Array.from({ length: 5 }, () => "Spring 2027"), ["x".repeat(41)]])
+    expect(isPreview({ ...base, plannedTerms })).toBe(false);
+});

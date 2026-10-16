@@ -287,6 +287,8 @@ describe("extension previews", () => {
     expect(down.conflict).toBe("unknown");
     expect(down.unknownReason).toBe("schedule-unavailable");
     expect(down.details[0]).toContain("Section data is unavailable");
+    // Only an unplanned term names the planned terms: an outage must not read as one.
+    expect(down.plannedTerms).toBeUndefined();
   });
 
   test("a section already picked in Main says so", async () => {
@@ -383,8 +385,8 @@ describe("extension previews", () => {
     const documents = store.documents.bind(h.store);
     store.documents = async (userId) => { documentReads++; return documents(userId); };
     const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl("fall-2026", "10234")));
-    expect(preview).toMatchObject({ conflict: "unknown", unknownReason: "schedule-unavailable", revision: 0, title: "10234" });
-    expect(preview.details).toEqual(["UNTangle plans Spring 2027 right now; this class search is Fall 2026."]);
+    expect(preview).toMatchObject({ conflict: "unknown", unknownReason: "schedule-unavailable", revision: 0, title: "10234", plannedTerms: ["Spring 2027"] });
+    expect(preview.details).toEqual(["UNTangle plans only Spring 2027 for now. This class search is Fall 2026."]);
     expect(documentReads).toBe(0);
     expect(h.sectionReads).toEqual([]);
   });
@@ -736,7 +738,7 @@ describe("which Main the extension uses", () => {
     h.store.seed("main-unt-fall-2027", scheduleBody({ termId: "fall-2027", courses: ["MATH 1710"], selectedSections: {} }));
     const token = await h.issue();
     const preview = await readPreview(await h.preview(token, h.previewUrl("fall-2027", "20112")));
-    expect(preview.details).toEqual(["UNTangle plans Spring 2027 right now; this class search is Fall 2027."]);
+    expect(preview.details).toEqual(["UNTangle plans only Spring 2027 for now. This class search is Fall 2027."]);
     for (const expectedRevision of [0, 1]) {
       const refused = await h.add(token, addCommand({ operationId: crypto.randomUUID(), optionId: extensionOptionId(fallCsce2110) as string, expectedRevision }));
       expect(refused.status).toBe(403);

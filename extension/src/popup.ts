@@ -4,7 +4,7 @@ import type { Preview, PreviewClash, PreviewGrades, PreviewMeeting } from "./sha
 import { MARKER_STATES, PILL_CSS, type MarkerState } from "./shared/marker-states";
 import type { PanelState } from "./shared/panel";
 import { trackPress } from "./shared/press";
-import { canAdd, verdictOf } from "./shared/preview-view";
+import { canAdd, unplannedTerm, verdictOf } from "./shared/preview-view";
 
 // Layout follows the v3 course detail (frontend/src/components/courses/
 // DetailPanel.tsx): code and title, then one section per question, one fact
@@ -281,6 +281,9 @@ function screen(): Screen {
   if (next.preview) {
     const p = next.preview.preview;
     const previewId = next.preview.previewId;
+    const unplanned = unplannedTerm(p, termLabel(next.preview.ref.term));
+    if (unplanned)
+      return { name: "unplanned-term", body: result(null, unplanned.title, h("p", { class: "lead" }, unplanned.lead)), foot: [failure].filter(n => n !== null) };
     const add = !canAdd(p) ? null : button("confirm", `Add ${p.title} to Main`, "Adding", "primary", event => {
       confirmedTitle = p.title;
       // A keyboard press (detail 0) never animates; it repeats too often.
