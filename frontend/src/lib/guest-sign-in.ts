@@ -46,8 +46,8 @@ export type GuestSignIn = {
 export type GuestChoice = {
   /** "guest" uses this browser's plan as Main; "account" keeps the account's. */
   schedule: "guest" | "account";
-  /** Per record question: "mine" is this browser's value, "latest" the account's. */
-  answers: ReadonlyArray<"latest" | "mine">;
+  /** Per record question, by questionKey: "mine" is this browser's value, "latest" (the default) the account's. */
+  answers: Readonly<Record<string, "latest" | "mine">>;
   preferences: "guest" | "account";
 };
 
@@ -117,7 +117,7 @@ export function applyGuestSignIn(signIn: GuestSignIn, choice: GuestChoice, curre
       : // Merged per course even when nothing is asked, so a course only the account has stays.
         answerAcademicQuestions(
           { kind: "academic-record", base: signIn.empty["academic-record"], mine: signIn.guest["academic-record"], latest: current["academic-record"] },
-          choice.answers,
+          signIn.questions.map((question) => choice.answers[questionKey(question)] ?? "latest"),
         );
   return joinPlanner(
     {
@@ -155,7 +155,7 @@ export function dropsGuestWork(signIn: GuestSignIn, choice: GuestChoice): boolea
   return (
     (signIn.schedule === "ask" && choice.schedule === "account") ||
     (signIn.preferences === "ask" && choice.preferences === "account") ||
-    choice.answers.some((answer) => answer === "latest")
+    signIn.questions.some((question) => (choice.answers[questionKey(question)] ?? "latest") === "latest")
   );
 }
 

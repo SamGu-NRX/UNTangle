@@ -45,7 +45,7 @@ function Sheet({ signIn, open }: { signIn: GuestSignIn; open: boolean }) {
   const [answers, setAnswers] = useState<Record<string, "latest" | "mine">>({});
   const [preferences, setPreferences] = useState<"account" | "guest">("account");
   const choose = (schedule: "guest" | "account") =>
-    settleGuestSignIn({ schedule, answers: signIn.questions.map((question) => answers[questionKey(question)] ?? "latest"), preferences });
+    settleGuestSignIn({ schedule, answers, preferences });
   const asksSchedule = signIn.schedule === "ask";
   const differ = signIn.scheduleDifference;
   return (

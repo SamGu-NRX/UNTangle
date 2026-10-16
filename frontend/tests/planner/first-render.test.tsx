@@ -368,7 +368,7 @@ test("signing out while guest work waits for an answer says so before removing i
   server.seedPlan(userA.id, { ...stateA(), courseStatuses: { ...stateA().courseStatuses, "MATH 1720": "inProgress" } });
   const guest = getInitialPlannerState();
   expect(createPlannerStateStore(window.localStorage, null).write({ ...guest, courseStatuses: { ...guest.courseStatuses, "ENGL 1310": "inProgress" } }, 0).ok).toBe(true);
-  stampGuestWork();
+  stampGuestWork("plan");
   setSession(userA);
   const planner = await mountAccountMenu();
   await waitFor(() => planner.get().guestSignIn !== null, "asked about the guest work");
@@ -381,3 +381,24 @@ test("signing out while guest work waits for an answer says so before removing i
   await waitFor(() => pushes.length === 1, "signed out");
   expect(window.localStorage.getItem(plannerStateKey(null))).toBeNull();
 });
+
+test("discarding waiting writes and then removing saved schedules signs out, without asking the first question again", async () => {
+  server.seedPlan(userA.id, stateA());
+  setSession(userA);
+  const planner = await mountAccountMenu();
+  await waitFor(() => planner.get().hydrated && planner.get().saveState.label === "Synced", "A loaded");
+  expect(createSavedPlanStore().savePlan({ state: stateA(), name: "A copy" }).ok).toBe(true);
+  server.sessionValid = false;
+  await planner.run((p) => p.setSelectedMajor("math"));
+  await waitFor(() => planner.get().saveState.label === "Needs sign-in", "a write waits");
+
+  await chooseSignOut(planner);
+  await waitFor(() => dialogButton("Sign out and discard") !== undefined, "unsynced question");
+  await planner.run(() => dialogButton("Sign out and discard")!.click());
+  await waitFor(() => dialogButton("Remove and sign out") !== undefined, "saved schedules question");
+  await planner.run(() => dialogButton("Remove and sign out")!.click());
+  await waitFor(() => pushes.length === 1, "signed out");
+  expect((await store.stored(userA.id)).documents).toEqual([]);
+  expect(window.localStorage.getItem(savedPlansKey(userA.id))).toBeNull();
+});
+

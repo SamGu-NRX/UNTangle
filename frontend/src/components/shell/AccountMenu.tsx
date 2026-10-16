@@ -86,7 +86,8 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
     const saved = library.ok ? library.doc.plans.length + library.doc.unreadable.length : 1;
     const guestWork = unsettledGuestWork();
     if ((saved > 0 || guestWork) && !remove) {
-      setAsk({ kind: "remove", saved, guestWork });
+      // The answer to the first question travels with the second, so answering one never undoes the other.
+      setAsk({ kind: "remove", saved, guestWork, discard });
       return false;
     }
     let failed: boolean;
@@ -123,7 +124,8 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
         toast({ message: "Couldn't sync, so you're still signed in. Try again, or sign out and discard them.", tone: "error" });
         return;
       }
-      await signOut({ discard: choice === "discard", remove: choice === "remove", prepared });
+      const discarded = choice === "discard" || (choice === "remove" && ask?.kind === "remove" && ask.discard);
+      await signOut({ discard: discarded, remove: choice === "remove", prepared });
     } finally {
       setBusy(null);
     }
@@ -185,7 +187,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   );
 }
 
-type Ask = { kind: "unsynced" } | { kind: "remove"; saved: number; guestWork: boolean };
+type Ask = { kind: "unsynced" } | { kind: "remove"; saved: number; guestWork: boolean; discard: boolean };
 
 function removalLine(ask: Ask): string {
   if (ask.kind !== "remove") return "";
@@ -193,17 +195,19 @@ function removalLine(ask: Ask): string {
   const one = saved === 1;
   const lines = [
     saved > 0 ? `${saved} saved ${one ? "schedule is" : "schedules are"} kept only on this browser. Export ${one ? "it" : "them"} from Schedules to keep a copy.` : "",
-    guestWork ? "What you did as a guest before signing in hasn't been added to your account yet. Reload to choose what to keep." : "",
+    guestWork ? "What you did as a guest before signing in hasn't been added to your account yet. Stay signed in to choose what to keep." : "",
   ];
   return lines.filter(Boolean).join(" ");
 }
 
 /** Guest work from this browser session that signing in hasn't settled yet (lib/guest-session.ts). */
 function unsettledGuestWork(): boolean {
-  if (!guestWorkIsThisSession()) return false;
   const plan = createPlannerStateStore(window.localStorage, null).read();
   const guestId = window.localStorage.getItem(GUEST_ID_KEY);
-  return (plan.ok && plan.state !== null) || (guestId !== null && window.localStorage.getItem(preferencesKey({ kind: "guest", id: guestId })) !== null);
+  return (
+    (guestWorkIsThisSession("plan") && plan.ok && plan.state !== null) ||
+    (guestWorkIsThisSession("preferences") && guestId !== null && window.localStorage.getItem(preferencesKey({ kind: "guest", id: guestId })) !== null)
+  );
 }
 
 /** The guest's preferences go with the rest of the guest's work. */

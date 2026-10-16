@@ -54,7 +54,7 @@ import {
 import type { PlannerStoreIncoming } from "@/lib/planner-store";
 import type { AcademicRecordBody } from "../../../packages/contracts/src/documents";
 import { createSavedPlanStore } from "@/lib/saved-plans/store";
-import { forgetGuestWork, guestWorkIsThisSession, stampGuestWork } from "@/lib/guest-session";
+import { forgetGuestWork, guestWorkIsThisSession, stampGuestWork, STAMP_PREFIX } from "@/lib/guest-session";
 import { joinPlanner, splitPlanner } from "@/lib/planner-documents";
 import {
   applyGuestSignIn,
@@ -638,7 +638,7 @@ function IdentityPlannerProvider({
           ? writeStoredPreferences(storage, key, preferencesRevision.current, preferencesRef.current, update)
           : { kind: "not-stored", revision: preferencesRevision.current, preferences: update(preferencesRef.current) };
       preferencesRevision.current = outcome.revision;
-      if (outcome.kind !== "not-stored" && guestConfirmed.current) stampGuestWork();
+      if (outcome.kind !== "not-stored" && guestConfirmed.current) stampGuestWork("preferences");
       adoptPreferences(outcome.preferences);
       setPreferencesStorage(outcome.kind);
     },
@@ -1008,7 +1008,7 @@ function IdentityPlannerProvider({
       if (!instanceActive.current) return;
       const result = guestStore.write(state, baseRevision.current);
       if (result.ok) {
-        if (guestConfirmed.current) stampGuestWork();
+        if (guestConfirmed.current) stampGuestWork("plan");
         baseRevision.current = result.revision;
         markSaved(workingStateFingerprint(state));
         return;
@@ -1285,32 +1285,40 @@ function IdentityPlannerProvider({
       const stamp = shortDate(new Date());
 
       /** This browser's guest work against the account as it is now; null once nothing is left to settle. */
-      const read = async () => {
+      /**
+       * This session's guest work against the account as the planner holds it now, the same copy the answer
+       * is written over; null once nothing is left to settle. A part an earlier visitor left is not read.
+       */
+      const read = () => {
+        const planStamped = guestWorkIsThisSession("plan");
+        const prefsStamped = guestWorkIsThisSession("preferences");
         const guestPlan = createPlannerStateStore(storage, null).read();
-        if (!guestPlan.ok || !guestWorkIsThisSession()) return null;
+        if (!guestPlan.ok) return null;
         const guestId = storage.getItem(GUEST_ID_KEY);
         const prefsKey = guestId ? preferencesKey({ kind: "guest", id: guestId }) : null;
-        const prefs = prefsKey ? readStoredPreferences(storage, prefsKey) : ({ kind: "absent" } as const);
+        const prefs = prefsKey && prefsStamped ? readStoredPreferences(storage, prefsKey) : ({ kind: "absent" } as const);
         const clear = () => {
-          clearPlannerIdentity(null);
-          if (prefsKey) storage.removeItem(prefsKey);
-          forgetGuestWork();
+          if (planStamped) clearPlannerIdentity(null);
+          if (prefsStamped && prefsKey) storage.removeItem(prefsKey);
+          forgetGuestWork([...(planStamped ? ["plan" as const] : []), ...(prefsStamped ? ["preferences" as const] : [])]);
         };
-        if (!guestPlan.state && prefs.kind !== "ok") {
+        const ownState = planStamped ? guestPlan.state : null;
+        if (!ownState && prefs.kind !== "ok") {
           clear();
           return null;
         }
-        const state = guestPlan.state ?? getInitialPlannerState();
-        const signIn = planGuestSignIn({ state, preferences: initialPreferences(prefs, state.optimization) }, await sync.drafts(), planningTerm.id);
+        const state = ownState ?? getInitialPlannerState();
+        const now = splitPlanner(stateRef.current, preferencesRef.current, planningTerm.id);
+        const signIn = planGuestSignIn({ state, preferences: initialPreferences(prefs, state.optimization) }, now, planningTerm.id);
         if (!signIn) {
           clear();
           return null;
         }
-        return { state, signIn, clear };
+        return { state, signIn, clear, now };
       };
 
       /** Writes the choice, keeping in Schedules what it leaves out. False when nothing changed. */
-      const apply = async (found: NonNullable<Awaited<ReturnType<typeof read>>>, choice: GuestChoice): Promise<boolean> => {
+      const apply = async (found: NonNullable<ReturnType<typeof read>>, choice: GuestChoice): Promise<boolean> => {
         const { signIn, state } = found;
         const keptGuest = dropsGuestWork(signIn, choice) && hasCopyableWork(signIn) ? library.savePlan({ state, name: `From this browser, ${stamp}` }) : null;
         const keptAccount =
@@ -1319,8 +1327,7 @@ function IdentityPlannerProvider({
           toast({ message: "Couldn't keep a copy in Schedules, so nothing changed. Reload to choose again.", tone: "error" });
           return false;
         }
-        const now = splitPlanner(stateRef.current, preferencesRef.current, planningTerm.id);
-        showDocuments(applyGuestSignIn(signIn, choice, now, stateRef.current.activeDay), false);
+        showDocuments(applyGuestSignIn(signIn, choice, found.now, stateRef.current.activeDay), false);
         const saved = await runSync((s) => s.save(readPlanner), { saving: true });
         void runSync((s) => s.drain());
         if (!saved || !current()) return false;
@@ -1341,8 +1348,8 @@ function IdentityPlannerProvider({
       for (;;) {
         const outcome = await oneTabAtATime("untangle-guest-sign-in", async (): Promise<"done" | GuestSignIn> => {
           if (!current()) return "done";
-          if (asked === null) {
-            // Library entries move whole (every SavedPlanSnapshot field) before anything is decided.
+          if (asked === null && guestWorkIsThisSession("plan")) {
+            // Library entries move whole (every SavedPlanSnapshot field) with this session's plan, before anything is decided.
             const guestLibrary = createSavedPlanStore(storage, null).list();
             if (guestLibrary.ok && guestLibrary.doc.plans.length > 0) {
               if (!library.addSnapshots(guestLibrary.doc.plans).ok) return "done";
@@ -1350,7 +1357,7 @@ function IdentityPlannerProvider({
               if (guestLibrary.doc.unreadable.length === 0) clearSavedPlansIdentity(null);
             }
           }
-          const found = await read();
+          const found = read();
           if (!found || !current()) return "done";
           const choice = pendingChoice.current;
           pendingChoice.current = null;
@@ -1380,10 +1387,9 @@ function IdentityPlannerProvider({
       }
 
       /** No question: the guest's work goes into the account, with Undo. */
-      async function carryOver(found: NonNullable<Awaited<ReturnType<typeof read>>>) {
-        const { signIn, state } = found;
-        const before = splitPlanner(stateRef.current, preferencesRef.current, planningTerm.id);
-        showDocuments(applyGuestSignIn(signIn, { schedule: "guest", answers: [], preferences: "guest" }, before, stateRef.current.activeDay), false);
+      async function carryOver(found: NonNullable<ReturnType<typeof read>>) {
+        const { signIn, state, now: before } = found;
+        showDocuments(applyGuestSignIn(signIn, { schedule: "guest", answers: {}, preferences: "guest" }, before, stateRef.current.activeDay), false);
         if (!(await runSync((s) => s.save(readPlanner), { saving: true })) || !current()) return;
         void runSync((s) => s.drain());
         found.clear();
@@ -1429,7 +1435,7 @@ function IdentityPlannerProvider({
   useEffect(() => {
     if (!guestSignIn) return;
     const onStorage = (event: StorageEvent) => {
-      if (event.key === null || event.key === PLANNER_STATE_STORE_KEY || event.key.startsWith("untangle.guest-session")) guestAnswer.current?.("recheck");
+      if (event.key === null || event.key === PLANNER_STATE_STORE_KEY || event.key.startsWith(STAMP_PREFIX)) guestAnswer.current?.("recheck");
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);

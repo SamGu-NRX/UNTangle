@@ -60,7 +60,8 @@ function guestLeft(state: PlannerState | null, preferences?: SchedulePreferences
     window.localStorage.setItem(GUEST_ID_KEY, "guest-0001");
     window.localStorage.setItem(preferencesKey({ kind: "guest", id: "guest-0001" }), JSON.stringify({ revision: 1, preferences }));
   }
-  stampGuestWork();
+  if (state) stampGuestWork("plan");
+  if (preferences) stampGuestWork("preferences");
 }
 
 /** The browser closed and opened again: session cookies are gone, local storage isn't. */
@@ -214,8 +215,8 @@ describe("the academic record and preferences", () => {
   });
 });
 
-test("guest library entries arrive in the account's library with every field intact", async () => {
-  guestLeft(null);
+test("guest library entries arrive with this session's plan, every field intact", async () => {
+  guestLeft(plan(["CSCE 1040"]));
   const guestLibrary = createSavedPlanStore(window.localStorage, null);
   const saved = guestLibrary.savePlan({ state: plan(["CSCE 1040"]), name: "Guest idea" });
   expect(saved.ok).toBe(true);
@@ -291,10 +292,24 @@ test("two signed-in tabs: the first answer settles the guest work once, and the 
   const second = await mountPlanner();
   mounted.push(second.unmount);
   await waitFor(() => first.get().guestSignIn !== null && second.get().guestSignIn !== null, "asked in both tabs");
-  await first.run((p) => p.settleGuestSignIn({ schedule: "guest", answers: [], preferences: "account" }));
+  await first.run((p) => p.settleGuestSignIn({ schedule: "guest", answers: {}, preferences: "account" }));
   await waitFor(() => guestCleared() && planned(server.plan(user.id), "CSCE 1040"), "first tab's answer");
-  await second.run((p) => p.settleGuestSignIn({ schedule: "account", answers: [], preferences: "account" }));
+  await second.run((p) => p.settleGuestSignIn({ schedule: "account", answers: {}, preferences: "account" }));
   await waitFor(() => second.get().guestSignIn === null, "second tab closed");
   expect(planned(server.plan(user.id), "CSCE 1040")).toBe(true);
   expect(library().map((entry) => entry.name.startsWith("Main from your account"))).toEqual([true]);
+});
+
+test("editing preferences on an earlier visitor's work carries the preferences, not their plan or courses", async () => {
+  guestLeft({ ...plan(["CSCE 1040"]), selectedMajor: "math" });
+  closeBrowser();
+  const defaults = defaultSchedulePreferences(initial.optimization);
+  guestLeft(null, { ...defaults, constraints: { ...defaults.constraints, daysOff: ["Fri" as const] } });
+  const planner = await signIn();
+  await waitFor(() => toastText() === "Saved your preferences to your account", "preferences carried");
+  expect(server.plan(user.id)?.courseStatuses["CSCE 1040"]).toBe("notTaken");
+  expect(server.plan(user.id)?.selectedMajor).toBeNull();
+  expect(planned(planner.get().plannerState, "CSCE 1040")).toBe(false);
+  // The earlier visitor's plan stays where it was; signing out clears it.
+  expect(guestCleared()).toBe(false);
 });
