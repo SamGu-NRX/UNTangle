@@ -10,7 +10,7 @@
  */
 import { busyFromFeed } from "./busy";
 import type { CalendarEvent, CalendarParseResult } from "./types";
-import { slotsFromPieces, weekdayOf, type BusyPiece, type CheckedFeed, type FeedEvent, type FeedProblem, type FeedTerm, type Outcome } from "@/lib/calendar-busy";
+import { busyCount, slotsFromPieces, weekdayOf, type BusyPiece, type CheckedFeed, type FeedEvent, type FeedProblem, type FeedTerm, type Outcome } from "@/lib/calendar-busy";
 import type { ConnectedCalendar, WeekDay } from "@/lib/types";
 import { CalendarSchema, MAX_CALENDAR_BUSY_DATES } from "../../../../packages/contracts/src/documents";
 
@@ -42,6 +42,7 @@ async function problemOf(response: Response, route: "preview" | "busy"): Promise
     return { kind: "unavailable", message: "Calendars can't be connected right now. Add busy times by hand for now." };
   }
   if (code === "CALENDAR_RECONNECT") return { kind: "reconnect", message: "Paste this calendar's address again to refresh it." };
+  if (code === "CALENDAR_SIGN_IN") return { kind: "sign-in", message: "Sign in again to refresh this calendar." };
   if (response.status === 502) return { kind: "unreachable", message: "UNTangle couldn't reach that calendar. Check the address, or try again in a minute." };
   if (response.status === 422) return { kind: "too-big", message: "This calendar has too many events to read. Try a smaller one." };
   if (error === "Invalid calendar feed URL") {
@@ -87,8 +88,10 @@ export async function checkFeed(url: string, term: FeedTerm, fetchImpl: FetchLik
       end: piece.endMinutes,
     }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
-  if (pieces.length > MAX_CALENDAR_BUSY_DATES) return { ok: false, problem: TOO_MANY };
-  return { ok: true, value: { busyCount: pieces.length, events } };
+  // Counted as connecting stores them: one per slot and date, so two events at one time on one date count once.
+  const count = busyCount({ busy: slotsFromPieces(pieces, term) });
+  if (count > MAX_CALENDAR_BUSY_DATES) return { ok: false, problem: TOO_MANY };
+  return { ok: true, value: { busyCount: count, allDayCount: pieces.filter((piece) => piece.allDay).length, events } };
 }
 
 type BusyResponse = { occurrences: BusyPiece[]; sealedUrl?: string };
@@ -147,5 +150,12 @@ export async function refreshCalendar(
 ): Promise<Outcome<ConnectedCalendar>> {
   const read = await readBusy(options.fetchImpl ?? globalThis.fetch, { sealedUrl: calendar.sealedUrl }, term);
   if (!read.ok) return read;
-  return kept({ ...calendar, termId: term.id, checkedAt: (options.now ?? (() => new Date()))().toISOString(), busy: slotsFromPieces(read.value.occurrences, term) });
+  return kept({
+    ...calendar,
+    // A guest's token refreshed by a signed-in student comes back sealed for the account.
+    sealedUrl: read.value.sealedUrl ?? calendar.sealedUrl,
+    termId: term.id,
+    checkedAt: (options.now ?? (() => new Date()))().toISOString(),
+    busy: slotsFromPieces(read.value.occurrences, term),
+  });
 }

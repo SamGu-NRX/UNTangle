@@ -241,7 +241,8 @@ export const ScheduleBodySchema = z
  */
 export const SealedFeedUrlSchema = z
   .string()
-  .max(4096)
+  // A 2,048-character address of 4-byte characters, sealed and base64url'd, with room to spare.
+  .max(12_000)
   .regex(/^cf1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, "A calendar address is stored only sealed.");
 
 /** Most calendars one student connects, and most busy dates one calendar holds for a term. */

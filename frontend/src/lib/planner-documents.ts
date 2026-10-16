@@ -181,7 +181,8 @@ const isRowList = (value: unknown): value is Array<Record<string, unknown> & { i
  * - object keys the planner never read keep their stored values, at any depth;
  * - a list of codes (courses, manual credit, days off) changes by the codes
  *   the planner added or removed, so a code it can't show stays;
- * - a list of rows with ids (transcript rows, busy times) changes row by row;
+ * - a list of rows with ids (transcript rows, busy times, calendars) changes
+ *   row by row, and a list the planner left out counts as empty;
  * - any other value the planner changed takes the planner's value whole.
  */
 export function rebase(stored: unknown, before: unknown, after: unknown): unknown {
@@ -209,8 +210,13 @@ export function rebase(stored: unknown, before: unknown, after: unknown): unknow
     Object.defineProperty(next, key, { value, enumerable: true, configurable: true, writable: true });
   for (const [key, value] of Object.entries(stored)) put(key, value);
   for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
-    if (!Object.hasOwn(after, key)) delete next[key];
-    else if (Object.hasOwn(stored, key) && Object.hasOwn(before, key)) put(key, rebase(stored[key], before[key], after[key]));
+    if (!Object.hasOwn(after, key)) {
+      // A list of rows is left out of a body when it is empty (calendars), so a missing list reads as an
+      // empty one: removing the last row this side knew of keeps a row only the stored body has.
+      const rest = isRowList(next[key]) && isRowList(before[key]) ? (rebase(next[key], before[key], []) as unknown[]) : [];
+      if (rest.length > 0) put(key, rest);
+      else delete next[key];
+    } else if (Object.hasOwn(stored, key) && Object.hasOwn(before, key)) put(key, rebase(stored[key], before[key], after[key]));
     else put(key, after[key]);
   }
   return next;

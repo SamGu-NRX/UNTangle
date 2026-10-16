@@ -124,4 +124,3 @@ export function preferenceSummary(p: SchedulePreferences, defaults: SchedulePref
   const line = parts.join(", ");
   return line ? line[0].toUpperCase() + line.slice(1) : "";
 }
-

@@ -600,7 +600,7 @@
   padding-left: 7px;
   border-left: 2px solid color-mix(in oklab, var(--ink-2) 50%, transparent);
   background-color: color-mix(in oklab, var(--paper-2) 60%, transparent);
-  background-image: radial-gradient(rgba(79, 101, 79, 0.3) 1px, transparent 1.5px);
+  background-image: radial-gradient(color-mix(in oklab, var(--ink-2) 35%, transparent) 1px, transparent 1.5px);
   background-size: 6px 6px;
   color: var(--ink);
 }

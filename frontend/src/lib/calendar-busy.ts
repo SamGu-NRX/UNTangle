@@ -139,7 +139,7 @@ export type FeedTerm = { id: string; label: string; start: string; end: string }
 
 /** Why a check, connect or refresh failed, in words the student can act on. */
 export type FeedProblem = {
-  kind: "address" | "unreachable" | "too-big" | "busy" | "unavailable" | "reconnect" | "offline";
+  kind: "address" | "unreachable" | "too-big" | "busy" | "unavailable" | "reconnect" | "sign-in" | "offline";
   message: string;
 };
 
@@ -156,6 +156,12 @@ export type FeedEvent = {
 export type CheckedFeed = {
   /** Busy pieces in the term, as connecting would store them. */
   busyCount: number;
+  /**
+   * How many of them are all day. Auto keeps such a date's whole day free,
+   * so a class that meets that weekday all term can't be picked; the check
+   * says so before the student adds the calendar.
+   */
+  allDayCount: number;
   /** Timed weekday occurrences in the term, by date: what one event can become. */
   events: FeedEvent[];
 };
@@ -163,8 +169,10 @@ export type CheckedFeed = {
 export type Outcome<T> = { ok: true; value: T } | { ok: false; problem: FeedProblem };
 
 /**
- * One event as a named busy time on its date only (research section 6):
- * Auto keeps that date free and every other week stays open. The id comes
+ * One event as a named busy time on its date only (research section 6).
+ * Auto rules out a section that meets at that time on that date, which is
+ * every section running all term on that weekday; a section whose weeks
+ * miss the date stays open. The id comes
  * from the date and time, so blocking the same event twice is refused as a
  * duplicate.
  */
@@ -176,5 +184,46 @@ export function eventBusyTime(event: FeedEvent): BlockedTime {
     start: event.start,
     end: event.end,
     dates: [{ start: event.date, end: event.date }],
+  };
+}
+
+/* ───────── Reading connected calendars again ───────── */
+
+/**
+ * A calendar is read again when Week opens and its busy time is older than
+ * this, or was read for another term. Six hours is a starting value with
+ * nothing measured behind it: often enough that a new shift shows the same
+ * day, rarely enough that Week doesn't refetch on every visit.
+ */
+export const CALENDAR_STALE_MS = 6 * 60 * 60 * 1000;
+
+/** The calendars to read again now: stale or for another term, and not tried already during this visit. */
+export function calendarsToRefresh(
+  calendars: readonly ConnectedCalendar[] | undefined,
+  termId: string,
+  now: number,
+  tried: ReadonlySet<string>,
+): ConnectedCalendar[] {
+  return (calendars ?? []).filter(
+    (calendar) => !tried.has(calendar.id) && (calendar.termId !== termId || now - Date.parse(calendar.checkedAt) > CALENDAR_STALE_MS),
+  );
+}
+
+/**
+ * The preferences with one calendar's fresh reading: its busy time, term,
+ * read time and (when the server upgraded it) sealed address, onto the
+ * calendar as it is now, so a rename made meanwhile stays. A calendar
+ * removed meanwhile, or connected again under another address, is left as it
+ * is: the reading belonged to the one that was there.
+ */
+export function withReading<P extends { calendars?: ConnectedCalendar[] }>(preferences: P, read: ConnectedCalendar, reading: ConnectedCalendar): P {
+  if (!preferences.calendars?.some((calendar) => calendar.id === read.id && calendar.sealedUrl === read.sealedUrl)) return preferences;
+  return {
+    ...preferences,
+    calendars: preferences.calendars.map((calendar) =>
+      calendar.id === read.id && calendar.sealedUrl === read.sealedUrl
+        ? { ...calendar, busy: reading.busy, termId: reading.termId, checkedAt: reading.checkedAt, sealedUrl: reading.sealedUrl }
+        : calendar,
+    ),
   };
 }

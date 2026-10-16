@@ -41,9 +41,10 @@ type BusyBody = {
  * Request: `{ url | sealedUrl, seal?, rangeStart?, rangeEnd?, termStart?,
  * termEnd? }`. `sealedUrl` is a token this route returned earlier for the
  * same account (or for a guest, to any guest), and refreshes a connected
- * calendar without its address ever leaving the server again. `seal: true`
- * with a `url` adds `sealedUrl` to the response, sealed for the caller
- * (lib/calendar-feeds/seal.ts). The
+ * calendar without its address ever leaving the server again; a guest's
+ * token sent by a signed-in student comes back sealed for the account as
+ * `sealedUrl`. `seal: true` with a `url` adds `sealedUrl` to the response,
+ * sealed for the caller (lib/calendar-feeds/seal.ts). The
  * range is half-open. termStart and termEnd (inclusive ISO dates) scope the
  * pieces to the planning term; with a term and no range, the range is the
  * whole term in America/Chicago, and a given range must cover the term.
@@ -67,7 +68,8 @@ type BusyBody = {
  * unreachable or slow feed, and 422 with "This calendar has too many events
  * to preview" when the response would be over 1 MiB. The response is never
  * cut short to fit. A sealed address this server can't open for the caller
- * answers 422 with code `CALENDAR_RECONNECT`; with no sealing key
+ * answers 422 with code `CALENDAR_RECONNECT`, or, without a session, 401
+ * with code `CALENDAR_SIGN_IN`; with no sealing key
  * configured, sealing or opening answers 503 with code
  * `CALENDARS_UNAVAILABLE`.
  */
@@ -98,16 +100,29 @@ async function busyHandler(request: Request) {
   if (range === null) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
+  // A pasted address is checked before it is sealed, so a token never holds one the fetcher refuses.
+  if (plain && !validateCalendarUrl(body.url as string).ok) {
+    return NextResponse.json({ error: "Invalid calendar feed URL" }, { status: 400 });
+  }
   let url: string;
   let sealedUrl: string | undefined;
   try {
     const key = sealed || body.seal ? feedKeyFromEnv() : null;
-    url = sealed ? openFeedUrl(body.sealedUrl as string, owner, key) : (body.url as string);
-    if (body.seal) sealedUrl = sealFeedUrl(url, owner, key);
+    if (sealed) {
+      ({ url, sealedUrl } = openForCaller(body.sealedUrl as string, owner, key));
+    } else {
+      url = body.url as string;
+      if (body.seal) sealedUrl = sealFeedUrl(url, owner, key);
+    }
   } catch (error) {
     if (!(error instanceof FeedSealError)) throw error;
     if (error.kind === "not-configured") {
       return NextResponse.json({ error: "Calendars can't be connected on this server", code: "CALENDARS_UNAVAILABLE" }, { status: 503 });
+    }
+    // Without a session, a token that isn't a guest's is most likely an account's whose session ended:
+    // signing in again opens it, while pasting the address as a guest would seal it for the wrong owner.
+    if (owner.kind === "guest" && error.kind === "unreadable") {
+      return NextResponse.json({ error: "Sign in to refresh this calendar", code: "CALENDAR_SIGN_IN" }, { status: 401 });
     }
     return NextResponse.json({ error: "Connect this calendar again", code: "CALENDAR_RECONNECT" }, { status: 422 });
   }
@@ -141,6 +156,28 @@ async function busyHandler(request: Request) {
     return NextResponse.json({ error: TOO_MANY_EVENTS_MESSAGE }, { status: 422 });
   }
   return new NextResponse(json, { status: 200, headers: { "content-type": "application/json" } });
+}
+
+/**
+ * The address in a sealed token, for whoever is asking. A signed-in student
+ * may hold a guest's token: one connected before signing in, which a later
+ * move of guest preferences into the account carries over. Any guest can open
+ * a guest token, so opening it for the account gives nothing away; it comes
+ * back sealed for the account (`sealedUrl`), and the client keeps that one.
+ */
+function openForCaller(token: string, owner: FeedOwner, key: Buffer | null): { url: string; sealedUrl?: string } {
+  try {
+    return { url: openFeedUrl(token, owner, key) };
+  } catch (error) {
+    if (owner.kind !== "user" || !(error instanceof FeedSealError) || error.kind !== "unreadable") throw error;
+    let url: string;
+    try {
+      url = openFeedUrl(token, { kind: "guest" }, key);
+    } catch {
+      throw error;
+    }
+    return { url, sealedUrl: sealFeedUrl(url, owner, key) };
+  }
 }
 
 /**

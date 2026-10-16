@@ -42,6 +42,7 @@ const work: ConnectedCalendar = {
 };
 const checked: CheckedFeed = {
   busyCount: 3,
+  allDayCount: 0,
   events: [{ key: "demo", summary: "Robot demo day", date: "2027-03-02", day: "Tue", start: 660, end: 750 }],
 };
 
@@ -104,7 +105,6 @@ describe("connecting a calendar in Preferences", () => {
     const view = await render(host);
     expect(view.container.textContent).toContain("None yet.");
     await click(button(view.container, "Add a calendar"));
-    expect(button(view.container, "Check").disabled).toBe(true);
     await type(field(view.container, "Calendar address"), "https://calendar.example.edu/work.ics");
     await click(button(view.container, "Check"));
     await settle();
@@ -137,6 +137,20 @@ describe("connecting a calendar in Preferences", () => {
     expect(view.preferences().calendars).toBeUndefined();
   });
 
+  test("a failed connect says so for the whole form, not under the name, and the form stays usable", async () => {
+    const { host } = fakeHost({ connect: async () => ({ ok: false, problem: { kind: "unavailable", message: "Calendars can't be connected right now. Add busy times by hand for now." } }) });
+    const view = await render(host);
+    await click(button(view.container, "Add a calendar"));
+    await type(field(view.container, "Calendar address"), "https://calendar.example.edu/work.ics");
+    await click(button(view.container, "Check"));
+    await settle();
+    await click(button(view.container, "Add calendar"));
+    await settle();
+    expect(view.container.querySelector('[role="alert"]')?.textContent).toBe("Calendars can't be connected right now. Add busy times by hand for now.");
+    expect(field(view.container, "Name").getAttribute("aria-invalid")).toBeNull();
+    expect(button(view.container, "Add calendar").getAttribute("aria-busy")).not.toBe("true");
+  });
+
   test("one event becomes a busy time on its date only, and the calendar isn't added", async () => {
     const { host, connect } = fakeHost();
     const view = await render(host);
@@ -146,7 +160,7 @@ describe("connecting a calendar in Preferences", () => {
     await settle();
     await click(button(view.container, "Or pick one event from it"));
     const event = [...view.container.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Robot demo day"))!;
-    expect(event.textContent).toContain("Tue Mar 2, 11 AM–12:30 PM");
+    expect(event.textContent).toContain("Tue Mar 2, 11 AM to 12:30 PM");
     await click(event);
     expect(connect).not.toHaveBeenCalled();
     expect(view.preferences().calendars).toBeUndefined();

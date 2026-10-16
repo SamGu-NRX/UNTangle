@@ -458,10 +458,28 @@ describe("sealed addresses", () => {
       const stolen = await POST(busyRequest({ sealedUrl, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.91"));
       expect(stolen.status).toBe(422);
       expect(await stolen.json()).toEqual({ error: "Connect this calendar again", code: "CALENDAR_RECONNECT" });
+      // Without a session, an account's token most likely means the session ended: sign in, don't paste it again.
       setSession(null);
       const asGuest = await POST(busyRequest({ sealedUrl, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.91"));
-      expect(asGuest.status).toBe(422);
+      expect(asGuest.status).toBe(401);
+      expect(await asGuest.json()).toEqual({ error: "Sign in to refresh this calendar", code: "CALENDAR_SIGN_IN" });
       expect(fetchStub).toHaveBeenCalledTimes(0);
+    }));
+
+  test("a guest's token refreshed by a signed-in student comes back sealed for the account", async () =>
+    withKey(KEY, async () => {
+      setSession(null);
+      const { sealedUrl: guestToken } = await (await POST(busyRequest({ ...VALID_BODY, seal: true }, "192.0.2.95"))).json();
+      setSession({ user: { id: "user-signed-in-later" } });
+      const upgraded = await POST(busyRequest({ sealedUrl: guestToken, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.95"));
+      expect(upgraded.status).toBe(200);
+      const { sealedUrl: accountToken } = await upgraded.json();
+      expect(accountToken).toMatch(/^cf1\./);
+      expect(accountToken).not.toBe(guestToken);
+      // The new token is the account's: it opens for the account and for no guest.
+      expect((await POST(busyRequest({ sealedUrl: accountToken, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.95"))).status).toBe(200);
+      setSession(null);
+      expect((await POST(busyRequest({ sealedUrl: accountToken, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.95"))).status).toBe(401);
     }));
 
   test("a guest's token opens for guests", async () =>

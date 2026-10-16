@@ -6,10 +6,11 @@ import { CalendarGlyph, Check, Close, LockGlyph, Plus } from "@/components/ui/ic
 import { keyboardFocused } from "@/components/ui/input-source";
 import { TextField } from "@/components/ui/TextField";
 import { toast } from "@/components/ui/Toast";
-import { busyCount, eventBusyTime, MAX_CALENDARS, type CheckedFeed, type FeedEvent } from "@/lib/calendar-busy";
+import { busyCount, eventBusyTime, MAX_CALENDARS, type CheckedFeed, type FeedEvent, type FeedProblem } from "@/lib/calendar-busy";
 import type { ConnectedCalendar, SchedulePreferences } from "@/lib/types";
 import type { BuilderCalendars } from "./host";
-import { hourSpan, shortDate } from "./limits";
+import { shortDate } from "./limits";
+import { clockWithSuffix } from "./week";
 import styles from "./prefs.module.css";
 
 type Update = (update: (current: SchedulePreferences) => SchedulePreferences) => void;
@@ -27,7 +28,20 @@ type Flow =
 /** How many events the one-event list shows before asking for a search. */
 const EVENTS_SHOWN = 30;
 
+/** "11 AM to 12:30 PM": a range the way people say it (docs/design/copy.md). */
+const spokenSpan = (start: number, end: number) => `${clockWithSuffix(start)} to ${clockWithSuffix(end)}`;
+
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * A check or connect that threw: a bug, not something the student did. The
+ * form says so and stays usable rather than spinning; the log line names the
+ * error only, never the address.
+ */
+function failed(error: unknown): { ok: false; problem: FeedProblem } {
+  console.error("Calendar check or connect failed", error instanceof Error ? error.name : typeof error);
+  return { ok: false, problem: { kind: "unreachable", message: "That calendar couldn't be read. Try again." } };
+}
 
 function withoutCalendar(p: SchedulePreferences, id: string): SchedulePreferences {
   const calendars = (p.calendars ?? []).filter((calendar) => calendar.id !== id);
@@ -93,7 +107,7 @@ function EventList({ events, query, onQuery, blocked, onPick }: { events: readon
               <span className={styles.rowText}>
                 <b className={styles.rowName}>{event.summary}</b>
                 <span>
-                  {event.day} {shortDate(event.date)}, {hourSpan(event.start, event.end)}
+                  {event.day} {shortDate(event.date)}, {spokenSpan(event.start, event.end)}
                 </span>
               </span>
               <span className={styles.optTag}>{added ? "Added" : ""}</span>
@@ -150,7 +164,7 @@ export function CalendarFeeds({ host, preferences, onChange }: { host: BuilderCa
     note();
     const url = flow.url;
     setFlow({ ...flow, checking: true, error: null });
-    const outcome = await host.check(url);
+    const outcome = await host.check(url).catch(failed);
     // The student may have closed the picker or changed the address while it was checked.
     const now = flowRef.current;
     if (now.step !== "address" || now.url !== url) return;
@@ -168,7 +182,7 @@ export function CalendarFeeds({ host, preferences, onChange }: { host: BuilderCa
     note();
     const { url, name } = flow;
     setFlow({ ...flow, adding: true, error: null });
-    const outcome = await host.connect(url, name.trim() || "Calendar");
+    const outcome = await host.connect(url, name.trim() || "Calendar").catch(failed);
     const now = flowRef.current;
     if (now.step !== "checked" || now.url !== url) return;
     if (!outcome.ok) {
@@ -272,13 +286,13 @@ export function CalendarFeeds({ host, preferences, onChange }: { host: BuilderCa
           />
           <p className={styles.private}>
             <LockGlyph size={13} />
-            <span>Kept private. UNTangle stores the address encrypted and saves only when you&apos;re busy, never event names.</span>
+            <span>Kept private. UNTangle stores the address encrypted and keeps only the times you&apos;re busy. An event&apos;s name is kept only if you pick that event.</span>
           </p>
           <div className={styles.pickerActions}>
             <Button variant="ink" size="sm" type="button" onClick={close}>
               Cancel
             </Button>
-            <Button size="sm" type="submit" loading={flow.checking} loadingLabel="Checking" disabled={!flow.url.trim()}>
+            <Button size="sm" type="submit" loading={flow.checking} loadingLabel="Checking">
               Check
             </Button>
           </div>
@@ -293,6 +307,11 @@ export function CalendarFeeds({ host, preferences, onChange }: { host: BuilderCa
                 : `It works. ${plural(flow.feed.busyCount, "busy time")} in ${term.label}.`}
             </span>
           </p>
+          {flow.feed.allDayCount > 0 ? (
+            <p className={styles.allDay}>
+              {flow.feed.allDayCount === 1 ? "One is all day" : `${flow.feed.allDayCount} are all day`}, so Auto keeps those whole days free.
+            </p>
+          ) : null}
           <TextField
             ref={nameRef}
             size="sm"
@@ -300,9 +319,13 @@ export function CalendarFeeds({ host, preferences, onChange }: { host: BuilderCa
             placeholder="Work, Practice, Club"
             maxLength={40}
             value={flow.name}
-            error={flow.error}
-            onChange={(e) => setFlow({ ...flow, name: e.target.value, error: null })}
+            onChange={(e) => setFlow({ ...flow, name: e.target.value })}
           />
+          {flow.error ? (
+            <p className={styles.formError} role="alert">
+              {flow.error}
+            </p>
+          ) : null}
           <div className={styles.pickerActions}>
             <Button variant="ink" size="sm" type="button" onClick={close}>
               Cancel

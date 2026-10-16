@@ -8,6 +8,7 @@ import { useOptimizerRuns } from "@/components/schedule/use-optimizer";
 import { searchCourses } from "@/components/shell/course-search";
 import { toast } from "@/components/ui/Toast";
 import type { Brand } from "@/lib/brand";
+import { calendarsToRefresh, withReading } from "@/lib/calendar-busy";
 import { checkFeed, connectFeed, refreshCalendar, type FeedTerm } from "@/lib/calendar-feeds/client";
 import type { RelaxSuggestion } from "@/lib/optimizer/types";
 import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
@@ -26,15 +27,7 @@ import { isShuttleLeg, plannerTravelTime } from "@/lib/planner-walking";
 import { findClassNumber } from "@/lib/sections/client";
 import { optionReasons } from "./option-reasons";
 import { courses as catalog } from "@/lib/seed-data";
-import type { ConnectedCalendar, CourseStatus, PlannerState } from "@/lib/types";
-
-/**
- * A connected calendar is read again when Week opens and its busy time is
- * older than this, or was read for another term. Six hours is a starting
- * value with nothing measured behind it: often enough that a new shift
- * shows the same day, rarely enough that Week doesn't refetch on every visit.
- */
-const CALENDAR_STALE_MS = 6 * 60 * 60 * 1000;
+import type { CourseStatus, PlannerState } from "@/lib/types";
 
 const feedTerm: FeedTerm | null = termDates[planningTerm.id] ? { ...planningTerm, ...termDates[planningTerm.id] } : null;
 
@@ -422,9 +415,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
   useEffect(() => {
     if (!preferencesReady || !feedTerm) return;
     const term = feedTerm;
-    for (const calendar of calendars ?? []) {
-      const stale = calendar.termId !== term.id || Date.now() - Date.parse(calendar.checkedAt) > CALENDAR_STALE_MS;
-      if (!stale || refreshed.current.has(calendar.id)) continue;
+    for (const calendar of calendarsToRefresh(calendars, term.id, Date.now(), refreshed.current)) {
       refreshed.current.add(calendar.id);
       void refreshCalendar(calendar, term).then((outcome) => {
         if (!outcome.ok) {
@@ -432,11 +423,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
           return;
         }
         setCalendarProblems((problems) => Object.fromEntries(Object.entries(problems).filter(([id]) => id !== calendar.id)));
-        // Only the calendar as it was read: one removed or reconnected meanwhile stays as it is now.
-        setSchedulePreferences((p) => ({
-          ...p,
-          calendars: p.calendars?.map((current: ConnectedCalendar) => (current.id === calendar.id && current.sealedUrl === calendar.sealedUrl ? outcome.value : current)),
-        }));
+        setSchedulePreferences((p) => withReading(p, calendar, outcome.value));
       });
     }
   }, [calendars, preferencesReady, setSchedulePreferences]);
