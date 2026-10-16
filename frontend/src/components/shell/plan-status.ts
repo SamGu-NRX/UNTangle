@@ -26,10 +26,5 @@ export function chipStatusLabel(status: PlannerSaveStatus, label: string): strin
   return status !== "saving" && label.endsWith("…") ? label.slice(0, -1) : label;
 }
 
-/** Where a saved schedule lives, in the words the schedule sheet uses (DESIGN.md §8.1 `guest`). */
-export function savedWhere(isRegistered: boolean): string {
-  return isRegistered ? "Saved to your account" : "Saved on this device";
-}
-
 /** Named schedules arrive with the library rebuild; until then every plan is the one schedule, "Main". */
 export const SCHEDULE_NAME = "Main";

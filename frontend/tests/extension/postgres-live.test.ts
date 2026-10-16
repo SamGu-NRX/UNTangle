@@ -4,7 +4,8 @@
  * localhost-only, a disposable schema per run): a real documentRepository
  * behind the extension store, with real compare-and-set, receipt rows, and
  * tombstones. Cases: add-option, a repeated operation id, a reused operation
- * id with a different command, a stale revision, and a deleted schedule. The
+ * id with a different command, a stale revision, preferences scoped to an
+ * institution, and a deleted schedule. The
  * store is the production factory from store-core.ts, which deliberately
  * carries no server-only import so this module can construct it.
  */
@@ -112,6 +113,23 @@ describe.skipIf(!url)("extension add-option on Postgres", () => {
     expect(reused.status).toBe(409);
     expect(reused.body).toMatchObject({ kind: "rejection", operationId: "live-op-1", reason: "forbidden" });
     expect((await store.getDocument("alice", "ext-main")).revision).toBe(2);
+  });
+
+  test("preferences are the ones for the institution asked for", async () => {
+    const prefs = (institutionId: string) => ({
+      institutionId, goal: "compact",
+      constraints: {
+        earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null,
+        walkingBufferMinutes: null, excludedSections: [], openSeatsOnly: false, otherSites: false,
+      },
+      weights: { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 },
+    });
+    // "a-prefs" sorts first by id, so an unfiltered query would return it.
+    await repo.write("alice", bytes(write({ documentId: "a-prefs", operationId: "prefs-1", kind: "preferences", body: prefs("other-school") })), "a-prefs");
+    await repo.write("alice", bytes(write({ documentId: "b-prefs", operationId: "prefs-2", kind: "preferences", body: prefs("unt") })), "b-prefs");
+    expect(String((await store.preferences("alice", "unt"))?.institutionId)).toBe("unt");
+    expect(String((await store.preferences("alice", "other-school"))?.institutionId)).toBe("other-school");
+    expect(await store.preferences("alice", "nowhere")).toBeNull();
   });
 
   test("a stale expected revision is a typed rejection, never an overwrite", async () => {

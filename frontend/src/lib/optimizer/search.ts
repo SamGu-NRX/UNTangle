@@ -129,6 +129,16 @@ type Options = {
   /** Start from this schedule as the one to beat (must satisfy the same rules). */
   incumbent: Leaf | null;
   onLeaf?: (leaf: Leaf) => void;
+  /**
+   * Keep the best several schedules instead of the best one (the browse
+   * list, enumerate.ts). Called with each complete schedule; returns the
+   * schedule to beat from then on, which is the worst one kept once the
+   * caller has as many as it wants, and null before. Pruning against it is
+   * the same rule as pruning against the best, so the caller ends up with
+   * exactly the best ones. Returning null every time prunes nothing, and
+   * every valid schedule reaches this callback once.
+   */
+  collect?: (leaf: Leaf) => Leaf | null;
 };
 
 export type SearchOutcome = { best: Leaf | null; complete: boolean };
@@ -500,6 +510,10 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     if (options.stopAtFirst) {
       best = leaf;
       throw new FoundOne();
+    }
+    if (options.collect) {
+      best = options.collect(leaf);
+      return;
     }
     if (best === null || leafBefore(leaf, best)) best = leaf;
   }

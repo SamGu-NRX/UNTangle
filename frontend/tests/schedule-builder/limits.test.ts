@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { changedCount, hourSpan, isBusy, leanOf, ledger, paint, renameBusy, stepCredits, toggleDayOff, withHours, withLean } from "@/components/schedule-builder/limits";
+import { preferenceSummary, withLunch } from "@/components/schedule-builder/preferences";
 import type { SchedulePreferences } from "@/lib/types";
 
 const defaults: SchedulePreferences = {
@@ -33,6 +34,19 @@ describe("painting busy times", () => {
     const work = renameBusy(paint(defaults, ["Tue"], 900, 1020, "busy", id), ["b" + n], "Work");
     const grown = paint(work, ["Tue"], 1020, 1080, "busy", id);
     expect(blocksOf(grown)).toEqual(["Work Tue 900-1080"]);
+  });
+
+  test("painting beside Lunch adds a block of its own, which outlasts turning Lunch off", () => {
+    const p = paint(withLunch(defaults, true), ["Tue"], 780, 900, "busy", id);
+    expect(blocksOf(p).filter((block) => block.includes("Tue"))).toEqual(["Busy Tue 780-900", "Lunch Tue 720-780"]);
+    expect(preferenceSummary(p, defaults)).toContain("busy Tue 1:00–3:00");
+    expect(blocksOf(withLunch(p, false))).toEqual(["Busy Tue 780-900"]);
+  });
+
+  test("time painted between two named blocks joins one of them, never both", () => {
+    const work = renameBusy(paint(defaults, ["Mon"], 600, 660, "busy", id), ["b" + n], "Work");
+    const both = renameBusy(paint(work, ["Mon"], 720, 780, "busy", id), ["b" + n], "Practice");
+    expect(blocksOf(paint(both, ["Mon"], 660, 720, "busy", id))).toEqual(["Practice Mon 720-780", "Work Mon 600-720"]);
   });
 
   test("freeing the middle of a block splits it in two, both keeping the name", () => {
@@ -117,5 +131,30 @@ describe("the Preferences button's count", () => {
     p = withLean(p, "walking", 3);
     p = { ...p, constraints: { ...p.constraints, maxCredits: 15, openSeatsOnly: true } };
     expect(changedCount(p, defaults)).toBe(5);
+  });
+});
+
+describe("a busy time made from one calendar event", () => {
+  const demo = { id: "event-2027-03-02-660-750", label: "Robot demo day", day: "Tue" as const, start: 660, end: 750, dates: [{ start: "2027-03-02", end: "2027-03-02" }] };
+  const withDemo: SchedulePreferences = { ...defaults, constraints: { ...defaults.constraints, blocked: [demo] } };
+
+  test("isn't weekly, so the painted week neither shows it nor merges a painted block into it", () => {
+    expect(isBusy(withDemo, "Tue", 690)).toBe(false);
+    const painted = paint(withDemo, ["Tue"], 600, 720, "busy", id);
+    expect(painted.constraints.blocked).toContainEqual(demo);
+    expect(painted.constraints.blocked.filter((b) => !b.dates)).toHaveLength(1);
+    const freed = paint(withDemo, ["Tue"], 600, 780, "free", id);
+    expect(freed.constraints.blocked).toEqual([demo]);
+  });
+
+  test("has its own ledger row, said by its date", () => {
+    expect(ledger(withDemo)).toEqual([
+      { kind: "busy", title: "Robot demo day", detail: "Mar 2, 11 AM–12:30 PM", label: "Robot demo day", ids: [demo.id], unnamed: false, dated: true },
+    ]);
+  });
+
+  test("a connected calendar counts once on the Preferences button", () => {
+    const calendar = { id: "cal-work", name: "Work", sealedUrl: "cf1.a.b.c", feedId: "WorkFeedIdAAAAAAAAAAAA", termId: "spring-2027", checkedAt: "2026-10-15T12:00:00.000Z", busy: [], allDayDates: [], countAllDay: false };
+    expect(changedCount({ ...defaults, calendars: [calendar] }, defaults)).toBe(1);
   });
 });

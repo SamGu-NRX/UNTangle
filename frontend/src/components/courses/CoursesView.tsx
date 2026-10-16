@@ -664,6 +664,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
             initialInstructor={instructorForDetail}
             inCore={coreSet.has(detailRow.id)}
             actions={detailActions}
+            planLoaded={hydrated}
           />
         ) : null}
       </ContextPanel>

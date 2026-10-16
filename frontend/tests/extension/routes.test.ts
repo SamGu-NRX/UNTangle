@@ -75,7 +75,9 @@ class MemoryExtensionStore implements ExtensionStore {
     return DocumentSchema.parse({ documentId, kind: document.kind, revision: document.revision, schemaVersion: 1, body: document.body });
   }
 
-  async preferences() { return this.preferencesBody; }
+  async preferences(userId: string, institutionId: string) {
+    return this.preferencesBody?.institutionId === institutionId ? this.preferencesBody : null;
+  }
 
   async receipt(userId: string, operationId: string) { return this.#receipts.get(operationId) ?? null; }
 
@@ -194,15 +196,8 @@ describe("extension previews", () => {
     const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl(term, "4000")));
     expect(preview.meetings).toEqual([
       { days: "Mon Wed", time: "9:00 AM to 10:30 AM", room: "LS 110" },
-      { days: "No set day", time: null, room: "LS 110" },
+      { days: "TBA", time: null, room: "LS 110" },
     ]);
-  });
-
-  test("an online section with no meeting day is never listed on Monday", async () => {
-    const online = section("ENGL 1310", "401", ["1397"], [meeting({ day: null, startMinutes: null, endMinutes: null, room: "UNT Internet Course" })]);
-    const h = setup({ sections: [csce1030, online], scheduleBody: scheduleBody() });
-    const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl(term, "1397")));
-    expect(preview.meetings).toEqual([{ days: "No set day", time: null, room: "UNT Internet Course" }]);
   });
 
   test("unknown verdicts name why: missing section, no schedule, term mismatch, TBA, stale pick", async () => {
@@ -229,8 +224,6 @@ describe("extension previews", () => {
     expect(tba.conflict).toBe("unknown");
     expect(tba.unknownReason).toBe("no-set-time");
     expect(tba.details[0]).toContain("To Be Arranged");
-    // A meeting with no day says so; it never borrows a weekday.
-    expect(tba.meetings).toEqual([{ days: "No set day", time: null, room: "F151" }]);
 
     const hStale = setup({
       sections,
@@ -260,6 +253,116 @@ describe("extension previews", () => {
     const h = setup();
     const preview = await readPreview(await h.preview(await h.issue()));
     expect(preview.inSchedule).toBe(true);
+  });
+
+  test("first- and second-half 8-week sections at one time never clash, and dated busy blocks bite only in their weeks", async () => {
+    const firstHalf = { start: "2027-01-11", end: "2027-03-05", raw: "" };
+    const secondHalf = { start: "2027-03-15", end: "2027-05-07", raw: "" };
+    const hist = section("HIST 2610", "001", ["41001"], [meeting({ dates: firstHalf })]);
+    const psci = section("PSCI 1040", "001", ["41002"], [meeting({ dates: secondHalf })]);
+    const psciFull = section("PSCI 1040", "002", ["41003"], [meeting()]);
+    // Monday 2027-03-15, inside the second half only.
+    const busy = [{ id: "exam", label: "Exam", day: "Mon" as const, start: 540, end: 600, dates: [{ start: "2027-03-15", end: "2027-03-15" }] }];
+    const h = setup({
+      sections: [hist, psci, psciFull],
+      scheduleBody: scheduleBody({ courses: ["HIST 2610"], selectedSections: { "HIST 2610": hist.id } }),
+      preferences: preferences(busy),
+    });
+    const token = await h.issue();
+    const halves = await readPreview(await h.preview(token, h.previewUrl(term, "41002")));
+    expect(halves.clashes).toEqual([{ kind: "busy", name: "Exam", when: "Mon 9:00 AM to 10:00 AM" }]);
+    // A full-term section meets during the first half, so it clashes with HIST 2610 and the exam both.
+    const full = await readPreview(await h.preview(token, h.previewUrl(term, "41003")));
+    expect(full.clashes).toEqual([
+      { kind: "course", name: "HIST 2610", when: "Mon 9:00 AM to 10:30 AM" },
+      { kind: "busy", name: "Exam", when: "Mon 9:00 AM to 10:00 AM" },
+    ]);
+    // HIST 2610 ends before the exam's week.
+    const h2 = setup({ sections: [hist], scheduleBody: scheduleBody({ courses: [], selectedSections: {} }), preferences: preferences(busy) });
+    expect((await readPreview(await h2.preview(await h2.issue(), h2.previewUrl(term, "41001")))).conflict).toBe("clear");
+  });
+
+  test("another section of a course already in Main is checked as its replacement, not against itself", async () => {
+    const csce1030Other = section("CSCE 1030", "002", ["10235"], [meeting()]);
+    const h = setup({ sections: [...sections, csce1030Other], scheduleBody: scheduleBody() });
+    const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl(term, "10235")));
+    expect(preview.conflict).toBe("clear");
+    expect(preview.inSchedule).toBe(false);
+    // A pick of the same course that the term data no longer lists is replaced too, so it leaves no unknown.
+    const stale = setup({
+      sections: [...sections, csce1030Other],
+      scheduleBody: scheduleBody({ selectedSections: { "CSCE 1030": "vsb:old:pick" } }),
+    });
+    expect((await readPreview(await stale.preview(await stale.issue(), stale.previewUrl(term, "10235")))).conflict).toBe("clear");
+    // A pinned pick can't be replaced by add-option, and the preview says so.
+    const pinned = setup({
+      sections: [...sections, csce1030Other],
+      scheduleBody: scheduleBody({ lockedSections: { "CSCE 1030": csce1030.id } }),
+    });
+    const pinnedPreview = await readPreview(await pinned.preview(await pinned.issue(), pinned.previewUrl(term, "10235")));
+    expect(pinnedPreview.details).toContain("Main pins another CSCE 1030 section. Unpin it in UNTangle to switch.");
+  });
+
+  test("a class number shared by several options names the option it is the primary component of", async () => {
+    const component = (classNumber: string, role: "primary" | "required-linked") => ({
+      id: classNumber, classNumber, sectionCode: role === "primary" ? "001" : "101", role,
+      instructor: { display: null, raw: "" }, seats: { open: 3, total: 40 }, meetings: [meeting()],
+    });
+    // Listed first: lecture 50001 with the linked 50100. Second: 50100 is its own primary.
+    const linked = { ...section("BIOL 1710", "001", ["50001", "50100"], [meeting()]), components: [component("50001", "primary"), component("50100", "required-linked")] };
+    const primary = { ...section("BIOL 1720", "001", ["50100"], [meeting()]), components: [component("50100", "primary")] };
+    const h = setup({ sections: [linked, primary], scheduleBody: scheduleBody({ courses: [], selectedSections: {} }) });
+    const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl(term, "50100")));
+    expect(preview.title).toBe("BIOL 1720");
+    expect(String(preview.optionId)).toBe(extensionOptionId(primary) as string);
+  });
+
+  test("a midnight end reads AM, a meeting without a day is not Monday, and an empty busy label reads Busy", async () => {
+    const late = section("MUAG 1000", "001", ["60001"], [meeting({ day: "Thu", startMinutes: 1320, endMinutes: 1440 })]);
+    const online = section("MUAG 1001", "001", ["60002"], [meeting({ async: true, day: null, startMinutes: null, endMinutes: null })]);
+    const busy = [{ id: "blank", label: "  ", day: "Thu" as const, start: 1380, end: 1440 }];
+    const h = setup({ sections: [...sections, late, online], scheduleBody: scheduleBody(), preferences: preferences(busy) });
+    const token = await h.issue();
+    const night = await readPreview(await h.preview(token, h.previewUrl(term, "60001")));
+    expect(night.meetings?.[0]?.time).toBe("10:00 PM to 12:00 AM");
+    expect(night.clashes).toEqual([{ kind: "busy", name: "Busy", when: "Thu 11:00 PM to 12:00 AM" }]);
+    expect((await readPreview(await h.preview(token, h.previewUrl(term, "60002")))).meetings?.[0]?.days).toBe("Online");
+    expect((await readPreview(await h.preview(token, h.previewUrl(term, "30100")))).meetings?.[0]?.days).toBe("TBA");
+  });
+
+  test("a term UNTangle has no dates for is unknown, not checked against another term's dates", async () => {
+    const h = setup({ sections, scheduleBody: scheduleBody({ termId: "fall-2027" }) });
+    const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl("fall-2027", "10234")));
+    expect(preview.conflict).toBe("unknown");
+    expect(preview.unknownReason).toBe("schedule-unavailable");
+    expect(preview.details).toEqual(["UNTangle doesn't have fall-2027's dates yet, so it can't check times."]);
+  });
+
+  test("a course clashing with many meetings is one row, leaving room for busy clashes", async () => {
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+    const allWeek = section("PHYS 1710", "001", ["70001"], days.map((day) => meeting({ day, startMinutes: 480, endMinutes: 720 })));
+    // 13 meetings, every one inside PHYS 1710's mornings.
+    const busyWeek = section("PHYS 1730", "001", ["70002"], [
+      ...days.map((day) => meeting({ day, startMinutes: 540, endMinutes: 600 })),
+      ...days.slice(0, 6).map((day) => meeting({ day, startMinutes: 600, endMinutes: 660 })),
+    ]);
+    const busy = [{ id: "gym", label: "Gym", day: "Sun" as const, start: 540, end: 560 }];
+    const h = setup({
+      sections: [allWeek, busyWeek],
+      scheduleBody: scheduleBody({ courses: ["PHYS 1710"], selectedSections: { "PHYS 1710": allWeek.id } }),
+      preferences: preferences(busy),
+    });
+    const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl(term, "70002")));
+    expect(preview.clashes).toEqual([
+      { kind: "course", name: "PHYS 1710", when: "Mon Tue Wed Thu Fri Sat Sun 9:00 AM to 10:00 AM" },
+      { kind: "busy", name: "Gym", when: "Sun 9:00 AM to 9:20 AM" },
+    ]);
+  });
+
+  test("busy blocks come only from the preferences of Main's institution", async () => {
+    const busy = [{ id: "work", label: "Work shift", day: "Mon" as const, start: 540, end: 600 }];
+    const h = setup({ sections, scheduleBody: scheduleBody(), preferences: { ...preferences(busy), institutionId: "other-school" as PreferencesBody["institutionId"] } });
+    expect((await readPreview(await h.preview(await h.issue()))).conflict).toBe("clear");
   });
 });
 
@@ -314,6 +417,48 @@ describe("extension add-option commands", () => {
     expect(reusedRevisionReply.reason).toBe("forbidden");
     // The original command's commit stands untouched.
     expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(2);
+  });
+
+  test("a retry while the term data is unavailable is 503, so the extension retries again", async () => {
+    const options = { sections: sections as Section[] | null, scheduleBody: scheduleBody() as unknown };
+    const h = setup(options);
+    const token = await h.issue();
+    const first = await readAddReply(await h.add(token, addCommand()));
+    options.sections = null;
+    const unavailable = await h.add(token, addCommand());
+    expect(unavailable.status).toBe(503);
+    expect(await unavailable.json()).toEqual({ error: "unavailable" });
+    options.sections = sections;
+    expect(await readAddReply(await h.add(token, addCommand()))).toEqual(first);
+  });
+
+  test("unavailable term data is 503, not a not-found verdict", async () => {
+    const h = setup({ sections: null, scheduleBody: scheduleBody() });
+    const response = await h.add(await h.issue(), addCommand());
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "unavailable" });
+  });
+
+  test("a write that lands between the read and the commit is never overwritten", async () => {
+    const h = setup();
+    const token = await h.issue();
+    const store = h.store as unknown as { getDocument: (userId: string, documentId: string) => Promise<Document> };
+    const original = store.getDocument.bind(h.store);
+    // The command reads revision 1; a pin is saved on the web as revision 2;
+    // the command expects revision 2, so the compare-and-set alone would pass.
+    store.getDocument = async (userId, documentId) => {
+      const read = await original(userId, documentId);
+      await h.store.write("alice", new TextEncoder().encode(JSON.stringify({
+        operationId: "web-pin", documentId: scheduleId, kind: "schedule", baseRevision: 1, schemaVersion: 1,
+        body: scheduleBody({ lockedSections: { "CSCE 1030": csce1030.id } }),
+      })), scheduleId);
+      return read;
+    };
+    const response = await h.add(token, addCommand({ expectedRevision: 2 }));
+    store.getDocument = original;
+    expect(response.status).toBe(409);
+    expect(await readAddReply(response)).toMatchObject({ kind: "rejection", reason: "stale-revision" });
+    expect((await h.store.getDocument("alice", scheduleId)).body).toMatchObject({ lockedSections: { "CSCE 1030": csce1030.id } });
   });
 
   test("a retry answered after the schedule moved returns the original receipt", async () => {
@@ -432,18 +577,19 @@ describe("extension add-option commands", () => {
   });
 
   // The extension offers no Add for these previews (extension/src/shared/preview-view.ts canAdd).
-  test("an add built from a schedule-unavailable preview is refused: no Main, term data down, unknown class number", async () => {
+  test("an add built from a schedule-unavailable preview never commits: no Main, term data down, unknown class number", async () => {
     const cases = [
-      { name: "no Main", h: setup({ sections, scheduleBody: null }), classNumber: "10234" },
-      { name: "term data down", h: setup({ sections: null, scheduleBody: scheduleBody() }), classNumber: "10234" },
-      { name: "unknown class number", h: setup({ sections, scheduleBody: scheduleBody() }), classNumber: "99999" },
+      { name: "no Main", h: setup({ sections, scheduleBody: null }), classNumber: "10234", status: 422 },
+      // Term data down is no verdict: 503, and the extension would retry.
+      { name: "term data down", h: setup({ sections: null, scheduleBody: scheduleBody() }), classNumber: "10234", status: 503 },
+      { name: "unknown class number", h: setup({ sections, scheduleBody: scheduleBody() }), classNumber: "99999", status: 422 },
     ];
-    for (const { name, h, classNumber } of cases) {
+    for (const { name, h, classNumber, status } of cases) {
       const token = await h.issue();
       const preview = await readPreview(await h.preview(token, h.previewUrl(term, classNumber)));
       expect(`${name}: ${preview.unknownReason}`).toBe(`${name}: schedule-unavailable`);
       const response = await h.add(token, addCommand({ optionId: preview.optionId, expectedRevision: preview.revision }));
-      expect(`${name}: ${response.status}`).toBe(`${name}: 422`);
+      expect(`${name}: ${response.status}`).toBe(`${name}: ${status}`);
     }
   });
 

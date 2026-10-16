@@ -35,12 +35,13 @@ export function verdictOf(p: Preview): Verdict {
 }
 
 /**
- * Whether the panel offers "Add to Main". Nothing could be checked against
- * Main when it is missing, plans another term, or UNTangle's term data lacks
- * the section. UNTangle refuses the add in the first and last cases
- * (frontend/tests/extension/routes.test.ts pins it). For a Main of another
- * term it could add that term's section with the same class number, which is
- * not the one on screen. The panel offers no add in any of them.
+ * Whether the panel offers "Add to Main". A schedule-unavailable verdict means
+ * nothing was checked against Main, and in most of its cases the add can't
+ * land either (frontend/tests/extension/routes.test.ts): with no Main or an
+ * unknown class number UNTangle refuses it, and with term data down it answers
+ * 503. A Main for another term could take that term's section with the same
+ * class number, not the one on screen. A term UNTangle has no dates for would
+ * take the add unchecked. The panel offers no add in any of these.
  */
 export function canAdd(p: Preview): boolean {
   if (p.inSchedule === true)
