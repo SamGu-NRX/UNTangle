@@ -1390,3 +1390,185 @@ describe("stale cleanup", () => {
   });
 });
 
+
+describe("refresh rotation liveness", () => {
+  // The rotation's Keychain write flies after the rotated tokens went live in
+  // memory: grant loss, sign-out, or a newer sign-in can land inside it. The
+  // refresh promise must settle gracefully (null) and leave the moved world
+  // untouched instead of dereferencing a nulled grant — a rejection would
+  // surface an error to callers and leave the rotation timer dead for the
+  // session.
+
+  function parkFirstSave(harness: Harness, behavior: "resolve" | "throw"): { entered: Promise<void>; release: () => void } {
+    let signalEntered: () => void = () => {};
+    const entered = new Promise<void>(resolve => {
+      signalEntered = resolve;
+    });
+    let release: () => void = () => {};
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    let calls = 0;
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      calls += 1;
+      if (calls === 1) {
+        signalEntered();
+        await gate;
+        if (behavior === "throw") throw new Error("Keychain write failed");
+      }
+      await workingSave(tokens);
+    });
+    return { entered, release };
+  }
+
+  function startTimerRefresh(harness: Harness): Promise<string | null> {
+    harness.advance(300_000); // the stored access token is past its margin
+    harness.timers[0]?.handler();
+    // Single-flight: a direct caller shares the refresh the timer started.
+    return harness.auth.getAccessToken();
+  }
+
+  it("returns null gracefully when grant loss lands while the rotation save is in flight", async () => {
+    let syncCalls = 0;
+    const fetchLike: FetchLike = async url => {
+      if (url.endsWith("/api/v1/device/refresh")) return jsonResponse(TOKENS_B, 200);
+      syncCalls += 1;
+      return syncCalls === 1 ? jsonResponse(SYNC_200, 200) : jsonResponse({ error: "invalid_token" }, 401);
+    };
+    const harness = makeHarness([], { fetchLike });
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    const { entered, release } = parkFirstSave(harness, "resolve");
+    const refresh = startTimerRefresh(harness);
+    await entered;
+    // A document request that went out with the pre-rotation token gets its
+    // 401 while the save flies: handleGrantLost drops the live grant and
+    // publishes signed-out mid-save.
+    await harness.auth.refreshDocumentCount();
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    release();
+    await flush();
+    // The save resolves into a dropped world: the rotation returns null
+    // instead of dereferencing the nulled grant.
+    await expect(refresh).resolves.toBeNull();
+    // The grant-loss transition owns the state, and the stale rotation
+    // schedules nothing behind it.
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    expect(harness.timers).toHaveLength(1);
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+  });
+
+  it("returns null gracefully when sign-out lands while the rotation save is in flight", async () => {
+    const fetchLike: FetchLike = async url => {
+      if (url.endsWith("/api/v1/device/refresh")) return jsonResponse(TOKENS_B, 200);
+      if (url.endsWith("/api/v1/device/revoke")) return jsonResponse({ revoked: true }, 200);
+      return jsonResponse(SYNC_200, 200);
+    };
+    const harness = makeHarness([], { fetchLike });
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    const { entered, release } = parkFirstSave(harness, "resolve");
+    const refresh = startTimerRefresh(harness);
+    await entered;
+    // signOut's live-token read takes the fresh rotated token without the
+    // single-flight slot, so sign-out completes mid-save: the grant leaves
+    // memory and signed-out publishes while the save flies.
+    await harness.auth.signOut();
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    release();
+    await flush();
+    await expect(refresh).resolves.toBeNull();
+    expect(harness.timers).toHaveLength(1);
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+  });
+
+  it("still publishes, schedules, and returns the rotated token when nothing interferes", async () => {
+    const fetchLike: FetchLike = async url => {
+      if (url.endsWith("/api/v1/device/refresh")) return jsonResponse(TOKENS_B, 200);
+      return jsonResponse(SYNC_200, 200);
+    };
+    const harness = makeHarness([], { fetchLike });
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    const refresh = startTimerRefresh(harness);
+    await expect(refresh).resolves.toBe(TOKENS_B.accessToken);
+    // The liveness guard must not over-correct into never-publishing: a
+    // rotation that lands live still updates the grant in state, persists the
+    // rotated tokens, and arms the next proactive timer.
+    expect(harness.auth.getState()).toEqual({
+      status: "signed-in",
+      grantId: "grant-1",
+      scopes: TOKENS_A.scopes,
+      documentCount: 2,
+      countFailed: false,
+    });
+    expect(harness.store.saved).toEqual([expect.objectContaining({ grantId: "grant-1", accessToken: TOKENS_B.accessToken })]);
+    expect(harness.timers).toHaveLength(2);
+    expect(harness.timers[1]).toMatchObject({ ms: 240_000, cleared: false });
+  });
+
+  it("keeps a newer grant's memory and store when the rotation save fails after a newer sign-in took over", async () => {
+    let syncCalls = 0;
+    const fetchLike: FetchLike = async url => {
+      if (url.endsWith("/api/v1/device/refresh")) return jsonResponse(TOKENS_B, 200);
+      if (url.endsWith("/api/v1/device/start")) return jsonResponse(START_200, 200);
+      if (url.endsWith("/api/v1/device/token")) return jsonResponse(TOKENS_GRANT_TWO, 200);
+      syncCalls += 1;
+      return syncCalls === 2 ? jsonResponse({ error: "invalid_token" }, 401) : jsonResponse(SYNC_200, 200);
+    };
+    const harness = makeHarness([], { fetchLike });
+    const durableLoad = harness.store.load;
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    const { entered, release } = parkFirstSave(harness, "throw");
+    const refresh = startTimerRefresh(harness);
+    await entered;
+    // Mid-save grant loss signs the phone out and admits a newer sign-in;
+    // its save queues behind the parked one on the single-writer store.
+    await harness.auth.refreshDocumentCount();
+    const second = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await flush();
+    release();
+    await expect(refresh).resolves.toBeNull();
+    await expect(second).resolves.toEqual({ ok: true });
+    await flush();
+    // The failed-save recovery must not null the newer world's live grant,
+    // publish signed-out over it, or erase its durable entry.
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: 2, countFailed: false });
+    await expect(harness.auth.getAccessToken()).resolves.toBe(TOKENS_GRANT_TWO.accessToken);
+    const persisted = await durableLoad();
+    expect(persisted?.grantId).toBe("grant-2");
+    expect(persisted?.accessToken).toBe(TOKENS_GRANT_TWO.accessToken);
+    expect(harness.timers).toHaveLength(2);
+  });
+
+  it("still drops the grant everywhere when the failed save's rotation owns the world", async () => {
+    const fetchLike: FetchLike = async url => {
+      if (url.endsWith("/api/v1/device/refresh")) return jsonResponse(TOKENS_B, 200);
+      return jsonResponse(SYNC_200, 200);
+    };
+    const harness = makeHarness([], { fetchLike });
+    const durableLoad = harness.store.load;
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    const { entered, release } = parkFirstSave(harness, "throw");
+    const refresh = startTimerRefresh(harness);
+    await entered;
+    release();
+    // No world moved during the failed save: the recovery still lands signed
+    // out with the store cleared and hands the caller the graceful null.
+    await expect(refresh).resolves.toBeNull();
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    expect(await durableLoad()).toBeNull();
+    expect(harness.store.clear).toHaveBeenCalled();
+    expect(harness.timers).toHaveLength(1);
+  });
+});

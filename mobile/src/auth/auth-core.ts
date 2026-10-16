@@ -231,26 +231,46 @@ export function createAuth(deps: AuthDeps) {
       scheduleRefreshRetry();
       return null;
     }
-    stored = storedFromDeviceTokens(outcome.value, now());
+    // Live the rotated tokens in memory ahead of the durable write: the old
+    // refresh token is consumed, so the fresh access token is the one API
+    // callers should hand out while the save flies. Everything after the await
+    // reads the local candidate — the module-level stored can be nulled or
+    // replaced mid-save by grant loss, sign-out, or a newer sign-in.
+    const candidate = storedFromDeviceTokens(outcome.value, now());
+    stored = candidate;
     try {
-      await saveStored(stored);
+      await saveStored(candidate);
     } catch {
       // The server has already consumed the old refresh token, so a failed
       // Keychain write must not leave that used token as the only copy: the
       // next restart would refresh with it and the server would revoke the
       // grant. Drop the grant everywhere — memory now, the Keychain
-      // best-effort — and land signed out; signing in again is the recovery.
+      // best-effort, and grant-conditional like applyTokens' failed-save
+      // cleanup, because an envelope holding a different grantId is a newer
+      // world's only durable copy and this recovery must not erase it — and
+      // land signed out; signing in again is the recovery. But this catch runs
+      // outside the store queue: a world that moved while the save flew (grant
+      // loss, sign-out, a newer grant) owns state and storage already, so
+      // publish nothing and clear nothing there.
+      if (stored !== candidate) return null;
       cancelRefreshTimer();
       stored = null;
-      await deps.tokenStore.clear().catch(() => undefined);
+      await clearDurableGrantIfUnowned(candidate.grantId).catch(() => undefined);
       replaceState({ status: "signed-out" });
       return null;
     }
+    // The save resolving does not mean the world held still: grant loss or
+    // sign-out nulls the live grant while the write flies. Dereferencing
+    // stored afterwards rejected the single-flight promise with a TypeError
+    // and left the proactive rotation timer dead for the session. The moved
+    // world's own transition owns state and timers; null is the graceful
+    // single-flight result callers already handle.
+    if (stored !== candidate) return null;
     if (state.status === "signed-in") {
-      replaceState({ ...state, grantId: stored.grantId, scopes: stored.scopes });
+      replaceState({ ...state, grantId: candidate.grantId, scopes: candidate.scopes });
       scheduleRefresh();
     }
-    return stored.accessToken;
+    return candidate.accessToken;
   }
 
   async function applyTokens(tokens: DeviceTokens): Promise<StoredTokens | null> {
