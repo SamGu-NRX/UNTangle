@@ -17,9 +17,9 @@ import type { Section } from "@/lib/sections/model";
 
 const sortedClassNumbers = (classNumbers: string[]) => [...classNumbers].sort();
 
-/** The extension id for an option, or null when it has no class numbers (synthetic samples). */
+/** The extension id for an option, or null when it has no class numbers or no term (synthetic samples). */
 export function extensionOptionId(section: Pick<Section, "term" | "courseCode" | "classNumbers">): string | null {
-  if (!section.classNumbers.length) return null;
+  if (!section.classNumbers.length || section.term === null) return null;
   return `${section.term}-${section.courseCode.replaceAll(" ", "")}-${sortedClassNumbers(section.classNumbers).join("-")}`;
 }
 

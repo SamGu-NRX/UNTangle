@@ -6,11 +6,11 @@
  * tombstones), and the web planner's own sync reading the result through the
  * real /api/v1 document handlers. Only the term's section data is a stub.
  *
- * Cases: an add lands in the Main Week shows for its term; an add for another
- * term goes to that term's Main; a new account's first add creates Main; a
- * grant approved before its account had any Main still works; replays,
- * reused operation ids and stale revisions; preferences scoped to an
- * institution; a deleted Main. The store is the production factory from
+ * Cases: an add lands in the Main Week shows for its term; an add for a term
+ * the planner doesn't plan is refused; a new account's first add creates
+ * Main; two first adds at once; a grant approved before its account had any
+ * Main still works; replays, reused operation ids and stale revisions;
+ * preferences scoped to an institution; a deleted Main. The store is the production factory from
  * store-core.ts, which carries no server-only import so this module can
  * construct it.
  */
@@ -124,7 +124,8 @@ describe.skipIf(!url)("extension routes on Postgres", () => {
       ('alice', 'Alice', 'alice@example.invalid', true),
       ('bob', 'Bob', 'bob@example.invalid', true),
       ('carol', 'Carol', 'carol@example.invalid', true),
-      ('dana', 'Dana', 'dana@example.invalid', true)`);
+      ('dana', 'Dana', 'dana@example.invalid', true),
+      ('erin', 'Erin', 'erin@example.invalid', true)`);
     database = drizzle(pool, { schema });
     repo = documentRepository(database);
     // The production store the routes use, built over the live database.
@@ -188,19 +189,37 @@ describe.skipIf(!url)("extension routes on Postgres", () => {
     expect((await repo.get("alice", springMain)).revision).toBe(2);
   });
 
-  test("an add for another term goes to that term's Main, with that term's section for the class number", async () => {
+  test("an add for a term the planner doesn't plan is refused and creates no Main for it", async () => {
     const token = await extensionToken("alice");
     const shown = await preview(token, "fall-2027", "20111");
-    expect(shown).toMatchObject({ optionId: extensionOptionId(fallCsce2110), revision: 0 });
-    expect(shown.details).toContain("Your Fall 2027 plan in UNTangle is empty.");
-    expect((await add(token, confirmed(shown))).body).toMatchObject({ kind: "receipt", committedRevision: 1 });
-    expect(await repo.get("alice", fallMain)).toMatchObject({
-      revision: 1, body: { termId: "fall-2027", name: "Main", courses: ["CSCE 2110"], selectedSections: { "CSCE 2110": fallCsce2110.id } },
-    });
-    expect((await week("alice", "fall-2027")).picks).toEqual({ "CSCE 2110": fallCsce2110.id });
-    // Spring's Main is as it was; spring's 20111 was never touched.
+    expect(shown).toMatchObject({ conflict: "unknown", revision: 0 });
+    expect(shown.details).toEqual(["UNTangle plans Spring 2027 right now; this class search is Fall 2027."]);
+    const refused = await add(token, { command: "add-option", operationId: "fall-op-1", scheduleId: "main", optionId: extensionOptionId(fallCsce2110), expectedRevision: 0 });
+    expect(refused).toEqual({ status: 403, body: { kind: "rejection", operationId: "fall-op-1", reason: "forbidden" } });
+    await expect(repo.get("alice", fallMain)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(await receipts("fall-op-1")).toBe(0);
     expect((await repo.get("alice", springMain)).revision).toBe(2);
-    expect((await week("alice", "spring-2027")).picks["CSCE 2110"]).toBeUndefined();
+  });
+
+  test("two first adds to one term at once create one Main: one commits, the other is stale", async () => {
+    const token = await extensionToken("erin");
+    const shown = await preview(token, "spring-2027", "10234");
+    expect(shown.revision).toBe(0);
+    const [a, b] = await Promise.all([add(token, confirmed(shown, "erin-op-a")), add(token, confirmed(shown, "erin-op-b"))]);
+    expect([a.status, b.status].toSorted()).toEqual([200, 409]);
+    const loser = a.status === 409 ? a : b;
+    expect(loser.body).toMatchObject({ kind: "rejection", reason: "stale-revision" });
+    expect(await receipts(loser.body.operationId)).toBe(0);
+    expect(await repo.get("erin", springMain)).toMatchObject({ revision: 1, body: { selectedSections: { "CSCE 1030": csce1030.id } } });
+
+    // Two copies of one command at once get one receipt between them.
+    const next = await preview(token, "spring-2027", "20111");
+    const command = confirmed(next, "erin-op-c");
+    const [c1, c2] = await Promise.all([add(token, command), add(token, command)]);
+    expect(c1).toEqual({ status: 200, body: { kind: "receipt", operationId: "erin-op-c", committedRevision: 2 } });
+    expect(c2).toEqual(c1);
+    expect(await receipts("erin-op-c")).toBe(1);
+    expect((await repo.get("erin", springMain)).revision).toBe(2);
   });
 
   test("a new account's first add creates Main, and the grant reaches only its own account", async () => {

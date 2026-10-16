@@ -39,7 +39,8 @@ export const MAIN_SCHEDULE_NAME = "Main";
  * Fixed ids for each kind's first document, so two devices that each create
  * one offline meet as a revision conflict on one id instead of leaving two
  * records. A deleted id is never reused (the server refuses it), so a
- * replacement gets a random id and is found by its kind and term.
+ * replacement gets the next free id, such as `main-unt-spring-2027-2`, and is found by
+ * its kind and term (pickPlannerDocument).
  */
 export const firstDocumentId = {
   "academic-record": `academic-record-${INSTITUTION_ID}`,

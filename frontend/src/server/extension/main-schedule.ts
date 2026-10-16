@@ -1,12 +1,24 @@
 /**
  * Which schedule the extension reads and adds to. An extension grant is bound
  * to the account's Main, not to one document: each preview and add names a
- * term, and the schedule is that term's Main, picked by the web planner's own
- * rule (pickPlannerDocument). A preview checks, and an add writes, the
- * document Week shows for that term.
+ * term, and for a term the web planner plans, the schedule is that term's
+ * Main, picked by the web planner's own rule (pickPlannerDocument). A preview
+ * checks, and an add writes, the document Week shows for that term. A term
+ * the web planner doesn't plan has no Main the student can see, so the
+ * extension checks nothing against it and adds nothing to it.
  */
 import { ScheduleBodySchema, type DocumentKind, type ScheduleBody } from "../../../../packages/contracts/src/documents";
-import { pickPlannerDocument } from "@/lib/planner-documents";
+import { firstDocumentId, pickPlannerDocument } from "@/lib/planner-documents";
+import { planningTerm } from "@/lib/planner-sections";
+
+/**
+ * The terms whose Main the web planner shows, from planner-sections.ts. The
+ * planner plans one term today; when it plans several, this list grows with
+ * it and the extension serves each one.
+ */
+export const plannedTerms: readonly { id: string; label: string }[] = [planningTerm];
+
+export const isPlannedTerm = (termId: string) => plannedTerms.some((planned) => planned.id === termId);
 
 /**
  * The schedule a device grant names. The extension sends it to device/start
@@ -26,6 +38,8 @@ export type StoredDocumentEntry = { documentId: string; kind: DocumentKind; revi
 export type TermMain = {
   /** The document to read and write: the live Main, or the id the web planner gives a new one. */
   documentId: string;
+  /** True when documentId is the term's own first id, firstDocumentId.schedule (see verifiedReplay). */
+  firstId: boolean;
   /** Main's body and revision; null when the account has no Main for the term yet. */
   schedule: { body: ScheduleBody; revision: number } | null;
 };
@@ -36,7 +50,10 @@ export type TermMain = {
  * a newer build's body) and the boundary answers 503, never a verdict.
  */
 export function termMain(documents: readonly StoredDocumentEntry[], termId: string): TermMain {
+  // Callers gate on isPlannedTerm first; a Main for any other term is one Week never shows.
+  if (!isPlannedTerm(termId)) throw new Error(`UNTangle doesn't plan ${termId}, so it has no Main to read.`);
   const { id, document } = pickPlannerDocument(documents, "schedule", termId, (entry) => entry.body);
-  if (!document) return { documentId: id, schedule: null };
-  return { documentId: id, schedule: { body: ScheduleBodySchema.parse(document.body), revision: document.revision } };
+  const firstId = id === firstDocumentId.schedule(termId);
+  if (!document) return { documentId: id, firstId, schedule: null };
+  return { documentId: id, firstId, schedule: { body: ScheduleBodySchema.parse(document.body), revision: document.revision } };
 }

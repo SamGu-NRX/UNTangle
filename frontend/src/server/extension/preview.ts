@@ -4,7 +4,7 @@
  * clashing course or busy block, for the trusted panel only), or can't check,
  * always carrying the schedule revision the check ran against. A term with no
  * Main yet is checked as an empty plan at revision 0, which is what adding
- * to it creates.
+ * to it creates. A term the web planner doesn't plan is never checked.
  */
 import type { Day, Meeting, Section } from "@/lib/sections/model";
 import { blockConflicts } from "@/lib/optimizer/prepare";
@@ -13,6 +13,7 @@ import { isTimed, meetingsConflict, termDates, toOptSection } from "@/lib/planne
 import type { ScheduleBody } from "../../../../packages/contracts/src/documents";
 import { emptyMainSchedule } from "@/lib/planner-documents";
 import { extensionPreviewSchema, type ExtensionPreview, type ExtensionPreviewClash } from "./extension-api";
+import { isPlannedTerm, plannedTerms } from "./main-schedule";
 import { extensionOptionId, optionIdFromClassNumber } from "./option-id";
 
 /** The term data the section proxy serves, or null while it is unavailable. */
@@ -24,7 +25,7 @@ export type PreviewInput = {
   scheduleId: string;
   term: string;
   classNumber: string;
-  /** The term's real sections; null when the term file is unavailable. */
+  /** The term's real sections; null when the term file is unavailable, or not read for a term UNTangle doesn't plan. */
   sections: Section[] | null;
   /** The term's Main, body and revision, or null when the account has none for the term yet. */
   schedule: { body: ScheduleBody; revision: number } | null;
@@ -76,6 +77,16 @@ export function buildPreview(input: PreviewInput): ExtensionPreview {
   const { scheduleId, term, classNumber, sections, schedule, blocked } = input;
   const revision = schedule?.revision ?? 0;
 
+  // Week shows Main only for the terms the planner plans, so another term's
+  // class search has nothing to check against, and its add is refused.
+  if (!isPlannedTerm(term)) {
+    return extensionPreviewSchema.parse({
+      scheduleId, optionId: optionIdFromClassNumber(classNumber), revision, title: classNumber,
+      conflict: "unknown", unknownReason: "schedule-unavailable",
+      details: [`UNTangle plans ${plannedTerms.map((planned) => planned.label).join(" and ")} right now; this class search is ${termName(term)}.`],
+    });
+  }
+
   // The term file is down or unknown: nothing can be checked, section or schedule.
   if (sections === null) {
     return extensionPreviewSchema.parse({
@@ -106,9 +117,10 @@ export function buildPreview(input: PreviewInput): ExtensionPreview {
   const main = schedule ?? { body: emptyMainSchedule(term), revision: 0 };
   const emptyNote = schedule === null ? [`Your ${termName(term)} plan in UNTangle is empty.`] : [];
 
-  // The section proxy loads any term vsb publishes, but the clash rules read an
-  // undated meeting as running the term's dates, and only the terms in
-  // termDates have them. Without them, a check would use another term's dates.
+  // The clash rules read an undated meeting as running the term's dates, and
+  // only the terms in termDates have them. Every planned term has dates today
+  // (routes.test.ts pins it); this answers for one planned before its dates
+  // are known, instead of checking with another term's dates.
   const termRange = termDates[term];
   if (!termRange) {
     return extensionPreviewSchema.parse({

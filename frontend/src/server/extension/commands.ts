@@ -8,14 +8,15 @@
  *
  * The add lands in the Main of the option's own term (main-schedule.ts), and
  * creates that Main when the account has none yet, with the id and body the
- * web planner's first write would use.
+ * web planner's first write would use. Only terms the web planner plans take
+ * adds, so an add never makes a Main that Week doesn't show.
  */
 import type { PreferencesBody, ScheduleBody } from "../../../../packages/contracts/src/documents";
 import type { Receipt } from "../../../../packages/contracts/src/sync";
 import { SyncError } from "@/lib/document-sync/decision";
 import { emptyMainSchedule } from "@/lib/planner-documents";
 import { extensionAddReplySchema, type ExtensionAddOptionCommand, type ExtensionAddReply } from "./extension-api";
-import { termMain, type StoredDocumentEntry } from "./main-schedule";
+import { isPlannedTerm, termMain, type StoredDocumentEntry } from "./main-schedule";
 import { parseExtensionOptionId, sectionMatchesOptionId } from "./option-id";
 import type { SectionsSource } from "./preview";
 
@@ -79,15 +80,22 @@ function buildWritePayload(command: ExtensionAddOptionCommand, scheduleId: strin
  * and is refused with the client's own forbidden rejection. A retry that fits
  * the relationship is answered with the original receipt even though the
  * schedule has since moved on — the add committed and only its response was
- * lost. While the option term's Main still stands at the committed revision,
- * the command's option must be the pick recorded for its course; anything
- * else gets the forbidden rejection. (Postgres stores document bodies as
- * jsonb, which re-sorts object keys, so rebuilt write bytes cannot be
- * compared against the receipt's hash.)
+ * lost. (Postgres stores document bodies as jsonb, which re-sorts object
+ * keys, so rebuilt write bytes cannot be compared against the receipt's hash.)
  *
- * An option id without a term names no Main to look in, as when the schedule
- * has moved on, so only the revision relationship checks it. This build never
- * commits such an id; its receipt can only be an older build's commit.
+ * The committed effect is checked too, but only where the current Main is
+ * certainly the document the add wrote: the receipt records no document id,
+ * and a Main deleted and made again after a lost response is a different
+ * document that can stand at the same revision without the pick. So the
+ * check runs only when Main is the term's own first id, which is never
+ * reused once deleted, and stands at the committed revision; there, the
+ * command's option must be the pick recorded for its course, and anything
+ * else gets the forbidden rejection. A Main at a later id leaves only the
+ * revision relationship to check, as a schedule that has moved on does.
+ *
+ * An option id without a term, or for a term the planner doesn't plan, names
+ * no Main to look in. This build never commits either; such a receipt can
+ * only be an older build's commit, so only the revision relationship checks it.
  */
 async function verifiedReplay(
   deps: { store: ExtensionStore; sections: SectionsSource },
@@ -98,8 +106,8 @@ async function verifiedReplay(
   const refuse = () => rejection(command.operationId, "forbidden", 409);
   if (receipt.committedRevision !== command.expectedRevision + 1) return refuse();
   const option = parseExtensionOptionId(command.optionId);
-  // A Main deleted since the commit is no longer live, so there is nothing to check; the receipt still answers.
-  const main = option ? termMain(await deps.store.documents(userId), option.term).schedule : null;
+  const found = option && isPlannedTerm(option.term) ? termMain(await deps.store.documents(userId), option.term) : null;
+  const main = found?.firstId ? found.schedule : null;
   if (option && main && main.revision === receipt.committedRevision) {
     const sections = await deps.sections.termSections(option.term);
     // Unavailable term data is no verdict: the boundary answers 503 and the extension retries.
@@ -131,12 +139,24 @@ export async function applyAddOption(
   // the command the receipt actually committed.
   const existing = await deps.store.receipt(userId, command.operationId);
   if (existing) return verifiedReplay(deps, userId, command, existing);
+  // A copy of this command sent at the same time can commit after the lookup
+  // above, moving Main past the expected revision or storing other bytes
+  // under the operation id. Before refusing, look again: a receipt that
+  // appeared is this command's answer, verified the same way.
+  const refuseUnlessCommitted = async (reason: RejectionReason, status: number) => {
+    const committed = await deps.store.receipt(userId, command.operationId);
+    return committed ? verifiedReplay(deps, userId, command, committed) : rejection(command.operationId, reason, status);
+  };
 
   // The option's term is the term the student saw on class search, and it
   // picks the Main the add goes to. An id without one (an older preview's)
   // can't say which Main, so it names no option this command can add.
   const option = parseExtensionOptionId(command.optionId);
   if (!option) return rejection(command.operationId, "not-found", 422);
+  // A term the web planner doesn't plan has no Main the student can see, so
+  // nothing is added to it. The reply is one the extension already knows:
+  // its closed set of rejections has no "term not planned".
+  if (!isPlannedTerm(option.term)) return rejection(command.operationId, "forbidden", 403);
   // A storage failure here is not the command's answer: it reaches the HTTP
   // boundary's 503, and the extension retries later.
   const main = termMain(await deps.store.documents(userId), option.term);
@@ -144,7 +164,7 @@ export async function applyAddOption(
   // student confirmed: a compare-and-set on the expected revision alone would
   // commit this older body over a write that landed after the read. A term
   // with no Main yet stands at revision 0, the revision its preview showed.
-  if ((main.schedule?.revision ?? 0) !== command.expectedRevision) return rejection(command.operationId, "stale-revision", 409);
+  if ((main.schedule?.revision ?? 0) !== command.expectedRevision) return refuseUnlessCommitted("stale-revision", 409);
 
   const sections = await deps.sections.termSections(option.term);
   // Unavailable term data is no verdict on the option: the HTTP boundary
@@ -169,25 +189,20 @@ export async function applyAddOption(
     return { status: 200, body: { kind: "receipt", operationId: command.operationId, committedRevision: receipt.committedRevision } };
   } catch (error) {
     if (error instanceof SyncError && error.code === "REVISION_CONFLICT") {
-      // The schedule moved on since the student confirmed, or another device
-      // created this term's Main first. Never a silent overwrite: the
+      // The schedule moved on since the student confirmed, another device
+      // created this term's Main first, or Main was deleted (its tombstone
+      // stands one revision past the one read). Never a silent overwrite: the
       // extension shows a fresh preview against the latest revision, then
       // the student confirms again.
-      return rejection(command.operationId, "stale-revision", 409);
-    }
-    if (error instanceof SyncError && error.code === "DOCUMENT_DELETED") {
-      // Main was deleted between the read and the commit, and a deleted id is
-      // never reused. The next preview reads the term as having no Main and
-      // offers the add again, to a new document.
-      return rejection(command.operationId, "stale-revision", 409);
+      return refuseUnlessCommitted("stale-revision", 409);
     }
     if (error instanceof SyncError && error.code === "OPERATION_REUSED") {
       // A concurrent write between the receipt lookup and the commit already
-      // stored different bytes under this operation id. The extension mints a
-      // fresh operation id for every confirmed add, so reuse is a client bug:
-      // the stored receipt is not this command's reply, and the reply is the
+      // stored other bytes under this operation id: a copy of this command
+      // (whose bytes differ once jsonb re-sorts the body it read), or a client
+      // bug. verifiedReplay tells them apart; a different command gets the
       // client's own forbidden rejection.
-      return rejection(command.operationId, "forbidden", 409);
+      return refuseUnlessCommitted("forbidden", 409);
     }
     throw error;
   }

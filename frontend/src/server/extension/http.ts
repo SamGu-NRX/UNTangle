@@ -19,7 +19,7 @@ import { buildPreview, type SectionsSource } from "./preview";
 import { calendarBlockedTimes } from "@/lib/calendar-busy";
 import { termDates } from "@/lib/planner-sections";
 import { INSTITUTION_ID } from "@/lib/planner-documents";
-import { MAIN_SCHEDULE_ROLE, termMain } from "./main-schedule";
+import { isPlannedTerm, MAIN_SCHEDULE_ROLE, termMain } from "./main-schedule";
 
 export type ExtensionDependencies = {
   grants: DeviceGrants;
@@ -147,14 +147,18 @@ export function createExtensionHttp({ grants, store, sections, origin, extension
         }
         const identity = await authenticate(requireBearer(request));
         // The class search's term picks the Main this preview checks. Busy
-        // blocks come from the preferences of Main's own institution.
-        const [termSections, { schedule, preferences }] = await Promise.all([
-          sections.termSections(params.term),
-          store.documents(identity.userId).then(async (documents) => {
-            const { schedule } = termMain(documents, params.term);
-            return { schedule, preferences: await store.preferences(identity.userId, schedule?.body.institutionId ?? INSTITUTION_ID) };
-          }),
-        ]);
+        // blocks come from the preferences of Main's own institution. A term
+        // the planner doesn't plan reads nothing: buildPreview answers that
+        // UNTangle doesn't plan it, so no term file is fetched for it either.
+        const [termSections, { schedule, preferences }] = isPlannedTerm(params.term)
+          ? await Promise.all([
+            sections.termSections(params.term),
+            store.documents(identity.userId).then(async (documents) => {
+              const { schedule } = termMain(documents, params.term);
+              return { schedule, preferences: await store.preferences(identity.userId, schedule?.body.institutionId ?? INSTITUTION_ID) };
+            }),
+          ])
+          : [null, { schedule: null, preferences: null }];
         const preview = buildPreview({
           scheduleId: MAIN_SCHEDULE_ROLE,
           term: params.term,
