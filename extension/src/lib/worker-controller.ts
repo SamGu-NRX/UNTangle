@@ -1,7 +1,7 @@
 import { AddOutbox, type LocalStore, type PendingAdd } from "./outbox";
 import { SCHEDULE_ID } from "../config";
 import { AuthenticationRequired, type PlannerApi } from "./planner-client";
-import { GrantRevoked, type SignInInput } from "./device-client";
+import { GrantRevoked, isPendingSignIn, SignInCancelled, type PendingSignIn } from "./device-client";
 import { isStoredGrant, isRecord, isSectionRef, type DeviceTokenResponse, type StoredGrant, type AddReply, type SectionRef } from "../shared/extension-api";
 import type { PanelOutcome, PanelPreview, PanelState } from "../shared/panel";
 import { StudentError } from "../shared/student-error";
@@ -10,6 +10,7 @@ import type { Request } from "../shared/validation";
 // Shown in place of an internal error's message, which is never student copy.
 const COULDNT_LOAD = "Couldn't load this from UNTangle. Retry in a moment.";
 const SIGN_IN_UNFINISHED = "Sign-in didn't finish. Sign in again.";
+const CHOOSE_SECTION = "Choose a section on class search, then open UNTangle to review it.";
 const UNREACHABLE = "Couldn't reach UNTangle. Check your connection and retry.";
 // The access token lives 5 minutes. A use within this margin of its end
 // refreshes first, so the token the server sees is always well inside its
@@ -18,31 +19,51 @@ const UNREACHABLE = "Couldn't reach UNTangle. Check your connection and retry.";
 // first use.
 const REFRESH_MARGIN_MS = 30_000;
 const GRANT_KEY = "device-grant";
+const SIGN_IN_KEY = "device-sign-in";
+/**
+ * How many waiting adds the last sign-out or lapsed grant discarded, kept in
+ * local storage so the panel can still say so after Chrome stops the worker.
+ * The next sign-in clears it.
+ */
+const DISCARDED_KEY = "discarded-adds";
 
 /** What the worker needs from the device-code flow; DeviceClient implements it. */
 export interface DeviceAuth {
-  signIn(input: SignInInput): Promise<DeviceTokenResponse>;
+  start(scheduleId: string): Promise<PendingSignIn>;
+  poll(pending: PendingSignIn, current: () => Promise<boolean>): Promise<DeviceTokenResponse>;
   refresh(refreshToken: string): Promise<DeviceTokenResponse>;
   revoke(accessToken: string): Promise<void>;
 }
 
+/** chrome.storage.session: memory only, and closed to content scripts unless an extension opens it. */
+export type SessionStore = Pick<LocalStore, "get" | "set" | "remove">;
+
+const sameSignIn = (stored: unknown, pending: PendingSignIn) => isPendingSignIn(stored) && stored.deviceCode === pending.deviceCode;
+
 export class WorkerController {
   private grant: StoredGrant | null = null;
   private preview: PanelPreview | null = null;
-  /** While a device sign-in is in flight, the code the student matches on the approval page. */
-  private userCode: string | null = null;
-  private notice = "Choose a section on class search, then open UNTangle to review it.";
+  /** The sign-in this worker is polling; the panel shows its code. One at a time. */
+  private signingIn: PendingSignIn | null = null;
+  private notice = CHOOSE_SECTION;
   private outcome: PanelOutcome = "none";
   private busy = false;
   /** The in-flight token refresh, so concurrent calls share one rotation. */
   private inflight: Promise<string> | null = null;
   private readonly outbox: AddOutbox;
-  constructor(private readonly store: LocalStore, private readonly client: PlannerApi, private readonly auth: DeviceAuth, private readonly changed: () => Promise<void> = async () => { }, private readonly now: () => number = Date.now) {
+  constructor(private readonly store: LocalStore, private readonly signIns: SessionStore, private readonly client: PlannerApi, private readonly auth: DeviceAuth, private readonly changed: () => Promise<void> = async () => { }, private readonly now: () => number = Date.now) {
     this.outbox = new AddOutbox(store, client);
   }
   async start(): Promise<void> {
     const saved = await this.store.get(GRANT_KEY);
     this.grant = isStoredGrant(saved) ? saved : null;
+    // A sign-in started before Chrome stopped this worker keeps polling,
+    // unless a grant already loaded and there is nothing left to sign in to.
+    const pending = await this.signIns.get(SIGN_IN_KEY);
+    if (isPendingSignIn(pending) && this.grant)
+      await this.signIns.remove(SIGN_IN_KEY);
+    else if (isPendingSignIn(pending))
+      this.follow(pending);
     try {
       await this.replay();
     }
@@ -50,19 +71,72 @@ export class WorkerController {
       await this.failed(error);
     }
   }
-  private async failed(error: unknown, grantId = this.grant?.grantId, fallback = COULDNT_LOAD): Promise<void> {
+  private async failed(error: unknown, fallback = COULDNT_LOAD, grantId = this.grant?.grantId): Promise<void> {
     if (error instanceof AuthenticationRequired && this.grant?.grantId === grantId)
       await this.signOut();
     this.notice = error instanceof StudentError ? error.message : fallback;
     // A lapsed sign-in is explained by the signed-out panel itself.
     this.outcome = error instanceof AuthenticationRequired ? "none" : "error";
   }
+  /**
+   * Ends the grant locally. Its waiting adds go with it: this client replays
+   * an add only under the grant that made it (the server keys receipts by
+   * user and operation id), and the next sign-in is a new grant. The count
+   * is kept so the panel can say how many were discarded. The adds go first,
+   * so a worker stopped halfway still holds the grant and the next sign-out
+   * finishes the job.
+   */
   private async signOut(): Promise<void> {
+    const adds = Object.keys(await this.store.all()).filter(key => key.startsWith("add:"));
+    for (const key of adds)
+      await this.store.remove(key);
+    if (adds.length > 0)
+      await this.store.set(DISCARDED_KEY, adds.length);
     this.grant = null;
-    this.userCode = null;
     this.preview = null;
     await this.store.remove(GRANT_KEY);
     await this.changed();
+  }
+  private follow(pending: PendingSignIn): void {
+    if (this.signingIn)
+      return;
+    this.signingIn = pending;
+    void this.finishSignIn(pending);
+  }
+  /**
+   * Polls a started sign-in until the student approves, denies, or the code
+   * expires, whether or not a panel stays open: opening the approval tab
+   * closes the toolbar popup.
+   */
+  private async finishSignIn(pending: PendingSignIn): Promise<void> {
+    try {
+      // Each round reads the stored sign-in. That read is an extension API
+      // call, which resets the 30-second idle timer after which Chrome stops a
+      // worker; a fetch doesn't. If Chrome stops the worker anyway, start()
+      // resumes from storage on the next event.
+      const tokens = await this.auth.poll(pending, async () => sameSignIn(await this.signIns.get(SIGN_IN_KEY), pending));
+      if (this.signingIn !== pending) {
+        // Cancelled while the last poll was in flight: end the grant it brought back.
+        await this.auth.revoke(tokens.accessToken).catch(() => { });
+        return;
+      }
+      await this.saveGrant(tokens);
+      await this.store.remove(DISCARDED_KEY);
+      this.notice = CHOOSE_SECTION;
+      this.outcome = "none";
+    }
+    catch (error) {
+      if (!(error instanceof SignInCancelled) && this.signingIn === pending)
+        await this.failed(error, SIGN_IN_UNFINISHED);
+    }
+    finally {
+      // A newer sign-in may have replaced this one; leave its state alone.
+      if (this.signingIn === pending)
+        this.signingIn = null;
+      if (sameSignIn(await this.signIns.get(SIGN_IN_KEY), pending))
+        await this.signIns.remove(SIGN_IN_KEY);
+      await this.changed();
+    }
   }
   private async saveGrant(tokens: DeviceTokenResponse): Promise<void> {
     const grant: StoredGrant = {
@@ -145,13 +219,15 @@ export class WorkerController {
     await this.outbox.resend(this.grant.grantId, await this.session(), (pending, reply) => this.settled(pending, reply));
   }
   private async state(): Promise<PanelState> {
-    // Signed in, only this grant's adds count, so another grant's never
-    // blocks it. Signed out, any stored add counts: the panel then asks the
-    // student to sign in to finish it, and replay still sends only the adds
-    // of whichever grant signs in.
+    // Only this grant's adds count, so no other grant's can block it.
     const owner = this.grant?.grantId;
-    const pending = Object.entries(await this.store.all()).filter(([key, value]) => key.startsWith("add:") && isRecord(value) && (owner === undefined || value.grantId === owner)).length;
-    return { signedIn: this.grant !== null, userCode: this.userCode, preview: this.preview, notice: this.notice, outcome: this.outcome, pending, working: false };
+    const stored = await this.store.all();
+    const pending = owner === undefined ? 0 : Object.entries(stored).filter(([key, value]) => key.startsWith("add:") && isRecord(value) && value.grantId === owner).length;
+    const discarded = stored[DISCARDED_KEY];
+    return {
+      signedIn: this.grant !== null, userCode: this.signingIn?.userCode ?? null, preview: this.preview, notice: this.notice, outcome: this.outcome, pending,
+      discarded: this.grant === null && typeof discarded === "number" && Number.isSafeInteger(discarded) ? discarded : 0, working: false,
+    };
   }
   private async isPending(ref: SectionRef, grantId: string): Promise<boolean> {
     return Object.entries(await this.store.all()).some(([key, value]) => key.startsWith("add:") && isRecord(value) && value.grantId === grantId && isSectionRef(value.ref) && value.ref.term === ref.term && value.ref.classNumber === ref.classNumber);
@@ -176,7 +252,7 @@ export class WorkerController {
         return { marker: preview.inSchedule === true ? "added" : preview.conflict };
       }
       catch (error) {
-        await this.failed(error, active.grantId);
+        await this.failed(error, COULDNT_LOAD, active.grantId);
         return { marker: "unknown" };
       }
     }
@@ -190,20 +266,18 @@ export class WorkerController {
     try {
       if (request.type === "panel/sign-in") {
         this.preview = null;
-        this.notice = "Choose a section on class search, then open UNTangle to review it.";
+        this.notice = CHOOSE_SECTION;
         this.outcome = "none";
-        try {
-          const tokens = await this.auth.signIn({
-            scheduleId: SCHEDULE_ID,
-            onUserCode: code => { this.userCode = code; },
-          });
-          await this.saveGrant(tokens);
-          await this.replay();
-          await this.changed();
+        if (!this.signingIn) {
+          const pending = await this.auth.start(SCHEDULE_ID);
+          await this.signIns.set(SIGN_IN_KEY, pending);
+          this.follow(pending);
         }
-        finally {
-          this.userCode = null;
-        }
+      }
+      if (request.type === "panel/cancel-sign-in") {
+        // The poll stops at its next round, when it finds the stored sign-in gone.
+        this.signingIn = null;
+        await this.signIns.remove(SIGN_IN_KEY);
       }
       if (request.type === "panel/sign-out") {
         // Tell UNTangle with the freshest token there is; if the server can't
@@ -251,7 +325,7 @@ export class WorkerController {
       return await this.state();
     }
     catch (error) {
-      await this.failed(error, this.grant?.grantId, request.type === "panel/sign-in" ? SIGN_IN_UNFINISHED : COULDNT_LOAD);
+      await this.failed(error, request.type === "panel/sign-in" ? SIGN_IN_UNFINISHED : COULDNT_LOAD);
       return await this.state();
     }
     finally {

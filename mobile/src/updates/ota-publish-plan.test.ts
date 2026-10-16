@@ -1,45 +1,44 @@
+import matchingList from "../../../scripts/mobile/fixtures/production-builds.json";
+import staleList from "../../../scripts/mobile/fixtures/production-builds-stale.json";
 import {
   fingerprintOf,
   matchingFingerprint,
   parseBuildList,
   parseRolloutPercentage,
   selectProductionBuilds,
+  shellCommand,
   type EasBuild,
 } from "./ota-publish-plan";
 
 const FP_MATCH = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const FP_OTHER = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-const FP_THIRD = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 
+// Field names and enum values as `eas build:list --json` prints them (eas-cli src/graphql/types/Build.ts).
 const productionMatch: EasBuild = {
   id: "build-1",
   status: "FINISHED",
-  platform: "ios",
-  channel: "production",
+  platform: "IOS",
+  distribution: "STORE",
+  updateChannel: { name: "production" },
   appVersion: "1.0.0",
-  runtimeVersion: FP_MATCH,
+  fingerprint: { hash: FP_MATCH },
 };
-const productionStale: EasBuild = {
-  id: "build-2",
-  status: "FINISHED",
-  platform: "ios",
-  channel: "production",
-  appVersion: "1.0.0",
-  runtimeVersion: FP_OTHER,
-};
+const productionStale: EasBuild = { ...productionMatch, id: "build-2", fingerprint: { hash: FP_OTHER } };
+
+const FIXTURE_FP = "677b489a545ef723b22b76b0830877e24022f4e9";
 
 describe("parseBuildList", () => {
-  test("accepts a bare array", () => {
+  test("accepts the bare array eas build:list --json prints", () => {
     expect(parseBuildList(JSON.stringify([productionMatch]))).toEqual([productionMatch]);
   });
 
-  test("accepts the paged envelope the current EAS CLI prints", () => {
-    const envelope = JSON.stringify({ currentBuilds: [], allBuilds: [productionMatch], allDataIsLoaded: true });
-    expect(parseBuildList(envelope)).toEqual([productionMatch]);
+  test("rejects output that is not an array", () => {
+    expect(() => parseBuildList('{"allBuilds": []}')).toThrow(/not an array/);
   });
 
-  test("rejects output with no build array", () => {
-    expect(() => parseBuildList('{"hello": true}')).toThrow(/no build array/);
+  test("rejects null and primitive entries instead of failing later on them", () => {
+    expect(() => parseBuildList(JSON.stringify([productionMatch, null]))).toThrow(/non-object at index 1/);
+    expect(() => parseBuildList("[3]")).toThrow(/non-object at index 0/);
   });
 
   test("rejects non-JSON output", () => {
@@ -48,12 +47,8 @@ describe("parseBuildList", () => {
 });
 
 describe("fingerprintOf", () => {
-  test("reads a string runtime version", () => {
+  test("reads fingerprint.hash", () => {
     expect(fingerprintOf(productionMatch)).toBe(FP_MATCH);
-  });
-
-  test("reads an object runtime version", () => {
-    expect(fingerprintOf({ runtimeVersion: { fingerprint: FP_THIRD } })).toBe(FP_THIRD);
   });
 
   test("returns null when a build carries none", () => {
@@ -62,20 +57,19 @@ describe("fingerprintOf", () => {
 });
 
 describe("selectProductionBuilds", () => {
-  test("keeps only finished builds on the production channel", () => {
+  test("keeps only finished store builds on the production channel", () => {
     const builds: EasBuild[] = [
       productionMatch,
       productionStale,
       { ...productionMatch, status: "NEW" },
-      { ...productionMatch, channel: "preview" },
-      { ...productionMatch, platform: "android" },
-      // A channel-less record can qualify through the production profile.
-      { ...productionMatch, channel: null, profile: "production", id: "build-3" },
-      { ...productionMatch, channel: null, profile: "preview", id: "build-4" },
+      { ...productionMatch, updateChannel: { name: "preview" } },
+      { ...productionMatch, platform: "ANDROID" },
+      // An internal build made with the production profile reaches no store install.
+      { ...productionMatch, distribution: "INTERNAL" },
+      // A build with no channel (the CLI drops the null key) can't receive a production-channel update.
+      { ...productionMatch, updateChannel: undefined, id: "build-3" },
     ];
-    const { production, rejected } = selectProductionBuilds(builds, "ios");
-    expect(production.map((build) => build.id)).toEqual(["build-1", "build-2", "build-3"]);
-    expect(rejected).toBe(4);
+    expect(selectProductionBuilds(builds).map((build) => build.id)).toEqual(["build-1", "build-2"]);
   });
 });
 
@@ -89,6 +83,38 @@ describe("matchingFingerprint", () => {
   test("no match when the stores hold only other fingerprints", () => {
     const { matches } = matchingFingerprint([productionStale], FP_MATCH);
     expect(matches).toEqual([]);
+  });
+});
+
+describe("the checked-in build-list fixtures", () => {
+  test("the matching list passes the guard on its one finished production store build", () => {
+    const production = selectProductionBuilds(parseBuildList(JSON.stringify(matchingList)));
+    expect(matchingFingerprint(production, FIXTURE_FP).matches.map((build) => build.id)).toEqual([
+      "11111111-1111-1111-1111-111111111111",
+    ]);
+  });
+
+  test("the stale list holds a production build with another fingerprint", () => {
+    const production = selectProductionBuilds(parseBuildList(JSON.stringify(staleList)));
+    expect(production).toHaveLength(1);
+    expect(matchingFingerprint(production, FIXTURE_FP).matches).toEqual([]);
+  });
+});
+
+describe("shellCommand", () => {
+  test("leaves plain arguments bare", () => {
+    expect(shellCommand(["npx", "--yes", "eas-cli@latest", "update", "--rollout-percentage", "25"])).toBe(
+      "npx --yes eas-cli@latest update --rollout-percentage 25",
+    );
+  });
+
+  test("single-quotes a message with quotes, backslashes, dollars and newlines", () => {
+    const message = 'fix "login" it\'s $HOME C:\\path\nbody';
+    expect(shellCommand(["--message", message])).toBe(`--message 'fix "login" it'\\''s $HOME C:\\path\nbody'`);
+  });
+
+  test("quotes an empty argument", () => {
+    expect(shellCommand(["--message", ""])).toBe("--message ''");
   });
 });
 

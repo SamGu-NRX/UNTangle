@@ -62,3 +62,18 @@ test("only the owning grant replays its adds; a wrong receipt never drains one",
   expect(requests).toBe(1);
   expect(await storage.get("add:op-restart")).toEqual(pending);
 });
+test("a malformed or older-format record is removed, and the valid adds still replay", async () => {
+  const storage = memory();
+  const seen: unknown[] = [];
+  const box = new AddOutbox(storage, new PlannerClient(async (_url, init) => {
+    seen.push(JSON.parse(String(init?.body)));
+    return jsonResponse({ kind: "receipt", operationId: command.operationId, committedRevision: 5 });
+  }));
+  // Before grant-scoped replay, a stored add named its account, not its grant.
+  await storage.set("add:op-legacy", { command: { ...command, operationId: "op-legacy" }, accountId: "account-1", ref });
+  await storage.set("add:op-damaged", "not a record");
+  await box.enqueue(pending);
+  await box.resend("grant-a", "token-a");
+  expect(seen).toEqual([command]);
+  expect(await storage.all()).toEqual({});
+});

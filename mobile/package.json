@@ -49,7 +49,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "jest",
+    "test": "jest && bun --no-env-file test ../scripts/mobile",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },

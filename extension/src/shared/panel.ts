@@ -26,7 +26,13 @@ export interface PanelState {
   /** Student-facing copy. It never carries an internal error's message. */
   notice: string;
   outcome: PanelOutcome;
+  /** This grant's adds still waiting for UNTangle's receipt; 0 when signed out. */
   pending: number;
+  /**
+   * Signed out: how many waiting adds the sign-out or the lapsed grant
+   * discarded, until the next sign-in. Signed in, always 0.
+   */
+  discarded: number;
   /**
    * True when another request (a second panel, or a sign-in still open) holds
    * the worker. The state is then mid-change, so the panel keeps its loading

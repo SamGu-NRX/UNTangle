@@ -1,47 +1,223 @@
-{
-  "note": "Synthetic `eas build:list --json` shape (no EAS project existed when this was written; nothing was captured from a live EAS account). Build build-1 carries the fingerprint `npx --no-install expo-updates fingerprint:generate --platform ios` computed in mobile/ on 2026-10-15 against this branch's checkout, so the offline dry run exercises the guard's passing path. Recompute it after any config or dependency change.",
-  "currentBuilds": [],
-  "allDataIsLoaded": true,
-  "allBuilds": [
-    {
-      "id": "11111111-1111-1111-1111-111111111111",
-      "status": "FINISHED",
-      "platform": "ios",
-      "channel": "production",
-      "profile": "production",
-      "appVersion": "1.0.0",
-      "sdkVersion": "57.0.0",
-      "runtimeVersion": "677b489a545ef723b22b76b0830877e24022f4e9"
+[
+  {
+    "id": "11111111-1111-1111-1111-111111111111",
+    "status": "FINISHED",
+    "platform": "IOS",
+    "fingerprint": {
+      "id": "fp-1",
+      "hash": "677b489a545ef723b22b76b0830877e24022f4e9"
     },
-    {
-      "id": "22222222-2222-2222-2222-222222222222",
-      "status": "FINISHED",
-      "platform": "ios",
-      "channel": "production",
-      "profile": "production",
-      "appVersion": "1.0.0",
-      "sdkVersion": "57.0.0",
-      "runtimeVersion": "0000000000000000000000000000000000000000000000000000000000000abc"
+    "initiatingActor": {
+      "id": "00000000-0000-0000-0000-0000000000cc",
+      "displayName": "fixture-owner"
     },
-    {
-      "id": "33333333-3333-3333-3333-333333333333",
-      "status": "FINISHED",
-      "platform": "ios",
-      "channel": "preview",
-      "profile": "preview",
-      "appVersion": "1.0.0",
-      "sdkVersion": "57.0.0",
-      "runtimeVersion": "677b489a545ef723b22b76b0830877e24022f4e9"
+    "logFiles": [],
+    "app": {
+      "id": "00000000-0000-0000-0000-0000000000aa",
+      "name": "UNTangle",
+      "slug": "untangle",
+      "ownerAccount": {
+        "id": "00000000-0000-0000-0000-0000000000bb",
+        "name": "fixture-owner"
+      }
     },
-    {
-      "id": "44444444-4444-4444-4444-444444444444",
-      "status": "NEW",
-      "platform": "ios",
-      "channel": "production",
-      "profile": "production",
-      "appVersion": "1.0.0",
-      "sdkVersion": "57.0.0",
-      "runtimeVersion": "677b489a545ef723b22b76b0830877e24022f4e9"
+    "updateChannel": {
+      "id": "channel-production",
+      "name": "production"
+    },
+    "distribution": "STORE",
+    "buildProfile": "production",
+    "appIdentifier": "app.untangle.mobile.placeholder",
+    "sdkVersion": "57.0.0",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "1",
+    "runtime": {
+      "id": "runtime-1",
+      "version": "677b489a545ef723b22b76b0830877e24022f4e9"
+    },
+    "priority": "NORMAL",
+    "createdAt": "2026-10-15T12:00:00.000Z",
+    "updatedAt": "2026-10-15T12:00:00.000Z",
+    "isForIosSimulator": false,
+    "completedAt": "2026-10-15T12:00:00.000Z",
+    "artifacts": {
+      "buildUrl": "https://example.invalid/builds/1.ipa"
     }
-  ]
-}
+  },
+  {
+    "id": "22222222-2222-2222-2222-222222222222",
+    "status": "FINISHED",
+    "platform": "IOS",
+    "fingerprint": {
+      "id": "fp-2",
+      "hash": "0000000000000000000000000000000000000000"
+    },
+    "initiatingActor": {
+      "id": "00000000-0000-0000-0000-0000000000cc",
+      "displayName": "fixture-owner"
+    },
+    "logFiles": [],
+    "app": {
+      "id": "00000000-0000-0000-0000-0000000000aa",
+      "name": "UNTangle",
+      "slug": "untangle",
+      "ownerAccount": {
+        "id": "00000000-0000-0000-0000-0000000000bb",
+        "name": "fixture-owner"
+      }
+    },
+    "updateChannel": {
+      "id": "channel-production",
+      "name": "production"
+    },
+    "distribution": "STORE",
+    "buildProfile": "production",
+    "appIdentifier": "app.untangle.mobile.placeholder",
+    "sdkVersion": "57.0.0",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "2",
+    "runtime": {
+      "id": "runtime-2",
+      "version": "0000000000000000000000000000000000000000"
+    },
+    "priority": "NORMAL",
+    "createdAt": "2026-10-15T12:00:00.000Z",
+    "updatedAt": "2026-10-15T12:00:00.000Z",
+    "isForIosSimulator": false,
+    "completedAt": "2026-10-15T12:00:00.000Z",
+    "artifacts": {
+      "buildUrl": "https://example.invalid/builds/2.ipa"
+    }
+  },
+  {
+    "id": "33333333-3333-3333-3333-333333333333",
+    "status": "FINISHED",
+    "platform": "IOS",
+    "fingerprint": {
+      "id": "fp-3",
+      "hash": "677b489a545ef723b22b76b0830877e24022f4e9"
+    },
+    "initiatingActor": {
+      "id": "00000000-0000-0000-0000-0000000000cc",
+      "displayName": "fixture-owner"
+    },
+    "logFiles": [],
+    "app": {
+      "id": "00000000-0000-0000-0000-0000000000aa",
+      "name": "UNTangle",
+      "slug": "untangle",
+      "ownerAccount": {
+        "id": "00000000-0000-0000-0000-0000000000bb",
+        "name": "fixture-owner"
+      }
+    },
+    "updateChannel": {
+      "id": "channel-preview",
+      "name": "preview"
+    },
+    "distribution": "INTERNAL",
+    "buildProfile": "preview",
+    "appIdentifier": "app.untangle.mobile.placeholder",
+    "sdkVersion": "57.0.0",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "3",
+    "runtime": {
+      "id": "runtime-3",
+      "version": "677b489a545ef723b22b76b0830877e24022f4e9"
+    },
+    "priority": "NORMAL",
+    "createdAt": "2026-10-15T12:00:00.000Z",
+    "updatedAt": "2026-10-15T12:00:00.000Z",
+    "isForIosSimulator": false,
+    "completedAt": "2026-10-15T12:00:00.000Z",
+    "artifacts": {
+      "buildUrl": "https://example.invalid/builds/3.ipa"
+    }
+  },
+  {
+    "id": "44444444-4444-4444-4444-444444444444",
+    "status": "FINISHED",
+    "platform": "IOS",
+    "fingerprint": {
+      "id": "fp-4",
+      "hash": "677b489a545ef723b22b76b0830877e24022f4e9"
+    },
+    "initiatingActor": {
+      "id": "00000000-0000-0000-0000-0000000000cc",
+      "displayName": "fixture-owner"
+    },
+    "logFiles": [],
+    "app": {
+      "id": "00000000-0000-0000-0000-0000000000aa",
+      "name": "UNTangle",
+      "slug": "untangle",
+      "ownerAccount": {
+        "id": "00000000-0000-0000-0000-0000000000bb",
+        "name": "fixture-owner"
+      }
+    },
+    "updateChannel": {
+      "id": "channel-production",
+      "name": "production"
+    },
+    "distribution": "INTERNAL",
+    "buildProfile": "production",
+    "appIdentifier": "app.untangle.mobile.placeholder",
+    "sdkVersion": "57.0.0",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "4",
+    "runtime": {
+      "id": "runtime-4",
+      "version": "677b489a545ef723b22b76b0830877e24022f4e9"
+    },
+    "priority": "NORMAL",
+    "createdAt": "2026-10-15T12:00:00.000Z",
+    "updatedAt": "2026-10-15T12:00:00.000Z",
+    "isForIosSimulator": false,
+    "completedAt": "2026-10-15T12:00:00.000Z",
+    "artifacts": {
+      "buildUrl": "https://example.invalid/builds/4.ipa"
+    }
+  },
+  {
+    "id": "55555555-5555-5555-5555-555555555555",
+    "status": "NEW",
+    "platform": "IOS",
+    "fingerprint": {
+      "id": "fp-5",
+      "hash": "677b489a545ef723b22b76b0830877e24022f4e9"
+    },
+    "initiatingActor": {
+      "id": "00000000-0000-0000-0000-0000000000cc",
+      "displayName": "fixture-owner"
+    },
+    "logFiles": [],
+    "app": {
+      "id": "00000000-0000-0000-0000-0000000000aa",
+      "name": "UNTangle",
+      "slug": "untangle",
+      "ownerAccount": {
+        "id": "00000000-0000-0000-0000-0000000000bb",
+        "name": "fixture-owner"
+      }
+    },
+    "updateChannel": {
+      "id": "channel-production",
+      "name": "production"
+    },
+    "distribution": "STORE",
+    "buildProfile": "production",
+    "appIdentifier": "app.untangle.mobile.placeholder",
+    "sdkVersion": "57.0.0",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "5",
+    "runtime": {
+      "id": "runtime-5",
+      "version": "677b489a545ef723b22b76b0830877e24022f4e9"
+    },
+    "priority": "NORMAL",
+    "createdAt": "2026-10-15T12:00:00.000Z",
+    "updatedAt": "2026-10-15T12:00:00.000Z",
+    "isForIosSimulator": false
+  }
+]

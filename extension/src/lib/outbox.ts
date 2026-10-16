@@ -25,13 +25,19 @@ export class AddOutbox {
       await this.store.remove(`add:${pending.command.operationId}`);
     return reply;
   }
-  /** Replays only the adds the named grant made, under that grant's fresh token. */
+  /**
+   * Replays only the adds the named grant made, under that grant's fresh
+   * token. A record that isn't a valid add (an older format, or a damaged
+   * write) is removed and skipped, so it can't block the rest.
+   */
   async resend(grantId: string, token: string, settled: (pending: PendingAdd, reply: AddReply) => Promise<void> = async () => { }): Promise<void> {
     for (const [key, value] of Object.entries(await this.store.all())) {
       if (!key.startsWith("add:"))
         continue;
-      if (!isRecord(value) || !isCommand(value.command) || !isId(value.grantId) || !isSectionRef(value.ref) || key !== `add:${value.command.operationId}`)
-        throw new Error("Invalid persisted add command");
+      if (!isRecord(value) || !isCommand(value.command) || !isId(value.grantId) || !isSectionRef(value.ref) || key !== `add:${value.command.operationId}`) {
+        await this.store.remove(key);
+        continue;
+      }
       if (value.grantId !== grantId)
         continue;
       const pending = { command: value.command, grantId: value.grantId, ref: value.ref };

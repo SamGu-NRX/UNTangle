@@ -117,13 +117,17 @@ The script is a **dry run by default**. It
 
 1. computes the local runtime fingerprint
    (`npx expo-updates fingerprint:generate --platform ios`),
-2. asks `eas build:list --json` for the stores' finished production builds,
+2. asks `eas build:list --json` for finished iOS store builds on the
+   production channel that carry that fingerprint (`--status finished
+   --distribution store --channel production --fingerprint-hash`, `--limit 50`,
+   eas-cli's cap),
 3. **refuses to publish** unless at least one finished production build shares
    the update's fingerprint. With no matching build the update would be
    invisible to every install — that almost always means the change needs a
-   new `eas build`, not an update — and it prints every fingerprint it saw
-   before refusing,
-4. otherwise prints the exact `eas-cli update` command it would run.
+   new `eas build`, not an update — and it prints the fingerprints of the
+   newest 50 finished store builds before refusing,
+4. otherwise prints the exact `eas-cli update` command `--apply` would run,
+   shell-quoted so it can be copied as is.
 
 Add `--apply` to publish, and `--rollout-percentage 25` for a staged rollout
 (whole numbers, 1–100). iOS is the only publish target: the script rejects any
@@ -136,20 +140,31 @@ Two flags swap the network calls for saved files so the guard can be
 exercised without an EAS session:
 
 - `--fingerprint-file <path>` — a saved `fingerprint:generate` output
-  (the synthetic fixtures in `scripts/mobile/fixtures/` embed the fingerprint
-  this branch was validated against).
-- `--build-list-file <path>` — a saved `eas build:list --json` output.
+  (the fixtures in `scripts/mobile/fixtures/` embed the fingerprint this
+  branch was validated against).
+- `--build-list-file <path>` — a saved `eas build:list --json` output. The
+  guard applies the same channel, store and fingerprint checks to it, since
+  a saved list may not have been filtered.
 
-The checked-in fixtures are **synthetic** shapes, labeled as such inside each
-file; they were never captured from a live EAS account.
+The checked-in build lists are **synthetic**: no EAS project exists yet, so
+nothing was captured from a live account. Their shape follows eas-cli 24.14.0's
+source: `build:list --json` prints a bare array of the GraphQL `BuildFragment`
+(`src/graphql/types/Build.ts`) through `printJsonOnlyOutput`
+(`src/build/queries.ts`), which drops `__typename` and every null field.
+Enum values are upper case (`"IOS"`, `"FINISHED"`, `"STORE"`), the channel is
+`updateChannel.name` and the fingerprint is `fingerprint.hash`. Replace them
+with a real capture once the first production build exists. The script runs
+that same release (`eas-cli@24.14.0`, pinned in `scripts/mobile/ota-publish.ts`);
+bump the pin only after checking the shape again.
 
 ### Exit codes
 
 - `0` — dry run planned the publish, or `--apply` published.
 - `1` — a guard refusal or EAS failure (missing environment variables, no
-  production builds, fingerprint mismatch, `eas update` failure). Nothing was
-  published.
-- `2` — a local setup problem (a saved file could not be read).
+  production builds, fingerprint mismatch, an `eas build:list` or `eas update`
+  failure). Nothing was published.
+- `2` — a local setup problem, or build-list output the script can't parse
+  (a saved file that can't be read, or output that isn't an array of builds).
 
 ## What the app does on the device
 
@@ -186,7 +201,7 @@ file; they were never captured from a live EAS account.
   ios` in `mobile/` against this branch's checkout (the earlier
   `c5c7d1271d1eec47c736fd68981ab8962f47c916` went stale when the mobile
   `typecheck` script changed `mobile/package.json` — it changes with any
-  config or dependency change, and the fixtures note that).
+  config or dependency change).
 
 ## Deliberately not done yet
 

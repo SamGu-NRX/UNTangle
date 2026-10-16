@@ -75,7 +75,13 @@ async function propose(page, panel, rowId, title) {
  * over the content.
  */
 async function shootPanel(panel, name) {
+  // Sign out is on every signed-in screen but its own confirmation, and on no other.
+  const view = await panel.locator("#view").getAttribute("data-view");
+  const signedOut = ["signed-out", "signing-in", "loading", "confirm-sign-out"].includes(view);
+  if (await panel.locator("#sign-out").count() !== (signedOut ? 0 : 1)) throw new Error(`Sign out ${signedOut ? "showed" : "was missing"} on the ${view} screen`);
   await panel.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+  // Off every button, so no capture shows a hover state.
+  await panel.mouse.move(0, 0);
   for (const width of PANEL_WIDTHS) {
     await panel.setViewportSize({ width, height: 200 });
     const height = Math.max(360, await panel.evaluate(() => document.documentElement.scrollHeight));
@@ -167,7 +173,7 @@ async function main() {
 
     const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
     const extensionId = new URL(worker.url()).host;
-    const panel = await context.newPage();
+    let panel = await context.newPage();
     await panel.setViewportSize({ width: PANEL_WIDTHS[0], height: PANEL_HEIGHT });
     const page = await context.newPage();
     await page.goto(`${MOCK}/class-search`);
@@ -179,12 +185,25 @@ async function main() {
     // opens the UNTangle approval page in a normal tab, and the student
     // approves there. No redirect and no identity window. The token issued
     // now lives 8 seconds, so the next authenticated call must refresh first.
-    await knobs({ accessExpiresInSeconds: 8 });
+    await knobs({ accessExpiresInSeconds: 8, holdApproval: true });
     await panel.locator("#sign-in").click();
     try {
       await onScreen(panel, "signing-in");
       const shownCode = (await panel.locator("#user-code").innerText()).trim();
       if (!/^[A-Z2-7]{8}$/.test(shownCode)) throw new Error(`the panel's code is not 8 base32 characters: ${shownCode}`);
+      await shootPanel(panel, "signing-in");
+      // Opening the approval tab closes Chrome's toolbar popup. The sign-in
+      // must outlive the panel, and a reopened panel shows the same code.
+      await panel.close();
+      // Closed for longer than the stub's 1-second poll interval, so a poll
+      // tied to an open panel would notice and stop.
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      panel = await context.newPage();
+      await panel.setViewportSize({ width: PANEL_WIDTHS[0], height: PANEL_HEIGHT });
+      await panel.goto(`chrome-extension://${extensionId}/popup.html`);
+      await onScreen(panel, "signing-in");
+      const reopenedCode = (await panel.locator("#user-code").innerText()).trim();
+      if (reopenedCode !== shownCode) throw new Error(`the reopened panel shows ${reopenedCode}, not the sign-in's ${shownCode}`);
       let approvalTab = null;
       for (let i = 0; i < 40 && approvalTab === null; i++) {
         approvalTab = context.pages().find(candidate => candidate.url().startsWith(`${STUB}/device?`)) ?? null;
@@ -193,13 +212,21 @@ async function main() {
       if (approvalTab === null) throw new Error("the worker never opened the UNTangle approval tab");
       const approvalCode = new URL(approvalTab.url()).searchParams.get("user_code");
       if (approvalCode !== shownCode) throw new Error(`the approval tab's code ${approvalCode} does not match the panel's ${shownCode}`);
+      // A student who closed that tab gets it back from the panel, and approves there.
+      await approvalTab.close();
+      const reopened = context.waitForEvent("page");
+      await panel.locator("#open-untangle").click();
+      approvalTab = await reopened;
+      await approvalTab.waitForLoadState();
+      if (new URL(approvalTab.url()).searchParams.get("user_code") !== shownCode) throw new Error(`Open UNTangle went to ${approvalTab.url()}`);
+      await approvalTab.locator("#approve").click();
       await approvalTab.locator("#result").filter({ hasText: "Approved" }).waitFor({ timeout: 15000 });
       await onScreen(panel, "empty");
     }
     catch (error) {
       throw new Error(`Device sign-in failed: ${error instanceof Error ? error.message : String(error)} — panel: ${await panel.locator("body").innerText()} Requests: ${JSON.stringify(await observed())}`);
     }
-    await knobs({ accessExpiresInSeconds: null });
+    await knobs({ accessExpiresInSeconds: null, holdApproval: false });
     await shootPanel(panel, "empty");
     const signInObserved = await observed();
     if (!signInObserved.requests.some(request => request.path === "/api/v1/device/start")) throw new Error("sign-in did not start the device flow");
@@ -229,9 +256,13 @@ async function main() {
       await panel.setViewportSize({ width, height: PANEL_HEIGHT });
       await panel.emulateMedia({ reducedMotion: "reduce" });
       await panel.locator("body").click({ position: { x: 2, y: 2 } });
-      await panel.keyboard.press("Tab");
-      const focused = await panel.locator(":focus").getAttribute("id");
-      if (focused !== "confirm") throw new Error(`Keyboard focus missed confirm at ${width}`);
+      // Reading order: Sign out in the top bar, then the add in the foot.
+      const order = [];
+      for (let i = 0; i < 2; i++) {
+        await panel.keyboard.press("Tab");
+        order.push(await panel.locator(":focus").getAttribute("id"));
+      }
+      if (order.join() !== "sign-out,confirm") throw new Error(`Keyboard focus went ${order.join(" then ")} at ${width}, not Sign out then the add`);
       const layout = await panel.evaluate(() => ({ overflow: document.documentElement.scrollWidth > innerWidth, height: document.querySelector("#confirm").getBoundingClientRect().height, ring: getComputedStyle(document.activeElement).boxShadow }));
       if (layout.overflow || layout.height < 44 || layout.ring === "none") throw new Error(`Popup accessibility/layout failed at ${width}: ${JSON.stringify(layout)}`);
     }
@@ -284,6 +315,11 @@ async function main() {
     if (!pendingKey) throw new Error("Confirmed add was not retained after a lost response");
     const operationId = stored[pendingKey].command.operationId;
     await shootPanel(panel, "waiting");
+    // With an add waiting, Sign out asks first and offers to sync instead.
+    await panel.locator("#sign-out").click();
+    await onScreen(panel, "confirm-sign-out", "Sign out before this add syncs?");
+    if (await panel.locator("#retry").count() !== 1 || await panel.locator("#discard-sign-out").count() !== 1) throw new Error("Sign-out confirmation lacks Sync now or Sign out and discard");
+    await shootPanel(panel, "confirm-sign-out");
     await settled(page, "SSR_CLSRCH_R1", "pending");
     await shootMarkers(page, "v1-markers-after-adds.png");
     await context.close();
@@ -324,22 +360,37 @@ async function main() {
     await restartedPanel.locator("#reload").click();
     await onScreen(restartedPanel, "preview", "Foundations of Computing");
 
+    // A lapsed grant can't send its waiting add, and no other grant may, so
+    // the panel says the add was discarded instead of promising to send it.
+    const grantOf = async () => (await restartedPanel.evaluate(() => chrome.storage.local.get("device-grant")))["device-grant"]?.grantId;
+    const lapsedGrant = await grantOf();
     await knobs({ nextCommand: "unauthorized" });
     await restartedPanel.locator("#confirm").click();
-    await onScreen(restartedPanel, "needs-sign-in", "Sign in to finish adding CSCE 2100");
-    await shootPanel(restartedPanel, "needs-sign-in");
+    await onScreen(restartedPanel, "signed-out", "Your sign-in ended before UNTangle confirmed 1 add, so this browser discarded it.");
+    await shootPanel(restartedPanel, "discarded");
+    if (Object.keys(await restartedPanel.evaluate(() => chrome.storage.local.get(null))).some(key => key.startsWith("add:"))) throw new Error("The lapsed grant's add was kept");
     await restartedPanel.locator("#sign-in").click();
-    await onScreen(restartedPanel, "added", "Added CSCE 2100 to Main");
-    if ((await observed()).writes.length !== 3) throw new Error("Signing in again did not send the waiting add exactly once");
+    await onScreen(restartedPanel, "preview", "Foundations of Computing");
+    const renewedGrant = await grantOf();
+    if (!renewedGrant || renewedGrant === lapsedGrant) throw new Error(`Signing in again did not mint a new grant (${lapsedGrant} -> ${renewedGrant})`);
+    if ((await observed()).writes.length !== 2) throw new Error("The discarded add reached Main");
+    if (await restartedPanel.locator("#view").filter({ hasText: "discarded" }).count()) throw new Error("The discard notice outlived the next sign-in");
     // Signing out revokes the grant on the server, clears the stored tokens,
     // and returns the panel to its signed-out screen; signing in again works.
     await restartedPanel.locator("#sign-out").click();
     await onScreen(restartedPanel, "signed-out");
     if (!(await observed()).requests.some(request => request.path === "/api/v1/device/revoke")) throw new Error("signing out did not revoke the grant on the server");
+    // Cancel ends a sign-in the student no longer wants.
+    await knobs({ holdApproval: true });
     await restartedPanel.locator("#sign-in").click();
     await onScreen(restartedPanel, "signing-in");
-    await onScreen(restartedPanel, "empty");
-    step("rejection, load failure, sign-out with revocation and a lapsed sign-in each show their own panel state");
+    await restartedPanel.locator("#cancel-sign-in").click();
+    await onScreen(restartedPanel, "signed-out");
+    await knobs({ holdApproval: false });
+    await restartedPanel.locator("#sign-in").click();
+    await onScreen(restartedPanel, "signing-in");
+    await onScreen(restartedPanel, "preview", "Foundations of Computing");
+    step("rejection, load failure, a lapsed grant discarding its add, sign-out with revocation and a new grant each show their own panel state");
 
     const transcript = await context.newPage(); await transcript.goto(`${MOCK}/transcript`);
     if (await transcript.locator("[data-unt-row]").count()) throw new Error("Content script ran outside class search");

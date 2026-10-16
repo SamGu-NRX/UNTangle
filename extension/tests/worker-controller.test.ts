@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
-import { WorkerController, type DeviceAuth } from "../src/lib/worker-controller";
-import { GrantRevoked } from "../src/lib/device-client";
+import { WorkerController, type DeviceAuth, type SessionStore } from "../src/lib/worker-controller";
+import { DeviceClient, GrantRevoked, SignInCancelled, type PendingSignIn } from "../src/lib/device-client";
+import { jsonResponse } from "./helpers";
 import { AuthenticationRequired, type PlannerApi } from "../src/lib/planner-client";
 import type { LocalStore } from "../src/lib/outbox";
 import type { AddOptionCommand, DeviceScopeName, DeviceTokenResponse, Preview, StoredGrant } from "../src/shared/extension-api";
@@ -16,24 +17,31 @@ const tokens: DeviceTokenResponse = { accessToken: tokenA, refreshToken: refresh
 // Exactly the six stored fields; extra fields would fail isStoredGrant.
 const storedGrant: StoredGrant = { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, grantId: tokens.grantId, scopes: [...tokens.scopes], scheduleId: "main", accessExpiresAt: 1_000_000 + 300_000 };
 const projection: Preview = { scheduleId: "main", optionId: "section-15802", revision: 1, title: "ENGL 1310", conflict: "clear", details: ["Work on Tuesday"] };
+const started: PendingSignIn = { deviceCode: "d".repeat(43), verifier: "v".repeat(43), userCode: "ABCD2345", intervalMs: 5000, deadline: 1_000_000 + 600_000 };
+const adds = async (store: LocalStore) => Object.keys(await store.all()).filter(k => k.startsWith("add:"));
+// The sign-in poll runs detached from the request that started it.
+const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 function fixture() {
   let now = 1_000_000;
   // The seeded grant's access token lives 300s from `now`, comfortably above
   // the refresh margin; tests that exercise expiry overwrite it.
   const values: Record<string, unknown> = { "device-grant": structuredClone(storedGrant), "proposed-section": ref };
   const store: LocalStore = { get: async (k) => structuredClone(values[k]), set: async (k, v) => { values[k] = structuredClone(v); }, remove: async (k) => { delete values[k]; }, all: async () => structuredClone(values) };
+  const sessionValues: Record<string, unknown> = {};
+  const signIns: SessionStore = { get: async (k) => structuredClone(sessionValues[k]), set: async (k, v) => { sessionValues[k] = structuredClone(v); }, remove: async (k) => { delete sessionValues[k]; } };
   const sent: AddOptionCommand[] = [];
   const revoked: string[] = [];
   const refreshes: string[] = [];
   let changes = 0;
   const api: PlannerApi = { preview: async () => projection, add: async (command) => { sent.push(command); return { kind: "receipt", operationId: command.operationId, committedRevision: 2 }; } };
   const auth: DeviceAuth = {
-    signIn: async () => ({ ...tokens, grantId: "renewed", accessToken: tokenB, refreshToken: refreshB }),
+    start: async () => structuredClone(started),
+    poll: async () => ({ ...tokens, grantId: "renewed", accessToken: tokenB, refreshToken: refreshB }),
     refresh: async (refreshToken) => { refreshes.push(refreshToken); return { ...tokens, accessToken: tokenB, refreshToken: refreshB }; },
     revoke: async (accessToken) => { revoked.push(accessToken); },
   };
-  const make = () => new WorkerController(store, api, auth, async () => { changes++; }, () => now);
-  return { store, api, auth, make, sent, revoked, refreshes, changes: () => changes, advance: (ms: number) => { now += ms; }, now: () => now };
+  const make = () => new WorkerController(store, signIns, api, auth, async () => { changes++; }, () => now);
+  return { store, signIns, api, auth, make, sent, revoked, refreshes, changes: () => changes, advance: (ms: number) => { now += ms; }, now: () => now };
 }
 async function state(worker: WorkerController): Promise<PanelState> {
   const reply = await worker.handle({ type: "panel/status" });
@@ -98,41 +106,87 @@ test("a restarted worker replays the same persisted add without a second confirm
   expect(f.sent[0]).toEqual(f.sent[1]);
   expect((await state(restarted)).pending).toBe(0);
 });
-test("a lapsed sign-in reveals sign-in while preserving the pending operation", async () => {
+test("a lapsed grant discards its waiting add and says so until the next sign-in", async () => {
   const f = fixture();
   const worker = f.make();
   await worker.start();
   const current = await state(worker);
   f.api.add = async () => { throw new AuthenticationRequired(); };
   await worker.handle({ type: "panel/confirm", previewId: current.preview!.previewId });
-  expect(await state(worker)).toMatchObject({ signedIn: false, preview: null });
-  expect(Object.keys(await f.store.all()).filter(k => k.startsWith("add:"))).toHaveLength(1);
+  // Only the grant that made an add may send it, and the next sign-in is a
+  // new grant, so the add can never be sent. The panel says it went.
+  expect(await state(worker)).toMatchObject({ signedIn: false, preview: null, pending: 0, discarded: 1 });
+  expect(await adds(f.store)).toEqual([]);
+  // A worker Chrome restarts still knows.
+  const restarted = f.make();
+  await restarted.start();
+  expect(await state(restarted)).toMatchObject({ signedIn: false, discarded: 1 });
   f.api.add = async (command) => { f.sent.push(command); return { kind: "receipt", operationId: command.operationId, committedRevision: 2 }; };
-  await worker.handle({ type: "panel/sign-in" });
-  expect((await state(worker)).signedIn).toBe(true);
-  // A fresh device sign-in mints a NEW grant, so the old grant's add is
-  // never replayed under the new token; it stays stored for its own grant
-  // (the panel's pending count covers only the signed-in grant's adds).
-  expect(f.sent).toHaveLength(0);
-  expect(Object.keys(await f.store.all()).filter(k => k.startsWith("add:"))).toHaveLength(1);
-  expect((await state(worker)).pending).toBe(0);
+  await restarted.handle({ type: "panel/sign-in" });
+  await settle();
+  expect(await state(restarted)).toMatchObject({ signedIn: true, pending: 0, discarded: 0 });
+  expect(f.sent).toEqual([]);
 });
-test("another grant cannot replay or be blocked by a previous grant's pending command", async () => {
+test("signing out with a waiting add discards it and says how many", async () => {
   const f = fixture();
   f.api.add = async () => null;
   const worker = f.make();
   await worker.start();
   const current = await state(worker);
   await worker.handle({ type: "panel/confirm", previewId: current.preview!.previewId });
-  f.auth.signIn = async () => ({ ...tokens, grantId: "grant-b", accessToken: tokenB, refreshToken: refreshB });
-  f.api.add = async (command) => { f.sent.push(command); return { kind: "receipt", operationId: command.operationId, committedRevision: 2 }; };
+  expect(await state(worker)).toMatchObject({ signedIn: true, pending: 1, discarded: 0 });
+  await worker.handle({ type: "panel/sign-out" });
+  expect(await state(worker)).toMatchObject({ signedIn: false, pending: 0, discarded: 1 });
+  expect(await adds(f.store)).toEqual([]);
+});
+test("a sign-in keeps polling with no panel open, and the code comes from the worker", async () => {
+  const f = fixture();
+  await f.store.remove("device-grant");
+  let approve: (value: DeviceTokenResponse) => void = () => { };
+  f.auth.poll = () => new Promise(resolve => { approve = resolve; });
+  const worker = f.make();
+  await worker.start();
+  // The request that starts the sign-in answers at once; nothing waits on a panel.
+  expect(await worker.handle({ type: "panel/sign-in" })).toMatchObject({ signedIn: false, userCode: "ABCD2345", working: false });
+  // A panel opened later reads the same code from the worker.
+  expect(await state(worker)).toMatchObject({ userCode: "ABCD2345", working: false });
+  expect(await f.signIns.get("device-sign-in")).toEqual(started);
+  // A second press doesn't start another sign-in.
+  f.auth.start = async () => { throw new Error("started twice"); };
+  expect(await worker.handle({ type: "panel/sign-in" })).toMatchObject({ userCode: "ABCD2345", outcome: "none" });
+  approve({ ...tokens });
+  await settle();
+  expect(await state(worker)).toMatchObject({ signedIn: true, userCode: null });
+  expect(await f.signIns.get("device-sign-in")).toBeUndefined();
+});
+test("a restarted worker resumes the stored sign-in, and the poll checks it is still stored", async () => {
+  const f = fixture();
+  await f.store.remove("device-grant");
+  await f.signIns.set("device-sign-in", started);
+  let approve: (value: DeviceTokenResponse) => void = () => { };
+  const polled: PendingSignIn[] = [];
+  let current: () => Promise<boolean> = async () => false;
+  f.auth.poll = (pending, check) => { polled.push(pending); current = check; return new Promise(resolve => { approve = resolve; }); };
+  const restarted = f.make();
+  await restarted.start();
+  expect(polled).toEqual([started]);
+  expect(await state(restarted)).toMatchObject({ signedIn: false, userCode: "ABCD2345" });
+  expect(await current()).toBe(true);
+  approve({ ...tokens });
+  await settle();
+  expect(await state(restarted)).toMatchObject({ signedIn: true, userCode: null });
+  expect(await current()).toBe(false);
+});
+test("a denied sign-in clears the code and shows the denial", async () => {
+  const f = fixture();
+  await f.store.remove("device-grant");
+  f.auth.poll = async () => { throw new StudentError("You denied this sign-in in UNTangle. Sign in again to continue."); };
+  const worker = f.make();
+  await worker.start();
   await worker.handle({ type: "panel/sign-in" });
-  expect(f.sent).toEqual([]);
-  const next = await state(worker);
-  expect(next.pending).toBe(0);
-  await worker.handle({ type: "panel/confirm", previewId: next.preview!.previewId });
-  expect(f.sent).toHaveLength(1);
-  expect(Object.keys(await f.store.all()).filter(k => k.startsWith("add:"))).toHaveLength(1);
+  await settle();
+  expect(await state(worker)).toMatchObject({ signedIn: false, userCode: null, outcome: "error", notice: "You denied this sign-in in UNTangle. Sign in again to continue." });
+  expect(await f.signIns.get("device-sign-in")).toBeUndefined();
 });
 test("failed preview during stale startup replay does not poison future requests", async () => {
   const f = fixture();
@@ -197,8 +251,9 @@ test("a dead refresh token signs out, clears storage, and sign-in works again", 
   const reply = await state(worker);
   expect(reply.signedIn).toBe(false);
   expect(await f.store.get("device-grant")).toBeUndefined();
-  f.auth.signIn = async () => ({ ...tokens });
+  f.auth.poll = async () => ({ ...tokens });
   await worker.handle({ type: "panel/sign-in" });
+  await settle();
   expect((await state(worker)).signedIn).toBe(true);
   expect(await f.store.get("device-grant")).toMatchObject({ accessToken: tokenA, grantId: "grant-a" });
 });
@@ -224,4 +279,76 @@ test("signing out revokes the grant and clears the tokens even if the server can
   expect(f.revoked).toEqual([tokenA]);
   expect((await state(worker)).signedIn).toBe(false);
   expect(await f.store.get("device-grant")).toBeUndefined();
+});
+test("another grant's stored add neither blocks this grant nor gets sent", async () => {
+  const f = fixture();
+  const other: AddOptionCommand = { command: "add-option", operationId: "other-grant-op", scheduleId: "main", optionId: "section-15802", expectedRevision: 0 };
+  await f.store.set("add:other-grant-op", { command: other, grantId: "grant-x", ref });
+  const worker = f.make();
+  await worker.start();
+  const current = await state(worker);
+  expect(current.pending).toBe(0);
+  await worker.handle({ type: "panel/confirm", previewId: current.preview!.previewId });
+  expect(f.sent.map(command => command.operationId)).not.toContain("other-grant-op");
+  expect(f.sent).toHaveLength(1);
+  expect(await f.store.get("add:other-grant-op")).toBeDefined();
+});
+test("Cancel ends the poll through SignInCancelled, and a sign-in started right after survives the old poll's end", async () => {
+  const f = fixture();
+  await f.store.remove("device-grant");
+  let starts = 0;
+  const tokenRequests: string[] = [];
+  const waits: (() => void)[] = [];
+  const devices = new DeviceClient(async (url, init) => {
+    if (url.endsWith("/api/v1/device/start")) {
+      starts++;
+      return jsonResponse({ deviceCode: `${"d".repeat(42)}${starts}`, userCode: starts === 1 ? "ABCD2345" : "EFGH2345", verificationUri: "http://127.0.0.1:3217/device", expiresIn: 600, interval: 5 });
+    }
+    tokenRequests.push(JSON.parse(String(init?.body)).deviceCode);
+    return jsonResponse({ error: "authorization_pending" }, 400);
+  }, { openTab: () => { }, delay: () => new Promise(resolve => { waits.push(resolve); }) });
+  const ended: unknown[] = [];
+  const poll = devices.poll.bind(devices);
+  devices.poll = (pending, current) => poll(pending, current).catch(error => { ended.push(error); throw error; });
+  const worker = new WorkerController(f.store, f.signIns, f.api, devices);
+  await worker.start();
+  expect(await worker.handle({ type: "panel/sign-in" })).toMatchObject({ userCode: "ABCD2345" });
+  await settle();
+  expect(await worker.handle({ type: "panel/cancel-sign-in" })).toMatchObject({ signedIn: false, userCode: null, outcome: "none" });
+  expect(await f.signIns.get("device-sign-in")).toBeUndefined();
+  // A new sign-in before the first poll wakes.
+  expect(await worker.handle({ type: "panel/sign-in" })).toMatchObject({ userCode: "EFGH2345" });
+  await settle();
+  waits[0]();
+  await settle();
+  expect(ended).toHaveLength(1);
+  expect(ended[0]).toBeInstanceOf(SignInCancelled);
+  // The first sign-in never asked for tokens, and the second is untouched.
+  expect(tokenRequests).toEqual([]);
+  expect(await state(worker)).toMatchObject({ userCode: "EFGH2345", outcome: "none" });
+  expect(await f.signIns.get("device-sign-in")).toMatchObject({ userCode: "EFGH2345" });
+});
+test("tokens that arrive after Cancel are revoked, not saved", async () => {
+  const f = fixture();
+  await f.store.remove("device-grant");
+  let approve: (value: DeviceTokenResponse) => void = () => { };
+  f.auth.poll = () => new Promise(resolve => { approve = resolve; });
+  const worker = f.make();
+  await worker.start();
+  await worker.handle({ type: "panel/sign-in" });
+  await worker.handle({ type: "panel/cancel-sign-in" });
+  approve({ ...tokens });
+  await settle();
+  expect(f.revoked).toEqual([tokenA]);
+  expect(await state(worker)).toMatchObject({ signedIn: false, userCode: null });
+  expect(await f.store.get("device-grant")).toBeUndefined();
+});
+test("a stored sign-in is dropped, not resumed, when a grant already loaded", async () => {
+  const f = fixture();
+  await f.signIns.set("device-sign-in", started);
+  f.auth.poll = async () => { throw new Error("must not poll"); };
+  const worker = f.make();
+  await worker.start();
+  expect(await f.signIns.get("device-sign-in")).toBeUndefined();
+  expect(await state(worker)).toMatchObject({ signedIn: true, userCode: null });
 });

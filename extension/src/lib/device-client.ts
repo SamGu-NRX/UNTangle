@@ -15,7 +15,7 @@ export class SignInDenied extends StudentError {
 export class SignInExpired extends StudentError {
   constructor() { super("That sign-in request expired. Sign in again."); }
 }
-/** The trusted panel closed before the student approved; not student copy. */
+/** The stored sign-in this poll belongs to is gone; not student copy. */
 export class SignInCancelled extends Error {
   constructor() { super("Sign-in cancelled."); }
 }
@@ -23,26 +23,34 @@ export class SignInCancelled extends Error {
 export interface SigninHooks {
   /** Opens the approval page in a normal browser tab, never a content script. */
   openTab(url: string): void;
-  /** Whether a trusted panel is still connected; polling stops when it closes. */
-  panelOpen(): boolean;
   /** Waits between polls; overridable in tests. The default sleeps. */
   delay?(ms: number): Promise<void>;
   /** The clock, overridable in tests. */
   now?: () => number;
 }
 
-export interface SignInInput {
-  /** The schedule the grant may read and add options to. */
-  scheduleId: string;
-  /** Called once the server names the code the student matches on the page. */
-  onUserCode(userCode: string): void;
+/**
+ * A started device sign-in. The worker keeps it in chrome.storage.session,
+ * so a restarted worker resumes the poll and a reopened panel shows the same
+ * code.
+ */
+export interface PendingSignIn {
+  deviceCode: string;
+  /** The PKCE verifier; it never leaves the worker except to /device/token. */
+  verifier: string;
+  userCode: string;
+  intervalMs: number;
+  /** When the device code expires, in epoch milliseconds. */
+  deadline: number;
 }
 
-interface PendingStart {
-  deviceCode: string;
-  verifier: string;
-  intervalMs: number;
-  deadline: number;
+export function isPendingSignIn(x: unknown): x is PendingSignIn {
+  return isRecord(x) && Object.keys(x).length === 5
+    && typeof x.deviceCode === "string" && x.deviceCode.length > 0 && x.deviceCode.length <= 200
+    && typeof x.verifier === "string" && /^[A-Za-z0-9_-]{43}$/.test(x.verifier)
+    && typeof x.userCode === "string" && /^[A-Z2-7]{8}$/.test(x.userCode)
+    && typeof x.intervalMs === "number" && Number.isSafeInteger(x.intervalMs) && x.intervalMs > 0
+    && typeof x.deadline === "number" && Number.isFinite(x.deadline);
 }
 
 const SIGNIN_UNREACHABLE = "Couldn't sign in to UNTangle. Check your connection and retry.";
@@ -66,9 +74,9 @@ function retryAfterSeconds(response: Response): number | null {
 
 /**
  * Signs the extension in through UNTangle's device-code flow: a PKCE start,
- * the student approving /device in a normal browser tab, and a token poll the
- * panel can stop by closing. Tokens are returned once, validated, and never
- * logged; the caller owns storing and refreshing them.
+ * the student approving /device in a normal browser tab, and a token poll
+ * that runs until the code expires. Tokens are returned once, validated, and
+ * never logged; the caller owns storing the pending sign-in and the tokens.
  */
 export class DeviceClient {
   private readonly now: () => number;
@@ -77,12 +85,13 @@ export class DeviceClient {
     this.now = hooks.now ?? Date.now;
     this.delay = hooks.delay ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
   }
-  async signIn(input: SignInInput): Promise<DeviceTokenResponse> {
+  /** Starts a sign-in for the schedule and opens its approval page. */
+  async start(scheduleId: string): Promise<PendingSignIn> {
     const verifier = randomSecret();
     const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
     const response = await this.fetchImpl(`${this.base}/api/v1/device/start`, {
       method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientKind: "extension", codeChallenge: challenge, codeChallengeMethod: "S256", scheduleId: input.scheduleId }),
+      body: JSON.stringify({ clientKind: "extension", codeChallenge: challenge, codeChallengeMethod: "S256", scheduleId }),
     }).catch(() => { throw new StudentError(SIGNIN_UNREACHABLE); });
     if (!response.ok)
       throw new StudentError(SIGNIN_UNREACHABLE);
@@ -102,13 +111,13 @@ export class DeviceClient {
       throw new Error("Untrusted verification URL");
     // The page fills the code in from the query (docs/architecture, /device?user_code=).
     this.hooks.openTab(`${page.origin}${page.pathname}?user_code=${encodeURIComponent(started.userCode)}`);
-    input.onUserCode(started.userCode);
-    return await this.poll({
+    return {
       deviceCode: started.deviceCode,
       verifier,
+      userCode: started.userCode,
       intervalMs: started.interval * 1000,
       deadline: this.now() + started.expiresIn * 1000,
-    });
+    };
   }
   async refresh(refreshToken: string): Promise<DeviceTokenResponse> {
     const response = await this.fetchImpl(`${this.base}/api/v1/device/refresh`, {
@@ -143,18 +152,22 @@ export class DeviceClient {
       return;
     throw new StudentError(UNREACHABLE);
   }
-  private async poll(pending: PendingStart): Promise<DeviceTokenResponse> {
+  /**
+   * Polls for the tokens until the student approves or denies, or the code
+   * expires. `current` is asked after every wait; once it says the sign-in is
+   * no longer the stored one, polling stops with SignInCancelled.
+   */
+  async poll(pending: PendingSignIn, current: () => Promise<boolean>): Promise<DeviceTokenResponse> {
     let wait = pending.intervalMs;
     for (;;) {
-      // Stop when the panel closes or after expiry, whichever comes first.
-      if (!this.hooks.panelOpen())
-        throw new SignInCancelled();
       const remaining = pending.deadline - this.now();
       if (remaining <= 0)
         throw new SignInExpired();
       await this.delay(Math.min(wait, remaining));
-      if (!this.hooks.panelOpen() || this.now() >= pending.deadline)
-        throw this.now() >= pending.deadline ? new SignInExpired() : new SignInCancelled();
+      if (this.now() >= pending.deadline)
+        throw new SignInExpired();
+      if (!await current())
+        throw new SignInCancelled();
       let response: Response;
       try {
         response = await this.fetchImpl(`${this.base}/api/v1/device/token`, {

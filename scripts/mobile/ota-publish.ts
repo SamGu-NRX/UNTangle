@@ -18,6 +18,7 @@
  */
 
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   EasProjectConfigError,
@@ -31,6 +32,7 @@ import {
   parseBuildList,
   parseRolloutPercentage,
   selectProductionBuilds,
+  shellCommand,
   type EasBuild,
 } from "../../mobile/src/updates/ota-publish-plan";
 
@@ -44,7 +46,16 @@ interface CliOptions {
   readonly fingerprintFile?: string;
 }
 
-const MOBILE_DIR = "mobile";
+// Absolute, so the script and its tests run from any directory.
+const MOBILE_DIR = join(import.meta.dir, "../../mobile");
+// Pinned to the release whose build:list --json shape the guard reads
+// (docs/mobile/ota.md). Bump it together with a fresh look at that shape.
+const EAS_CLI = ["npx", "--yes", "eas-cli@24.14.0"] as const;
+/** eas-cli rejects a larger build:list --limit (BUILDS_LIMIT in eas-cli src/build/queries.ts). */
+const BUILD_LIST_LIMIT = 50;
+
+/** An eas-cli call that failed: EAS, the network or the login, not this checkout. Exits 1, not 2. */
+class EasCommandError extends Error {}
 
 function usage(): string {
   return [
@@ -127,7 +138,9 @@ interface RunResult {
 }
 
 function run(command: readonly string[], cwd: string): RunResult {
-  const spawned = Bun.spawnSync(command, { cwd, stdout: "pipe", stderr: "pipe" });
+  // env: without it Bun finds the command on the PATH the process started
+  // with, so the tests' stand-in npx would be skipped for the real one.
+  const spawned = Bun.spawnSync([...command], { cwd, env: process.env, stdout: "pipe", stderr: "pipe" });
   return {
     ok: spawned.exitCode === 0,
     stdout: spawned.stdout.toString(),
@@ -171,27 +184,47 @@ function fingerprintFromFile(raw: string, source: string): string {
   return hash;
 }
 
-function productionBuilds(platform: string, file?: string): EasBuild[] {
-  const raw = file
-    ? readInputFile(file)
-    : easBuildListJson(platform);
-  return parseBuildList(raw);
+/**
+ * `eas build:list` for finished store builds on the production channel,
+ * newest first. With a fingerprint, EAS returns only builds that carry it, so
+ * a match is never past the one page.
+ */
+export function buildListArgv(platform: "ios", fingerprint?: string): string[] {
+  return [
+    ...EAS_CLI, "build:list", "--json", "--non-interactive",
+    "--platform", platform,
+    "--status", "finished",
+    "--distribution", "store",
+    "--channel", "production",
+    ...(fingerprint === undefined ? [] : ["--fingerprint-hash", fingerprint]),
+    "--limit", String(BUILD_LIST_LIMIT),
+  ];
 }
 
-function easBuildListJson(platform: string): string {
-  const result = run(
-    ["npx", "--yes", "eas-cli@latest", "build:list", "--json", "--platform", platform, "--limit", "100", "--non-interactive"],
-    MOBILE_DIR,
-  );
+/** The saved file as is, or one page from `eas build:list`. */
+function storeBuilds(platform: "ios", fingerprint: string | undefined, file?: string): EasBuild[] {
+  if (file) return parseBuildList(readInputFile(file));
+  const result = run(buildListArgv(platform, fingerprint), MOBILE_DIR);
   if (!result.ok) {
-    throw new OtaPublishError(
-      `eas build:list failed (is \`eas login\` done?):\n${result.stderr || result.stdout}`,
-    );
+    throw new EasCommandError(`eas build:list failed (is \`eas login\` done?):\n${result.stderr || result.stdout}`);
   }
-  return result.stdout;
+  return parseBuildList(result.stdout);
 }
 
-function main(env: Env, argv: readonly string[]): number {
+/** The `eas update` argv: printed by the dry run, run by --apply. */
+export function updateArgv(options: Pick<CliOptions, "message" | "rolloutPercentage" | "platform" | "channel">): string[] {
+  return [
+    ...EAS_CLI, "update",
+    "--channel", options.channel,
+    "--environment", options.channel,
+    "--platform", options.platform,
+    "--message", options.message,
+    ...(options.rolloutPercentage === undefined ? [] : ["--rollout-percentage", String(options.rolloutPercentage)]),
+    "--non-interactive",
+  ];
+}
+
+export function main(env: Env, argv: readonly string[]): number {
   const options = parseArgs(argv);
 
   // The publish path is where a missing environment must fail, and fail
@@ -211,25 +244,28 @@ function main(env: Env, argv: readonly string[]): number {
   const fingerprint = localFingerprint(options.platform, options.fingerprintFile);
   console.log(`Runtime fingerprint (local, ${options.platform}): ${fingerprint}`);
 
-  const { production } = selectProductionBuilds(productionBuilds(options.platform, options.buildListFile), options.platform);
-  const { matches, fingerprintsSeen } = matchingFingerprint(production, fingerprint);
-
-  if (production.length === 0) {
-    console.error(
-      `Refusing to publish: eas build:list shows no finished ${options.channel} ${options.platform} build at all. ` +
-        "Run the first production build (docs/mobile/ota.md) before publishing updates.",
-    );
-    return 1;
-  }
+  const { matches } = matchingFingerprint(
+    selectProductionBuilds(storeBuilds(options.platform, fingerprint, options.buildListFile)),
+    fingerprint,
+  );
   if (matches.length === 0) {
-    const seen = Array.from(fingerprintsSeen, (value) => value ?? "(none)")
+    const production = selectProductionBuilds(storeBuilds(options.platform, undefined, options.buildListFile));
+    if (production.length === 0) {
+      console.error(
+        `Refusing to publish: eas build:list shows no finished ${options.channel} ${options.platform} store build at all. ` +
+          "Run the first production build (docs/mobile/ota.md) before publishing updates.",
+      );
+      return 1;
+    }
+    const seen = Array.from(matchingFingerprint(production, fingerprint).fingerprintsSeen, (value) => value ?? "(none)")
       .map((value) => `  - ${value}`)
       .join("\n");
+    const scope = options.buildListFile ? "" : ` (at most the newest ${BUILD_LIST_LIMIT} finished store builds)`;
     console.error(
       `Refusing to publish: the update's fingerprint matches no production build in the stores.\n` +
         `The update would be invisible to every install, which usually means the change needs a new ` +
         `\`eas build --profile ${options.channel}\`, not an update.\n` +
-        `Fingerprints on file:\n${seen}`,
+        `Fingerprints on file${scope}:\n${seen}`,
     );
     return 1;
   }
@@ -237,31 +273,17 @@ function main(env: Env, argv: readonly string[]): number {
   const matched = matches
     .map((build) => `  - build ${build.id ?? "(no id)"} v${build.appVersion ?? "?"} fingerprint ${fingerprintOf(build)}`)
     .join("\n");
-  const rollout = options.rolloutPercentage === undefined ? "" : ` --rollout-percentage ${options.rolloutPercentage}`;
-  const command =
-    `npx eas-cli update --channel ${options.channel} --environment ${options.channel} --platform ${options.platform}` +
-    ` --message "${options.message}"${rollout}`;
+  const command = updateArgv(options);
 
   console.log(`Fingerprint guard passed: ${matches.length} production build(s) match.\n${matched}`);
   console.log(`Rollout: ${options.rolloutPercentage ?? 100}% of users on the ${options.channel} channel.`);
   console.log(`Update message: ${options.message}`);
 
   if (!options.apply) {
-    console.log(`Dry run only. To publish, rerun with --apply:\n  ${command}`);
+    console.log(`Dry run only. To publish, rerun with --apply. It will run, from ${MOBILE_DIR}/:\n  ${shellCommand(command)}`);
     return 0;
   }
-  const result = run(
-    [
-      "npx", "--yes", "eas-cli@latest", "update",
-      "--channel", options.channel,
-      "--environment", options.channel,
-      "--platform", options.platform,
-      "--message", options.message,
-      ...(options.rolloutPercentage === undefined ? [] : ["--rollout-percentage", String(options.rolloutPercentage)]),
-      "--non-interactive",
-    ],
-    MOBILE_DIR,
-  );
+  const result = run(command, MOBILE_DIR);
   if (!result.ok) {
     console.error(`eas update failed:\n${result.stderr || result.stdout}`);
     return 1;
@@ -271,14 +293,21 @@ function main(env: Env, argv: readonly string[]): number {
   return 0;
 }
 
-if (import.meta.main) {
+/** main's exit code, with a failed eas call as 1 and a local setup problem as 2 (docs/mobile/ota.md, "Exit codes"). */
+export function cli(env: Env, argv: readonly string[]): number {
   try {
-    process.exit(main(Bun.env, Bun.argv.slice(2)));
+    return main(env, argv);
   } catch (error) {
+    if (error instanceof EasCommandError) {
+      console.error(error.message);
+      return 1;
+    }
     if (error instanceof OtaPublishError) {
       console.error(error.message);
-      process.exit(2);
+      return 2;
     }
     throw error;
   }
 }
+
+if (import.meta.main) process.exit(cli(Bun.env, Bun.argv.slice(2)));

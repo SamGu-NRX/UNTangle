@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { WorkerController, type DeviceAuth } from "../src/lib/worker-controller";
+import { WorkerController, type DeviceAuth, type SessionStore } from "../src/lib/worker-controller";
 import { AuthenticationRequired, type PlannerApi } from "../src/lib/planner-client";
 import type { LocalStore } from "../src/lib/outbox";
 import type { DeviceScopeName, DeviceTokenResponse, Preview } from "../src/shared/extension-api";
@@ -9,14 +9,15 @@ const ref = { term: "spring-2027", classNumber: "15802" };
 const tokens: DeviceTokenResponse = { accessToken: "a".repeat(43), refreshToken: "r".repeat(43), tokenType: "Bearer", expiresIn: 300, scopes: ["schedule:read", "schedule:add-option"] as DeviceScopeName[], grantId: "grant-a" };
 const storedGrant = { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, grantId: tokens.grantId, scopes: [...tokens.scopes], scheduleId: "main", accessExpiresAt: Date.now() + 300_000 };
 const projection: Preview = { scheduleId: "main", optionId: "section-15802", revision: 1, title: "ENGL 1310", conflict: "clear", details: [] };
+const signIns: SessionStore = { get: async () => undefined, set: async () => { }, remove: async () => { } };
 function fixture() {
   const values: Record<string, unknown> = { "device-grant": structuredClone(storedGrant), "proposed-section": ref };
   const store: LocalStore = { get: async (k) => structuredClone(values[k]), set: async (k, v) => { values[k] = structuredClone(v); }, remove: async (k) => { delete values[k]; }, all: async () => structuredClone(values) };
   let changes = 0;
   const api: PlannerApi = { preview: async () => projection, add: async () => null };
-  const auth: DeviceAuth = { signIn: async () => ({ ...tokens }), refresh: async () => ({ ...tokens }), revoke: async () => { } };
-  const worker = new WorkerController(store, api, auth, async () => { changes++; });
-  return { store, api, worker, changes: () => changes };
+  const auth: DeviceAuth = { start: async () => { throw new Error("no sign-in in this test"); }, poll: async () => ({ ...tokens }), refresh: async () => ({ ...tokens }), revoke: async () => { } };
+  const worker = new WorkerController(store, signIns, api, auth, async () => { changes++; });
+  return { store, api, auth, worker, changes: () => changes };
 }
 async function status(worker: WorkerController): Promise<PanelState> {
   // SAFETY: panel/status always answers with PanelState.
@@ -71,25 +72,24 @@ test("an internal error's message never reaches the panel", async () => {
 test("a failed sign-in gets sign-in copy, not the browser's message", async () => {
   const f = fixture();
   await f.store.remove("device-grant");
-  const auth: DeviceAuth = { signIn: async () => { throw new Error("The user did not approve access."); }, refresh: async () => ({ ...tokens }), revoke: async () => { } };
-  const worker = new WorkerController(f.store, f.api, auth);
+  f.auth.start = async () => { throw new Error("The user did not approve access."); };
+  const worker = f.worker;
   await worker.start();
   expect(await worker.handle({ type: "panel/sign-in" })).toMatchObject({ signedIn: false, outcome: "error", notice: "Sign-in didn't finish. Sign in again." });
 });
-test("signed out, a stored add asks for sign-in instead of looking like a fresh start", async () => {
+test("an add the lapsed grant can't send is discarded and counted, not left waiting for a sign-in", async () => {
   const f = fixture();
   await f.worker.start();
   f.api.add = async () => { throw new AuthenticationRequired(); };
-  expect(await confirm(f.worker)).toMatchObject({ signedIn: false, pending: 1, outcome: "none" });
+  expect(await confirm(f.worker)).toMatchObject({ signedIn: false, pending: 0, discarded: 1, outcome: "none" });
 });
 test("a status read while another request holds the worker says so", async () => {
   const f = fixture();
-  let finish: (value: DeviceTokenResponse) => void = () => { };
-  const auth: DeviceAuth = { signIn: () => new Promise(resolve => { finish = resolve; }), refresh: async () => ({ ...tokens }), revoke: async () => { } };
-  const worker = new WorkerController(f.store, f.api, auth);
-  await worker.start();
-  const signingIn = worker.handle({ type: "panel/sign-in" });
-  expect(await status(worker)).toMatchObject({ working: true });
-  finish({ ...tokens });
-  expect(await signingIn).toMatchObject({ working: false, signedIn: true });
+  let finish: (value: Preview) => void = () => { };
+  await f.worker.start();
+  f.api.preview = () => new Promise(resolve => { finish = resolve; });
+  const loading = f.worker.handle({ type: "panel/status" });
+  expect(await status(f.worker)).toMatchObject({ working: true });
+  finish(projection);
+  expect(await loading).toMatchObject({ working: false, signedIn: true });
 });

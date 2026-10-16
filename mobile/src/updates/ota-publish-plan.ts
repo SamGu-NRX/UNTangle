@@ -6,23 +6,28 @@
  * same way it tests the runtime flow.
  */
 
-/** The subset of an EAS build record the guard needs. */
+/**
+ * The fields the guard reads from one `eas build:list --json` record. The
+ * CLI prints the GraphQL BuildFragment (eas-cli src/graphql/types/Build.ts)
+ * with every null field and `__typename` removed (src/utils/json.ts,
+ * sanitizeValue), so a build with no channel has no `updateChannel` key.
+ */
 export interface EasBuild {
-  readonly id?: string | null;
-  readonly status?: string | null;
-  readonly platform?: string | null;
-  readonly channel?: string | null;
-  readonly profile?: string | null;
-  readonly appVersion?: string | null;
-  readonly runtimeVersion?: string | { readonly fingerprint?: string } | null;
+  readonly id?: string;
+  /** BuildStatus: "FINISHED", "ERRORED", "NEW", ... */
+  readonly status?: string;
+  /** AppPlatform: "IOS" or "ANDROID". */
+  readonly platform?: string;
+  /** DistributionType: "STORE", "INTERNAL" or "SIMULATOR". */
+  readonly distribution?: string;
+  readonly appVersion?: string;
+  readonly updateChannel?: { readonly name?: string };
+  readonly fingerprint?: { readonly hash?: string };
 }
 
 export class OtaPublishError extends Error {}
 
-/**
- * Accepts either a bare array (older EAS CLI) or the paged envelope the
- * current CLI prints (`{"allBuilds": [...], "currentBuilds": [...]}`).
- */
+/** `eas build:list --json` prints a bare array of build records (eas-cli src/build/queries.ts, renderPageOfBuilds). */
 export function parseBuildList(raw: string): EasBuild[] {
   let parsed: unknown;
   try {
@@ -30,42 +35,42 @@ export function parseBuildList(raw: string): EasBuild[] {
   } catch {
     throw new OtaPublishError("could not parse the eas build:list JSON output");
   }
-  if (Array.isArray(parsed)) return parsed as EasBuild[];
-  if (parsed !== null && typeof parsed === "object" && Array.isArray((parsed as { allBuilds?: unknown }).allBuilds)) {
-    return (parsed as { allBuilds: EasBuild[] }).allBuilds;
-  }
-  throw new OtaPublishError("the eas build:list JSON output holds no build array");
+  if (!Array.isArray(parsed)) throw new OtaPublishError("the eas build:list JSON output is not an array of builds");
+  const bad = parsed.findIndex((entry: unknown) => !isBuildRecord(entry));
+  if (bad >= 0) throw new OtaPublishError(`the eas build:list JSON output holds a non-object at index ${bad}`);
+  return parsed.filter(isBuildRecord);
+}
+
+/** Every EasBuild field is optional, so any plain object is one; the guard compares the fields it reads. */
+function isBuildRecord(entry: unknown): entry is EasBuild {
+  return entry !== null && typeof entry === "object" && !Array.isArray(entry);
 }
 
 export function fingerprintOf(build: EasBuild): string | null {
-  const runtime = build.runtimeVersion;
-  if (typeof runtime === "string") return runtime;
-  if (runtime !== null && typeof runtime === "object" && typeof runtime.fingerprint === "string") {
-    return runtime.fingerprint;
-  }
-  return null;
+  return build.fingerprint?.hash ?? null;
 }
 
 const PRODUCTION_CHANNEL = "production";
 const FINISHED = "FINISHED";
+const STORE = "STORE";
+/** AppPlatform for iOS, the only platform this script publishes. */
+const IOS = "IOS";
 
 /**
- * The production builds the update could land on: finished, on the given
- * platform, and on the production channel (or the production profile, for a
- * record that predates channels). Builds on other channels, like a preview
- * build for internal distribution, must never satisfy the guard.
+ * The production builds the update could land on: finished, store-distributed,
+ * on iOS, and on the production channel, the only channel the
+ * update is published to. Builds on other channels, like a preview build for
+ * internal distribution, and an internal build made with the production
+ * profile must never satisfy the guard.
  */
-export function selectProductionBuilds(
-  builds: readonly EasBuild[],
-  platform: string,
-): { production: EasBuild[]; rejected: number } {
-  const production = builds.filter(
+export function selectProductionBuilds(builds: readonly EasBuild[]): EasBuild[] {
+  return builds.filter(
     (build) =>
-      (build.status ?? "").toUpperCase() === FINISHED &&
-      build.platform === platform &&
-      (build.channel === PRODUCTION_CHANNEL || (build.channel == null && build.profile === PRODUCTION_CHANNEL)),
+      build.status === FINISHED &&
+      build.platform === IOS &&
+      build.distribution === STORE &&
+      build.updateChannel?.name === PRODUCTION_CHANNEL,
   );
-  return { production, rejected: builds.length - production.length };
 }
 
 /** The production builds whose runtime fingerprint matches the update's. */
@@ -84,4 +89,9 @@ export function parseRolloutPercentage(raw: string): number {
     throw new OtaPublishError(`--rollout-percentage must be a whole number from 1 to 100, got "${raw}".`);
   }
   return value;
+}
+
+/** argv as one POSIX shell line: each argument that needs it is single-quoted, with ' written as '\''. */
+export function shellCommand(argv: readonly string[]): string {
+  return argv.map((arg) => (/^[\w@%+=:,./-]+$/.test(arg) ? arg : `'${arg.replaceAll("'", `'\\''`)}'`)).join(" ");
 }
