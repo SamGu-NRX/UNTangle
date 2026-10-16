@@ -403,3 +403,35 @@ test("discarding waiting writes and then removing saved schedules signs out, wit
   expect(window.localStorage.getItem(savedPlansKey(userA.id))).toBeNull();
 });
 
+
+test("signing out names guest work an earlier visit left, which it deletes", async () => {
+  server.seedPlan(userA.id, stateA());
+  // A guest store from an earlier browser session: no stamp for this one.
+  expect(createPlannerStateStore(window.localStorage, null).write({ ...getInitialPlannerState(), activeDay: "Thu" }, 0).ok).toBe(true);
+  setSession(userA);
+  const planner = await mountAccountMenu();
+  await waitFor(() => planner.get().hydrated && planner.get().saveState.label === "Synced", "A loaded");
+  await chooseSignOut(planner);
+  await waitFor(() => document.querySelector('[role="alertdialog"]') !== null, "warning");
+  expect(document.activeElement?.textContent).toBe("Signing out removes guest work kept on this browser");
+  expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain("This browser also keeps guest work from an earlier visit.");
+  expect(pushes).toEqual([]);
+  await planner.run(() => dialogButton("Remove and sign out")!.click());
+  await waitFor(() => pushes.length === 1, "signed out");
+  expect(window.localStorage.getItem(plannerStateKey(null))).toBeNull();
+});
+
+test("signing out counts guest saved schedules this version can't read", async () => {
+  const { stampGuestWork } = await import("@/lib/guest-session");
+  server.seedPlan(userA.id, stateA());
+  setSession(userA);
+  const planner = await mountAccountMenu();
+  await waitFor(() => planner.get().hydrated && planner.get().saveState.label === "Synced", "A loaded");
+  // Written by a newer version: no entry here parses, so the library reads as empty plus unreadable bytes.
+  window.localStorage.setItem(savedPlansKey(null), JSON.stringify({ storeSchemaVersion: 1, revision: 3, plans: [{ schemaVersion: 99 }] }));
+  stampGuestWork("library");
+  await chooseSignOut(planner);
+  await waitFor(() => document.querySelector('[role="alertdialog"]') !== null, "warning");
+  expect(pushes).toEqual([]);
+  expect(window.localStorage.getItem(savedPlansKey(null))).not.toBeNull();
+});

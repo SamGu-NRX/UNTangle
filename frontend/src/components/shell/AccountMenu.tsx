@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { forgetGuestWork, guestWorkIsThisSession } from "@/lib/guest-session";
 import { GUEST_ID_KEY, preferencesKey } from "@/components/schedule/preferences-store";
-import { clearPlannerIdentity, createPlannerStateStore } from "@/lib/planner-store";
-import { clearSavedPlansIdentity, createSavedPlanStore } from "@/lib/saved-plans/store";
+import { clearPlannerIdentity, plannerStateKey } from "@/lib/planner-store";
+import { clearSavedPlansIdentity, createSavedPlanStore, savedPlansKey } from "@/lib/saved-plans/store";
 import { useState } from "react";
 import { openSignIn } from "@/components/auth-shell";
 import { authClient } from "@/lib/auth-client";
@@ -84,7 +84,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
     const library = createSavedPlanStore().list();
     // Entries this version can't read are removed too, so they count; an unreadable library counts as one.
     const saved = library.ok ? library.doc.plans.length + library.doc.unreadable.length : 1;
-    const guestWork = unsettledGuestWork();
+    const guestWork = guestWorkOnBrowser();
     if ((saved > 0 || guestWork) && !remove) {
       // The answer to the first question travels with the second, so answering one never undoes the other.
       setAsk({ kind: "remove", saved, guestWork, discard });
@@ -158,7 +158,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
         onOpenChange={(open) => (open ? undefined : setAsk(null))}
         role="alertdialog"
         focusTitle
-        title={view?.kind === "unsynced" ? "Some changes haven't synced" : view?.saved ? "Signing out removes your saved schedules" : "Signing out removes your work from before you signed in"}
+        title={view?.kind === "unsynced" ? "Some changes haven't synced" : view ? removalTitle(view) : undefined}
         description={view?.kind === "unsynced" ? "Sync now, or sign out and discard them?" : view ? removalLine(view) : undefined}
         footer={
           view?.kind === "unsynced" ? (
@@ -188,7 +188,13 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   );
 }
 
-type Ask = { kind: "unsynced" } | { kind: "remove"; saved: number; guestWork: boolean; discard: boolean };
+type GuestWork = "this-session" | "earlier" | null;
+type Ask = { kind: "unsynced" } | { kind: "remove"; saved: number; guestWork: GuestWork; discard: boolean };
+
+function removalTitle(ask: Ask): string {
+  if (ask.kind !== "remove" || ask.saved > 0) return "Signing out removes your saved schedules";
+  return ask.guestWork === "this-session" ? "Signing out removes your work from before you signed in" : "Signing out removes guest work kept on this browser";
+}
 
 function removalLine(ask: Ask): string {
   if (ask.kind !== "remove") return "";
@@ -196,30 +202,48 @@ function removalLine(ask: Ask): string {
   const one = saved === 1;
   const lines = [
     saved > 0 ? `${saved} saved ${one ? "schedule is" : "schedules are"} kept only on this browser. Export ${one ? "it" : "them"} from Schedules to keep a copy.` : "",
-    guestWork ? "What you did as a guest before signing in hasn't been added to your account yet. Stay signed in to choose what to keep." : "",
+    guestWork === "this-session"
+      ? "What you did as a guest before signing in hasn't been added to your account yet. Stay signed in to choose what to keep."
+      : guestWork === "earlier"
+        ? "This browser also keeps guest work from an earlier visit."
+        : "",
   ];
   return lines.filter(Boolean).join(" ");
 }
 
-/** Guest work from this browser session that signing in hasn't settled yet (lib/guest-session.ts). */
-function unsettledGuestWork(): boolean {
+/**
+ * The guest work sign-out will delete: whatever the guest stores hold, read
+ * raw so nothing is migrated or moved by looking. A library that can't be
+ * read counts, as its bytes are deleted too. "this-session" when a guest
+ * wrote some of it in this browser session (lib/guest-session.ts), which
+ * signing in could still carry into the account.
+ */
+function guestWorkOnBrowser(): GuestWork {
   try {
-    const plan = createPlannerStateStore(window.localStorage, null).read();
-    const guestId = window.localStorage.getItem(GUEST_ID_KEY);
-    return (
-      (guestWorkIsThisSession("plan") && plan.ok && plan.state !== null) ||
-      (guestWorkIsThisSession("preferences") && guestId !== null && window.localStorage.getItem(preferencesKey({ kind: "guest", id: guestId })) !== null) ||
-      (guestWorkIsThisSession("library") && guestLibraryHasEntries())
-    );
+    const storage = window.localStorage;
+    const guestId = storage.getItem(GUEST_ID_KEY);
+    const any =
+      storage.getItem(plannerStateKey(null)) !== null ||
+      (guestId !== null && storage.getItem(preferencesKey({ kind: "guest", id: guestId })) !== null) ||
+      guestLibraryEntries(storage.getItem(savedPlansKey(null))) > 0;
+    if (!any) return null;
+    return guestWorkIsThisSession() ? "this-session" : "earlier";
   } catch {
     // Storage denied: no guest work was kept.
-    return false;
+    return null;
   }
 }
 
-function guestLibraryHasEntries(): boolean {
-  const read = createSavedPlanStore(window.localStorage, null).list();
-  return read.ok && read.doc.plans.length > 0;
+/** Entries in a stored library, readable or not; an unparseable library counts as one. */
+function guestLibraryEntries(raw: string | null): number {
+  if (raw === null) return 0;
+  try {
+    const doc = JSON.parse(raw) as { plans?: unknown; unreadable?: unknown };
+    const count = (list: unknown) => (Array.isArray(list) ? list.length : 0);
+    return count(doc?.plans) + count(doc?.unreadable);
+  } catch {
+    return 1;
+  }
 }
 
 /** The guest's preferences go with the rest of the guest's work. */
