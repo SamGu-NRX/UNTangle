@@ -14,10 +14,15 @@
  * `optimal` and `infeasible` are proofs, so nothing follows them. Every
  * reply carries the job's id; the page drops replies to an older job.
  *
+ * A browse job (`kind: "browse"`, Week's Browse all) is one call to
+ * `enumerateSchedules` with its node budgets and BROWSE_BUDGET_MS as a
+ * wall-clock cap, answered once.
+ *
  * Imports only engine types, so the worker bundle holds the engine and this
  * file and nothing else (see build-worker.ts).
  */
 import type { OptimizeRequest, OptimizeResult, OptWalkingTime, OptWalkingTimeFn } from "../types";
+import type { EnumerateRequest, EnumerateResult } from "../enumerate";
 import { allowedSections, passesTimeConstraints } from "../prepare";
 
 /** Budget for the answer shown first. */
@@ -109,6 +114,42 @@ export function runJob(job: OptimizeJob, deps: JobDeps): void {
     if (settled) return;
     const final = deps.optimize(fromPlainRequest(job.request, FINAL_BUDGET_MS));
     deps.post({ id: job.id, phase: "final", result: final, settled: true });
+  } catch (error) {
+    deps.post({ id: job.id, phase: "error", message: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+/** Rows the Browse all list asks for. */
+export const BROWSE_LIMIT = 500;
+/**
+ * Wall-clock cap on a browse job, on top of the enumeration's node budgets,
+ * for a machine much slower than the one tests/optimizer/browse-bench.ts
+ * ran on (where the node budgets end the slowest list near 1.8 s). Not
+ * measured on such a machine.
+ */
+export const BROWSE_BUDGET_MS = 4000;
+
+export type BrowseJob = { id: number; kind: "browse"; request: PlainRequest };
+
+export type BrowseReply =
+  | { id: number; phase: "browse"; result: EnumerateResult; settled: true }
+  | { id: number; phase: "error"; message: string };
+
+export function browseRequest(plain: PlainRequest): EnumerateRequest {
+  const { walking, k: _k, ...rest } = plain;
+  void _k;
+  return { ...rest, walkingTime: walkingFromTable(walking), limit: BROWSE_LIMIT, timeBudgetMs: BROWSE_BUDGET_MS };
+}
+
+export type BrowseDeps = {
+  enumerate: (request: EnumerateRequest) => EnumerateResult;
+  post: (reply: BrowseReply) => void;
+};
+
+/** Runs one browse job. Any throw becomes an `error` reply. */
+export function runBrowseJob(job: BrowseJob, deps: BrowseDeps): void {
+  try {
+    deps.post({ id: job.id, phase: "browse", result: deps.enumerate(browseRequest(job.request)), settled: true });
   } catch (error) {
     deps.post({ id: job.id, phase: "error", message: error instanceof Error ? error.message : String(error) });
   }

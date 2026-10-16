@@ -6,7 +6,8 @@
  * the preferences, locks or courses change, the result is stale: it stays
  * on screen for reference, but nothing in it can be applied.
  */
-import type { OptimizeReply } from "@/lib/optimizer/worker/protocol";
+import type { BrowseReply, OptimizeReply } from "@/lib/optimizer/worker/protocol";
+import type { EnumerateResult } from "@/lib/optimizer/enumerate";
 import type { OptimizeRequest, OptimizeResult, RankedSchedule } from "@/lib/optimizer/types";
 import type { OptimizationKey } from "@/lib/types";
 
@@ -46,6 +47,39 @@ export function runReducer(state: RunState, action: RunAction): RunState {
   }
 }
 
+/** Browse all's run: one reply per job, so no refining phase. Stale like Auto's (`isStale` reads both). */
+export type BrowseState = {
+  id: number | null;
+  inputKey: string | null;
+  status: "idle" | "running" | "done" | "error";
+  result: EnumerateResult | null;
+  resultKey: string | null;
+  error: string | null;
+};
+
+export const BROWSE_IDLE: BrowseState = { id: null, inputKey: null, status: "idle", result: null, resultKey: null, error: null };
+
+export type BrowseAction =
+  | { type: "start"; id: number; inputKey: string }
+  | { type: "reply"; reply: BrowseReply }
+  | { type: "close" };
+
+export function browseReducer(state: BrowseState, action: BrowseAction): BrowseState {
+  switch (action.type) {
+    case "start":
+      // The previous list stays on screen, disabled as stale, until the new one arrives.
+      return { ...state, id: action.id, inputKey: action.inputKey, status: "running", error: null };
+    case "close":
+      return BROWSE_IDLE;
+    case "reply": {
+      const { reply } = action;
+      if (state.id === null || reply.id !== state.id) return state;
+      if (reply.phase === "error") return { ...state, status: "error", error: reply.message };
+      return { ...state, status: "done", result: reply.result, resultKey: state.inputKey, error: null };
+    }
+  }
+}
+
 const byKey = <T>(entries: Array<[string, T]>) => entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 
 /**
@@ -75,7 +109,7 @@ export function locksKey(locks: Record<string, string>): string {
 /** A section map as a string that ignores key order, for comparing two plans' picks. */
 export const sectionsKey = locksKey;
 
-export function isStale(state: RunState, currentKey: string): boolean {
+export function isStale(state: Pick<RunState | BrowseState, "result" | "resultKey">, currentKey: string): boolean {
   return state.result !== null && state.resultKey !== currentKey;
 }
 

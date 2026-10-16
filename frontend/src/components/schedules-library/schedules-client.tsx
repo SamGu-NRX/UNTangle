@@ -22,7 +22,7 @@ import type { PlannerState } from "@/lib/types";
 import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
 import { saveOutcome } from "@/lib/connect/review";
 import { adoptCopy, announcementStep, noteLanded, undoAdoption, type Adoption } from "./adopt";
-import { CompareView, type CompareSide } from "./compare-view";
+import { CompareView, MAX_COMPARED, type CompareSide } from "./compare-view";
 import { PushView } from "./push-view";
 import { ScheduleDetail } from "./schedule-detail";
 import { downloadFile, exportFileName, hasSavedCopy, importScheduleFile, keyedLines, readLibraryView, whenText, type LibraryView } from "./view-model";
@@ -67,7 +67,7 @@ const currentMinute = () => Math.floor(Date.now() / 60_000);
  * /schedules (DESIGN.md §4.5, 05-schedules-library.html): the term's
  * schedules as rows, each a small drawn week, a name and when it changed.
  * Picking one opens its detail in the contextual panel (on a phone it pushes
- * in from the right); Compare picks two and shows them side by side.
+ * in from the right); Compare picks two or three and shows them side by side.
  *
  * "Main" is the working schedule every lens shows. The others are copies
  * saved in this browser (lib/saved-plans/store.ts, with its quarantine and
@@ -139,6 +139,8 @@ export function SchedulesClient() {
   const [selected, setSelected] = useState<string | null>(null);
   const [comparing, setComparing] = useState(false);
   const [picks, setPicks] = useState<string[]>([]);
+  /** Phone only: the comparison is pushed over the list. Picking stays on the list until the student asks to see it. */
+  const [viewingCompare, setViewingCompare] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [naming, setNaming] = useState<{ kind: "save" } | { kind: "rename"; planId: string } | null>(null);
   const [nameValue, setNameValue] = useState("");
@@ -147,6 +149,8 @@ export function SchedulesClient() {
   const importRef = useRef<HTMLInputElement | null>(null);
   const rowButtons = useRef(new Map<string, HTMLButtonElement>());
   const compareButton = useRef<HTMLButtonElement | null>(null);
+  /** Phone: the button that pushes the comparison, where Back returns focus. */
+  const showCompareButton = useRef<HTMLButtonElement | null>(null);
 
   // The panel lines up beside this page's 560px column (ui.css .ui-context reads --main-max).
   useLayoutEffect(() => {
@@ -163,12 +167,14 @@ export function SchedulesClient() {
     setSelected(null);
     setComparing(false);
     setPicks([]);
+    setViewingCompare(false);
   };
-  const focusTarget = () => (comparing ? compareButton.current : (selected && rowButtons.current.get(selected)) || null);
+  const focusTarget = () =>
+    comparing ? (phone ? showCompareButton.current : compareButton.current) : (selected && rowButtons.current.get(selected)) || null;
 
   function pickRow(entry: Entry) {
     if (comparing) {
-      setPicks((current) => (current.includes(entry.id) ? current.filter((id) => id !== entry.id) : [...current, entry.id].slice(-2)));
+      setPicks((current) => (current.includes(entry.id) ? current.filter((id) => id !== entry.id) : [...current, entry.id].slice(-MAX_COMPARED)));
       return;
     }
     setSelected((current) => (current === entry.id ? null : entry.id));
@@ -347,7 +353,12 @@ export function SchedulesClient() {
   const sides: CompareSide[] = picks.map((id) => find(id)).filter((entry): entry is Entry => entry !== null);
   const colors = weekColors(...all.map((entry) => entry.blocks));
 
-  const panelTitle = comparing ? (sides.length === 2 ? `${sides[0].name} and ${sides[1].name}` : "Compare") : (selectedEntry?.name ?? "");
+  const sideNames = sides.map((side) => side.name);
+  const panelTitle = comparing
+    ? sides.length >= 2
+      ? `${sideNames.slice(0, -1).join(", ")} and ${sideNames.at(-1)}`
+      : "Compare"
+    : (selectedEntry?.name ?? "");
   const panelBody: ReactNode = comparing ? (
     <CompareView
       sides={sides}
@@ -374,7 +385,7 @@ export function SchedulesClient() {
     const on = comparing ? pickIndex >= 0 : selected === entry.id && open;
     const label = comparing
       ? pickIndex >= 0
-        ? `Remove ${entry.name} from compare`
+        ? `Remove ${entry.name}, ${"ABC"[pickIndex]}, from compare`
         : `Compare ${entry.name}`
       : `Open ${entry.name}${entry.active ? ", active" : ""}`;
     return (
@@ -396,7 +407,7 @@ export function SchedulesClient() {
             {/* Beside the name, so it never covers the drawn week. */}
             {comparing && pickIndex >= 0 ? (
               <span className={styles.pick} aria-hidden="true">
-                {"AB"[pickIndex]}
+                {"ABC"[pickIndex]}
               </span>
             ) : null}
             {entry.active ? <span className={styles.dot} aria-hidden="true" /> : null}
@@ -466,10 +477,20 @@ export function SchedulesClient() {
           <PlannerPersistencePanel />
         </div>
       ) : null}
-      {comparing && phone && sides.length < 2 ? (
-        <p className={styles.quiet} role="status">
-          Pick {sides.length ? "one more schedule" : "two schedules"} to compare.
-        </p>
+      {comparing && phone ? (
+        <div className={styles.compareBar}>
+          <p className={styles.quiet} role="status">
+            {sides.length < 2
+              ? `Pick ${sides.length ? "one or two more schedules" : "two or three schedules"} to compare.`
+              : `${sides.length} picked.`}
+            {sides.length >= 2 ? <span className="sr-only-v2"> {sides.map((side, i) => `${"ABC"[i]}, ${side.name}`).join("; ")}.</span> : null}
+          </p>
+          {sides.length >= 2 ? (
+            <Button ref={showCompareButton} onClick={() => setViewingCompare(true)}>
+              Compare {sides.length}
+            </Button>
+          ) : null}
+        </div>
       ) : null}
       {importError ? (
         <p role="alert" className={styles.notice}>
@@ -509,10 +530,11 @@ export function SchedulesClient() {
     <>
       {phone ? (
         <PushView
-          // A phone pushes compare only once two are picked: the list has to stay usable for picking.
-          open={comparing ? sides.length === 2 : selectedEntry !== null}
+          // A phone pushes compare only when asked, once two or three are picked: the list has to stay usable for picking.
+          open={comparing ? viewingCompare && sides.length >= 2 : selectedEntry !== null}
           title={panelTitle}
-          onBack={closePanel}
+          // Back from a comparison returns to picking, with the picks kept.
+          onBack={comparing ? () => setViewingCompare(false) : closePanel}
           returnFocus={focusTarget}
           list={listView}
           instant={keyboardFocused}

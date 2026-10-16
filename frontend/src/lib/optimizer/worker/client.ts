@@ -4,24 +4,32 @@
  * arrives while one is still searching (a running search cannot be
  * interrupted, so the newest job would otherwise wait up to
  * FINAL_BUDGET_MS behind a result nobody wants).
+ *
+ * Auto and Browse all each own a client, so each has its own worker and
+ * neither replaces the other's search. `kind` says which job the client
+ * posts; its replies are typed to match.
  */
-import type { OptimizeJob, OptimizeReply, PlainRequest } from "./protocol";
+import type { BrowseJob, OptimizeJob, OptimizeReply, PlainRequest } from "./protocol";
+
+type ErrorReply = { id: number; phase: "error"; message: string };
+/** A reply ends its job when it is an error or says it is settled. */
+type AnyReply = ErrorReply | { id: number; phase: string; settled: boolean };
 
 /** The parts of a Worker the client uses, so tests can pass a fake. */
-export type WorkerPort = {
-  post: (job: OptimizeJob) => void;
+export type WorkerPort<Reply = OptimizeReply> = {
+  post: (job: OptimizeJob | BrowseJob) => void;
   terminate: () => void;
-  listen: (onReply: (reply: OptimizeReply) => void, onFailure: (message: string) => void) => void;
+  listen: (onReply: (reply: Reply) => void, onFailure: (message: string) => void) => void;
 };
 
-export function createOptimizerWorker(): WorkerPort {
+export function createOptimizerWorker<Reply = OptimizeReply>(): WorkerPort<Reply> {
   // A prebuilt, self-contained module (see optimize.worker.ts for why); the bundler serves it as a static file.
   const worker = new Worker(new URL("./optimize.worker.bundle.js", import.meta.url), { type: "module" });
   return {
     post: (job) => worker.postMessage(job),
     terminate: () => worker.terminate(),
     listen: (onReply, onFailure) => {
-      worker.onmessage = (event: MessageEvent<OptimizeReply>) => onReply(event.data);
+      worker.onmessage = (event: MessageEvent<Reply>) => onReply(event.data);
       worker.onerror = (event) => {
         event.preventDefault();
         onFailure(event.message || "The optimizer stopped unexpectedly.");
@@ -31,15 +39,16 @@ export function createOptimizerWorker(): WorkerPort {
   };
 }
 
-export class OptimizerClient {
-  private port: WorkerPort | null = null;
+export class OptimizerClient<Reply extends AnyReply = OptimizeReply> {
+  private port: WorkerPort<Reply> | null = null;
   private latest = 0;
   /** True while the newest job may still send a reply. */
   private pending = false;
 
   constructor(
-    private readonly create: () => WorkerPort,
-    private readonly onReply: (reply: OptimizeReply) => void,
+    private readonly create: () => WorkerPort<Reply>,
+    private readonly onReply: (reply: Reply | ErrorReply) => void,
+    private readonly kind: "auto" | "browse" = "auto",
   ) {}
 
   /**
@@ -51,8 +60,7 @@ export class OptimizerClient {
     if (this.pending) this.dropWorker();
     this.pending = true;
     try {
-      const job: OptimizeJob = { id, request };
-      this.ensurePort().post(job);
+      this.ensurePort().post(this.kind === "browse" ? { id, kind: "browse", request } : { id, request });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       queueMicrotask(() => this.fail(id, `The optimizer could not start: ${message}`));
@@ -76,7 +84,7 @@ export class OptimizerClient {
     this.dropWorker();
   }
 
-  private ensurePort(): WorkerPort {
+  private ensurePort(): WorkerPort<Reply> {
     if (this.port) return this.port;
     const port = this.create();
     port.listen(
@@ -94,10 +102,10 @@ export class OptimizerClient {
     return port;
   }
 
-  private receive(reply: OptimizeReply) {
+  private receive(reply: Reply) {
     // A reply to an older job is stale: its inputs are no longer on screen.
     if (reply.id !== this.latest) return;
-    if (reply.phase === "error" || reply.settled) this.pending = false;
+    if (reply.phase === "error" || ("settled" in reply && reply.settled)) this.pending = false;
     this.onReply(reply);
   }
 

@@ -2,11 +2,11 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
-import type { BuilderEdits, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
+import type { BrowseFeed, BuilderEdits, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
 import type { Identity } from "@/components/schedule/preferences-store";
 import { loadedIdentity, markSetupSeen, setupDue } from "@/components/schedule/setup-store";
 import { isStale, requestKey } from "@/components/schedule/run-state";
-import { useOptimizerRuns } from "@/components/schedule/use-optimizer";
+import { useBrowseRuns, useOptimizerRuns } from "@/components/schedule/use-optimizer";
 import { searchCourses } from "@/components/shell/course-search";
 import { toast } from "@/components/ui/Toast";
 import type { Brand } from "@/lib/brand";
@@ -120,6 +120,23 @@ function useSetup(ready: boolean, stamp: string, loaded: { preferences: Schedule
 }
 
 /**
+ * The plan after using `byCourse` for `codes` (Use this, and choosing a
+ * combination in Browse all): each course planned on its section, and a
+ * kept section that changes no longer kept. Courses outside `codes` are
+ * left as they are.
+ */
+export function withSections(plan: PlannerState, byCourse: Record<string, string>, codes: readonly string[]): PlannerState {
+  let locks = plan.lockedSections ?? {};
+  for (const code of codes) if (locks[code] && locks[code] !== byCourse[code]) locks = withEntry(locks, code, undefined);
+  return {
+    ...plan,
+    courseStatuses: { ...plan.courseStatuses, ...Object.fromEntries(codes.map((code) => [code, "inProgress" as const])) },
+    selectedSections: { ...plan.selectedSections, ...Object.fromEntries(codes.map((code) => [code, byCourse[code]])) },
+    lockedSections: locks,
+  };
+}
+
+/**
  * The schedule builder's host in UNTangle: the week is the student's plan
  * (planner-provider), every change is one checked `transact`, and Undo puts
  * back exactly the courses a change touched.
@@ -144,6 +161,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
   const history = useRef<Snapshot[]>([]);
   const [historySize, setHistorySize] = useState(0);
   const { state: run, run: startRun, close: closeRun } = useOptimizerRuns();
+  const { state: browseRun, run: startBrowse, close: closeBrowse } = useBrowseRuns();
 
   const courses = useMemo<WeekCourse[]>(
     () =>
@@ -264,16 +282,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
       const codes = checked.flatMap(([code, refused]) => (refused ? [] : [code]));
       const refusals = checked.flatMap(([, refused]) => (refused ? [refused] : []));
       if (codes.length === 0) return refusals;
-      change(codes, (plan) => {
-        let locks = plan.lockedSections ?? {};
-        for (const code of codes) if (locks[code] && locks[code] !== byCourse[code]) locks = withEntry(locks, code, undefined);
-        return {
-          ...plan,
-          courseStatuses: { ...plan.courseStatuses, ...Object.fromEntries(codes.map((code) => [code, "inProgress" as const])) },
-          selectedSections: { ...plan.selectedSections, ...Object.fromEntries(codes.map((code) => [code, byCourse[code]])) },
-          lockedSections: locks,
-        };
-      });
+      change(codes, (plan) => withSections(plan, byCourse, codes));
       return refusals;
     },
     clear: () => {
@@ -400,6 +409,33 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     close: closeRun,
   };
 
+  // Browse all: the same request as Auto's, so the same pins, kept sections, blocked times and preferences.
+  const listed = browseRun.result;
+  const browse: BrowseFeed = {
+    status: browseRun.status,
+    rows:
+      listed?.status === "listed"
+        ? listed.schedules.map(({ byCourse, breakdown }) => ({
+            byCourse,
+            daysOnCampus: breakdown.daysOnCampus,
+            earliestStart: breakdown.earliestStart,
+            latestEnd: breakdown.latestEnd,
+          }))
+        : [],
+    total: listed?.total ?? 0,
+    totalExact: listed?.totalExact ?? true,
+    proven: listed?.status === "listed" ? listed.schedules.every((schedule) => schedule.proven) : true,
+    stale: isStale(browseRun, inputKey),
+    infeasible:
+      listed?.status === "infeasible"
+        ? { sentence: listed.explanation.sentence, fixes: listed.explanation.suggestions.map((s) => ({ label: s.label, apply: () => relax(s) })) }
+        : null,
+    timedOut: listed?.status === "timeout",
+    error: browseRun.error,
+    run: () => startBrowse(toPlainRequest(request), inputKey),
+    close: closeBrowse,
+  };
+
   const hitFor = useCallback(
     (code: string, title: string): SearchHit => {
       const status = plannerState.courseStatuses[code];
@@ -464,6 +500,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     search,
     edits,
     optimizer,
+    browse,
     find,
     printHref: "/schedule/print",
     shareUrl: (encoded) => {
