@@ -85,6 +85,7 @@ function host(feed: Partial<BrowseFeed> = {}, options: Partial<OptionsFeed> = {}
     defaults: preferences,
     setPreferences: () => {},
     preferencesReady: true,
+    setup: null,
     walk: () => null,
     search: { find: () => [], suggestions: () => [], options: (code) => ALL.filter((s) => s.courseCode === code), load: () => {}, classNumber: async () => null },
     edits,

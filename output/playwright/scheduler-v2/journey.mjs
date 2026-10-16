@@ -60,6 +60,20 @@ const LONGTASK_OBSERVER = () => {
 
 const COURSES = ["ANTH 1010", "ENGL 1310", "PSYC 1630", "BIOL 1710"];
 
+/**
+ * A new guest's first visit to Week opens Set up Auto by itself (its own
+ * journey is output/playwright/onboarding/journey.mjs). This journey starts
+ * past it: skip it, then dismiss the "Skipped setup" toast it leaves.
+ */
+async function skipSetup(page) {
+  const setup = page.getByRole("dialog", { name: "Set up Auto" });
+  await setup.waitFor({ timeout: 15000 });
+  await page.keyboard.press("Escape");
+  await setup.waitFor({ state: "hidden", timeout: 5000 });
+  await page.locator(".ui-toast").getByRole("button", { name: "Dismiss" }).click();
+  await page.waitForTimeout(200);
+}
+
 for (const vp of [
   { name: "desktop", width: 1440, height: 900 },
   { name: "mobile", width: 390, height: 844 },
@@ -131,6 +145,7 @@ for (const vp of [
   }
 
   await page.goto(`${base}/schedule`, { waitUntil: "networkidle" });
+  await skipSetup(page);
   check(`${tag}: inside the app shell`, (await page.locator(".shell main#main").count()) === 1);
   check(`${tag}: an empty week says how to start`, (await page.getByRole("heading", { name: "Add your first course" }).count()) === 1);
 
