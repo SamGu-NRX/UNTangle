@@ -133,3 +133,28 @@ describe("the Preferences button's count", () => {
     expect(changedCount(p, defaults)).toBe(5);
   });
 });
+
+describe("a busy time made from one calendar event", () => {
+  const demo = { id: "event-2027-03-02-660-750", label: "Robot demo day", day: "Tue" as const, start: 660, end: 750, dates: [{ start: "2027-03-02", end: "2027-03-02" }] };
+  const withDemo: SchedulePreferences = { ...defaults, constraints: { ...defaults.constraints, blocked: [demo] } };
+
+  test("isn't weekly, so the painted week neither shows it nor merges a painted block into it", () => {
+    expect(isBusy(withDemo, "Tue", 690)).toBe(false);
+    const painted = paint(withDemo, ["Tue"], 600, 720, "busy", id);
+    expect(painted.constraints.blocked).toContainEqual(demo);
+    expect(painted.constraints.blocked.filter((b) => !b.dates)).toHaveLength(1);
+    const freed = paint(withDemo, ["Tue"], 600, 780, "free", id);
+    expect(freed.constraints.blocked).toEqual([demo]);
+  });
+
+  test("has its own ledger row, said by its date", () => {
+    expect(ledger(withDemo)).toEqual([
+      { kind: "busy", title: "Robot demo day", detail: "Mar 2, 11 AM–12:30 PM", label: "Robot demo day", ids: [demo.id], unnamed: false, dated: true },
+    ]);
+  });
+
+  test("a connected calendar counts once on the Preferences button", () => {
+    const calendar = { id: "cal-work", name: "Work", sealedUrl: "cf1.a.b.c", feedId: "WorkFeedIdAAAAAAAAAAAA", termId: "spring-2027", checkedAt: "2026-10-15T12:00:00.000Z", busy: [], allDayDates: [], countAllDay: false };
+    expect(changedCount({ ...defaults, calendars: [calendar] }, defaults)).toBe(1);
+  });
+});

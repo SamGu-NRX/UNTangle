@@ -299,9 +299,36 @@ export type PreferenceWeights = {
   rating: number;
 };
 
+/** The same minutes, busy on each listed date (America/Chicago). Dates ascend without repeats. */
+export type CalendarBusySlot = { start: number; end: number; dates: string[] };
+
+/**
+ * A calendar feed the student connected (packages/contracts, CalendarSchema):
+ * its title-free busy time over one term. The feed's address is kept only
+ * sealed by the server (lib/calendar-feeds/seal.ts), never as written.
+ */
+export type ConnectedCalendar = {
+  id: string;
+  name: string;
+  sealedUrl: string;
+  /** A keyed fingerprint of the feed's address: one per address, so connecting it again replaces this calendar. */
+  feedId: string;
+  /** The term the busy times were read for. */
+  termId: string;
+  /** When the feed was last read, ISO 8601. */
+  checkedAt: string;
+  busy: CalendarBusySlot[];
+  /** Dates of busy all-day events; busy only when `countAllDay` is on. */
+  allDayDates: string[];
+  /** The student counts this calendar's all-day events as busy. Off by default. */
+  countAllDay: boolean;
+};
+
 export type SchedulePreferences = {
   constraints: ScheduleConstraints;
   weights: PreferenceWeights;
+  /** Connected calendars; absent when there are none. */
+  calendars?: ConnectedCalendar[];
 };
 
 export type PlannerApiPayload = PlannerState & {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
 import type { BrowseFeed, BuilderEdits, BuilderFinals, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
 import type { Identity } from "@/components/schedule/preferences-store";
@@ -10,6 +10,8 @@ import { useBrowseRuns, useOptimizerRuns } from "@/components/schedule/use-optim
 import { searchCourses } from "@/components/shell/course-search";
 import { toast } from "@/components/ui/Toast";
 import type { Brand } from "@/lib/brand";
+import { calendarsToRefresh, currentProblems, withReading, type RefreshProblem } from "@/lib/calendar-busy";
+import { checkFeed, connectFeed, refreshCalendar, type FeedTerm } from "@/lib/calendar-feeds/client";
 import { examOf, FINALS_SOURCE, PROJECTED_FINALS_NOTE, unknownExamSentence } from "@/lib/final-exams";
 import type { Explanation, RelaxSuggestion } from "@/lib/optimizer/types";
 import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
@@ -23,12 +25,14 @@ import {
   takeFromAutoRun,
   type PlannedCourse,
 } from "@/lib/planner";
-import { findOption, optionIdLabel, planningTerm, sectionRef } from "@/lib/planner-sections";
+import { findOption, optionIdLabel, planningTerm, sectionRef, termDates } from "@/lib/planner-sections";
 import { isShuttleLeg, plannerTravelTime } from "@/lib/planner-walking";
 import { findClassNumber } from "@/lib/sections/client";
 import { optionReasons } from "./option-reasons";
 import { courses as catalog } from "@/lib/seed-data";
 import type { CourseStatus, PlannerState, SchedulePreferences } from "@/lib/types";
+
+const feedTerm: FeedTerm | null = termDates[planningTerm.id] ? { ...planningTerm, ...termDates[planningTerm.id] } : null;
 
 /** What one undo puts back: the touched courses' status, section, lock and Auto-filled mark as they were. */
 type Snapshot = {
@@ -365,6 +369,16 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     [plannerState, schedulePreferences, sectionCatalog, catalogVersion],
   );
   const inputKey = requestKey(request);
+  const handMade = new Set(schedulePreferences.constraints.blocked.map((block) => block.id));
+  /**
+   * The fixes Auto and Browse all offer when nothing fits. A connected
+   * calendar's busy time comes from the calendar, so there is nothing here to
+   * loosen; the student removes the calendar in Preferences if it shouldn't count.
+   */
+  const fixesFor = (suggestions: readonly RelaxSuggestion[]) =>
+    suggestions
+      .filter((s) => s.relaxation.kind !== "blocked" || handMade.has(s.relaxation.blockedId))
+      .map((s) => ({ label: s.label, apply: () => relax(s) }));
   const relax = (suggestion: RelaxSuggestion) => {
     const r = suggestion.relaxation;
     if (r.kind === "unlock") return setSectionLock(r.courseCode, false);
@@ -417,7 +431,10 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     stale: isStale(run, inputKey),
     infeasible:
       result?.status === "infeasible"
-        ? { sentence: infeasibleSentence(result.explanation), fixes: result.explanation.suggestions.map((s) => ({ label: s.label, apply: () => relax(s) })) }
+        ? {
+            sentence: infeasibleSentence(result.explanation),
+            fixes: fixesFor(result.explanation.suggestions),
+          }
         : result?.status === "timeout" && result.schedules.length === 0 && run.status === "done"
           ? { sentence: "No week turned up in time. Loosen a preference or keep fewer sections.", fixes: [] }
           : null,
@@ -449,7 +466,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     stale: isStale(browseRun, inputKey),
     infeasible:
       listed?.status === "infeasible"
-        ? { sentence: infeasibleSentence(listed.explanation), fixes: listed.explanation.suggestions.map((s) => ({ label: s.label, apply: () => relax(s) })) }
+        ? { sentence: infeasibleSentence(listed.explanation), fixes: fixesFor(listed.explanation.suggestions) }
         : null,
     timedOut: listed?.status === "timeout",
     error: browseRun.error,
@@ -500,6 +517,41 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     [brand.suggestions, catalogVersion, hitFor, loadSections, plannerState.selectedMajor, sectionCatalog],
   );
 
+  // Connected calendars read for another term, or a while ago, are read again once per visit.
+  const [calendarProblems, setCalendarProblems] = useState<Record<string, RefreshProblem>>({});
+  const refreshed = useRef(new Set<string>());
+  const calendars = schedulePreferences.calendars;
+  useEffect(() => {
+    if (!preferencesReady || !feedTerm) return;
+    const term = feedTerm;
+    for (const calendar of calendarsToRefresh(calendars, term.id, Date.now(), refreshed.current)) {
+      refreshed.current.add(calendar.id);
+      void refreshCalendar(calendar, term).then((outcome) => {
+        if (!outcome.ok) {
+          setCalendarProblems((problems) => ({ ...problems, [calendar.id]: { sealedUrl: calendar.sealedUrl, message: outcome.problem.message } }));
+          return;
+        }
+        setCalendarProblems((problems) => Object.fromEntries(Object.entries(problems).filter(([id]) => id !== calendar.id)));
+        setSchedulePreferences((p) => withReading(p, calendar, outcome.value));
+      });
+    }
+  }, [calendars, preferencesReady, setSchedulePreferences]);
+
+  // A problem belongs to the token that failed: reconnecting (a new sealed address under the same id) retires it.
+  const problems = useMemo(() => currentProblems(calendarProblems, calendars), [calendarProblems, calendars]);
+  const calendarHost = useMemo<BuilderHost["calendars"]>(
+    () =>
+      feedTerm
+        ? {
+            term: feedTerm,
+            check: (url) => checkFeed(url, feedTerm),
+            connect: (url, name, { countAllDay }) => connectFeed(url, name, feedTerm, { countAllDay }),
+            problems,
+          }
+        : null,
+    [problems],
+  );
+
   const walk = useCallback((from: string, to: string) => {
     const time = plannerTravelTime(from, to);
     // Whole seconds, as the optimizer rounds them (walkSeconds in lib/optimizer/score.ts), so Week and Auto agree at the boundary.
@@ -524,6 +576,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     browse,
     finals,
     find,
+    calendars: calendarHost,
     printHref: "/schedule/print",
     shareUrl: (encoded) => {
       const url = new URL("/schedule", window.location.origin);

@@ -224,6 +224,7 @@ function weekHost(setup: BuilderHost["setup"], courses: WeekCourse[] = [course])
     find: () => csce,
     printHref: "/schedule/print",
     shareUrl: (encoded: string) => `http://localhost/schedule?week=${encoded}`,
+    calendars: null,
   } satisfies BuilderHost as BuilderHost;
   return { host, optimizer };
 }

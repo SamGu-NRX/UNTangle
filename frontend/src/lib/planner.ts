@@ -41,6 +41,8 @@ import { optimize } from "@/lib/optimizer/optimize";
 import { examOf } from "@/lib/final-exams";
 import { GOAL_WEIGHTS, NO_CONSTRAINTS } from "@/lib/optimizer/presets";
 import type { SerializedBusyOccurrence } from "@/lib/calendar-feeds/busy-serialize";
+import { calendarBlockedTimes } from "@/lib/calendar-busy";
+import { PreferencesBodySchema } from "../../../packages/contracts/src/documents";
 import type { OptBlockedTime, OptCourse, OptDay, OptimizeRequest, OptSection } from "@/lib/optimizer/types";
 import {
   classDays,
@@ -432,6 +434,9 @@ export function parseSchedulePreferences(raw: unknown): SchedulePreferences | nu
   // Blocked-time ids name the cause in an infeasibility explanation; the optimizer rejects duplicates.
   const blockedIds = (c.blocked as Array<{ id: string }>).map((block) => block.id);
   if (new Set(blockedIds).size !== blockedIds.length) return null;
+  // Connected calendars follow the preferences document's own schema, which refuses a plain feed address.
+  const calendars = PreferencesBodySchema.shape.calendars.safeParse(raw.calendars);
+  if (!calendars.success) return null;
   return {
     constraints: {
       earliestStart: c.earliestStart as number | null,
@@ -445,6 +450,7 @@ export function parseSchedulePreferences(raw: unknown): SchedulePreferences | nu
       otherSites: c.otherSites === true,
     },
     weights: Object.fromEntries(weightKeys.map((key) => [key, w[key]])) as SchedulePreferences["weights"],
+    ...(calendars.data ? { calendars: calendars.data } : {}),
   };
 }
 
@@ -540,7 +546,11 @@ export function buildOptimizeRequest(
       earliestStart: c.earliestStart,
       latestEnd: c.latestEnd,
       daysOff: c.daysOff,
-      blocked: [...c.blocked, ...busyOccurrencesToBlockedTime(options.busyOccurrences ?? [], planningTermDates)],
+      blocked: [
+        ...c.blocked,
+        ...calendarBlockedTimes(preferences.calendars, planningTerm.id, planningTermDates ?? null),
+        ...busyOccurrencesToBlockedTime(options.busyOccurrences ?? [], planningTermDates),
+      ],
       maxCredits: c.maxCredits,
       walking: c.walkingBufferMinutes === null ? null : { bufferMinutes: c.walkingBufferMinutes },
     },

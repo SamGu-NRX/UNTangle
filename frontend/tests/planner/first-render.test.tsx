@@ -74,8 +74,17 @@ beforeEach(() => {
   store = resetDocumentStore();
   previousFetch = globalThis.fetch;
   server = new FakeDocumentServer();
-  globalThis.fetch = server.fetch as typeof fetch;
+  forgets = 0;
+  // The route that drops the HttpOnly cookie guest calendars are sealed to; everything else goes to the document server.
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    if (String(input) === "/api/v1/calendar-feeds/forget") {
+      forgets += 1;
+      return new Response(null, { status: 204 });
+    }
+    return server.fetch(input, init);
+  }) as typeof fetch;
 });
+let forgets = 0;
 afterEach(async () => {
   while (mounted.length) await mounted.pop()!();
   const { dismissToast } = await import("@/components/ui/Toast");
@@ -378,9 +387,12 @@ test("signing out while guest work waits for an answer says so before removing i
   await waitFor(() => document.querySelector('[role="alertdialog"]') !== null, "warning");
   expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain("What you did as a guest before signing in hasn't been added to your account yet.");
   expect(pushes).toEqual([]);
+  expect(forgets).toBe(0);
   await planner.run(() => dialogButton("Remove and sign out")!.click());
   await waitFor(() => pushes.length === 1, "signed out");
   expect(window.localStorage.getItem(plannerStateKey(null))).toBeNull();
+  // Guest calendars go with the guest work: the cookie their tokens are sealed to is dropped.
+  expect(forgets).toBeGreaterThan(0);
 });
 
 test("discarding waiting writes and then removing saved schedules signs out, without asking the first question again", async () => {
@@ -416,9 +428,11 @@ test("signing out names guest work an earlier visit left, which it deletes", asy
   expect(document.activeElement?.textContent).toBe("Signing out removes guest work kept on this browser");
   expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain("This browser also keeps guest work from an earlier visit.");
   expect(pushes).toEqual([]);
+  expect(forgets).toBe(0);
   await planner.run(() => dialogButton("Remove and sign out")!.click());
   await waitFor(() => pushes.length === 1, "signed out");
   expect(window.localStorage.getItem(plannerStateKey(null))).toBeNull();
+  expect(forgets).toBeGreaterThan(0);
 });
 
 test("signing out counts guest saved schedules this version can't read", async () => {
