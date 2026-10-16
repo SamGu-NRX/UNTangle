@@ -1391,6 +1391,172 @@ describe("stale cleanup", () => {
 });
 
 
+describe("stale failed-save world guard", () => {
+  // applyTokens' failed-save catch is an async destructor: it runs after the
+  // save rejects, which can be long after a cancel or a newer sign-in moved
+  // the world. The catch must check the generation its flow captured at entry
+  // before it touches memory or state — the same moved-world rule
+  // handleGrantLost, signOut, and the rotation catch already follow.
+
+  it("keeps a newer sign-in's live grant and state when a stale flow's failed save lands after it", async () => {
+    let saveEntered: () => void = () => {};
+    const saveInFlight = new Promise<void>(resolve => {
+      saveEntered = resolve;
+    });
+    let releaseFailedSave: () => void = () => {};
+    const failedSaveGate = new Promise<void>(resolve => {
+      releaseFailedSave = resolve;
+    });
+    const harness = makeHarness([
+      { status: 200, body: START_200 }, // flow A: start
+      { status: 200, body: TOKENS_A }, // flow A: exchange, its save fails below
+      { status: 200, body: START_200 }, // flow B: start
+      { status: 200, body: TOKENS_GRANT_TWO }, // flow B: exchange, its save queues behind A's
+      { status: 200, body: SYNC_200 }, // flow B's count read
+    ]);
+    await harness.auth.restore();
+    let saveCalls = 0;
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      saveCalls += 1;
+      if (saveCalls === 1) {
+        saveEntered();
+        await failedSaveGate;
+        throw new Error("Keychain write failed");
+      }
+      await workingSave(tokens);
+    });
+    const first = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await saveInFlight; // flow A's Keychain write is parked mid-save
+    harness.auth.cancelSignIn();
+    const second = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await flush(); // flow B finishes everything the parked store lets it finish
+    // Flow A's slow write fails now: the queue runs flow B's save first, so by
+    // the time the stale catch resumes, grant-2 is live in memory and state.
+    // The catch must publish nothing and null nothing — a signed-out publish
+    // here stomps a session the student just started.
+    releaseFailedSave();
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      await expect(first).resolves.toEqual({ ok: false, reason: "failed", error: "storage_failed" });
+      await expect(second).resolves.toEqual({ ok: true });
+      await flush();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+    expect(harness.auth.getState()).toMatchObject({ status: "signed-in", grantId: "grant-2" });
+    await expect(harness.auth.getAccessToken()).resolves.toBe(TOKENS_GRANT_TWO.accessToken);
+    const persisted = await harness.store.load();
+    expect(persisted?.grantId).toBe("grant-2");
+    expect(persisted?.accessToken).toBe(TOKENS_GRANT_TWO.accessToken);
+  });
+
+  it("does not let a stale failed-save publish halt a newer flow still awaiting approval", async () => {
+    let saveEntered: () => void = () => {};
+    const saveInFlight = new Promise<void>(resolve => {
+      saveEntered = resolve;
+    });
+    let releaseFailedSave: () => void = () => {};
+    const failedSaveGate = new Promise<void>(resolve => {
+      releaseFailedSave = resolve;
+    });
+    const steps: Step[] = [
+      { status: 200, body: START_200 }, // flow A: start
+      { status: 200, body: TOKENS_A }, // flow A: exchange, its save fails below
+      { status: 200, body: START_200 }, // flow B: start, then it polls pending
+    ];
+    const harness = makeHarness(steps);
+    await harness.auth.restore();
+    let saveCalls = 0;
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      saveCalls += 1;
+      if (saveCalls === 1) {
+        saveEntered();
+        await failedSaveGate;
+        throw new Error("Keychain write failed");
+      }
+      await workingSave(tokens);
+    });
+    const first = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await saveInFlight; // flow A's Keychain write is parked mid-save
+    harness.auth.cancelSignIn();
+    const second = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval"); // flow B polls pending; nothing is queued behind A's parked save
+    // Flow A's write fails while flow B is still awaiting approval: a
+    // signed-out publish from the stale catch would trip B's shouldContinue
+    // and kill a flow the student is mid-approving. Publish nothing.
+    releaseFailedSave();
+    await flush();
+    // Only now does the approval land; the store queue is empty, so flow B's
+    // save runs free and its grant goes live end to end.
+    steps.push({ status: 200, body: TOKENS_GRANT_TWO }, { status: 200, body: SYNC_200 });
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      await expect(first).resolves.toEqual({ ok: false, reason: "failed", error: "storage_failed" });
+      await expect(second).resolves.toEqual({ ok: true });
+      await flush();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+    expect(harness.auth.getState()).toMatchObject({ status: "signed-in", grantId: "grant-2" });
+    await expect(harness.auth.getAccessToken()).resolves.toBe(TOKENS_GRANT_TWO.accessToken);
+    const persisted = await harness.store.load();
+    expect(persisted?.grantId).toBe("grant-2");
+  });
+
+  it("still drops the grant everywhere when the failed save's own world never moved", async () => {
+    let saveEntered: () => void = () => {};
+    const saveInFlight = new Promise<void>(resolve => {
+      saveEntered = resolve;
+    });
+    let releaseFailedSave: () => void = () => {};
+    const failedSaveGate = new Promise<void>(resolve => {
+      releaseFailedSave = resolve;
+    });
+    const harness = makeHarness([
+      { status: 200, body: START_200 },
+      { status: 200, body: TOKENS_A },
+    ]);
+    await harness.auth.restore();
+    let saveCalls = 0;
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      saveCalls += 1;
+      if (saveCalls === 1) {
+        saveEntered();
+        await failedSaveGate;
+        throw new Error("Keychain write failed");
+      }
+      await workingSave(tokens);
+    });
+    const pending = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await saveInFlight; // the Keychain write is parked mid-save
+    // No cancel and no newer sign-in: the generation applyTokens captured at
+    // entry still owns the world, so the failed save's full destructor runs —
+    // drop the in-memory grant, clear the store (grant-conditional, and
+    // nothing of a newer grant is there), and land signed-out with the
+    // retryable failure the caller surfaces as storage_failed.
+    releaseFailedSave();
+    await expect(pending).resolves.toEqual({ ok: false, reason: "failed", error: "storage_failed" });
+    await flush();
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    expect(await harness.store.load()).toBeNull();
+    expect(harness.store.save).toHaveBeenCalledTimes(1);
+    expect(harness.store.clear).toHaveBeenCalledTimes(1);
+    expect(harness.timers).toHaveLength(0);
+  });
+});
+
 describe("refresh rotation liveness", () => {
   // The rotation's Keychain write flies after the rotated tokens went live in
   // memory: grant loss, sign-out, or a newer sign-in can land inside it. The

@@ -274,6 +274,7 @@ export function createAuth(deps: AuthDeps) {
   }
 
   async function applyTokens(tokens: DeviceTokens): Promise<StoredTokens | null> {
+    const generation = signInGeneration;
     // The candidate stays local until the Keychain write lands: assigning it
     // to the live grant first would let getAccessToken hand out this flow's
     // bearer token while the save — and the caller's generation re-check — is
@@ -284,6 +285,12 @@ export function createAuth(deps: AuthDeps) {
       await saveStored(candidate);
       return candidate;
     } catch {
+      // A cancel or a newer sign-in during the write bumps the generation:
+      // that moved world owns state and storage already — its grant may be
+      // live in memory and the Keychain while this failed save sat parked
+      // behind it in the queue — so publish nothing and null nothing there.
+      // The caller's !saved check surfaces the retryable failure.
+      if (generation !== signInGeneration) return null;
       // A Keychain write that fails must not leave the un-persisted grant
       // live in memory, where cancelSignIn would only reset the UI around
       // it. Drop the grant and land signed-out so the caller can surface a
