@@ -220,10 +220,11 @@ export function feedOccurrences(
     } else {
       const clippedStart = Math.max(start, windowStart);
       const clippedEnd = Math.min(end, windowEnd);
-      // At most one piece per local day it spans, plus one for each DST change; two covers both ends.
-      const days = clippedEnd > clippedStart ? Math.ceil((clippedEnd - clippedStart) / DAY_MS) + 2 : 0;
-      if (pieces.length + days > maxPieces) throw new OccurrenceBudgetError(maxPieces);
-      pieces.push(...zone.split(clippedStart, clippedEnd).map((piece) => ({ ...piece, ...flags })));
+      const room = maxPieces - pieces.length;
+      const split = zone.split(clippedStart, clippedEnd, room, () => {
+        throw new OccurrenceBudgetError(maxPieces);
+      });
+      for (const piece of split) pieces.push({ ...piece, ...flags });
     }
   }
   return pieces.sort((a, b) => a.start.localeCompare(b.start) || a.eventId - b.eventId);
