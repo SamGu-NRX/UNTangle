@@ -118,6 +118,46 @@ function maxCovered(options: { must: string[] }[], available: Set<string>, limit
   return { covered: bestCodes.length, usedCodes: bestCodes.flat() };
 }
 
+/** Disjoint options maximizing the credit coverage usable toward an hours
+ * target: for hour requirements what counts is the hours a picked set earns,
+ * so a wider alternative outranks more single-course picks that total less,
+ * and coverage past the target is not usable. Unknown credit values rank as
+ * zero — the caller's detail still flags them. Ties prefer the larger set,
+ * then the earlier listed one, keeping catalog order stable. */
+function maxCreditCovered(options: { must: string[] }[], available: Set<string>, creditsByCode: Map<string, number>, target: number): { usedCodes: string[] } {
+  const candidates = options.filter((option) => option.must.every((code) => available.has(code)));
+  const credits = candidates.map((option) => option.must.reduce((sum, code) => sum + (creditsByCode.get(code) ?? 0), 0));
+  // Upper bound on the credits the options from `start` onward could add:
+  // overlaps only shrink the true maximum, so the bound stays safe.
+  const bestFrom = new Array<number>(candidates.length + 1).fill(0);
+  for (let index = candidates.length - 1; index >= 0; index -= 1) bestFrom[index] = bestFrom[index + 1]! + credits[index]!;
+  let bestCodes: string[][] = [];
+  let bestUsable = 0;
+  const used = new Set<string>();
+  const picked: string[][] = [];
+  const walk = (start: number, creditsSoFar: number): void => {
+    const usable = Math.min(creditsSoFar, target);
+    if (usable > bestUsable || (usable === bestUsable && picked.length > bestCodes.length)) {
+      bestUsable = usable;
+      bestCodes = picked.map((codes) => [...codes]);
+    }
+    for (let index = start; index < candidates.length; index += 1) {
+      const reachable = Math.min(creditsSoFar + bestFrom[index]!, target);
+      // Nothing from here can beat or usefully tie the current answer.
+      if (reachable < bestUsable || (reachable === bestUsable && picked.length + (candidates.length - index) <= bestCodes.length)) break;
+      const option = candidates[index]!.must;
+      if (option.some((code) => used.has(code))) continue;
+      option.forEach((code) => used.add(code));
+      picked.push(option);
+      walk(index + 1, creditsSoFar + credits[index]!);
+      picked.pop();
+      option.forEach((code) => used.delete(code));
+    }
+  };
+  walk(0, 0);
+  return { usedCodes: bestCodes.flat() };
+}
+
 /** Completed courses matching a pool's subject/level rule. */
 function matchingCourses(node: PoolNode, completed: Set<string>): string[] {
   return [...completed].filter((code) => {
@@ -235,13 +275,19 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
         const status = credits >= node.hours ? "satisfied" : plannedCredits > credits || plannedUnknown || courses > 0 ? "inProgress" : "unsatisfied";
         return { name: node.name, status, detail, citation: cite };
       }
-      const { covered, usedCodes } = maxCovered(node.options, completed);
+      // The completed pass maximizes usable credit coverage, not option
+      // count: a wider alternative worth more hours outranks more
+      // single-course picks that total less, and coverage past the target is
+      // not usable.
+      const { usedCodes } = maxCreditCovered(node.options, completed, creditsByCode, node.hours);
       usedCodes.forEach((code) => applied.add(code));
+      const courses = usedCodes.length;
       // In-progress rows are reported as planned coverage: a term still under
       // way that already reaches the hours — or adds any hours at all — keeps
-      // the node in progress instead of unsatisfied. Each counted option claims
-      // its in-progress codes in a node-local set, so one live course cannot
-      // contribute planned hours to two overlapping options.
+      // the node in progress instead of unsatisfied. Each counted option
+      // claims every member in a node-local set — only the in-progress ones
+      // count planned hours, but the completed members are spent on that
+      // option and cannot anchor a second overlapping one.
       let total = 0;
       let unknownCredits = false;
       for (const code of usedCodes) {
@@ -261,16 +307,17 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
           if (plannedTotal >= node.hours - total) break;
           if (!option.must.every((code) => (completed.has(code) || inProgress.has(code)) && !plannedUsed.has(code))) continue;
           for (const code of option.must) {
-            if (!inProgress.has(code)) continue;
-            const value = creditsByCode.get(code);
-            if (value === undefined) plannedUnknown = true;
-            else plannedTotal += value;
+            if (inProgress.has(code)) {
+              const value = creditsByCode.get(code);
+              if (value === undefined) plannedUnknown = true;
+              else plannedTotal += value;
+            }
             plannedUsed.add(code);
           }
         }
       }
-      const detail = `${covered} course${covered === 1 ? "" : "s"}, ${total}/${node.hours} hours${unknownCredits ? " (some credit hours unknown)" : ""}${plannedTotal > 0 ? `, ${plannedTotal} planned` : ""}${plannedUnknown ? " (planned credit hours unknown)" : ""}`;
-      const status = total >= node.hours ? "satisfied" : plannedTotal > total || plannedUnknown || covered > 0 ? "inProgress" : "unsatisfied";
+      const detail = `${courses} course${courses === 1 ? "" : "s"}, ${total}/${node.hours} hours${unknownCredits ? " (some credit hours unknown)" : ""}${plannedTotal > 0 ? `, ${plannedTotal} planned` : ""}${plannedUnknown ? " (planned credit hours unknown)" : ""}`;
+      const status = total >= node.hours ? "satisfied" : plannedTotal > total || plannedUnknown || courses > 0 ? "inProgress" : "unsatisfied";
       return { name: node.name, status, detail, citation: cite };
     }
     case "pool": {

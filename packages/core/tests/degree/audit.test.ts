@@ -584,3 +584,49 @@ describe("review round twelve: totalHours policies surface unknown planned credi
     expect(result.policies[0]!.detail).toContain("some in-progress credit hours unknown");
   });
 });
+
+
+describe("review round thirteen: non-allocated hours coverage", () => {
+  test("an hours requirement picks the alternative worth more hours, not more options", () => {
+    const tree: ProgramData = {
+      ...base,
+      requirements: [{
+        kind: "hours",
+        name: "Communication pick",
+        hours: 6,
+        citation,
+        options: [{ must: ["PHIL 2500"] }, { must: ["PHIL 2500", "PHIL 3550"] }],
+      }],
+    };
+    // Both courses are done: the two-course alternative covers the
+    // requirement even though the one-course pick is listed first, so
+    // coverage — not option count — decides.
+    const result = auditProgram(tree, [course("PHIL 2500", "A"), course("PHIL 3550", "A")]);
+    expect(result.requirements[0]!.status).toBe("satisfied");
+    expect(result.requirements[0]!.detail).toContain("6/6 hours");
+    expect(result.requirements[0]!.detail).not.toContain("3/6 hours");
+  });
+
+  test("accepted planned options claim their completed members in a node-local set", () => {
+    const tree: ProgramData = {
+      ...base,
+      requirements: [{
+        kind: "hours",
+        name: "Language block",
+        hours: 9,
+        citation,
+        options: [{ must: ["FREN 1010", "FREN 1020"] }, { must: ["FREN 1010", "FREN 2010"] }],
+      }],
+    };
+    // Both options share the completed FREN 1010, so only one option can
+    // count: the planned total is one live course's worth, not two.
+    const result = auditProgram(tree, [
+      course("FREN 1010", "A"),
+      inProgressCourse("FREN 1020"),
+      inProgressCourse("FREN 2010"),
+    ]);
+    expect(result.requirements[0]!.detail).toContain("3 planned");
+    expect(result.requirements[0]!.detail).not.toContain("6 planned");
+    expect(result.requirements[0]!.status).toBe("inProgress");
+  });
+});
