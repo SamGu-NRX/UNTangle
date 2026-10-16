@@ -8,11 +8,12 @@ import { keyboardFocused } from "@/components/ui/input-source";
 import { Segmented } from "@/components/ui/Segmented";
 import type { Hue } from "@/lib/course-colors";
 import { describeOtherDifferences, diffLibraryPlans } from "@/lib/plan-library/diff";
-import { compareRows, eventsOf, overlayBlocks, plannedCredits, plannedSections, sectionChanges, sectionGrid, weekStats, type PlacedBlock } from "@/lib/plan-library/week";
+import { buildScheduleEvents, normalizePlannerState, resolveSectionPlan } from "@/lib/planner";
+import { compareRows, overlayBlocks, plannedCredits, plannedSections, sectionChanges, sectionGrid, weekStats, type PlacedBlock } from "@/lib/plan-library/week";
 import type { ScheduleEvent } from "@/lib/types";
 import type { Entry } from "./schedules-client";
 import { Legend } from "./schedule-detail";
-import { adoptableSide } from "./view-model";
+import { adoptableSide, samePlan, weekWalking } from "./view-model";
 import { WeekGrid } from "./week-grid";
 import styles from "./library.module.css";
 
@@ -43,7 +44,7 @@ export function CompareView({
   onUse: (entry: CompareSide) => void;
   onDone: () => void;
 }) {
-  const { scheduleEvents, sectionCatalog } = usePlanner();
+  const { plannerState, scheduleEvents, sectionCatalog, sectionPlan } = usePlanner();
   const [chosenView, setView] = useState<View>("both");
   const [fromPointer, setFromPointer] = useState(true);
   const [showMore, setShowMore] = useState(false);
@@ -55,8 +56,15 @@ export function CompareView({
   const three = c !== undefined;
   // "Both" exists only for two plans; with a third the view falls back to A.
   const view: View = three && chosenView === "both" ? "a" : !three && chosenView === "c" ? "both" : chosenView;
-  const events = (side: CompareSide): ScheduleEvent[] => (side.active ? scheduleEvents : eventsOf(side.state, sectionCatalog));
-  const figures = (side: CompareSide) => ({ ...weekStats(events(side)), credits: plannedCredits(side.state) });
+  // Each side's sections, resolved once: Main's as Week resolves them, a copy's against the sections loaded now.
+  const figures = (side: CompareSide) => {
+    const plan = side.active ? sectionPlan : resolveSectionPlan(normalizePlannerState(side.state), sectionCatalog);
+    const events: ScheduleEvent[] = side.active ? scheduleEvents : buildScheduleEvents(plan);
+    const placed = plan.courses.flatMap((course) => (course.section ? [course.section] : []));
+    return { ...weekStats(events), ...weekWalking(placed), credits: plannedCredits(side.state) };
+  };
+  // A long name ends in an ellipsis inside its segment (ui.css .ui-seg__label); the title shows it whole on hover.
+  const named = (side: CompareSide) => <span title={side.name}>{side.name}</span>;
   const base = figures(a);
   // One column per plan after A, each judged against A.
   const columns = sides.slice(1).map((side) => compareRows(base, figures(side)));
@@ -80,7 +88,9 @@ export function CompareView({
       : shownSide.blocks.map((block) => ({ ...block, id: block.key, variant: "solid" }));
 
   // With three, Use follows the plan on screen; with two, it is the one that isn't Main.
-  const adoptable = three ? (shownSide.active ? null : shownSide) : adoptableSide(a, b);
+  // A copy that holds what Main already holds has nothing to use.
+  const candidate = three ? (shownSide.active ? null : shownSide) : adoptableSide(a, b);
+  const adoptable = candidate && !samePlan(candidate.state, plannerState) ? candidate : null;
   const bothLabels = { solid: a.name, dashed: `${b.name}, where it differs` };
   const others = sides.slice(1);
 
@@ -110,14 +120,14 @@ export function CompareView({
           options={
             three
               ? [
-                  { value: "a", label: a.name },
-                  { value: "b", label: b.name },
-                  { value: "c", label: c.name },
+                  { value: "a", label: named(a) },
+                  { value: "b", label: named(b) },
+                  { value: "c", label: named(c) },
                 ]
               : [
-                  { value: "a", label: a.name },
+                  { value: "a", label: named(a) },
                   { value: "both", label: "Both" },
-                  { value: "b", label: b.name },
+                  { value: "b", label: named(b) },
                 ]
           }
         />

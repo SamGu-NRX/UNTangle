@@ -303,8 +303,9 @@ function gradeReason(section: OptSection, history: CourseHistory): Reason | null
  * Why `alternatives[index]` is a good choice. Seat warnings come first and
  * always appear. Then up to `maxReasons` (default 3) of: comparisons with
  * the next option, ranked by what the difference is worth to the optimizer
- * (weight times cost per unit times the difference); facts about this
- * option, by preference weight; and grade history.
+ * (weight times cost per unit times the difference), unless
+ * `compareWithNext` is false; facts about this option, by preference
+ * weight; and grade history.
  *
  * `request` must be the exact `OptimizeRequest` the alternatives came from,
  * `walkingTime` included: the reasons recompute the optimizer's cost terms
@@ -336,7 +337,7 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
     return { terms, sections, breakdown: schedule.breakdown, sessions: [...new Set(ranges)].sort().join(" ") };
   });
   const mine = options[input.index];
-  const next: Option | undefined = options[input.index + 1];
+  const next: Option | undefined = input.compareWithNext === false ? undefined : options[input.index + 1];
   const weights = request.weights;
 
   const comparisons: Array<{ reason: Reason; worth: number }> = [];

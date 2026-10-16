@@ -45,6 +45,17 @@ an `OptimizeRequest`. `worker/` runs it off the main thread for the Week view.
 - Constraints are all or nothing: earliest start, latest end, days off,
   blocked times, max credits, and the walking check. Locks and exclusions are
   hard too.
+- A section may carry `exam`, its final: an ISO date and half-open minutes.
+  Two sections whose finals share a minute on the same date can't be chosen
+  together, like two overlapping classes. A section without one clashes with
+  no final; `lib/final-exams.ts` attaches the ones UNT's rule places, and
+  Week names the rest. When nothing fits and the finals are part of why, the
+  explanation lists `{ kind: "exams" }` and its sentence names the two
+  finals. That member has no one-click change, since UNT sets exam times; a
+  lock or exclusion in the same set still offers its own. The explanation
+  drops the finals rule first, so it is blamed only when nothing the student
+  set explains the conflict. Requests without finals behave exactly as
+  before (`tests/optimizer/exams.test.ts`).
 - Weights are integers 0 to 4 over six terms (fewer days, idle time, mornings,
   evenings, walking, rating). The cost is an integer sum in human units, so
   ties are exact. The exchange rates in `score.ts` are a judgment, not a
@@ -212,6 +223,9 @@ of overwriting it. A failed write is shown as "not stored".
   weekend meetings with the walking check on and off, plus budgets and large
   instances (`checks.ts`, `generator.ts`).
 - `tests/optimizer/regressions.test.ts`: pinned bugs from review.
+- `tests/optimizer/exams.test.ts`: overlapping finals are infeasible with a
+  named explanation, finals against brute force, and finals that never clash
+  changing nothing.
 - `tests/optimizer/mutation.test.ts`: plants one bug at a time in a copy of
   this folder and asserts a check fails.
 - `tests/optimizer/enumerate.test.ts`: Browse all's list against the

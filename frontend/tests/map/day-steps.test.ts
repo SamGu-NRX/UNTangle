@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { campusNow, meetsOn, nextClassDay, nextClassFrom, sessionOf, stepperDays } from "@/components/map/day-steps";
+import { campusNow, firstWeekAhead, meetsOn, nextClassDay, nextClassFrom, sessionOf, shortDate, shownDate, stepperDays } from "@/components/map/day-steps";
 import type { ClassDay, MapStop } from "@/lib/types";
 
 const none: Record<ClassDay, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
@@ -109,5 +109,51 @@ describe("nextClassFrom", () => {
   test("looks a full week ahead, to the same weekday", () => {
     const tuesdays = { ...empty, Tue: [meeting("T 1", "Tue", null)] };
     expect(nextClassFrom(tuesdays, "2026-10-13")).toMatchObject({ day: "Tue", ahead: 7 });
+  });
+});
+
+describe("firstWeekAhead", () => {
+  const empty: Record<ClassDay, MapStop[]> = { Mon: [], Tue: [], Wed: [], Thu: [], Fri: [], Sat: [], Sun: [] };
+  const spring = { start: "2027-01-11", end: "2027-05-07" };
+  test("planning Spring in October: the first date the plan holds class", () => {
+    const plan = { ...empty, Tue: [meeting("ENGL 1310", "Tue", spring)], Thu: [meeting("ENGL 1310", "Thu", spring)] };
+    // Spring 2027 begins Monday 11 January; this plan's first class is that Tuesday.
+    expect(firstWeekAhead(plan, "2026-10-16")).toEqual({ iso: "2027-01-12", day: "Tue" });
+  });
+  test("skips a holiday in the first weeks: MLK Day isn't a first class", () => {
+    const mondays = { ...empty, Mon: [meeting("MATH 1710", "Mon", { start: "2027-01-12", end: "2027-05-07" })] };
+    // The first Monday on or after 12 January is the 18th, Martin Luther King Jr. Day.
+    expect(firstWeekAhead(mondays, "2026-10-16")).toEqual({ iso: "2027-01-25", day: "Mon" });
+  });
+  test("null once any dated meeting has started", () => {
+    const plan = { ...empty, Mon: [meeting("A 1", "Mon", spring)], Wed: [meeting("B 1", "Wed", { start: "2026-08-24", end: "2026-12-11" })] };
+    expect(firstWeekAhead(plan, "2026-10-16")).toBeNull();
+    expect(firstWeekAhead({ ...empty, Mon: [meeting("A 1", "Mon", spring)] }, "2027-01-11")).toBeNull();
+  });
+  test("null without dated meetings, as with samples", () => {
+    expect(firstWeekAhead({ ...empty, Mon: [meeting("S 1", "Mon", null)] }, "2026-10-16")).toBeNull();
+    expect(firstWeekAhead(empty, "2026-10-16")).toBeNull();
+  });
+});
+
+describe("shortDate", () => {
+  test("a calendar date, whatever the device's zone", () => {
+    expect(shortDate("2027-01-11")).toBe("Jan 11");
+  });
+});
+
+describe("shownDate", () => {
+  // Spring 2027's first class in this plan is Tuesday 12 January (firstWeekAhead).
+  const ahead = { iso: "2027-01-12", day: "Tue" as const };
+  test("before the term, each day is dated in the first class week, Monday included", () => {
+    // Not the 18th: that is the next week, and Martin Luther King Jr. Day.
+    expect(shownDate("Mon", { todayIso: null, ahead })).toBe("2027-01-11");
+    expect(shownDate("Tue", { todayIso: null, ahead })).toBe("2027-01-12");
+    expect(shownDate("Fri", { todayIso: null, ahead })).toBe("2027-01-15");
+    expect(shownDate("Sun", { todayIso: null, ahead })).toBe("2027-01-17");
+  });
+  test("today is today's date; with no week ahead another day is undated", () => {
+    expect(shownDate("Fri", { todayIso: "2026-10-16", ahead: null })).toBe("2026-10-16");
+    expect(shownDate("Mon", { todayIso: null, ahead: null })).toBeNull();
   });
 });

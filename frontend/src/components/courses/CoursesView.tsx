@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { CONNECT_PATH, OPEN_CONNECT_EVENT } from "@/components/connect/open-connect";
 import { usePlanner } from "@/components/planner-provider";
-import { LENS_HREF } from "@/components/shell/routes";
+import { asksForMajor, LENS_HREF } from "@/components/shell/routes";
 import { useShell, useShellSearch, type ShellSearchProvider } from "@/components/shell/shell-context";
+import { Button } from "@/components/ui/Button";
 import { ContextPanel } from "@/components/ui/ContextPanel";
 import { ChevronDown } from "@/components/ui/icons";
 import { SearchTrigger } from "@/components/ui/SearchField";
@@ -33,6 +34,8 @@ import { untProfile } from "./school";
 import { TermTray } from "./TermTray";
 
 const INSTRUCTOR_ITEM = "instructor:";
+/** The groups that hold the student's own record, which show with or without a major. */
+const OWN_RECORD: ReadonlySet<GroupKey> = new Set(["taking", "done"]);
 const without = (list: readonly string[], id: string) => list.filter((value) => value !== id);
 /** A row's other place: the same course in the tray or in its group. */
 const otherPlace = (key: string) =>
@@ -90,7 +93,8 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
   const major = getMajorById(plannerState.selectedMajor) ?? null;
   // Every department's courses, one step away; by default the groups list the degree's.
   const [wide, setWide] = useState(false);
-  const groups = useMemo(() => buildGroups(model, major, wide), [model, major, wide]);
+  // Without a major the whole catalog is in scope, and hundreds of rules read as warnings; only the student's own record shows.
+  const groups = useMemo(() => buildGroups(model, major, wide).filter((group) => major || OWN_RECORD.has(group.key)), [model, major, wide]);
   const hasDepartment = Boolean(major && major.department !== "—");
   const trayRows = useMemo(() => [...model.rows.values()].filter((row) => row.inPlan).sort((a, b) => a.id.localeCompare(b.id)), [model]);
   // A course keeps its color while it stays in the tray (lib/course-colors.ts).
@@ -124,6 +128,20 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
   const idle = hydrated && untouched && !major;
   const sampleOnly = model.hasTranscript && transcriptRecords.every((record) => record.id.startsWith("sample-"));
   const say = setAnnouncement;
+
+  // Arriving from the landing's "Pick courses by hand": the student already
+  // chose how to start, so the major comes next, not this page's start options.
+  // The landing's link that opened it is gone, so closing it focuses the degree line (focusDegreeOnClose).
+  const majorAsked = useRef(false);
+  const focusDegreeOnClose = useRef(false);
+  useEffect(() => {
+    if (!hydrated || majorAsked.current || !asksForMajor(window.location.search)) return;
+    majorAsked.current = true;
+    router.replace(window.location.pathname, { scroll: false });
+    if (!idle) return;
+    focusDegreeOnClose.current = true;
+    setDegreeOpen(true);
+  }, [hydrated, idle, router]);
 
   /* ---------- motion ---------- */
 
@@ -586,7 +604,11 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
               applyTranscriptRecords(sampleTranscript);
               say("Added the sample transcript. Choose your major, then press Auto.");
             }}
-            onByHand={() => setDegreeOpen(true)}
+            onByHand={() => {
+              // This empty state, opener included, unmounts once a major is chosen.
+              focusDegreeOnClose.current = true;
+              setDegreeOpen(true);
+            }}
           />
         ) : (
           <>
@@ -606,6 +628,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
               weekHref={LENS_HREF.week}
               more={autoInTray > 0 ? [{ id: "clear-auto", label: `Remove the ${autoInTray === 1 ? "course" : `${autoInTray} courses`} Auto added`, onSelect: clearAutoPlan, destructive: true }] : []}
             />
+            {major ? null : <ChooseMajor term={term} onChoose={() => setDegreeOpen(true)} />}
             <CourseGroups
               groups={groups}
               model={model}
@@ -672,6 +695,12 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
       <DegreeDialog
         open={degreeOpen}
         onOpenChange={setDegreeOpen}
+        // Read once, as it closes, for an opener that may be gone by then; the degree line's own button stays.
+        returnFocus={() => {
+          if (!focusDegreeOnClose.current) return null;
+          focusDegreeOnClose.current = false;
+          return pageRef.current?.querySelector<HTMLElement>("[data-degree]") ?? null;
+        }}
         major={plannerState.selectedMajor}
         onChoose={(id: MajorId) => {
           setSelectedMajor(id);
@@ -690,6 +719,25 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
         }}
       />
     </CourseNavigationContext.Provider>
+  );
+}
+
+/**
+ * In place of the catalog before a major is chosen: what choosing one
+ * shows, and the one way to do it. The groups list a degree's courses; with
+ * no degree they would list every department's, most of them as rules to check.
+ */
+function ChooseMajor({ term, onChoose }: { term: string; onChoose: () => void }) {
+  return (
+    <section className={styles.noMajor} aria-labelledby="no-major-title">
+      <h2 className={styles.noMajorTitle} id="no-major-title">
+        See your degree&apos;s courses
+      </h2>
+      <p className={styles.noMajorText}>Choose your major, and Courses lists what you can take in {term}, what comes later, and what to check with an advisor.</p>
+      <Button variant="secondary" aria-haspopup="dialog" onClick={onChoose}>
+        Choose your major
+      </Button>
+    </section>
   );
 }
 
