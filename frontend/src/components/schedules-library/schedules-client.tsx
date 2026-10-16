@@ -149,6 +149,8 @@ export function SchedulesClient() {
   const importRef = useRef<HTMLInputElement | null>(null);
   const rowButtons = useRef(new Map<string, HTMLButtonElement>());
   const compareButton = useRef<HTMLButtonElement | null>(null);
+  /** Phone: the button that pushes the comparison, where Back returns focus. */
+  const showCompareButton = useRef<HTMLButtonElement | null>(null);
 
   // The panel lines up beside this page's 560px column (ui.css .ui-context reads --main-max).
   useLayoutEffect(() => {
@@ -167,7 +169,8 @@ export function SchedulesClient() {
     setPicks([]);
     setViewingCompare(false);
   };
-  const focusTarget = () => (comparing ? compareButton.current : (selected && rowButtons.current.get(selected)) || null);
+  const focusTarget = () =>
+    comparing ? (phone ? showCompareButton.current : compareButton.current) : (selected && rowButtons.current.get(selected)) || null;
 
   function pickRow(entry: Entry) {
     if (comparing) {
@@ -382,7 +385,7 @@ export function SchedulesClient() {
     const on = comparing ? pickIndex >= 0 : selected === entry.id && open;
     const label = comparing
       ? pickIndex >= 0
-        ? `Remove ${entry.name} from compare`
+        ? `Remove ${entry.name}, ${"ABC"[pickIndex]}, from compare`
         : `Compare ${entry.name}`
       : `Open ${entry.name}${entry.active ? ", active" : ""}`;
     return (
@@ -475,12 +478,14 @@ export function SchedulesClient() {
         </div>
       ) : null}
       {comparing && phone ? (
-        <div className={styles.compareBar} role="status">
-          <p className={styles.quiet}>
-            {sides.length < 2 ? `Pick ${sides.length ? "one or two more schedules" : "two or three schedules"} to compare.` : `${sides.length} picked.`}
+        <div className={styles.compareBar}>
+          <p className={styles.quiet} role="status">
+            {sides.length < 2
+              ? `Pick ${sides.length ? "one or two more schedules" : "two or three schedules"} to compare.`
+              : `${sides.length} picked: ${sides.map((side, i) => `${"ABC"[i]}, ${side.name}`).join("; ")}.`}
           </p>
           {sides.length >= 2 ? (
-            <Button size="sm" onClick={() => setViewingCompare(true)}>
+            <Button ref={showCompareButton} onClick={() => setViewingCompare(true)}>
               Compare {sides.length}
             </Button>
           ) : null}

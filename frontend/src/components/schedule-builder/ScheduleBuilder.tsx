@@ -102,6 +102,9 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   /** Browse all's button, and whether it should take focus back once the list closes. */
   const browseButton = useRef<HTMLButtonElement | null>(null);
   const refocusBrowse = useRef(false);
+  /** Auto, which takes focus after a combination is chosen from the keyboard: the list and its strip are gone. */
+  const autoButton = useRef<HTMLButtonElement | null>(null);
+  const refocusAuto = useRef(false);
   const colors = useRef(new Map<string, 1 | 2 | 3 | 4 | 5 | 6>());
 
   // Week's main region stops at 960px; the contextual panel lines up beside it (globals.css, ui.css).
@@ -202,10 +205,14 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     if (strip?.kind === "browse" && browse?.stale && browse.status !== "running") browse.run();
   }, [strip?.kind, browse]);
   useEffect(() => {
-    if (!refocusBrowse.current || strip?.kind !== "options") return;
-    refocusBrowse.current = false;
-    browseButton.current?.focus({ preventScroll: true });
-  }, [strip?.kind]);
+    if (refocusBrowse.current && strip?.kind === "options") {
+      refocusBrowse.current = false;
+      browseButton.current?.focus({ preventScroll: true });
+    } else if (refocusAuto.current && strip === null) {
+      refocusAuto.current = false;
+      autoButton.current?.focus({ preventScroll: true });
+    }
+  }, [strip]);
 
   useEffect(() => {
     if (!searchRequest) return;
@@ -315,15 +322,21 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     exiting.current = true;
     setStrip(null);
   };
-  /** Replaces the week's sections with `byCourse`, as one undoable step: Use this, and choosing a combination. */
-  const applyWeek = (byCourse: Record<string, string>, label: string) => {
+  /**
+   * Replaces the week's sections with `byCourse`, as one undoable step: Use this, and choosing a
+   * combination. False when the host used none of them; the preview then stays.
+   */
+  const applyWeek = (byCourse: Record<string, string>, label: string): boolean => {
     keyboard.current = false;
     const refused = host.edits.use(byCourse);
-    // Nothing was used: the preview stays, to keep or dismiss.
-    if (refused.length === Object.keys(byCourse).length) return void toast({ message: `Nothing from ${label} was used. ${refused.join(" ")}`, tone: "error" });
+    if (refused.length === Object.keys(byCourse).length) {
+      toast({ message: `Nothing from ${label} was used. ${refused.join(" ")}`, tone: "error" });
+      return false;
+    }
     closeStrip();
     if (panel?.kind === "option" || panel?.kind === "browse") setPanel(null);
     toast({ message: refused.length > 0 ? `Using ${label}. ${refused.join(" ")}` : `Using ${label}`, action: undoAction });
+    return true;
   };
   const applyShown = () => {
     if (!previewMap || Object.keys(previewMap).length === 0) return;
@@ -340,10 +353,11 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     browse.run();
   };
   /** Uses exactly one combination's sections. Rows from a list whose settings changed are never used. */
-  const chooseRow = (index: number | null) => {
+  const chooseRow = (index: number | null, fromKeyboard = false) => {
     if (index === null || !browse || browse.stale || browse.status === "running") return;
     const row = browse.rows[index];
-    if (row) applyWeek(row.byCourse, `combination ${index + 1}`);
+    if (!row) return;
+    refocusAuto.current = applyWeek(row.byCourse, `combination ${index + 1}`) && fromKeyboard;
   };
 
   // What the grid draws besides the week.
@@ -473,7 +487,15 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       const yours = browseRow !== undefined && same(Object.fromEntries(Object.entries(current).filter(([code]) => code in browseRow.byCourse)), browseRow.byCourse);
       return (
         <BrowseStrip
-          count={browseIndex !== null && browseRow ? `${browseIndex + 1} of ${totalCount(browse)}` : browse.status === "done" && browse.rows.length === 0 ? "None" : "Listing"}
+          count={
+            browseIndex !== null && browseRow
+              ? `${browseIndex + 1} of ${totalCount(browse)}`
+              : browse.infeasible
+                ? "0 fit"
+                : browse.timedOut || browse.status === "error"
+                  ? "Stopped"
+                  : "Listing"
+          }
           sentence={keepCodesWhole(
             browseRow
               ? yours
@@ -594,7 +616,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
             {summary}
           </span>
           {phone ? null : (
-            <Button size="sm" icon={<TrayIn size={18} />} loading={firstAnswerPending} loadingLabel="Looking for weeks" disabled={host.courses.length === 0} onClick={(event) => auto(event.detail === 0)}>
+            <Button ref={autoButton} size="sm" icon={<TrayIn size={18} />} loading={firstAnswerPending} loadingLabel="Looking for weeks" disabled={host.courses.length === 0} onClick={(event) => auto(event.detail === 0)}>
               {host.brand.primaryLabel}
             </Button>
           )}
@@ -687,7 +709,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
           <Button variant="secondary" icon={<SearchGlyph size={20} />} onClick={() => openPanel({ kind: "search" })}>
             Add
           </Button>
-          <Button icon={<TrayIn size={20} />} loading={firstAnswerPending} loadingLabel="Looking" disabled={host.courses.length === 0} onClick={(event) => auto(event.detail === 0)}>
+          <Button ref={autoButton} icon={<TrayIn size={20} />} loading={firstAnswerPending} loadingLabel="Looking" disabled={host.courses.length === 0} onClick={(event) => auto(event.detail === 0)}>
             {host.brand.primaryShort}
           </Button>
         </div>
@@ -736,7 +758,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
             onHover={(hovered) => {
               if (hovered !== strip.hovered) setStrip({ ...strip, hovered });
             }}
-            onChoose={(index) => chooseRow(index)}
+            onChoose={chooseRow}
             focusOnShow={strip.fromKeyboard}
             onRetry={browse.run}
           />

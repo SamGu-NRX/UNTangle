@@ -62,31 +62,33 @@ function scrollParent(element: HTMLElement): HTMLElement | null {
   return null;
 }
 
-/** Where the list sits in its scroller, and what the scroller shows; the window when there is no scroller. */
-function geometry(list: HTMLElement) {
-  const scroller = scrollParent(list);
+/** Where the list sits in `scroller`, and what it shows; the window when there is no scroller. Two rect reads, no style reads. */
+function geometry(list: HTMLElement, scroller: HTMLElement | null) {
   if (!scroller) {
     const rect = list.getBoundingClientRect();
-    return { scroller: null, scrollTop: window.scrollY, viewport: window.innerHeight, listTop: rect.top + window.scrollY };
+    return { scrollTop: window.scrollY, viewport: window.innerHeight, listTop: rect.top + window.scrollY };
   }
   const listTop = list.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
-  return { scroller, scrollTop: scroller.scrollTop, viewport: scroller.clientHeight, listTop };
+  return { scrollTop: scroller.scrollTop, viewport: scroller.clientHeight, listTop };
 }
 
 /**
  * Tracks which rows of `count` fixed-height rows to render. Attach `ref` to
  * the list element (count × rowHeight tall). `reveal` scrolls the scroller
- * so a row is in view, for keyboard movement.
+ * so a row is in view, for keyboard movement; `viewport` is the scroller's
+ * visible height, for PageUp and PageDown.
  */
 export function useVirtualRows(count: number, rowHeight: number, overscan = 4) {
   const ref = useRef<HTMLElement | null>(null);
+  /** Found once per mount: the clipping ancestor doesn't change while the list is open. */
+  const scroller = useRef<HTMLElement | null>(null);
   // Before the first measurement, render a screenful from the top.
   const [range, setRange] = useState<RowWindow>(() => ({ first: 0, last: Math.min(count, 12) }));
 
   const measure = useCallback(() => {
     const list = ref.current;
     if (!list) return;
-    const { scrollTop, viewport, listTop } = geometry(list);
+    const { scrollTop, viewport, listTop } = geometry(list, scroller.current);
     const next = visibleRows({ scrollTop, viewport, listTop, rowHeight, count, overscan });
     setRange((current) => (current.first === next.first && current.last === next.last ? current : next));
   }, [count, rowHeight, overscan]);
@@ -94,13 +96,16 @@ export function useVirtualRows(count: number, rowHeight: number, overscan = 4) {
   useLayoutEffect(() => {
     const list = ref.current;
     if (!list) return;
+    scroller.current = scrollParent(list);
     measure();
-    const scroller = scrollParent(list);
-    const target: HTMLElement | Window = scroller ?? window;
+    const target: HTMLElement | Window = scroller.current ?? window;
     target.addEventListener("scroll", measure, { passive: true });
-    window.addEventListener("resize", measure);
+    // The scroller resizing (a sheet raised, a window resized) and the text above the list
+    // changing height (which moves the list without a scroll) both need a new window.
     const observer = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
-    if (scroller) observer?.observe(scroller);
+    if (scroller.current) observer?.observe(scroller.current);
+    if (list.previousElementSibling) observer?.observe(list.previousElementSibling);
+    if (!observer) window.addEventListener("resize", measure);
     return () => {
       target.removeEventListener("scroll", measure);
       window.removeEventListener("resize", measure);
@@ -112,15 +117,17 @@ export function useVirtualRows(count: number, rowHeight: number, overscan = 4) {
     (index: number) => {
       const list = ref.current;
       if (!list) return;
-      const { scroller, scrollTop, viewport, listTop } = geometry(list);
+      const { scrollTop, viewport, listTop } = geometry(list, scroller.current);
       const to = revealRow({ index, scrollTop, viewport, listTop, rowHeight });
       if (to === null) return;
-      if (scroller) scroller.scrollTop = to;
+      if (scroller.current) scroller.current.scrollTop = to;
       else window.scrollTo({ top: to });
       measure();
     },
     [rowHeight, measure],
   );
 
-  return { ref, range, reveal };
+  const viewport = useCallback(() => (scroller.current ? scroller.current.clientHeight : window.innerHeight), []);
+
+  return { ref, range, reveal, viewport };
 }

@@ -78,8 +78,10 @@ describe("Compare", () => {
     expect(rows.slice(1).every((row) => row.length === 4)).toBe(true);
     expect(document.querySelector("aside h2")?.textContent).toBe("Main, Lighter and Heavier");
     // A, B and C ahead of the picked names, in the order they were picked.
-    const letterOf = (name: string) => button(`Remove ${name} from compare`).closest("li")?.querySelector(".pick")?.textContent;
+    const letterOf = (name: string) => [...document.querySelectorAll("li")].find((li) => li.querySelector(`[aria-label^="Remove ${name},"]`))?.querySelector(".pick")?.textContent;
     expect(["Main", "Lighter", "Heavier"].map(letterOf)).toEqual(["A", "B", "C"]);
+    // Screen readers hear the letter too.
+    expect(button("Remove Lighter, B, from compare")).toBeDefined();
     // The week shows one plan at a time; "Both" is for two.
     expect([...document.querySelectorAll('aside [role="radio"]')].map((radio) => radio.textContent)).toEqual(["Main", "Lighter", "Heavier"]);
     await view.unmount();

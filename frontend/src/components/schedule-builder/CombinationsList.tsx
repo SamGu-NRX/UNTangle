@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type CSSProperties, type KeyboardEvent } from "react";
+import { useLayoutEffect, useMemo, useRef, type CSSProperties, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import type { Section } from "@/lib/sections";
 import styles from "./builder.module.css";
@@ -99,11 +99,13 @@ export function CombinationsList({ feed, find, hueOf, current, active, previewed
     return 2;
   }, [rows, find]);
   const rowHeight = rowHeightFor(courses.length, columns);
-  const { ref, range, reveal } = useVirtualRows(rows.length, rowHeight);
+  const { ref, range, reveal, viewport } = useVirtualRows(rows.length, rowHeight);
   const listRef = useRef<HTMLDivElement | null>(null);
   const disabled = feed.stale || feed.status === "running";
-  // Once, when the list first appears.
-  useEffect(() => {
+  // Once, when the list first appears: the row it lands on (the option the strip showed) is in view,
+  // and the list has focus if the keyboard opened it.
+  useLayoutEffect(() => {
+    if (active !== null) reveal(active);
     if (focusOnShow) listRef.current?.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -133,10 +135,7 @@ export function CombinationsList({ feed, find, hueOf, current, active, previewed
     onActive(next);
     reveal(next);
   };
-  const pageRows = () => {
-    const scroller = listRef.current?.closest<HTMLElement>(".ui-context__body, .ui-sheet__body");
-    return Math.max(1, Math.floor((scroller?.clientHeight ?? 600) / rowHeight) - 1);
-  };
+  const pageRows = () => Math.max(1, Math.floor(viewport() / rowHeight) - 1);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (rows.length === 0) return;
     const at = active ?? -1;
@@ -178,7 +177,8 @@ export function CombinationsList({ feed, find, hueOf, current, active, previewed
       style={{ height: rows.length * rowHeight, "--row-h": `${rowHeight}px` } as CSSProperties}
       onKeyDown={onKeyDown}
       onFocus={(event) => {
-        if (event.target === event.currentTarget && active === null && rows.length > 0) move(0);
+        if (event.target !== event.currentTarget || rows.length === 0) return;
+        move(active ?? 0);
       }}
       onPointerLeave={() => onHover(null)}
       // A press chooses; it doesn't focus the list. Focusing a list taller than
@@ -258,55 +258,45 @@ export function CombinationsList({ feed, find, hueOf, current, active, previewed
   );
 }
 
-/** The panel's body around the list: what the list holds, or why it is empty, and the list. */
+/** What the panel says above the list, in every state: one status line that stays mounted, so changes are announced. */
+function panelStatus(feed: BrowseFeed): string {
+  if (feed.status === "error") return `Browse all stopped before it listed any weeks. ${feed.error ?? ""}`.trim();
+  if (feed.infeasible) return `Nothing fits these preferences. ${feed.infeasible.sentence}`;
+  if (feed.timedOut) return "No week turned up in time. Loosen a preference or keep fewer sections.";
+  if (feed.rows.length === 0) return "Listing every combination that fits.";
+  if (feed.stale || feed.status === "running") return "Updating for your new settings.";
+  return listSummary(feed);
+}
+
+/** The panel's body around the list: what the list holds, or why it is empty and what to change, and the list. */
 export function BrowsePanel(props: Props & { onRetry: () => void }) {
   const { feed } = props;
-  if (feed.status === "error") {
-    return (
-      <div className={styles.comboNote} role="status">
-        <p>Browse all stopped before it listed any weeks. {feed.error}</p>
-        <Button variant="secondary" size="sm" onClick={props.onRetry}>
-          Try again
-        </Button>
-      </div>
-    );
-  }
-  if (feed.infeasible) {
-    return (
-      <div className={styles.comboNote} data-tone="danger" role="status">
-        <p>Nothing fits these preferences. {feed.infeasible.sentence}</p>
-        {feed.infeasible.fixes.length > 0 ? (
-          <div className={styles.actions}>
+  const waiting = feed.status !== "error" && !feed.infeasible && !feed.timedOut && feed.rows.length === 0;
+  const tone = feed.status === "error" || feed.infeasible ? "danger" : undefined;
+  return (
+    <>
+      <p className={feed.rows.length > 0 && !feed.infeasible ? styles.comboSummary : styles.comboNote} data-tone={tone} data-loading={waiting || undefined} data-ui={waiting || undefined} role="status">
+        {panelStatus(feed)}
+      </p>
+      {feed.status === "error" ? (
+        <div className={styles.comboActions}>
+          <Button variant="secondary" size="sm" onClick={props.onRetry}>
+            Try again
+          </Button>
+        </div>
+      ) : feed.infeasible ? (
+        feed.infeasible.fixes.length > 0 ? (
+          <div className={styles.comboActions}>
             {feed.infeasible.fixes.slice(0, 3).map((fix) => (
               <Button key={fix.label} variant="secondary" size="sm" onClick={fix.apply}>
                 {fix.label}
               </Button>
             ))}
           </div>
-        ) : null}
-      </div>
-    );
-  }
-  if (feed.timedOut) {
-    return (
-      <p className={styles.comboNote} role="status">
-        No week turned up in time. Loosen a preference or keep fewer sections.
-      </p>
-    );
-  }
-  if (feed.rows.length === 0) {
-    return (
-      <p className={styles.comboNote} data-loading="" role="status">
-        Listing every combination that fits.
-      </p>
-    );
-  }
-  return (
-    <>
-      <p className={styles.comboSummary} role="status">
-        {feed.stale || feed.status === "running" ? "Updating for your new settings." : listSummary(feed)}
-      </p>
-      <CombinationsList {...props} />
+        ) : null
+      ) : feed.rows.length > 0 && !feed.timedOut ? (
+        <CombinationsList {...props} />
+      ) : null}
     </>
   );
 }

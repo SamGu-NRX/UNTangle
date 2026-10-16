@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
 import { Button } from "@/components/ui/Button";
 import { ChevronRight } from "@/components/ui/icons";
+import { keyboardFocused } from "@/components/ui/input-source";
 import { Segmented } from "@/components/ui/Segmented";
 import type { Hue } from "@/lib/course-colors";
 import { describeOtherDifferences, diffLibraryPlans } from "@/lib/plan-library/diff";
@@ -116,7 +117,7 @@ export function CompareView({
           }
         />
       </div>
-      <WeekGrid items={items} colors={colors} layout={view} animate={fromPointer} labels={view === "both" ? bothLabels : undefined} />
+      <WeekGrid items={items} colors={colors} layout={view} animate={fromPointer && !keyboardFocused()} labels={view === "both" ? bothLabels : undefined} />
       {view === "both" ? <Legend items={items} labels={bothLabels} /> : null}
 
       <table className={styles.table}>
@@ -185,6 +186,7 @@ export function CompareView({
                     {row.cells.map((cell, i) => (
                       <td key={sides[i].id} data-differs={i > 0 && cell !== row.cells[0] ? "" : undefined}>
                         {cell ?? `Not in ${sides[i].name}`}
+                        {i > 0 && cell !== row.cells[0] ? <span className="sr-only-v2">, differs from {a.name}</span> : null}
                       </td>
                     ))}
                   </tr>

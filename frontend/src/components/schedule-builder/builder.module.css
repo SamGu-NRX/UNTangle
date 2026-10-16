@@ -316,22 +316,17 @@
   color: var(--ink-2);
 }
 .comboNote {
-  display: grid;
-  justify-items: start;
-  gap: 12px;
-  margin: 0;
-  padding: 4px 0;
+  margin: 0 0 12px;
+  padding: 4px 0 0;
   font-size: var(--text-body);
   line-height: var(--lh-body);
   color: var(--ink-2);
 }
-.comboNote p {
-  margin: 0;
-}
-.comboNote[data-tone="danger"] p {
+.comboNote[data-tone="danger"] {
   color: var(--danger);
 }
-/* Most lists arrive within a frame or two; the waiting line only shows when one doesn't. */
+/* Most lists arrive within a frame or two; the waiting line only shows when one doesn't.
+   data-ui keeps the delay under reduced motion (globals.css zeroes delays elsewhere); it only fades. */
 .comboNote[data-loading] {
   opacity: 0;
   animation: comboLate var(--t-swap) var(--ease-out) 240ms forwards;
@@ -341,6 +336,11 @@
     opacity: 1;
   }
 }
+.comboActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
 /* Rows sit at fixed offsets (virtual-rows.ts); the list is as tall as all of them. */
 .combos {
@@ -348,15 +348,6 @@
   margin: 0 -12px;
   border-radius: var(--r-md);
   outline: none;
-  animation: comboIn var(--t-swap) var(--ease-out);
-}
-@keyframes comboIn {
-  from {
-    opacity: 0;
-  }
-}
-.combos:focus-visible {
-  box-shadow: var(--focus);
 }
 .combo {
   position: absolute;
@@ -371,9 +362,12 @@
   padding: 12px;
   border-radius: var(--r-md);
   cursor: pointer;
-  transition:
-    background-color var(--t-hover) ease,
-    opacity var(--t-swap) var(--ease-out);
+  /* A tap uses the whole week: no text selection or callout on a long press. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  /* The highlight follows the previewed row, tens of times a minute, so it changes at once; only staleness fades. */
+  transition: opacity var(--t-swap) var(--ease-out);
 }
 /* A hairline between rows, inside the row so it moves with it. */
 .combo::after {
@@ -391,14 +385,18 @@
 .combo[data-active]::after {
   opacity: 0;
 }
-@media (hover: hover) and (pointer: fine) {
-  .combo:not([data-active]):hover {
-    background: var(--paper-2);
-  }
+.combos:not([aria-disabled="true"]) .combo:not([data-active]):active {
+  background: var(--paper-2);
 }
-/* Moving through the list from the keyboard changes rows without fading (MOTION.md §3). */
-.combos:focus-visible .combo {
-  transition: none;
+/* The row the keyboard is on: an inset accent ring, as in menus (ui.css), whatever the pointer previews. */
+.combos:focus-visible .combo[aria-selected="true"] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+@media (forced-colors: active) {
+  .combos:focus-visible .combo[aria-selected="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }
 /* Settings changed under the list: it stays for reference, and nothing in it can be used. */
 .combos[aria-disabled="true"] .combo {
