@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
 import type { BuilderEdits, BuilderHost, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
 import { isStale, requestKey } from "@/components/schedule/run-state";
@@ -8,6 +8,7 @@ import { useOptimizerRuns } from "@/components/schedule/use-optimizer";
 import { searchCourses } from "@/components/shell/course-search";
 import { toast } from "@/components/ui/Toast";
 import type { Brand } from "@/lib/brand";
+import { checkFeed, connectFeed, refreshCalendar, type FeedTerm } from "@/lib/calendar-feeds/client";
 import type { RelaxSuggestion } from "@/lib/optimizer/types";
 import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
 import {
@@ -20,12 +21,22 @@ import {
   takeFromAutoRun,
   type PlannedCourse,
 } from "@/lib/planner";
-import { findOption, optionIdLabel, planningTerm, sectionRef } from "@/lib/planner-sections";
+import { findOption, optionIdLabel, planningTerm, sectionRef, termDates } from "@/lib/planner-sections";
 import { isShuttleLeg, plannerTravelTime } from "@/lib/planner-walking";
 import { findClassNumber } from "@/lib/sections/client";
 import { optionReasons } from "./option-reasons";
 import { courses as catalog } from "@/lib/seed-data";
-import type { CourseStatus, PlannerState } from "@/lib/types";
+import type { ConnectedCalendar, CourseStatus, PlannerState } from "@/lib/types";
+
+/**
+ * A connected calendar is read again when Week opens and its busy time is
+ * older than this, or was read for another term. Six hours is a starting
+ * value with nothing measured behind it: often enough that a new shift
+ * shows the same day, rarely enough that Week doesn't refetch on every visit.
+ */
+const CALENDAR_STALE_MS = 6 * 60 * 60 * 1000;
+
+const feedTerm: FeedTerm | null = termDates[planningTerm.id] ? { ...planningTerm, ...termDates[planningTerm.id] } : null;
 
 /** What one undo puts back: the touched courses' status, section, lock and Auto-filled mark as they were. */
 type Snapshot = {
@@ -283,6 +294,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     [plannerState, schedulePreferences, sectionCatalog, catalogVersion],
   );
   const inputKey = requestKey(request);
+  const handMade = new Set(schedulePreferences.constraints.blocked.map((block) => block.id));
   const relax = (suggestion: RelaxSuggestion) => {
     const r = suggestion.relaxation;
     if (r.kind === "unlock") return setSectionLock(r.courseCode, false);
@@ -335,7 +347,14 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     stale: isStale(run, inputKey),
     infeasible:
       result?.status === "infeasible"
-        ? { sentence: result.explanation.sentence, fixes: result.explanation.suggestions.map((s) => ({ label: s.label, apply: () => relax(s) })) }
+        ? {
+            sentence: result.explanation.sentence,
+            // A connected calendar's busy time comes from the calendar, so there is nothing here to loosen;
+            // the student removes the calendar in Preferences if it shouldn't count.
+            fixes: result.explanation.suggestions
+              .filter((s) => s.relaxation.kind !== "blocked" || handMade.has(s.relaxation.blockedId))
+              .map((s) => ({ label: s.label, apply: () => relax(s) })),
+          }
         : result?.status === "timeout" && result.schedules.length === 0 && run.status === "done"
           ? { sentence: "No week turned up in time. Loosen a preference or keep fewer sections.", fixes: [] }
           : null,
@@ -391,6 +410,45 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     [brand.suggestions, catalogVersion, hitFor, loadSections, plannerState.selectedMajor, sectionCatalog],
   );
 
+  // Connected calendars read for another term, or a while ago, are read again once per visit.
+  const [calendarProblems, setCalendarProblems] = useState<Record<string, string>>({});
+  const refreshed = useRef(new Set<string>());
+  const calendars = schedulePreferences.calendars;
+  useEffect(() => {
+    if (!preferencesReady || !feedTerm) return;
+    const term = feedTerm;
+    for (const calendar of calendars ?? []) {
+      const stale = calendar.termId !== term.id || Date.now() - Date.parse(calendar.checkedAt) > CALENDAR_STALE_MS;
+      if (!stale || refreshed.current.has(calendar.id)) continue;
+      refreshed.current.add(calendar.id);
+      void refreshCalendar(calendar, term).then((outcome) => {
+        if (!outcome.ok) {
+          setCalendarProblems((problems) => ({ ...problems, [calendar.id]: outcome.problem.message }));
+          return;
+        }
+        setCalendarProblems((problems) => Object.fromEntries(Object.entries(problems).filter(([id]) => id !== calendar.id)));
+        // Only the calendar as it was read: one removed or reconnected meanwhile stays as it is now.
+        setSchedulePreferences((p) => ({
+          ...p,
+          calendars: p.calendars?.map((current: ConnectedCalendar) => (current.id === calendar.id && current.sealedUrl === calendar.sealedUrl ? outcome.value : current)),
+        }));
+      });
+    }
+  }, [calendars, preferencesReady, setSchedulePreferences]);
+
+  const calendarHost = useMemo<BuilderHost["calendars"]>(
+    () =>
+      feedTerm
+        ? {
+            term: feedTerm,
+            check: (url) => checkFeed(url, feedTerm),
+            connect: (url, name) => connectFeed(url, name, feedTerm),
+            problems: calendarProblems,
+          }
+        : null,
+    [calendarProblems],
+  );
+
   const walk = useCallback((from: string, to: string) => {
     const time = plannerTravelTime(from, to);
     return time.seconds === null ? null : { minutes: Math.round(time.seconds / 60), shuttle: isShuttleLeg(from, to) };
@@ -410,6 +468,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     edits,
     optimizer,
     find,
+    calendars: calendarHost,
     printHref: "/schedule/print",
     shareUrl: (encoded) => {
       const url = new URL("/schedule", window.location.origin);

@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { LockGlyph, Walk } from "@/components/ui/icons";
+import { CalendarGlyph, LockGlyph, Walk } from "@/components/ui/icons";
 import type { Day } from "@/lib/sections";
 import { EXIT_MOVE_MS, flip, measure, MOVE_MS, settleBack, visualOf } from "./motion";
 import styles from "./builder.module.css";
@@ -22,7 +22,17 @@ export type Outline = {
 };
 /** One meeting of the section being pointed at in search. */
 export type Ghost = { courseCode: string; day: Day; start: number; end: number; clash: boolean };
-export type Busy = { id: string; label: string; day: Day; start: number; end: number };
+/**
+ * Busy time the grid hatches. Without a kind, the student's own weekly busy
+ * time; `dated`, one they made from a calendar event, on its date only;
+ * `calendar`, a connected calendar's. `note` says which weeks it holds.
+ */
+export type Busy = { id: string; label: string; day: Day; start: number; end: number; kind?: "dated" | "calendar"; note?: string };
+
+/** Calendar busy time can run all day; the grid stretches for it only within these hours. */
+const CALENDAR_REACH = { start: 8 * 60, end: 21 * 60 };
+const reach = (block: Busy) =>
+  block.kind === "calendar" ? { start: Math.max(block.start, CALENDAR_REACH.start), end: Math.min(block.end, CALENDAR_REACH.end) } : block;
 
 type Props = {
   label: string;
@@ -79,7 +89,7 @@ function lane(placement: Placement | undefined): CSSProperties {
 export function WeekGrid(props: Props) {
   const { events, placements, walks, outlines, ghost, busy, phone, interactive } = props;
   const days = daysShown([...events, ...busy, ...ghost, ...outlines]);
-  const { first, last } = hourRange([...events, ...busy, ...ghost, ...outlines]);
+  const { first, last } = hourRange([...events, ...busy.map(reach).filter((span) => span.end > span.start), ...ghost, ...outlines]);
   const body = useRef<HTMLDivElement>(null);
   const positions = useRef<Map<string, { x: number; y: number }> | null>(null);
   const lastMotion = useRef(props.motion.key);
@@ -270,15 +280,22 @@ export function WeekGrid(props: Props) {
             ) : null}
             {busy
               .filter((block) => block.day === day)
-              .map((block) => (
-                <div key={block.id} className={styles.busy} style={{ top: at(block.start, first), height: span(block.start, block.end) }}>
-                  {block.label}
-                  <span className="sr-only-v2">
-                    {" "}
-                    busy {timeRange(block.start, block.end)}
-                  </span>
-                </div>
-              ))}
+              .map((block) => {
+                const top = Math.max(block.start, first * 60);
+                const bottom = Math.min(block.end, last * 60);
+                if (bottom <= top) return null;
+                return (
+                  <div key={block.id} className={styles.busy} data-kind={block.kind} style={{ top: at(top, first), height: span(top, bottom) }}>
+                    {block.kind === "calendar" ? <CalendarGlyph size={12} className={styles.busyGlyph} /> : null}
+                    <span className={styles.busyLabel}>{block.label}</span>
+                    {block.note ? <span className={styles.busyNote} aria-hidden="true">{block.note}</span> : null}
+                    <span className="sr-only-v2">
+                      {block.kind === "calendar" ? ", from your calendar," : ""} busy {timeRange(block.start, block.end)}
+                      {block.note ? `, ${block.note}` : ""}
+                    </span>
+                  </div>
+                );
+              })}
             {draft?.day === day && draft.from !== draft.to ? (
               <div
                 className={styles.busy}

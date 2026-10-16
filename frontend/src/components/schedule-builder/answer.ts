@@ -6,7 +6,7 @@
  */
 import type { Day } from "@/lib/sections";
 import type { SchedulePreferences } from "@/lib/types";
-import { andList, clashes, clock, clockWithSuffix, DAY_NAME, DAY_ORDER, type GridEvent, type WalkLeg } from "./week";
+import { andList, clashes, clock, clockWithSuffix, DAY_NAME, DAY_ORDER, shortDate, type GridEvent, type WalkLeg } from "./week";
 
 const dayNames = (days: Iterable<Day>) => andList(DAY_ORDER.filter((day) => [...days].includes(day)).map((day) => DAY_NAME[day]));
 
@@ -96,7 +96,9 @@ function brokenPreference(courses: readonly AnswerCourse[], events: readonly Gri
   if (tooLate && late !== null) return `${tooLate.courseCode} ends after ${clockWithSuffix(late)} on ${daysOf(tooLate.courseCode, (e) => e.end > late)}.`;
   for (const block of c.blocked) {
     const hit = first((e) => e.day === block.day && e.start < block.end && block.start < e.end);
-    if (hit) return `${hit.courseCode} meets during ${block.label.toLowerCase()} on ${DAY_NAME[hit.day]}.`;
+    // Busy time from one date (a calendar event) names that date: the class only clashes then.
+    const only = block.dates?.length === 1 && block.dates[0].start === block.dates[0].end ? block.dates[0].start : null;
+    if (hit) return `${hit.courseCode} meets during ${block.label.toLowerCase()} on ${DAY_NAME[hit.day]}${only ? `, ${shortDate(only)}` : ""}.`;
   }
   const credits = courses.filter((course) => course.state === "placed").reduce((sum, course) => sum + course.credits, 0);
   if (c.maxCredits !== null && credits > c.maxCredits) return `This week is ${credits} credits, over your ${c.maxCredits}.`;

@@ -80,6 +80,7 @@ function host(courses: WeekCourse[], feed: Partial<OptionsFeed> = {}) {
     find: (code, id) => OPTIONS[code]?.find((s) => s.id === id),
     printHref: "/schedule/print",
     shareUrl: (encoded) => `http://localhost/schedule?week=${encoded}`,
+    calendars: null,
   };
   return { value, edits, optimizer };
 }

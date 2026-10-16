@@ -32,6 +32,8 @@ const ALLOWED: RegExp[] = [
   /^@\/lib\/course-colors$/,
   /^@\/lib\/export\/[\w-]+$/,
   /^@\/lib\/planner-ics$/,
+  // Pure: connected calendars' busy time as dated blocks and grid bands. Fetching stays with the host.
+  /^@\/lib\/calendar-busy$/,
 ];
 /** Shared data shapes: allowed as `import type` only. */
 const TYPES_ONLY: RegExp[] = [/^@\/lib\/sections(\/model)?$/, /^@\/lib\/types$/];
