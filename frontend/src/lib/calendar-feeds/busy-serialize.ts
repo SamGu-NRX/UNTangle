@@ -5,7 +5,9 @@
  * explicitly rather than passing values through, so a future field on the
  * internal occurrence or skipped types cannot leak event text into the
  * response by accident — not the event title, not the UID, and not the feed
- * URL (which a Google secret-address URL carries a private token in).
+ * URL (which a Google secret-address URL carries a private token in). The
+ * one form of the address it may carry is the sealed token the caller asked
+ * for, which only this server can open.
  */
 
 /** Largest busy response body, in bytes: the same 1 MiB as the preview cap. */
@@ -28,6 +30,8 @@ export function serializeBusy(payload: {
   range: { start: string; end: string };
   occurrences: ReadonlyArray<SerializedBusyOccurrence>;
   skipped: ReadonlyArray<{ reason: string }>;
+  /** The feed's address sealed for the caller (lib/calendar-feeds/seal.ts), when the request asked for it. */
+  sealedUrl?: string;
 }): string | null {
   const body = {
     range: payload.range,
@@ -40,6 +44,7 @@ export function serializeBusy(payload: {
       index,
       reason: entry.reason,
     })),
+    ...(payload.sealedUrl ? { sealedUrl: payload.sealedUrl } : {}),
   };
   const json = JSON.stringify(body);
   return Buffer.byteLength(json, "utf8") > MAX_BUSY_RESPONSE_BYTES ? null : json;

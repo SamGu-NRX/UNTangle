@@ -363,6 +363,8 @@ type BuildInput = {
 function withOverrides(saved: SchedulePreferences, input: BuildInput): SchedulePreferences {
   const c = saved.constraints;
   return {
+    // Connected calendars stay: Auto keeps their busy time free in every run.
+    ...saved,
     weights: input.goal ? { ...GOAL_WEIGHTS[input.goal] } : saved.weights,
     constraints: {
       ...c,

@@ -17,6 +17,8 @@ import { SyncError } from "@/lib/document-sync/decision";
 import { applyAddOption, type ExtensionStore } from "./commands";
 import { extensionAddOptionCommandSchema, extensionAddReplySchema, extensionPreviewSchema } from "./extension-api";
 import { buildPreview, type SectionsSource } from "./preview";
+import { calendarBlockedTimes } from "@/lib/calendar-busy";
+import { termDates } from "@/lib/planner-sections";
 import { DocumentIdSchema } from "../../../../packages/contracts/src/ids";
 
 export type ExtensionDependencies = {
@@ -175,7 +177,11 @@ export function createExtensionHttp({ grants, store, sections, origin, extension
           classNumber: params.classNumber,
           sections: termSections,
           schedule,
-          blocked: preferences?.constraints.blocked ?? [],
+          // Connected calendars' busy time clashes too, on its own dates only.
+          blocked: [
+            ...(preferences?.constraints.blocked ?? []),
+            ...calendarBlockedTimes(preferences?.calendars, params.term, termDates[params.term] ?? null),
+          ],
         });
         // Self-check before the response leaves: the extension's guard rejects
         // anything this schema accepted by mistake.

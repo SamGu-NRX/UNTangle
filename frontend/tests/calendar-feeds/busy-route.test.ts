@@ -1,4 +1,4 @@
-import { beforeAll, expect, mock, test, type Mock } from "bun:test";
+import { beforeAll, describe, expect, mock, test, type Mock } from "bun:test";
 import { httpsFixture } from "./https-fixture";
 import { budgets } from "@/lib/rate-limit/config";
 import { createRateLimitWrapper } from "@/lib/rate-limit/wrapper";
@@ -76,13 +76,14 @@ function tinyResponse(): Response {
 const SECRET_TOKEN = "9f2c7f6a1d84b0e3a51c02bb77d4e5f1";
 const SECRET_URL = `https://calendar.google.com/calendar/ical/student%40unt.edu/private-${SECRET_TOKEN}/basic.ics`;
 
-test("answers 401 without a session", async () => {
+test("answers a guest too, who keeps calendars on the device", async () => {
   setSession(null);
-  const response = await POST(busyRequest(VALID_BODY));
-  expect(response.status).toBe(401);
-  expect(await response.json()).toEqual({ error: "Unauthorized" });
-  expect(dnsLookup).toHaveBeenCalledTimes(0);
-  expect(fetchStub).toHaveBeenCalledTimes(0);
+  const response = await POST(busyRequest(VALID_BODY, "192.0.2.70"));
+  expect(response.status).toBe(200);
+  expect((await response.json()).occurrences).toEqual([{ date: "2026-01-15", startMinutes: 480, endMinutes: 540 }]);
+  // The tests below count calls from zero.
+  dnsLookup.mockClear();
+  fetchStub.mockClear();
 });
 
 test("answers 400 on a malformed body", async () => {
@@ -413,16 +414,98 @@ test("a feed blocked by SSRF rules answers 400 and an unreachable feed answers 5
   fetchStub.mockImplementation(async () => tinyResponse());
 });
 
+describe("sealed addresses", () => {
+  const KEY = Buffer.alloc(32, 3).toString("base64");
+  const withKey = async (key: string | undefined, run: () => Promise<void>) => {
+    const before = process.env.CALENDAR_FEED_KEY;
+    if (key === undefined) delete process.env.CALENDAR_FEED_KEY;
+    else process.env.CALENDAR_FEED_KEY = key;
+    try {
+      await run();
+    } finally {
+      if (before === undefined) delete process.env.CALENDAR_FEED_KEY;
+      else process.env.CALENDAR_FEED_KEY = before;
+    }
+  };
+  const fetchedUrls = () => fetchStub.mock.calls.map(([url]) => String(url));
+
+  test("seal: true returns the address sealed for the caller, and the token refreshes the same feed", async () =>
+    withKey(KEY, async () => {
+      setSession({ user: { id: "user-seal" } });
+      dnsLookup.mockImplementation(async () => [{ address: "93.184.216.34", family: 4 }]);
+      fetchStub.mockImplementation(async () => tinyResponse());
+      fetchStub.mockClear();
+      const connected = await POST(busyRequest({ ...VALID_BODY, url: SECRET_URL, seal: true }, "192.0.2.90"));
+      expect(connected.status).toBe(200);
+      const text = await connected.text();
+      expect(text).not.toContain(SECRET_TOKEN);
+      const { sealedUrl, occurrences } = JSON.parse(text);
+      expect(sealedUrl).toMatch(/^cf1\./);
+      const refreshed = await POST(busyRequest({ sealedUrl, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.90"));
+      expect(refreshed.status).toBe(200);
+      const body = await refreshed.json();
+      expect(body.occurrences).toEqual(occurrences);
+      expect(body.sealedUrl).toBeUndefined();
+      expect(fetchedUrls()).toEqual([SECRET_URL, SECRET_URL]);
+    }));
+
+  test("another account's token, or a guest's, asks to reconnect and fetches nothing", async () =>
+    withKey(KEY, async () => {
+      setSession({ user: { id: "user-owner" } });
+      const { sealedUrl } = await (await POST(busyRequest({ ...VALID_BODY, seal: true }, "192.0.2.91"))).json();
+      fetchStub.mockClear();
+      setSession({ user: { id: "user-thief" } });
+      const stolen = await POST(busyRequest({ sealedUrl, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.91"));
+      expect(stolen.status).toBe(422);
+      expect(await stolen.json()).toEqual({ error: "Connect this calendar again", code: "CALENDAR_RECONNECT" });
+      setSession(null);
+      const asGuest = await POST(busyRequest({ sealedUrl, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.91"));
+      expect(asGuest.status).toBe(422);
+      expect(fetchStub).toHaveBeenCalledTimes(0);
+    }));
+
+  test("a guest's token opens for guests", async () =>
+    withKey(KEY, async () => {
+      setSession(null);
+      const { sealedUrl } = await (await POST(busyRequest({ ...VALID_BODY, seal: true }, "192.0.2.92"))).json();
+      const refreshed = await POST(busyRequest({ sealedUrl, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.92"));
+      expect(refreshed.status).toBe(200);
+    }));
+
+  test("without a key, sealing answers 503 and fetches nothing", async () =>
+    withKey(undefined, async () => {
+      setSession({ user: { id: "user-nokey" } });
+      fetchStub.mockClear();
+      const response = await POST(busyRequest({ ...VALID_BODY, seal: true }, "192.0.2.93"));
+      expect(response.status).toBe(503);
+      expect((await response.json()).code).toBe("CALENDARS_UNAVAILABLE");
+      expect(fetchStub).toHaveBeenCalledTimes(0);
+    }));
+
+  test("a body naming both forms, neither, or sealing a token is refused", async () =>
+    withKey(KEY, async () => {
+      setSession({ user: { id: "user-both" } });
+      for (const body of [
+        { ...VALID_BODY, sealedUrl: "cf1.a.b.c" },
+        { rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd },
+        { sealedUrl: "cf1.a.b.c", seal: true },
+        { ...VALID_BODY, seal: "yes" },
+      ]) {
+        expect((await POST(busyRequest(body, "192.0.2.94"))).status).toBe(400);
+      }
+    }));
+});
+
 test(`answers 429 once an anonymous caller passes the ${budgets.calendarFeedBusy.ip} request IP budget`, async () => {
   pinClockMidWindow();
   setSession(null);
-  // Reset the network stubs: these calls answer 401 before any fetch happens.
+  // Reset the network stubs: every call fetches the tiny feed.
   dnsLookup.mockImplementation(async () => [{ address: "93.184.216.34", family: 4 }]);
   fetchStub.mockImplementation(async () => tinyResponse());
-  // Anonymous calls answer 401 (no session) - but the wrapper still counts them.
+  // Anonymous calls are answered, and the wrapper counts them by address.
   const call = () => POST(busyRequest(VALID_BODY, "192.0.2.86"));
   for (let i = 0; i < budgets.calendarFeedBusy.ip; i++) {
-    expect((await call()).status).toBe(401);
+    expect((await call()).status).toBe(200);
   }
   expect((await call()).status).toBe(429);
 });

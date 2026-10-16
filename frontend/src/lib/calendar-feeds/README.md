@@ -5,7 +5,34 @@ occurrence lists over a range, plus weekly recurring busy blocks for the
 schedule grid. Designed for club and event calendars published as `.ics`
 URLs. Nothing here persists anything; the preview route in
 `frontend/src/app/api/calendar-feeds/preview/route.ts` fetches, parses, and
-returns the result without storing it.
+returns the result without storing it. Both routes answer guests too,
+counted by address, because a guest connects calendars on the device.
+
+## Connected calendars and the feed address
+
+A private feed address is a password (a Google secret address reads the
+whole calendar), and `docs/architecture/README.md` requires feed URLs to be
+encrypted and never logged. So the address is never stored as written,
+anywhere:
+
+- `seal.ts`: AES-256-GCM under `CALENDAR_FEED_KEY` (32 random bytes in
+  base64), with the owner (`user:<id>`, or any guest) as associated data, so
+  a token from one account's document opens for no other. A token sealed
+  under a key the server no longer has fails as `other-key`.
+- The busy route seals on request (`seal: true` with a `url`) and refreshes
+  from a token (`sealedUrl`). The preview route never takes a token: event
+  titles leave the server only for someone holding the address itself.
+- `client.ts` is the browser side: check a feed (preview route, over the
+  planning term), connect it (busy route, sealed), refresh it, and turn one
+  event into a named busy time on its date. The pasted address lives only in
+  the Preferences form's state.
+- What is kept is a `ConnectedCalendar` (packages/contracts, `CalendarSchema`):
+  name, sealed address, term, when it was read, and title-free busy slots,
+  each a start and end with the dates it falls on. A signed-in student's
+  live in the preferences document, so every device sees them; a guest's
+  live in the guest's preferences on the device. `lib/calendar-busy.ts`
+  turns them into dated blocked times for Auto, the extension's clash rows
+  and the week grid.
 
 ## Public API
 

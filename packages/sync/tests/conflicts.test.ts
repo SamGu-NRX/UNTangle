@@ -28,6 +28,39 @@ test('an unchanged preference draft takes every latest group', () => {
   expect(mergePreferences(base, preferences(), latest)).toEqual(latest);
 });
 
+const calendar = (id: string, name = id, dates = ['2027-01-12']) => ({
+  id, name, sealedUrl: `cf1.key.iv.${id}`, termId: 'spring-2027', checkedAt: '2026-10-15T12:00:00.000Z',
+  busy: [{ start: 900, end: 1080, dates }],
+});
+
+test('calendars connected on two devices are both kept', () => {
+  const base = preferences(), mine = preferences(), theirs = preferences();
+  mine.calendars = [calendar('cal-phone')];
+  theirs.calendars = [calendar('cal-laptop')];
+  expect(mergePreferences(base, mine, theirs).calendars?.map((c) => c.id)).toEqual(['cal-laptop', 'cal-phone']);
+});
+
+test('a calendar removed on one side and refreshed on the other settles per calendar', () => {
+  const base = preferences(); base.calendars = [calendar('work'), calendar('club')];
+  const mine = preferences(); mine.calendars = [calendar('club')];
+  const theirs = preferences(); theirs.calendars = [calendar('work', 'work', ['2027-01-12', '2027-01-19']), calendar('club', 'Club refreshed')];
+  // This side removed work and left club alone; the other refreshed both. Both sides touched work, so this side wins it.
+  expect(mergePreferences(base, mine, theirs).calendars).toEqual([calendar('club', 'Club refreshed')]);
+});
+
+test('removing the last calendar leaves the field absent, as a document without calendars has it', () => {
+  const base = preferences(); base.calendars = [calendar('work')];
+  const merged = mergePreferences(base, preferences(), base);
+  expect('calendars' in merged).toBe(false);
+});
+
+test("a merge past the calendar limit keeps the latest and drops this side's newest rather than stopping sync", () => {
+  const base = preferences(), mine = preferences(), theirs = preferences();
+  theirs.calendars = Array.from({ length: 6 }, (_, i) => calendar(`latest-${i}`));
+  mine.calendars = Array.from({ length: 4 }, (_, i) => calendar(`mine-${i}`));
+  expect(mergePreferences(base, mine, theirs).calendars?.map((c) => c.id)).toEqual([...Array.from({ length: 6 }, (_, i) => `latest-${i}`), 'mine-0', 'mine-1']);
+});
+
 test('academic records merge disjoint courses, manual credit and transcript rows as course facts', () => {
   const base = academic(), mine = academic(), latest = academic();
   mine.courseStatuses['CSCE 1030'] = 'completed'; mine.manualCredit = ['CSCE 1030'];

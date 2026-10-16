@@ -9,7 +9,7 @@
  *   rows, manual credit and the major;
  * - Main schedule: the planned courses (marked in progress without an
  *   in-progress transcript row), picks, kept sections and Auto's last run;
- * - preferences: the goal, constraints and weights.
+ * - preferences: the goal, constraints, weights and connected calendars.
  *
  * The planner can't hold everything a document can (a catalog id, a
  * schedule's name, a course outside the bundled catalog). A save therefore
@@ -98,6 +98,8 @@ export function splitPlanner(state: PlannerState, preferences: SchedulePreferenc
       goal: plan.optimization,
       constraints: preferences.constraints,
       weights: preferences.weights,
+      // Absent when there are none, so a student without calendars writes what an older build wrote.
+      ...(preferences.calendars?.length ? { calendars: preferences.calendars } : {}),
     }),
   };
 }
@@ -155,7 +157,11 @@ export function joinPlanner(bodies: StoredBodies, activeDay: ClassDay): { state:
     updatedAt: new Date().toISOString(),
   });
   const preferences = bodies.preferences
-    ? { constraints: bodies.preferences.constraints, weights: bodies.preferences.weights }
+    ? {
+        constraints: bodies.preferences.constraints,
+        weights: bodies.preferences.weights,
+        ...(bodies.preferences.calendars ? { calendars: bodies.preferences.calendars } : {}),
+      }
     : defaultSchedulePreferences(goal);
   return { state, preferences };
 }

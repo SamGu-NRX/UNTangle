@@ -3,6 +3,7 @@ import type { z } from "zod";
 import type {
   AutoTransaction,
   BlockedTime,
+  ConnectedCalendar,
   CoursePlan,
   CourseStatus,
   MajorId,
@@ -18,11 +19,13 @@ import {
   AcademicRecordBodySchema,
   AutoTransactionSchema,
   BlockedTimeSchema,
+  CalendarSchema,
   CourseStatusSchema,
   DocumentSchema,
   MajorIdSchema,
   OptimizationKeySchema,
   PreferenceWeightsSchema,
+  MAX_CALENDARS,
   PreferencesBodySchema,
   ScheduleBodySchema,
   ScheduleConstraintsSchema,
@@ -36,6 +39,15 @@ import {
 } from "../src/documents";
 import { academicRecord, preferences, schedule, version } from "./fixtures";
 import { decoded, rejections, without } from "./helpers";
+
+const calendar = {
+  id: "cal-work",
+  name: "Work",
+  sealedUrl: "cf1.AbCdEfGh.aXZpdml2aXZpdg.Y2lwaGVydGV4dA",
+  termId: "spring-2027",
+  checkedAt: "2026-10-15T12:00:00.000Z",
+  busy: [{ start: 900, end: 1080, dates: ["2027-01-12", "2027-01-19"] }],
+};
 
 const bodies = [
   ["academic-record", AcademicRecordBodySchema, academicRecord],
@@ -53,6 +65,11 @@ describe("document bodies round-trip", () => {
     const once = JSON.stringify(decoded(schema, body));
     const twice = JSON.stringify(decoded(schema, JSON.parse(once)));
     expect(twice).toBe(once);
+  });
+
+  test("preferences with a connected calendar decode to the value that was sent", () => {
+    const body = { ...preferences, calendars: [calendar] };
+    expect(decoded(PreferencesBodySchema, body)).toEqual(body);
   });
 
   test.each(bodies)("%s is the schema documentBodySchemas gives for its kind", (kind, schema) => {
@@ -179,6 +196,29 @@ describe("document bodies reject what the app could not have written", () => {
     ]);
   });
 
+  test("a connected calendar holds its sealed address, never the address itself", () => {
+    const withUrl = (sealedUrl: string) => ({ ...preferences, calendars: [{ ...calendar, sealedUrl }] });
+    expect(rejections(PreferencesBodySchema, withUrl(calendar.sealedUrl))).toEqual([]);
+    expect(rejections(PreferencesBodySchema, withUrl("https://calendar.google.com/calendar/ical/me/private-abc/basic.ics"))).toEqual([
+      "calendars.0.sealedUrl: A calendar address is stored only sealed.",
+    ]);
+    expect(rejections(PreferencesBodySchema, { ...preferences, calendars: [{ ...calendar, url: "https://example.com/a.ics" }] })).toEqual([
+      'calendars.0: Unrecognized key: "url"',
+    ]);
+  });
+
+  test("calendar busy dates ascend once, slots differ, and the list is absent rather than empty", () => {
+    const busy = (dates: string[]) => ({ ...preferences, calendars: [{ ...calendar, busy: [{ start: 900, end: 1080, dates }] }] });
+    expect(rejections(PreferencesBodySchema, busy(["2027-01-19", "2027-01-12"]))).toEqual(["calendars.0.busy.0.dates: A busy time's dates ascend without repeats."]);
+    expect(rejections(PreferencesBodySchema, busy(["2027-01-12", "2027-01-12"]))).toEqual(["calendars.0.busy.0.dates: A busy time's dates ascend without repeats."]);
+    const twice = { ...preferences, calendars: [{ ...calendar, busy: [calendar.busy[0], calendar.busy[0]] }] };
+    expect(rejections(PreferencesBodySchema, twice)).toEqual(['calendars.0.busy: Busy slot "900-1080" appears twice.']);
+    expect(rejections(PreferencesBodySchema, { ...preferences, calendars: [] })).toHaveLength(1);
+    expect(rejections(PreferencesBodySchema, { ...preferences, calendars: [calendar, calendar] })).toEqual(['calendars: Calendar id "cal-work" appears twice.']);
+    const many = Array.from({ length: MAX_CALENDARS + 1 }, (_, i) => ({ ...calendar, id: `cal-${i}` }));
+    expect(rejections(PreferencesBodySchema, { ...preferences, calendars: many })).toHaveLength(1);
+  });
+
   test("a weight outside 0 to 4", () => {
     const weights = { ...preferences.weights, compact: 5 };
     expect(rejections(PreferencesBodySchema, { ...preferences, weights })).toEqual([
@@ -221,6 +261,7 @@ describe("bodies keep the planner's types", () => {
     expectTypeOf<z.output<typeof BlockedTimeSchema>>().toEqualTypeOf<BlockedTime>();
     expectTypeOf<z.output<typeof ScheduleConstraintsSchema>>().toEqualTypeOf<ScheduleConstraints>();
     expectTypeOf<z.output<typeof PreferenceWeightsSchema>>().toEqualTypeOf<PreferenceWeights>();
+    expectTypeOf<z.output<typeof CalendarSchema>>().toEqualTypeOf<ConnectedCalendar>();
   });
 
   test("each PlannerState field keeps its type in the document it moved to", () => {
@@ -233,7 +274,7 @@ describe("bodies keep the planner's types", () => {
     expectTypeOf<ScheduleBody["autoPlanned"]>().toEqualTypeOf<CoursePlan["autoPlanned"]>();
     expectTypeOf<ScheduleBody["lastAuto"]>().toEqualTypeOf<CoursePlan["lastAuto"]>();
     expectTypeOf<PreferencesBody["goal"]>().toEqualTypeOf<PlannerState["optimization"]>();
-    expectTypeOf<Pick<PreferencesBody, "constraints" | "weights">>().toEqualTypeOf<SchedulePreferences>();
+    expectTypeOf<Pick<PreferencesBody, "constraints" | "weights" | "calendars">>().toEqualTypeOf<SchedulePreferences>();
   });
 });
 

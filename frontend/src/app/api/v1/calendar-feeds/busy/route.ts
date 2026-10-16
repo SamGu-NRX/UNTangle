@@ -9,6 +9,7 @@ import { parseCalendarFeed } from "@/lib/calendar-feeds/parse";
 import { busyFromFeed, type BusyOccurrence } from "@/lib/calendar-feeds/busy";
 import { serializeBusy } from "@/lib/calendar-feeds/busy-serialize";
 import { TOO_MANY_EVENTS_MESSAGE } from "@/lib/calendar-feeds/preview";
+import { feedKeyFromEnv, FeedSealError, openFeedUrl, sealFeedUrl, type FeedOwner } from "@/lib/calendar-feeds/seal";
 import { validateCalendarUrl } from "@/lib/calendar-feeds/ssrf";
 import type { ParseRange } from "@/lib/calendar-feeds/types";
 
@@ -18,7 +19,15 @@ export const runtime = "nodejs";
 /** The default busy window without a term: now through now plus 60 days. */
 const DEFAULT_RANGE_DAYS = 60;
 
-type BusyBody = { url: unknown; rangeStart?: unknown; rangeEnd?: unknown; termStart?: unknown; termEnd?: unknown };
+type BusyBody = {
+  url?: unknown;
+  sealedUrl?: unknown;
+  seal?: unknown;
+  rangeStart?: unknown;
+  rangeEnd?: unknown;
+  termStart?: unknown;
+  termEnd?: unknown;
+};
 
 /**
  * Returns the title-free busy pieces a feed contributes to the planner's
@@ -26,7 +35,15 @@ type BusyBody = { url: unknown; rangeStart?: unknown; rangeEnd?: unknown; termSt
  * no log of feed contents. Feed URLs are validated and fetched through the
  * SSRF-hardened fetcher.
  *
- * Request: `{ url, rangeStart?, rangeEnd?, termStart?, termEnd? }`. The
+ * Guests may call it too, counted by address: a guest keeps connected
+ * calendars on the device (docs/architecture/README.md, "Guests").
+ *
+ * Request: `{ url | sealedUrl, seal?, rangeStart?, rangeEnd?, termStart?,
+ * termEnd? }`. `sealedUrl` is a token this route returned earlier for the
+ * same account (or for a guest, to any guest), and refreshes a connected
+ * calendar without its address ever leaving the server again. `seal: true`
+ * with a `url` adds `sealedUrl` to the response, sealed for the caller
+ * (lib/calendar-feeds/seal.ts). The
  * range is half-open. termStart and termEnd (inclusive ISO dates) scope the
  * pieces to the planning term; with a term and no range, the range is the
  * whole term in America/Chicago, and a given range must cover the term.
@@ -37,36 +54,40 @@ type BusyBody = { url: unknown; rangeStart?: unknown; rangeEnd?: unknown; termSt
  * inside the feed (no TZID, no Z) also read as America/Chicago, or the
  * feed's own `X-WR-TIMEZONE` when it has one.
  *
- * 200 response: `{ range, occurrences, skipped }`. Occurrences are
+ * 200 response: `{ range, occurrences, skipped }`, plus `sealedUrl` when
+ * asked to seal. Occurrences are
  * `{ date, startMinutes, endMinutes }` — weekday and minutes are derived by
  * the caller, and no event title, location, or description is included;
  * event text never crosses this boundary. `skipped` lists `{ index, reason }`
  * warnings for events and series left out of the busy picture; a skipped
  * transparent or free event is reported, not silently dropped.
  *
- * Errors: 401 without a session, 400 for a bad body, range, term, or URL, a
+ * Errors: 400 for a bad body, range, term, or URL, a
  * blocked or invalid feed, or one that does not parse, 502 for an
  * unreachable or slow feed, and 422 with "This calendar has too many events
  * to preview" when the response would be over 1 MiB. The response is never
- * cut short to fit.
+ * cut short to fit. A sealed address this server can't open for the caller
+ * answers 422 with code `CALENDAR_RECONNECT`; with no sealing key
+ * configured, sealing or opening answers 503 with code
+ * `CALENDARS_UNAVAILABLE`.
  */
 async function busyHandler(request: Request) {
   const session = await getServerSession(request);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const owner: FeedOwner = session?.user?.id ? { kind: "user", id: session.user.id } : { kind: "guest" };
 
   let body: BusyBody | null = null;
   try {
     const parsed: unknown = await request.json();
-    if (typeof parsed === "object" && parsed !== null && "url" in parsed) {
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
       body = parsed as BusyBody;
     }
   } catch {
     body = null;
   }
   // A generic message only: request details are never echoed back.
-  if (body === null || typeof body.url !== "string" || body.url === "") {
+  const plain = typeof body?.url === "string" && body.url !== "";
+  const sealed = typeof body?.sealedUrl === "string" && body.sealedUrl !== "";
+  if (body === null || plain === sealed || (body.seal !== undefined && typeof body.seal !== "boolean") || (body.seal && !plain)) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
   const term = resolveTerm(body.termStart, body.termEnd);
@@ -77,13 +98,26 @@ async function busyHandler(request: Request) {
   if (range === null) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  if (!validateCalendarUrl(body.url).ok) {
+  let url: string;
+  let sealedUrl: string | undefined;
+  try {
+    const key = sealed || body.seal ? feedKeyFromEnv() : null;
+    url = sealed ? openFeedUrl(body.sealedUrl as string, owner, key) : (body.url as string);
+    if (body.seal) sealedUrl = sealFeedUrl(url, owner, key);
+  } catch (error) {
+    if (!(error instanceof FeedSealError)) throw error;
+    if (error.kind === "not-configured") {
+      return NextResponse.json({ error: "Calendars can't be connected on this server", code: "CALENDARS_UNAVAILABLE" }, { status: 503 });
+    }
+    return NextResponse.json({ error: "Connect this calendar again", code: "CALENDAR_RECONNECT" }, { status: 422 });
+  }
+  if (!validateCalendarUrl(url).ok) {
     return NextResponse.json({ error: "Invalid calendar feed URL" }, { status: 400 });
   }
 
   let icsText: string;
   try {
-    icsText = await fetchCalendarIcs(body.url);
+    icsText = await fetchCalendarIcs(url);
   } catch (error) {
     if (!(error instanceof CalendarFetchError)) throw error;
     const status = error.kind === "unreachable" || error.kind === "timeout" ? 502 : 400;
@@ -101,6 +135,7 @@ async function busyHandler(request: Request) {
     range,
     occurrences: clipToRange(busyFromFeed(result, term ?? { start: zonedDateOf(range.start), end: zonedDateOf(range.end) }), range),
     skipped: result.skipped,
+    sealedUrl,
   });
   if (json === null) {
     return NextResponse.json({ error: TOO_MANY_EVENTS_MESSAGE }, { status: 422 });
