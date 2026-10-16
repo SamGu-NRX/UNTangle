@@ -127,12 +127,16 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
 
   // Arriving from the landing's "Pick courses by hand": the student already
   // chose how to start, so the major comes next, not this page's start options.
+  // The landing's link that opened it is gone, so closing it focuses the degree line.
   const majorAsked = useRef(false);
+  const majorFromLanding = useRef(false);
   useEffect(() => {
     if (!hydrated || majorAsked.current || !asksForMajor(window.location.search)) return;
     majorAsked.current = true;
-    router.replace(LENS_HREF.courses, { scroll: false });
-    if (idle) setDegreeOpen(true);
+    router.replace(window.location.pathname, { scroll: false });
+    if (!idle) return;
+    majorFromLanding.current = true;
+    setDegreeOpen(true);
   }, [hydrated, idle, router]);
 
   /* ---------- motion ---------- */
@@ -682,6 +686,12 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
       <DegreeDialog
         open={degreeOpen}
         onOpenChange={setDegreeOpen}
+        // Read once, as it closes: later openings come from a button that is still there.
+        returnFocus={() => {
+          if (!majorFromLanding.current) return null;
+          majorFromLanding.current = false;
+          return pageRef.current?.querySelector<HTMLElement>("[data-degree]") ?? null;
+        }}
         major={plannerState.selectedMajor}
         onChoose={(id: MajorId) => {
           setSelectedMajor(id);

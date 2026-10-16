@@ -230,8 +230,8 @@ export function SearchPanel({ host, query, onQuery, week, onPlace, onPreview, au
                         {/* Samples (term null) stand in when the term's sections can't be loaded; say so before one is picked. */}
                         {options.some((section) => section.term === null) ? (
                           <p className={styles.hint}>
-                            <strong>Sample sections.</strong> {host.term.label} sections didn&rsquo;t load, so these times, rooms and instructors are
-                            made up.
+                            <strong>Sample sections.</strong> These times, rooms and instructors are made up for planning. Real {host.term.label}{" "}
+                            sections replace them when UNT&rsquo;s class schedule loads.
                           </p>
                         ) : null}
                         <SectionRows

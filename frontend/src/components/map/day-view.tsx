@@ -142,9 +142,8 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
   const itinerary = useItinerary(stops, start);
 
   // Campus events in the day's gaps: on its date, or on the date the weekday shown next falls on.
-  // Not before the sections load: until then the first week ahead is unknown, and today's date would be asked for.
-  const gapDate = ready && campusTime && onCampus ? (dayDate ?? nextDateOf(day, campusTime.iso)) : null;
-  // Asked for as soon as the date is known, alongside the routes, so the
+  const gapDate = campusTime && onCampus ? (dayDate ?? nextDateOf(day, campusTime.iso)) : null;
+  // Asked for as soon as the date is known, alongside the planner and the routes, so the
   // rows are usually there with the itinerary. A late answer waits while the list is in use.
   const listBusy = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -181,7 +180,10 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
     ? null
     : isToday && campusTime
       ? nextClassFrom(routeStops, campusTime.iso)
-      : following && { ...following, stop: routeStops[following.day][0] };
+      : // A dated day ahead looks for the next class that meets after that date, as today does.
+        ahead && dayDate
+        ? nextClassFrom(routeStops, dayDate)
+        : following && { ...following, stop: routeStops[following.day][0] };
 
   const isPhone = useMediaQuery(PHONE_QUERY);
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
