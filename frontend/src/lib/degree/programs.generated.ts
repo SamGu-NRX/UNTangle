@@ -1,0 +1,7096 @@
+// GENERATED from packages/ingest/data/degree/programs.json by packages/ingest/src/degree/build.ts.
+// Do not edit by hand: rebuild with `bun packages/ingest/src/degree/build.ts`.
+// Source: UNT 2026-2027 catalog pages captured in packages/ingest/data/catalog/unt-2026-27.
+export const DEGREE_DATA = {
+  "catalogId": "catoid-40",
+  "catalogYear": "2026-2027",
+  "builtAt": "2026-10-16T01:31:34.930Z",
+  "pages": [
+    {
+      "file": "cs-bs.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+      "title": "Program: Computer Science, BS - University of North Texas",
+      "capturedAt": "2026-10-15T12:22:01.320Z",
+      "sha256": "7fa35a53bcf8483e81c45d676852728ba2a9eeb36d6d1ae7cf2e8437cf809267"
+    },
+    {
+      "file": "ce-bs.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+      "title": "Program: Computer Engineering, BS - University of North Texas",
+      "capturedAt": "2026-10-15T12:22:01.320Z",
+      "sha256": "d7feeb0c09892efec3a5621a90c3ce1e365d0be7e1c227c7aecfca8bd904c390"
+    },
+    {
+      "file": "math-bsmth.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+      "title": "Program: Mathematics, BSMTH (non–teacher certification) - University of North Texas",
+      "capturedAt": "2026-10-15T12:22:01.320Z",
+      "sha256": "3ac9ec2968c3b9b96b4f2aaee251ba90d11fd854b84c27f10a4761f59e832a77"
+    },
+    {
+      "file": "biology-bsbio.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+      "title": "Program: Biology, BSBIO - University of North Texas",
+      "capturedAt": "2026-10-15T12:22:01.320Z",
+      "sha256": "45450c58fabc4a0b20e7269473482750bd553a69099c294ef2a548f405bab094"
+    },
+    {
+      "file": "core-curriculum.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+      "title": "Program: University Core Curriculum - University of North Texas",
+      "capturedAt": "2026-10-15T12:22:01.320Z",
+      "sha256": "0a858d23606ac9863007c52420e1fbc1d60ca86d9a69ec0222094d5f87b25f14"
+    },
+    {
+      "file": "degree-requirements.html",
+      "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+      "title": "Degree and Program Requirements - University of North Texas",
+      "capturedAt": "2026-10-15T12:22:01.320Z",
+      "sha256": "4e50a88e161b681bd1e2c7bf9b264e8e0aa71546397f4d566c5072fc535e0f50"
+    }
+  ],
+  "programs": [
+    {
+      "id": "cs-bs",
+      "name": "Computer Science, BS",
+      "catalogId": "catoid-40",
+      "sourceUrl": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+      "requirements": [
+        {
+          "kind": "policy",
+          "name": "Total hours: 120",
+          "policy": {
+            "type": "totalHours",
+            "hours": 120
+          },
+          "quote": "A minimum of 120 semester hours, of which 42 must be advanced, and fulfillment of degree requirements for the Bachelor’s degree as specified in the University Core Curriculum in the Degree and Program Requirements of this catalog and the College of Engineering requirements.",
+          "citation": {
+            "page": "cs-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours: 42",
+          "policy": {
+            "type": "advancedHours",
+            "hours": 42
+          },
+          "quote": "A minimum of 120 semester hours, of which 42 must be advanced, and fulfillment of degree requirements for the Bachelor’s degree as specified in the University Core Curriculum in the Degree and Program Requirements of this catalog and the College of Engineering requirements.",
+          "citation": {
+            "page": "cs-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "group",
+          "name": "Major requirements",
+          "children": [
+            {
+              "kind": "all",
+              "name": "Required courses",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 1010"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 1015"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 1030"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 1040"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 2100"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 2110"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 2120"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 2130"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 2610"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 3444"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 3550"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 3600"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 4010"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 4110"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 4350"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 4901"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 4902"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "cs-bs.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+                "anchor": "MajorRequirements",
+                "heading": "Major requirements"
+              }
+            },
+            {
+              "kind": "note",
+              "name": "55-hour major minimum",
+              "text": "A minimum of 55 semester hours, including:",
+              "citation": {
+                "page": "cs-bs.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+                "anchor": "MajorRequirements",
+                "heading": "Major requirements"
+              }
+            },
+            {
+              "kind": "pool",
+              "name": "CSCE advanced electives, 6 hours",
+              "hours": 6,
+              "match": {
+                "subjects": [
+                  "CSCE"
+                ],
+                "minLevel": 4000,
+                "maxLevel": null
+              },
+              "note": "The authoritative list is the CSCE Advanced Elective Courses list, linked from the catalog page and not captured here; the audit applies the 4000-level CSCE rule and flags this node as advisory.",
+              "citation": {
+                "page": "cs-bs.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+                "anchor": "MajorRequirements",
+                "heading": "Major requirements"
+              }
+            }
+          ],
+          "citation": {
+            "page": "cs-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+            "anchor": "MajorRequirements",
+            "heading": "Major requirements"
+          }
+        },
+        {
+          "kind": "all",
+          "name": "Other required courses",
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 2710"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 1710"
+                  ]
+                },
+                {
+                  "must": [
+                    "MATH 1810",
+                    "MATH 1820"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "TECM 2700"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "cs-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+            "anchor": "OtherRequiredCourses",
+            "heading": "Other required courses"
+          }
+        },
+        {
+          "kind": "hours",
+          "name": "CSCE core, 6 hours",
+          "hours": 6,
+          "options": [
+            {
+              "must": [
+                "CSCE 3530"
+              ]
+            },
+            {
+              "must": [
+                "CSCE 4115"
+              ]
+            },
+            {
+              "must": [
+                "CSCE 4430"
+              ]
+            },
+            {
+              "must": [
+                "CSCE 4600"
+              ]
+            },
+            {
+              "must": [
+                "CSCE 4650"
+              ]
+            }
+          ],
+          "citation": {
+            "page": "cs-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+            "anchor": "CSCECore6Hours",
+            "heading": "CSCE core, 6 hours"
+          }
+        },
+        {
+          "kind": "hours",
+          "name": "CSCE breadth courses, 6 hours",
+          "hours": 6,
+          "options": [
+            {
+              "must": [
+                "CSCE 4201"
+              ]
+            },
+            {
+              "must": [
+                "CSCE 4210"
+              ]
+            },
+            {
+              "must": [
+                "CSCE 4230"
+              ]
+            },
+            {
+              "must": [
+                "CSCE 4240"
+              ]
+            },
+            {
+              "must": [
+                "CSCE 4290"
+              ]
+            },
+            {
+              "must": [
+                "CSCE 4460"
+              ]
+            }
+          ],
+          "citation": {
+            "page": "cs-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+            "anchor": "CSCEBreadthCourses6Hours",
+            "heading": "CSCE breadth courses, 6 hours"
+          }
+        },
+        {
+          "kind": "choose",
+          "name": "Laboratory science, 6-8 hours (choose 2)",
+          "count": 2,
+          "options": [
+            {
+              "must": [
+                "BIOL 1112"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 1132"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 1710"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 1720",
+                "BIOL 1760"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 2301",
+                "BIOL 2311"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 2302",
+                "BIOL 2312"
+              ]
+            },
+            {
+              "must": [
+                "CHEM 1410",
+                "CHEM 1430"
+              ]
+            },
+            {
+              "must": [
+                "CHEM 1415",
+                "CHEM 1435"
+              ]
+            },
+            {
+              "must": [
+                "CHEM 1420",
+                "CHEM 1440"
+              ]
+            },
+            {
+              "must": [
+                "GEOG 1710"
+              ]
+            },
+            {
+              "must": [
+                "GEOL 1610"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1052"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1062"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1270"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1410",
+                "PHYS 1430"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1420",
+                "PHYS 1440"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1710",
+                "PHYS 1730"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 2220",
+                "PHYS 2240"
+              ]
+            }
+          ],
+          "citation": {
+            "page": "cs-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+            "anchor": "Choose2Courses68HoursFromTheFollowingCourses",
+            "heading": "Choose 2 courses (6-8 hours) from the following courses"
+          }
+        },
+        {
+          "kind": "pool",
+          "name": "Technical writing, 3 hours",
+          "hours": 3,
+          "match": {
+            "subjects": [
+              "TECM"
+            ],
+            "minLevel": 4000,
+            "maxLevel": null
+          },
+          "citation": {
+            "page": "cs-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+            "anchor": "3HoursSelectedFrom",
+            "heading": "3 hours selected from"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Note",
+          "text": "A maximum of 6 hours of credit in CSCE 2900, CSCE 4890, CSCE 4920, CSCE 4940 or CSCE 4950 will count toward this degree. The 6 hours may include at most 3 hours in CSCE 4920.",
+          "citation": {
+            "page": "cs-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+            "anchor": "Note",
+            "heading": "Note"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Minor",
+          "text": "Optional.",
+          "citation": {
+            "page": "cs-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+            "anchor": "Minor",
+            "heading": "Minor"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Electives",
+          "text": "Hours required for electives may vary based on course selection and the University Core Curriculum requirements. Electives may be required to satisfy the advanced hour requirement (42) and/or the minimum total hours required for the degree. For specific information see an academic advisor in the College of Engineering. Currently, there should be approximately 15 hours of CSCE electives available.",
+          "citation": {
+            "page": "cs-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+            "anchor": "Electives",
+            "heading": "Electives"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Minimum grade of C (major courses)",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "all courses required in the major",
+            "courseScope": {
+              "kind": "major"
+            }
+          },
+          "quote": "A minimum grade of C is required in all courses required in a student’s major for degree completion. Courses include, but are not limited to, engineering, computing, mathematics, laboratory sciences, supporting area, technical elective, technical option, energy elective, and specialization courses.",
+          "citation": {
+            "page": "cs-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
+            "anchor": "DepartmentPolicies",
+            "heading": "Department policies"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours at UNT: 24",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 24
+          },
+          "quote": "A minimum of 24 hours of advanced work (3000 or 4000 level) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Residency",
+          "policy": {
+            "type": "residencyPercent",
+            "percent": 25
+          },
+          "quote": "Residence: minimum of 25 percent of the total hours for the degree (e.g., 30 hours for a 120-hour degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Overall GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
+          },
+          "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "UNT GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
+          },
+          "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Communication core grade",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
+          },
+          "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "English Composition Proficiency",
+            "heading": "English Composition Proficiency"
+          }
+        }
+      ],
+      "coreSharedCourses": [
+        "BIOL 1112",
+        "BIOL 1132",
+        "BIOL 1710",
+        "BIOL 1720",
+        "BIOL 2301",
+        "BIOL 2302",
+        "CHEM 1410",
+        "CHEM 1420",
+        "CSCE 1010",
+        "GEOG 1710",
+        "GEOL 1610",
+        "MATH 1710",
+        "MATH 1810",
+        "PHYS 1052",
+        "PHYS 1062",
+        "PHYS 1270",
+        "PHYS 1410",
+        "PHYS 1420",
+        "PHYS 1710",
+        "PHYS 2220",
+        "TECM 2700"
+      ]
+    },
+    {
+      "id": "ce-bs",
+      "name": "Computer Engineering, BS",
+      "catalogId": "catoid-40",
+      "sourceUrl": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+      "requirements": [
+        {
+          "kind": "policy",
+          "name": "Total hours: 121",
+          "policy": {
+            "type": "totalHours",
+            "hours": 121
+          },
+          "quote": "A minimum of 121 semester hours, of which 39 must be advanced, and fulfillment of degree requirements for the Bachelor’s degree as specified in the University Core Curriculum in the Degree and Program Requirements of this catalog and the College of Engineering requirements.",
+          "citation": {
+            "page": "ce-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours: 39",
+          "policy": {
+            "type": "advancedHours",
+            "hours": 39
+          },
+          "quote": "A minimum of 121 semester hours, of which 39 must be advanced, and fulfillment of degree requirements for the Bachelor’s degree as specified in the University Core Curriculum in the Degree and Program Requirements of this catalog and the College of Engineering requirements.",
+          "citation": {
+            "page": "ce-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "group",
+          "name": "Major requirements",
+          "children": [
+            {
+              "kind": "all",
+              "name": "Required courses",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 1010"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 1015"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 1030"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 1040"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 2100"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 2110"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 2120"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 2130"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 2610"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 3010"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 3020"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 3600"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 3610"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 3612"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 3730"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 4010"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 4910"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CSCE 4915"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "ce-bs.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+                "anchor": "MajorRequirements",
+                "heading": "Major requirements"
+              }
+            },
+            {
+              "kind": "note",
+              "name": "52-hour major minimum",
+              "text": "A minimum of 52 semester hours, including:",
+              "citation": {
+                "page": "ce-bs.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+                "anchor": "MajorRequirements",
+                "heading": "Major requirements"
+              }
+            }
+          ],
+          "citation": {
+            "page": "ce-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+            "anchor": "MajorRequirements",
+            "heading": "Major requirements"
+          }
+        },
+        {
+          "kind": "all",
+          "name": "Other required courses",
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CHEM 1410",
+                    "CHEM 1430"
+                  ]
+                },
+                {
+                  "must": [
+                    "CHEM 1415",
+                    "CHEM 1435"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 2610",
+                    "EENG 2611"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 2710",
+                    "EENG 2711"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 3510"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 1710"
+                  ]
+                },
+                {
+                  "must": [
+                    "MATH 1810",
+                    "MATH 1820"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 1720"
+                  ]
+                },
+                {
+                  "must": [
+                    "MATH 1830"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 2730"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1710",
+                    "PHYS 1730"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 2220",
+                    "PHYS 2240"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "TECM 2700"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "ce-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+            "anchor": "OtherRequiredCourses",
+            "heading": "Other required courses"
+          }
+        },
+        {
+          "kind": "choice",
+          "name": "Specialization area, 9 hours",
+          "branches": [
+            {
+              "name": "Real-Time and Embedded Systems",
+              "node": {
+                "kind": "choose",
+                "name": "Three courses from Real-Time and Embedded Systems",
+                "count": 3,
+                "options": [
+                  {
+                    "must": [
+                      "CSCE 3444"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4440"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4600"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4610"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4620"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4730"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4890"
+                    ]
+                  }
+                ],
+                "citation": {
+                  "page": "ce-bs.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+                  "anchor": "RealTimeAndEmbeddedSystems",
+                  "heading": "Real-Time and Embedded Systems"
+                }
+              }
+            },
+            {
+              "name": "VLSI and Electronics",
+              "node": {
+                "kind": "choose",
+                "name": "Three courses from VLSI and Electronics",
+                "count": 3,
+                "options": [
+                  {
+                    "must": [
+                      "CSCE 3610"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4610"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4730"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4890"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHYS 4500"
+                    ]
+                  }
+                ],
+                "citation": {
+                  "page": "ce-bs.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+                  "anchor": "VLSIAndElectronics",
+                  "heading": "VLSI and Electronics"
+                }
+              }
+            },
+            {
+              "name": "Communication and Networks",
+              "node": {
+                "kind": "choose",
+                "name": "Three courses from Communication and Networks",
+                "count": 3,
+                "options": [
+                  {
+                    "must": [
+                      "CSCE 3420"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 3530"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 3550"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4510"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4520"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4530"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4560"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4890"
+                    ]
+                  }
+                ],
+                "citation": {
+                  "page": "ce-bs.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+                  "anchor": "CommunicationAndNetworks",
+                  "heading": "Communication and Networks"
+                }
+              }
+            },
+            {
+              "name": "Computer Systems",
+              "node": {
+                "kind": "choose",
+                "name": "Three courses from Computer Systems",
+                "count": 3,
+                "options": [
+                  {
+                    "must": [
+                      "CSCE 4160"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4050"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4240"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4600"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4610"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4620"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4650"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4730"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4890"
+                    ]
+                  }
+                ],
+                "citation": {
+                  "page": "ce-bs.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+                  "anchor": "ComputerSystems",
+                  "heading": "Computer Systems"
+                }
+              }
+            },
+            {
+              "name": "Artificial intelligence and machine learning",
+              "node": {
+                "kind": "choose",
+                "name": "Three courses from Artificial intelligence and machine learning",
+                "count": 3,
+                "options": [
+                  {
+                    "must": [
+                      "CSCE 4200"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4201"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4205"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4290"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4380"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CSCE 4890"
+                    ]
+                  }
+                ],
+                "citation": {
+                  "page": "ce-bs.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+                  "anchor": "ArtificialIntelligenceAndMachineLearning",
+                  "heading": "Artificial intelligence and machine learning"
+                }
+              }
+            }
+          ],
+          "citation": {
+            "page": "ce-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+            "anchor": "SpecializationArea9Hours",
+            "heading": "Specialization area, 9 hours"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Note",
+          "text": "A maximum of 6 hours of credit in CSCE 4890, CSCE 4920, CSCE 4940, or CSCE 4950 will count toward this degree. The 6 hours may include at most 3 hours in CSCE 4920.",
+          "citation": {
+            "page": "ce-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+            "anchor": "Note",
+            "heading": "Note"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Minor",
+          "text": "Optional.",
+          "citation": {
+            "page": "ce-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+            "anchor": "Minor",
+            "heading": "Minor"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Electives",
+          "text": "See CSE faculty advisor.",
+          "citation": {
+            "page": "ce-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+            "anchor": "Electives",
+            "heading": "Electives"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Minimum grade of C (major courses)",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "all courses required in the major",
+            "courseScope": {
+              "kind": "major"
+            }
+          },
+          "quote": "A minimum grade of C is required in all courses required in a student’s major for degree completion. Courses include, but are not limited to, engineering, computing, mathematics, laboratory sciences, supporting area, technical elective, technical option, energy elective, and specialization courses.",
+          "citation": {
+            "page": "ce-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21225",
+            "anchor": "DepartmentPolicies",
+            "heading": "Department policies"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Total hours: 120",
+          "policy": {
+            "type": "totalHours",
+            "hours": 120
+          },
+          "quote": "Students must complete a minimum of 120 semester hours to earn a degree at UNT.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours at UNT: 24",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 24
+          },
+          "quote": "A minimum of 24 hours of advanced work (3000 or 4000 level) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Residency",
+          "policy": {
+            "type": "residencyPercent",
+            "percent": 25
+          },
+          "quote": "Residence: minimum of 25 percent of the total hours for the degree (e.g., 30 hours for a 120-hour degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Overall GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
+          },
+          "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "UNT GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
+          },
+          "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Communication core grade",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
+          },
+          "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "English Composition Proficiency",
+            "heading": "English Composition Proficiency"
+          }
+        }
+      ],
+      "coreSharedCourses": [
+        "CHEM 1410",
+        "CSCE 1010",
+        "MATH 1710",
+        "MATH 1720",
+        "MATH 1810",
+        "PHYS 1710",
+        "PHYS 2220",
+        "TECM 2700"
+      ]
+    },
+    {
+      "id": "math-bsmth",
+      "name": "Mathematics, BSMTH (non–teacher certification)",
+      "catalogId": "catoid-40",
+      "sourceUrl": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+      "requirements": [
+        {
+          "kind": "group",
+          "name": "Major requirements, 43 hours of mathematics courses",
+          "children": [
+            {
+              "kind": "policy",
+              "name": "43 hours of mathematics courses",
+              "policy": {
+                "type": "subjectHours",
+                "hours": 43,
+                "subjects": [
+                  "MATH",
+                  "STAT"
+                ],
+                "courseScope": {
+                  "kind": "major"
+                }
+              },
+              "quote": "43 hours of mathematics courses, which must include:",
+              "citation": {
+                "page": "math-bsmth.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                "anchor": "MajorRequirements",
+                "heading": "Major requirements"
+              }
+            },
+            {
+              "kind": "group",
+              "name": "Mathematics core, 19 hours",
+              "children": [
+                {
+                  "kind": "all",
+                  "name": "Mathematics core",
+                  "items": [
+                    {
+                      "alternatives": [
+                        {
+                          "must": [
+                            "MATH 1710"
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "alternatives": [
+                        {
+                          "must": [
+                            "MATH 1720"
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "alternatives": [
+                        {
+                          "must": [
+                            "MATH 1810"
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "alternatives": [
+                        {
+                          "must": [
+                            "MATH 1820"
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "alternatives": [
+                        {
+                          "must": [
+                            "MATH 1830"
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "alternatives": [
+                        {
+                          "must": [
+                            "MATH 2000"
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "alternatives": [
+                        {
+                          "must": [
+                            "MATH 2700"
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "alternatives": [
+                        {
+                          "must": [
+                            "MATH 2730"
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "alternatives": [
+                        {
+                          "must": [
+                            "MATH 3000"
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "citation": {
+                    "page": "math-bsmth.html",
+                    "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                    "anchor": "MathematicsCore19Hours",
+                    "heading": "Mathematics core, 19 hours"
+                  }
+                },
+                {
+                  "kind": "note",
+                  "name": "Core substitutions",
+                  "text": "*Students have the option to take Math 1810/1820/1830 or MATH 1710/1820/1830 in place of MATH 1710/1720. ** Incoming students who have already taken an introduction to mathematical proofs may request substitution of MATH 2000 by an upper-level mathematics course numbered 3350 or higher. Please see an advisor for more information.",
+                  "citation": {
+                    "page": "math-bsmth.html",
+                    "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                    "anchor": "MathematicsCore19Hours",
+                    "heading": "Mathematics core, 19 hours"
+                  }
+                }
+              ],
+              "citation": {
+                "page": "math-bsmth.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                "anchor": "MathematicsCore19Hours",
+                "heading": "Mathematics core, 19 hours"
+              }
+            }
+          ],
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "MajorRequirements",
+            "heading": "Major requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Total hours: 120",
+          "policy": {
+            "type": "totalHours",
+            "hours": 120
+          },
+          "quote": "A minimum of 120 semester hours, of which 36 must be advanced, and fulfillment of degree requirements for the bachelor of science degree as specified in the University Core Curriculum in the Degree and Program Requirements section of this catalog and the College of Science requirements.",
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours: 36",
+          "policy": {
+            "type": "advancedHours",
+            "hours": 36
+          },
+          "quote": "A minimum of 120 semester hours, of which 36 must be advanced, and fulfillment of degree requirements for the bachelor of science degree as specified in the University Core Curriculum in the Degree and Program Requirements section of this catalog and the College of Science requirements.",
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Communication core suggestion",
+          "text": "For satisfying the Communication (English Composition and Rhetoric) core requirements, the department suggests:",
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "CommunicationEnglishCompositionAndRhetoricCoreRequirement",
+            "heading": "Communication (English Composition and Rhetoric) core requirement"
+          }
+        },
+        {
+          "kind": "choice",
+          "name": "Depth requirement, 9 hours",
+          "branches": [
+            {
+              "name": "Analysis",
+              "node": {
+                "kind": "group",
+                "name": "Analysis",
+                "children": [
+                  {
+                    "kind": "all",
+                    "name": "Required",
+                    "items": [
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "MATH 3610"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Analysis",
+                      "heading": "Analysis"
+                    }
+                  },
+                  {
+                    "kind": "choose",
+                    "name": "Plus two of the following",
+                    "count": 2,
+                    "options": [
+                      {
+                        "must": [
+                          "MATH 3350"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 3410"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 3420"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 3740"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 4080"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 4100"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 4200"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 4520"
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "PlusTwoOfTheFollowing",
+                      "heading": "Plus two of the following:"
+                    }
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Analysis",
+                  "heading": "Analysis"
+                }
+              }
+            },
+            {
+              "name": "Algebra",
+              "node": {
+                "kind": "group",
+                "name": "Algebra",
+                "children": [
+                  {
+                    "kind": "all",
+                    "name": "Required",
+                    "items": [
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "MATH 3510"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Algebra",
+                      "heading": "Algebra"
+                    }
+                  },
+                  {
+                    "kind": "choose",
+                    "name": "Plus two of the following",
+                    "count": 2,
+                    "options": [
+                      {
+                        "must": [
+                          "MATH 3400"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 4010"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 4430"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 4450"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 4510"
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "PlusTwoOfTheFollowing",
+                      "heading": "Plus two of the following"
+                    }
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Algebra",
+                  "heading": "Algebra"
+                }
+              }
+            },
+            {
+              "name": "Probability/statistics",
+              "node": {
+                "kind": "hours",
+                "name": "Probability/statistics, 9 hours",
+                "hours": 9,
+                "options": [
+                  {
+                    "must": [
+                      "STAT 3680"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MATH 4610"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "STAT 4650"
+                    ]
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Probabilitystatistics",
+                  "heading": "Probability/statistics"
+                }
+              }
+            },
+            {
+              "name": "Geometry/topology",
+              "node": {
+                "kind": "hours",
+                "name": "Geometry/topology, 9 hours",
+                "hours": 9,
+                "options": [
+                  {
+                    "must": [
+                      "MATH 3740"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MATH 4060"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MATH 4080"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MATH 4500"
+                    ]
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Geometrytopology",
+                  "heading": "Geometry/topology"
+                }
+              }
+            }
+          ],
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "DepthRequirement9Hours",
+            "heading": "Depth requirement, 9 hours"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Breadth requirement, 9 hours",
+          "text": "One course in each of the three areas is not used to satisfy the depth requirement. One of the following must be taken if neither were completed as part of the depth requirement:",
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "BreadthRequirement9Hours",
+            "heading": "Breadth requirement, 9 hours"
+          }
+        },
+        {
+          "kind": "pool",
+          "name": "Mathematics electives, 6 hours",
+          "hours": 6,
+          "match": {
+            "subjects": [
+              "MATH"
+            ],
+            "minLevel": 3350,
+            "maxLevel": null
+          },
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "MathematicsElectives6Hours",
+            "heading": "Mathematics electives, 6 hours"
+          }
+        },
+        {
+          "kind": "choice",
+          "name": "Laboratory science",
+          "branches": [
+            {
+              "name": "Option 1, Biology emphasis",
+              "node": {
+                "kind": "group",
+                "name": "Option 1, Biology emphasis",
+                "children": [
+                  {
+                    "kind": "all",
+                    "name": "Required",
+                    "items": [
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "BIOL 1710",
+                              "BIOL 1720",
+                              "BIOL 1760"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option1BiologyEmphasis",
+                      "heading": "Option 1, Biology emphasis"
+                    }
+                  },
+                  {
+                    "kind": "choose",
+                    "name": "Plus one of the following",
+                    "count": 1,
+                    "options": [
+                      {
+                        "must": [
+                          "PHYS 1510",
+                          "PHYS 1530"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHYS 1710",
+                          "PHYS 1730"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "CHEM 1410",
+                          "CHEM 1430"
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "PlusOneOfTheFollowing",
+                      "heading": "Plus one of the following"
+                    }
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option1BiologyEmphasis",
+                  "heading": "Option 1, Biology emphasis"
+                }
+              }
+            },
+            {
+              "name": "Option 2, Chemistry emphasis",
+              "node": {
+                "kind": "group",
+                "name": "Option 2, Chemistry emphasis",
+                "children": [
+                  {
+                    "kind": "all",
+                    "name": "Required chemistry sequence",
+                    "items": [
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "CHEM 1410",
+                              "CHEM 1430"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "CHEM 1420",
+                              "CHEM 1440"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option2ChemistryEmphasis",
+                      "heading": "Option 2, Chemistry emphasis"
+                    }
+                  },
+                  {
+                    "kind": "note",
+                    "name": "Additional course",
+                    "text": "One additional course that meets the University Core Curriculum requirement for the natural sciences, or any 3 hours from CHEM numbered at least 2000.",
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option2ChemistryEmphasis",
+                      "heading": "Option 2, Chemistry emphasis"
+                    }
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option2ChemistryEmphasis",
+                  "heading": "Option 2, Chemistry emphasis"
+                }
+              }
+            },
+            {
+              "name": "Option 3, Physics emphasis",
+              "node": {
+                "kind": "group",
+                "name": "Option 3, Physics emphasis",
+                "children": [
+                  {
+                    "kind": "all",
+                    "name": "Required physics sequences",
+                    "items": [
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "PHYS 1510",
+                              "PHYS 1530"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "PHYS 1520",
+                              "PHYS 1540"
+                            ]
+                          },
+                          {
+                            "must": [
+                              "PHYS 1710",
+                              "PHYS 1730"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "PHYS 2220",
+                              "PHYS 2240"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option3PhysicsEmphasis",
+                      "heading": "Option 3, Physics emphasis"
+                    }
+                  },
+                  {
+                    "kind": "note",
+                    "name": "Additional course",
+                    "text": "One additional course that meets the University Core Curriculum requirement for the natural sciences, or any 3 hours from PHYS numbered at least 2000.",
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option3PhysicsEmphasis",
+                      "heading": "Option 3, Physics emphasis"
+                    }
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option3PhysicsEmphasis",
+                  "heading": "Option 3, Physics emphasis"
+                }
+              }
+            },
+            {
+              "name": "Option 4",
+              "node": {
+                "kind": "note",
+                "name": "Option 4",
+                "text": "Students double majoring in mathematics and another discipline (typically biology, chemistry, physics or engineering) that requires at least 12 hours of laboratory science intended for science and engineering majors may use the same laboratory science courses that satisfy the requirements for the other major to satisfy the laboratory science requirement for the mathematics major.",
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option4",
+                  "heading": "Option 4"
+                }
+              }
+            },
+            {
+              "name": "Option 5",
+              "node": {
+                "kind": "group",
+                "name": "Option 5",
+                "children": [
+                  {
+                    "kind": "all",
+                    "name": "Required",
+                    "items": [
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "GEOL 1610"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "GEOG 1710"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option5",
+                      "heading": "Option 5"
+                    }
+                  },
+                  {
+                    "kind": "choose",
+                    "name": "Plus one of the following",
+                    "count": 1,
+                    "options": [
+                      {
+                        "must": [
+                          "PHYS 1710",
+                          "PHYS 1730"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "CHEM 1410",
+                          "CHEM 1430"
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "PlusOneOfTheFollowingLectureAndLaboratoryCombinations",
+                      "heading": "Plus one of the following lecture and laboratory combinations"
+                    }
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option5",
+                  "heading": "Option 5"
+                }
+              }
+            }
+          ],
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "LaboratoryScience",
+            "heading": "Laboratory science"
+          }
+        },
+        {
+          "kind": "choice",
+          "name": "Foreign language",
+          "branches": [
+            {
+              "name": "Proficiency (Option 1)",
+              "node": {
+                "kind": "note",
+                "name": "Proficiency in a foreign language equivalent to 1020",
+                "text": "Proficiency in a foreign language equivalent to 1020 is required. Students intending to pursue a graduate degree in mathematics are encouraged to study French, German or Russian.",
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option1",
+                  "heading": "Option 1"
+                }
+              }
+            },
+            {
+              "name": "6 hours of technical writing (Option 2)",
+              "node": {
+                "kind": "hours",
+                "name": "Six hours of technical writing",
+                "hours": 6,
+                "options": [
+                  {
+                    "must": [
+                      "TECM 2700"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "TECM 4180"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "TECM 4190"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "TECM 4250"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "TECM 4700"
+                    ]
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option2",
+                  "heading": "Option 2"
+                }
+              }
+            }
+          ],
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "ForeignLanguage",
+            "heading": "Foreign language"
+          }
+        },
+        {
+          "kind": "group",
+          "name": "Computer programming",
+          "children": [
+            {
+              "kind": "choose",
+              "name": "One programming course",
+              "count": 1,
+              "options": [
+                {
+                  "must": [
+                    "CSCE 1010"
+                  ]
+                },
+                {
+                  "must": [
+                    "CSCE 1020"
+                  ]
+                },
+                {
+                  "must": [
+                    "CSCE 1030"
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "math-bsmth.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                "anchor": "ComputerProgramming",
+                "heading": "Computer programming"
+              }
+            },
+            {
+              "kind": "note",
+              "name": "Programming competency",
+              "text": "",
+              "citation": {
+                "page": "math-bsmth.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                "anchor": "ComputerProgramming",
+                "heading": "Computer programming"
+              }
+            }
+          ],
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "ComputerProgramming",
+            "heading": "Computer programming"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Minor requirements",
+          "text": "One of the following is required: A minor of at least 18 hours (6 advanced). A minor in statistics does not fulfill this requirement. Completion of a second major in addition to mathematics. Completion of the actuarial science certificate. Students must take STAT 3680, MATH 4610 and STAT 4650 for fulfilling degree requirements; students are also encouraged to take MATH 3350 and MATH 3740. Also, no mathematics courses may be chosen for fulfilling the elective requirements of the certificate program. Completion of the data analytics certificate.",
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "MinorRequirements",
+            "heading": "Minor requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "GPA 2.0 (mathematics courses 3350+ in the major)",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "mathematics courses numbered 3350 or above",
+            "courseScope": {
+              "kind": "subjectLevel",
+              "subjects": [
+                "MATH"
+              ],
+              "minLevel": 3350
+            }
+          },
+          "quote": "Students must achieve a grade point average of at least 2.0 in all mathematics courses which are applied toward a mathematics major and are numbered 3350 or above.",
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "OtherRequirements",
+            "heading": "Other requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours at UNT: 24",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 24
+          },
+          "quote": "A minimum of 24 hours of advanced work (3000 or 4000 level) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Residency",
+          "policy": {
+            "type": "residencyPercent",
+            "percent": 25
+          },
+          "quote": "Residence: minimum of 25 percent of the total hours for the degree (e.g., 30 hours for a 120-hour degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Overall GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
+          },
+          "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "UNT GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
+          },
+          "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Communication core grade",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
+          },
+          "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "English Composition Proficiency",
+            "heading": "English Composition Proficiency"
+          }
+        }
+      ],
+      "coreSharedCourses": [
+        "BIOL 1710",
+        "BIOL 1720",
+        "CHEM 1410",
+        "CHEM 1420",
+        "CSCE 1010",
+        "GEOG 1710",
+        "GEOL 1610",
+        "MATH 1710",
+        "MATH 1720",
+        "MATH 1810",
+        "PHYS 1510",
+        "PHYS 1520",
+        "PHYS 1710",
+        "PHYS 2220",
+        "TECM 2700"
+      ]
+    },
+    {
+      "id": "biology-bsbio",
+      "name": "Biology, BSBIO",
+      "catalogId": "catoid-40",
+      "sourceUrl": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+      "requirements": [
+        {
+          "kind": "policy",
+          "name": "Total hours: 120",
+          "policy": {
+            "type": "totalHours",
+            "hours": 120
+          },
+          "quote": "A minimum of 120 semester hours, of which 36 must be advanced, and fulfillment of degree requirements for the bachelor’s degree as specified in the University Core Curriculum in the Degree and Program Requirements section of this catalog and the College of Science degree requirements.",
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours: 36",
+          "policy": {
+            "type": "advancedHours",
+            "hours": 36
+          },
+          "quote": "A minimum of 120 semester hours, of which 36 must be advanced, and fulfillment of degree requirements for the bachelor’s degree as specified in the University Core Curriculum in the Degree and Program Requirements section of this catalog and the College of Science degree requirements.",
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Degree requirements",
+          "text": "The following requirements must be satisfied for a Bachelor of Science with a major in biology. Foundation Course requirements must be successfully completed prior to advancing to upper-division major requirements.",
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "DegreeRequirements",
+            "heading": "Degree requirements"
+          }
+        },
+        {
+          "kind": "group",
+          "name": "Foundation course requirements",
+          "children": [
+            {
+              "kind": "policy",
+              "name": "Foundation grade rules",
+              "policy": {
+                "type": "minGrade",
+                "grade": "C",
+                "scope": "foundation courses",
+                "courseScope": {
+                  "kind": "codes",
+                  "codes": [
+                    "BIOL 1710",
+                    "BIOL 1711",
+                    "BIOL 1720",
+                    "BIOL 1722",
+                    "BIOL 1750",
+                    "BIOL 1760",
+                    "BIOL 1761",
+                    "BIOL 2041",
+                    "BIOL 2042",
+                    "BIOL 2140",
+                    "BIOL 2241",
+                    "BIOL 2251",
+                    "CHEM 1410",
+                    "CHEM 1412",
+                    "CHEM 1413",
+                    "CHEM 1420",
+                    "CHEM 1422",
+                    "CHEM 1423",
+                    "CHEM 1430",
+                    "CHEM 1440",
+                    "CHEM 2370",
+                    "CHEM 3210",
+                    "MATH 1650"
+                  ]
+                }
+              },
+              "quote": "The Foundation course requirements listed below must be completed before enrollment in 3000 and 4000 level courses required for the major. Successful completion is based on achieving a C or better in each course and an overall 2.5 grade point average in these courses.",
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "FoundationCourseRequirements",
+                "heading": "Foundation course requirements"
+              }
+            },
+            {
+              "kind": "policy",
+              "name": "Foundation GPA 2.5",
+              "policy": {
+                "type": "gpa",
+                "minimum": 2.5,
+                "scope": "foundation courses",
+                "courseScope": {
+                  "kind": "codes",
+                  "codes": [
+                    "BIOL 1710",
+                    "BIOL 1711",
+                    "BIOL 1720",
+                    "BIOL 1722",
+                    "BIOL 1750",
+                    "BIOL 1760",
+                    "BIOL 1761",
+                    "BIOL 2041",
+                    "BIOL 2042",
+                    "BIOL 2140",
+                    "BIOL 2241",
+                    "BIOL 2251",
+                    "CHEM 1410",
+                    "CHEM 1412",
+                    "CHEM 1413",
+                    "CHEM 1420",
+                    "CHEM 1422",
+                    "CHEM 1423",
+                    "CHEM 1430",
+                    "CHEM 1440",
+                    "CHEM 2370",
+                    "CHEM 3210",
+                    "MATH 1650"
+                  ]
+                }
+              },
+              "quote": "The Foundation course requirements listed below must be completed before enrollment in 3000 and 4000 level courses required for the major. Successful completion is based on achieving a C or better in each course and an overall 2.5 grade point average in these courses.",
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "FoundationCourseRequirements",
+                "heading": "Foundation course requirements"
+              }
+            },
+            {
+              "kind": "all",
+              "name": "Biology foundation courses",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 1710"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 1711"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 1720"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 1722"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 1750"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 1760"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 1761"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "BiologyCourses",
+                "heading": "Biology courses:"
+              }
+            },
+            {
+              "kind": "choose",
+              "name": "One of the following courses (with lab, if indicated)",
+              "count": 1,
+              "options": [
+                {
+                  "must": [
+                    "BIOL 2041",
+                    "BIOL 2042"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 2140"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 2241"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 2251"
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "OneOfTheFollowingCourseswithLabIfIndicated",
+                "heading": "One of the following courses (with lab, if indicated):"
+              }
+            },
+            {
+              "kind": "all",
+              "name": "Chemistry foundation courses",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 1410"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "CHEM 1412"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "CHEM 1413"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 1430"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 1420"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "CHEM 1422"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "CHEM 1423"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 1440"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 2370"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 3210"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "ChemistryCourses",
+                "heading": "Chemistry courses:"
+              }
+            },
+            {
+              "kind": "all",
+              "name": "Math foundation courses",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "MATH 1650"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "MathCourses",
+                "heading": "Math courses:"
+              }
+            }
+          ],
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "FoundationCourseRequirements",
+            "heading": "Foundation course requirements"
+          }
+        },
+        {
+          "kind": "group",
+          "name": "Biology requirements",
+          "children": [
+            {
+              "kind": "note",
+              "name": "Biology requirements rule",
+              "text": "In addition to the biology foundation courses, students must complete with a C or higher a second 2000 level biology course, the advanced biology requirements, one physiology course with laboratory, and 16 advanced biology elective hours (of which 2 courses must be with laboratory).",
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "BiologyRequirements",
+                "heading": "Biology requirements"
+              }
+            },
+            {
+              "kind": "choose",
+              "name": "Second 2000-level biology course",
+              "count": 1,
+              "options": [
+                {
+                  "must": [
+                    "BIOL 2041"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 2042"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 2140"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 2241"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 2251"
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "OptionsForTheSecond2000LevelCourseRequirementwithLabIfIndicated",
+                "heading": "Options for the second 2000 level course requirement (with lab, if indicated):"
+              }
+            },
+            {
+              "kind": "all",
+              "name": "Advanced biology requirements",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 3451"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 3452"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 3510"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 3520"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "AdvancedBiologyRequirements",
+                "heading": "Advanced biology requirements:"
+              }
+            },
+            {
+              "kind": "choose",
+              "name": "Physiology requirement (with lab)",
+              "count": 1,
+              "options": [
+                {
+                  "must": [
+                    "BIOL 4501"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4502"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4503"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4504"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4510",
+                    "BIOL 3800"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4505"
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "PhysiologyRequirementOptionswithLab",
+                "heading": "Physiology requirement options (with lab):"
+              }
+            },
+            {
+              "kind": "hours",
+              "name": "Advanced biology electives, 16 hours",
+              "hours": 16,
+              "options": [
+                {
+                  "must": [
+                    "BIOL 3000"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3030"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3080"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3150"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3160"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3170"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3331"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3381"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3382"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3770"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3800"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3850"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3900"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3996"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4000"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4005"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4006"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4030"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4035"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4045"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4050"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4051"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4052"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4053"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4054"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4055"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4056"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4057"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4070"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4085"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4091"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4092"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4100"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4110"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4120"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4160"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4170"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4180"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4190"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4201"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4202"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4220"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4230"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4240"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4250"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4260"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4261"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4280"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4290"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4300"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4320"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4330"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4370"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4375"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4380"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4400"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4420"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4440"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4460"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4480"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4501"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4502"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4503"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4504"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4505"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4506"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4510"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4530"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4540"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4560"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4570"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4590"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4650"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4720"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4751"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4752"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4760"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4800"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4801"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4805"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4810"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4820"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4580"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4900"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4910"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4920"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4930"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4940"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4950"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4951"
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "AdvancedBiologyElectives",
+                "heading": "Advanced biology electives:"
+              }
+            },
+            {
+              "kind": "note",
+              "name": "Advanced biology electives rule",
+              "text": "Select from this list, except that courses used to fulfill other requirements cannot also count towards advanced electives.",
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "AdvancedBiologyElectives",
+                "heading": "Advanced biology electives:"
+              }
+            }
+          ],
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "BiologyRequirements",
+            "heading": "Biology requirements"
+          }
+        },
+        {
+          "kind": "all",
+          "name": "Other course requirements (physics and math)",
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 1710"
+                  ]
+                },
+                {
+                  "must": [
+                    "MATH 1810"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1410"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1430"
+                  ]
+                },
+                {
+                  "must": [
+                    "PHYS 1510"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1530"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1420"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1440"
+                  ]
+                },
+                {
+                  "must": [
+                    "PHYS 1520"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1540"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "OtherCourseRequirements",
+            "heading": "Other course requirements"
+          }
+        },
+        {
+          "kind": "group",
+          "name": "Chemistry requirements",
+          "children": [
+            {
+              "kind": "all",
+              "name": "Chemistry minor courses",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 2380"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 3220"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "ChemistryRequirements",
+                "heading": "Chemistry requirements"
+              }
+            },
+            {
+              "kind": "note",
+              "name": "Chemistry minor rule",
+              "text": "Students must complete a minor in chemistry with a minimum of 20 hours. This includes the 12 hours of chemistry foundation courses plus 8 hours completed with a grade of C or higher, as follows:",
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "ChemistryRequirements",
+                "heading": "Chemistry requirements"
+              }
+            }
+          ],
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "ChemistryRequirements",
+            "heading": "Chemistry requirements"
+          }
+        },
+        {
+          "kind": "hours",
+          "name": "Plus 4 advanced hours chosen from",
+          "hours": 4,
+          "options": [
+            {
+              "must": [
+                "CHEM 3451"
+              ]
+            },
+            {
+              "must": [
+                "CHEM 3452"
+              ]
+            },
+            {
+              "must": [
+                "CHEM 3530"
+              ]
+            },
+            {
+              "must": [
+                "BIOC 3621"
+              ]
+            },
+            {
+              "must": [
+                "BIOC 3622"
+              ]
+            },
+            {
+              "must": [
+                "BIOC 4540"
+              ]
+            },
+            {
+              "must": [
+                "BIOC 4550"
+              ]
+            }
+          ],
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "Plus4AdvancedHoursChosenFrom",
+            "heading": "Plus 4 advanced hours chosen from"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Electives",
+          "text": "Hours required for electives may vary based on course selection and the University Core Curriculum requirements. Electives may be required to satisfy the advanced hour requirement and/or the minimum total hours required for the degree. For specific information see an academic advisor in the College of Science.",
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "Electives",
+            "heading": "Electives"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Other requirements",
+          "text": "Only two attempts will be allowed for each biology and biochemistry course in the degree. Grade of C or better and minimum 2.5 grade point average in Foundation Courses, C or better in all upper-division courses counting towards major requirements, and an overall 2.0 grade point average are required for graduation. All students seeking to enter the Department of Biological Sciences, with the exception of beginning freshmen, must meet the minimum grade point averages given above. Students in the department whose Foundation Course or overall grade point average drops below the minimum for two consecutive semesters will be removed from the program.",
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "OtherRequirements",
+            "heading": "Other requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours at UNT: 24",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 24
+          },
+          "quote": "A minimum of 24 hours of advanced work (3000 or 4000 level) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Residency",
+          "policy": {
+            "type": "residencyPercent",
+            "percent": 25
+          },
+          "quote": "Residence: minimum of 25 percent of the total hours for the degree (e.g., 30 hours for a 120-hour degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Overall GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
+          },
+          "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "UNT GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
+          },
+          "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Communication core grade",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
+          },
+          "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "English Composition Proficiency",
+            "heading": "English Composition Proficiency"
+          }
+        }
+      ],
+      "coreSharedCourses": [
+        "BIOL 1710",
+        "BIOL 1711",
+        "BIOL 1720",
+        "BIOL 1722",
+        "CHEM 1410",
+        "CHEM 1412",
+        "CHEM 1413",
+        "CHEM 1420",
+        "CHEM 1422",
+        "CHEM 1423",
+        "MATH 1650",
+        "MATH 1710",
+        "MATH 1810",
+        "PHYS 1410",
+        "PHYS 1420",
+        "PHYS 1510",
+        "PHYS 1520"
+      ]
+    },
+    {
+      "id": "core",
+      "name": "University Core Curriculum",
+      "catalogId": "catoid-40",
+      "sourceUrl": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+      "requirements": [
+        {
+          "kind": "policy",
+          "name": "Core total: 42 hours",
+          "policy": {
+            "type": "totalHours",
+            "hours": 42,
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ADES 3700",
+                "AGER 2250",
+                "AGER 4560",
+                "AGER 4800",
+                "ANTH 1010",
+                "ANTH 1150",
+                "ANTH 2300",
+                "ANTH 2400",
+                "ANTH 2700",
+                "ANTH 3101",
+                "ANTH 3110",
+                "ANTH 3120",
+                "ANTH 3130",
+                "ANTH 3140",
+                "ANTH 3200",
+                "ANTH 3210",
+                "ANTH 3220",
+                "ANTH 3300",
+                "ANTH 3400",
+                "ANTH 3500",
+                "ANTH 3700",
+                "ANTH 3710",
+                "ARCH 2800",
+                "ART 1300",
+                "ART 1301",
+                "ART 2350",
+                "ART 2360",
+                "ART 2370",
+                "BAAS 3000",
+                "BEHV 2300",
+                "BIOL 1082",
+                "BIOL 1112",
+                "BIOL 1132",
+                "BIOL 1710",
+                "BIOL 1711",
+                "BIOL 1720",
+                "BIOL 1722",
+                "BIOL 2301",
+                "BIOL 2302",
+                "BIOL 2700",
+                "CHEM 1360",
+                "CHEM 1410",
+                "CHEM 1412",
+                "CHEM 1413",
+                "CHEM 1420",
+                "CHEM 1422",
+                "CHEM 1423",
+                "CJUS 2100",
+                "COMM 1010",
+                "COMM 1440",
+                "COMM 2020",
+                "COMM 2040",
+                "COMM 2060",
+                "COMM 2140",
+                "COUN 2620",
+                "CSCE 1010",
+                "DANC 1200",
+                "DANC 2800",
+                "DSCI 2710",
+                "EADP 1010",
+                "EADP 4050",
+                "ECON 1100",
+                "ECON 1110",
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "ENGL 2321",
+                "ENGL 2326",
+                "ENGL 2331",
+                "ENGL 2341",
+                "ENGL 2351",
+                "ENGL 3450",
+                "FIPL 2770",
+                "GEOG 1000",
+                "GEOG 1200",
+                "GEOG 1500",
+                "GEOG 1710",
+                "GEOL 1610",
+                "HDFS 1013",
+                "HDFS 2033",
+                "HDFS 2313",
+                "HDFS 3423",
+                "HIST 1050",
+                "HIST 1060",
+                "HIST 2610",
+                "HIST 2620",
+                "HIST 2675",
+                "HIST 2685",
+                "HLTH 2200",
+                "INST 2100",
+                "JOUR 1210",
+                "JOUR 2250",
+                "JOUR 2300",
+                "KINE 2050",
+                "LING 2050",
+                "LING 2070",
+                "LING 3010",
+                "LING 3050",
+                "LING 3060",
+                "MATH 1180",
+                "MATH 1190",
+                "MATH 1580",
+                "MATH 1650",
+                "MATH 1680",
+                "MATH 1710",
+                "MATH 1720",
+                "MATH 1810",
+                "MDSE 2750",
+                "MDSE 3370",
+                "MKTG 2650",
+                "MKTG 3010",
+                "MTSE 1100",
+                "MTSE 2000",
+                "MUCO 1200",
+                "MUCO 3500",
+                "MUET 2000",
+                "MUET 3030",
+                "MUET 3060",
+                "MUJS 3070",
+                "MUJS 3400",
+                "MUMH 1610",
+                "MUMH 2040",
+                "MUMH 2050",
+                "MUMH 2060",
+                "MUMH 2080",
+                "MUMH 3000",
+                "MUMH 3010",
+                "MUMH 3100",
+                "MUMH 3200",
+                "MUMH 3500",
+                "MUMH 3510",
+                "MUMH 3520",
+                "NUTR 1450",
+                "NUTR 2460",
+                "NUTR 3460",
+                "PADM 2100",
+                "PHED 1000",
+                "PHIL 1050",
+                "PHIL 1400",
+                "PHIL 1900",
+                "PHIL 2050",
+                "PHIL 2070",
+                "PHIL 2500",
+                "PHIL 2600",
+                "PHIL 3900",
+                "PHIL 4150",
+                "PHIL 4200",
+                "PHYS 1052",
+                "PHYS 1062",
+                "PHYS 1270",
+                "PHYS 1315",
+                "PHYS 1410",
+                "PHYS 1420",
+                "PHYS 1510",
+                "PHYS 1520",
+                "PHYS 1710",
+                "PHYS 2220",
+                "PSCI 2305",
+                "PSCI 2306",
+                "PSCI 2315",
+                "PSCI 2316",
+                "PSYC 1630",
+                "RESM 3450",
+                "RHAB 3000",
+                "RHAB 3100",
+                "SOCI 1510",
+                "SOCI 2070",
+                "SOWK 1450",
+                "SOWK 4540",
+                "TECM 1500",
+                "TECM 1600",
+                "TECM 1700",
+                "TECM 2700",
+                "THEA 1340",
+                "THEA 2340",
+                "THEA 3030",
+                "THEA 3040",
+                "UNIV 2100",
+                "UNIV 2300",
+                "WGST 2100"
+              ]
+            }
+          },
+          "quote": "Students are required to complete 42 semester credit hours in specific areas. Students select core courses to meet the state semester credit hour requirements for each foundational component area. More information about the Core Curriculum at UNT may be found in the UNT Student Success Guidebook on the Advising web site.",
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "UniversityCoreCurriculumRequirements",
+            "heading": "University Core Curriculum Requirements"
+          }
+        },
+        {
+          "kind": "group",
+          "name": "Communication, 6 hours",
+          "children": [
+            {
+              "kind": "choose",
+              "name": "Communication Group 1",
+              "count": 1,
+              "options": [
+                {
+                  "must": [
+                    "ENGL 1310"
+                  ]
+                },
+                {
+                  "must": [
+                    "ENGL 1311"
+                  ]
+                },
+                {
+                  "must": [
+                    "ENGL 1315"
+                  ]
+                },
+                {
+                  "must": [
+                    "TECM 1700"
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "core-curriculum.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+                "anchor": "Group1",
+                "heading": "Group 1"
+              }
+            },
+            {
+              "kind": "choose",
+              "name": "Communication Group 2",
+              "count": 1,
+              "options": [
+                {
+                  "must": [
+                    "ENGL 1320"
+                  ]
+                },
+                {
+                  "must": [
+                    "ENGL 1321"
+                  ]
+                },
+                {
+                  "must": [
+                    "ENGL 1325"
+                  ]
+                },
+                {
+                  "must": [
+                    "TECM 2700"
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "core-curriculum.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+                "anchor": "Group2",
+                "heading": "Group 2"
+              }
+            },
+            {
+              "kind": "policy",
+              "name": "Communication core grade",
+              "policy": {
+                "type": "minGrade",
+                "grade": "C",
+                "scope": "Communication core requirement",
+                "courseScope": {
+                  "kind": "codes",
+                  "codes": [
+                    "ENGL 1310",
+                    "ENGL 1311",
+                    "ENGL 1315",
+                    "ENGL 1320",
+                    "ENGL 1321",
+                    "ENGL 1325",
+                    "TECM 1700",
+                    "TECM 2700"
+                  ]
+                }
+              },
+              "quote": "Students must take one course from Group 1 and one course from group 2. The courses are often taken in sequence (for example, students first take ENGL 1310, then take ENGL 1320 in the following semester). Students must receive a grade of C or higher in both courses to fulfill this core requirement.",
+              "citation": {
+                "page": "core-curriculum.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+                "anchor": "Communication6Hours",
+                "heading": "Communication, 6 hours"
+              }
+            }
+          ],
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "Communication6Hours",
+            "heading": "Communication, 6 hours"
+          }
+        },
+        {
+          "kind": "hours",
+          "name": "Mathematics, 3 hours",
+          "hours": 3,
+          "options": [
+            {
+              "must": [
+                "DSCI 2710"
+              ]
+            },
+            {
+              "must": [
+                "MATH 1180"
+              ]
+            },
+            {
+              "must": [
+                "MATH 1190"
+              ]
+            },
+            {
+              "must": [
+                "MATH 1580"
+              ]
+            },
+            {
+              "must": [
+                "MATH 1650"
+              ]
+            },
+            {
+              "must": [
+                "MATH 1680"
+              ]
+            },
+            {
+              "must": [
+                "MATH 1710"
+              ]
+            },
+            {
+              "must": [
+                "MATH 1810"
+              ]
+            }
+          ],
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "Mathematics3Hours",
+            "heading": "Mathematics, 3 hours"
+          }
+        },
+        {
+          "kind": "hours",
+          "name": "Life and Physical Sciences, 6 hours",
+          "hours": 6,
+          "options": [
+            {
+              "must": [
+                "ANTH 2700"
+              ]
+            },
+            {
+              "must": [
+                "ARCH 2800"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 1082"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 1112"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 1132"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 1710"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 1711"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 1720"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 1722"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 2301"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 2302"
+              ]
+            },
+            {
+              "must": [
+                "BIOL 2700"
+              ]
+            },
+            {
+              "must": [
+                "CHEM 1360"
+              ]
+            },
+            {
+              "must": [
+                "CHEM 1410"
+              ]
+            },
+            {
+              "must": [
+                "CHEM 1412"
+              ]
+            },
+            {
+              "must": [
+                "CHEM 1413"
+              ]
+            },
+            {
+              "must": [
+                "CHEM 1420"
+              ]
+            },
+            {
+              "must": [
+                "CHEM 1422"
+              ]
+            },
+            {
+              "must": [
+                "CHEM 1423"
+              ]
+            },
+            {
+              "must": [
+                "GEOG 1710"
+              ]
+            },
+            {
+              "must": [
+                "GEOL 1610"
+              ]
+            },
+            {
+              "must": [
+                "LING 3050"
+              ]
+            },
+            {
+              "must": [
+                "MTSE 2000"
+              ]
+            },
+            {
+              "must": [
+                "NUTR 2460"
+              ]
+            },
+            {
+              "must": [
+                "NUTR 3460"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1052"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1062"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1270"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1315"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1410"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1420"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1510"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1520"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 1710"
+              ]
+            },
+            {
+              "must": [
+                "PHYS 2220"
+              ]
+            }
+          ],
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "LifeAndPhysicalSciences6Hours",
+            "heading": "Life and Physical Sciences, 6 hours"
+          }
+        },
+        {
+          "kind": "hours",
+          "name": "Language, Philosophy and Culture, 3 hours",
+          "hours": 3,
+          "options": [
+            {
+              "must": [
+                "AGER 2250"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3101"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3110"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3120"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3130"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3140"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3200"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3210"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3220"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3300"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3400"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3500"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3700"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 3710"
+              ]
+            },
+            {
+              "must": [
+                "ART 2350"
+              ]
+            },
+            {
+              "must": [
+                "ENGL 2321"
+              ]
+            },
+            {
+              "must": [
+                "ENGL 2326"
+              ]
+            },
+            {
+              "must": [
+                "ENGL 2331"
+              ]
+            },
+            {
+              "must": [
+                "ENGL 2341"
+              ]
+            },
+            {
+              "must": [
+                "ENGL 2351"
+              ]
+            },
+            {
+              "must": [
+                "ENGL 3450"
+              ]
+            },
+            {
+              "must": [
+                "GEOG 1000"
+              ]
+            },
+            {
+              "must": [
+                "HDFS 2313"
+              ]
+            },
+            {
+              "must": [
+                "HIST 1050"
+              ]
+            },
+            {
+              "must": [
+                "HIST 1060"
+              ]
+            },
+            {
+              "must": [
+                "KINE 2050"
+              ]
+            },
+            {
+              "must": [
+                "LING 2050"
+              ]
+            },
+            {
+              "must": [
+                "LING 3010"
+              ]
+            },
+            {
+              "must": [
+                "MUET 2000"
+              ]
+            },
+            {
+              "must": [
+                "MUET 3030"
+              ]
+            },
+            {
+              "must": [
+                "PHIL 1050"
+              ]
+            },
+            {
+              "must": [
+                "PHIL 1400"
+              ]
+            },
+            {
+              "must": [
+                "PHIL 2050"
+              ]
+            },
+            {
+              "must": [
+                "PHIL 2070"
+              ]
+            },
+            {
+              "must": [
+                "PHIL 2600"
+              ]
+            },
+            {
+              "must": [
+                "THEA 3040"
+              ]
+            }
+          ],
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "LanguagePhilosophyAndCulture3Hours",
+            "heading": "Language, Philosophy and Culture, 3 hours"
+          }
+        },
+        {
+          "kind": "hours",
+          "name": "Creative Arts, 3 hours",
+          "hours": 3,
+          "options": [
+            {
+              "must": [
+                "ANTH 2400"
+              ]
+            },
+            {
+              "must": [
+                "ART 1300"
+              ]
+            },
+            {
+              "must": [
+                "ART 1301"
+              ]
+            },
+            {
+              "must": [
+                "ART 2360"
+              ]
+            },
+            {
+              "must": [
+                "ART 2370"
+              ]
+            },
+            {
+              "must": [
+                "COMM 2060"
+              ]
+            },
+            {
+              "must": [
+                "DANC 1200"
+              ]
+            },
+            {
+              "must": [
+                "DANC 2800"
+              ]
+            },
+            {
+              "must": [
+                "MUCO 1200"
+              ]
+            },
+            {
+              "must": [
+                "MUCO 3500"
+              ]
+            },
+            {
+              "must": [
+                "MUET 3060"
+              ]
+            },
+            {
+              "must": [
+                "MUJS 3400"
+              ]
+            },
+            {
+              "must": [
+                "MUMH 1610"
+              ]
+            },
+            {
+              "must": [
+                "MUMH 2040"
+              ]
+            },
+            {
+              "must": [
+                "MUMH 2050"
+              ]
+            },
+            {
+              "must": [
+                "MUMH 2060"
+              ]
+            },
+            {
+              "must": [
+                "MUMH 2080"
+              ]
+            },
+            {
+              "must": [
+                "MUMH 3000"
+              ]
+            },
+            {
+              "must": [
+                "MUMH 3010"
+              ]
+            },
+            {
+              "must": [
+                "MUMH 3100"
+              ]
+            },
+            {
+              "must": [
+                "MUMH 3200"
+              ]
+            },
+            {
+              "must": [
+                "MUMH 3520"
+              ]
+            },
+            {
+              "must": [
+                "PHIL 1900"
+              ]
+            },
+            {
+              "must": [
+                "THEA 1340"
+              ]
+            },
+            {
+              "must": [
+                "THEA 2340"
+              ]
+            },
+            {
+              "must": [
+                "THEA 3030"
+              ]
+            }
+          ],
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "CreativeArts3Hours",
+            "heading": "Creative Arts, 3 hours"
+          }
+        },
+        {
+          "kind": "hours",
+          "name": "American History, 6 hours",
+          "hours": 6,
+          "options": [
+            {
+              "must": [
+                "HIST 2610"
+              ]
+            },
+            {
+              "must": [
+                "HIST 2620"
+              ]
+            },
+            {
+              "must": [
+                "HIST 2675"
+              ]
+            },
+            {
+              "must": [
+                "HIST 2685"
+              ]
+            }
+          ],
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "AmericanHistory6Hours",
+            "heading": "American History, 6 hours"
+          }
+        },
+        {
+          "kind": "hours",
+          "name": "Government/Political Science, 6 hours",
+          "hours": 6,
+          "options": [
+            {
+              "must": [
+                "PSCI 2305"
+              ]
+            },
+            {
+              "must": [
+                "PSCI 2315"
+              ]
+            },
+            {
+              "must": [
+                "PSCI 2306"
+              ]
+            },
+            {
+              "must": [
+                "PSCI 2316"
+              ]
+            }
+          ],
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "GovernmentPoliticalScience6Hours",
+            "heading": "Government/Political Science, 6 hours"
+          }
+        },
+        {
+          "kind": "hours",
+          "name": "Social and Behavioral Sciences, 3 hours",
+          "hours": 3,
+          "options": [
+            {
+              "must": [
+                "AGER 4560"
+              ]
+            },
+            {
+              "must": [
+                "AGER 4800"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 1010"
+              ]
+            },
+            {
+              "must": [
+                "ANTH 2300"
+              ]
+            },
+            {
+              "must": [
+                "BAAS 3000"
+              ]
+            },
+            {
+              "must": [
+                "BEHV 2300"
+              ]
+            },
+            {
+              "must": [
+                "CJUS 2100"
+              ]
+            },
+            {
+              "must": [
+                "COMM 2020"
+              ]
+            },
+            {
+              "must": [
+                "EADP 1010"
+              ]
+            },
+            {
+              "must": [
+                "EADP 4050"
+              ]
+            },
+            {
+              "must": [
+                "ECON 1100"
+              ]
+            },
+            {
+              "must": [
+                "ECON 1110"
+              ]
+            },
+            {
+              "must": [
+                "FIPL 2770"
+              ]
+            },
+            {
+              "must": [
+                "GEOG 1200"
+              ]
+            },
+            {
+              "must": [
+                "GEOG 1500"
+              ]
+            },
+            {
+              "must": [
+                "HDFS 1013"
+              ]
+            },
+            {
+              "must": [
+                "HLTH 2200"
+              ]
+            },
+            {
+              "must": [
+                "JOUR 1210"
+              ]
+            },
+            {
+              "must": [
+                "LING 3060"
+              ]
+            },
+            {
+              "must": [
+                "MDSE 2750"
+              ]
+            },
+            {
+              "must": [
+                "PADM 2100"
+              ]
+            },
+            {
+              "must": [
+                "PSYC 1630"
+              ]
+            },
+            {
+              "must": [
+                "RESM 3450"
+              ]
+            },
+            {
+              "must": [
+                "RHAB 3100"
+              ]
+            },
+            {
+              "must": [
+                "SOCI 1510"
+              ]
+            },
+            {
+              "must": [
+                "SOWK 1450"
+              ]
+            }
+          ],
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "SocialAndBehavioralSciences3Hours",
+            "heading": "Social and Behavioral Sciences, 3 hours"
+          }
+        },
+        {
+          "kind": "choice",
+          "name": "Component Area Option, 6 hours",
+          "branches": [
+            {
+              "name": "6 hours from Component Area Option A",
+              "node": {
+                "kind": "hours",
+                "name": "Six hours from Component Area Option A",
+                "hours": 6,
+                "options": [
+                  {
+                    "must": [
+                      "ANTH 1150"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "COMM 2040"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "COMM 2140"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "COUN 2620"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "HDFS 3423"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "NUTR 1450"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "JOUR 2250"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MATH 1720"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MDSE 3370"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MKTG 3010"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MTSE 1100"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUJS 3070"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUMH 3500"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUMH 3510"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHIL 2500"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHIL 3900"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHIL 4150"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHIL 4200"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "SOCI 2070"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "SOWK 4540"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "TECM 1600"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ENGL 1310"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ENGL 1311"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ENGL 1315"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "TECM 1700"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ENGL 1320"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ENGL 1321"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ENGL 1325"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "TECM 2700"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "DSCI 2710"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MATH 1180"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MATH 1190"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MATH 1580"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MATH 1650"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MATH 1680"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MATH 1710"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MATH 1810"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 2700"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ARCH 2800"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "BIOL 1082"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "BIOL 1112"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "BIOL 1132"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "BIOL 1710"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "BIOL 1711"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "BIOL 1720"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "BIOL 1722"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "BIOL 2301"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "BIOL 2302"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "BIOL 2700"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CHEM 1360"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CHEM 1410"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CHEM 1412"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CHEM 1413"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CHEM 1420"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CHEM 1422"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CHEM 1423"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "GEOG 1710"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "GEOL 1610"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "LING 3050"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MTSE 2000"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "NUTR 2460"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "NUTR 3460"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHYS 1052"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHYS 1062"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHYS 1270"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHYS 1315"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHYS 1410"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHYS 1420"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHYS 1510"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHYS 1520"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHYS 1710"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHYS 2220"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "AGER 2250"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3101"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3110"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3120"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3130"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3140"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3200"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3210"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3220"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3300"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3400"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3500"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3700"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 3710"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ART 2350"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ENGL 2321"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ENGL 2326"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ENGL 2331"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ENGL 2341"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ENGL 2351"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ENGL 3450"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "GEOG 1000"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "HDFS 2313"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "HIST 1050"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "HIST 1060"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "KINE 2050"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "LING 2050"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "LING 3010"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUET 2000"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUET 3030"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHIL 1050"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHIL 1400"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHIL 2050"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHIL 2070"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHIL 2600"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "THEA 3040"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 2400"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ART 1300"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ART 1301"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ART 2360"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ART 2370"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "COMM 2060"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "DANC 1200"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "DANC 2800"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUCO 1200"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUCO 3500"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUET 3060"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUJS 3400"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUMH 1610"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUMH 2040"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUMH 2050"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUMH 2060"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUMH 2080"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUMH 3000"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUMH 3010"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUMH 3100"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUMH 3200"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MUMH 3520"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PHIL 1900"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "THEA 1340"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "THEA 2340"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "THEA 3030"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "HIST 2610"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "HIST 2620"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "HIST 2675"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "HIST 2685"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PSCI 2305"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PSCI 2315"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PSCI 2306"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PSCI 2316"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "AGER 4560"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "AGER 4800"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 1010"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ANTH 2300"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "BAAS 3000"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "BEHV 2300"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "CJUS 2100"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "COMM 2020"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "EADP 1010"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "EADP 4050"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ECON 1100"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "ECON 1110"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "FIPL 2770"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "GEOG 1200"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "GEOG 1500"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "HDFS 1013"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "HLTH 2200"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "JOUR 1210"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "LING 3060"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "MDSE 2750"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PADM 2100"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "PSYC 1630"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "RESM 3450"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "RHAB 3100"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "SOCI 1510"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "SOWK 1450"
+                    ]
+                  }
+                ],
+                "citation": {
+                  "page": "core-curriculum.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+                  "anchor": "ComponentAreaOptionA",
+                  "heading": "Component Area Option A"
+                }
+              }
+            },
+            {
+              "name": "3 hours from Option A and 3 hours from Option B",
+              "node": {
+                "kind": "group",
+                "name": "Option A plus Option B",
+                "children": [
+                  {
+                    "kind": "hours",
+                    "name": "Three hours from Component Area Option A",
+                    "hours": 3,
+                    "options": [
+                      {
+                        "must": [
+                          "ANTH 1150"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "COMM 2040"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "COMM 2140"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "COUN 2620"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "HDFS 3423"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "NUTR 1450"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "JOUR 2250"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 1720"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MDSE 3370"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MKTG 3010"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MTSE 1100"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUJS 3070"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUMH 3500"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUMH 3510"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHIL 2500"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHIL 3900"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHIL 4150"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHIL 4200"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "SOCI 2070"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "SOWK 4540"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "TECM 1600"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ENGL 1310"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ENGL 1311"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ENGL 1315"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "TECM 1700"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ENGL 1320"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ENGL 1321"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ENGL 1325"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "TECM 2700"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "DSCI 2710"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 1180"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 1190"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 1580"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 1650"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 1680"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 1710"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MATH 1810"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 2700"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ARCH 2800"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "BIOL 1082"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "BIOL 1112"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "BIOL 1132"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "BIOL 1710"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "BIOL 1711"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "BIOL 1720"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "BIOL 1722"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "BIOL 2301"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "BIOL 2302"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "BIOL 2700"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "CHEM 1360"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "CHEM 1410"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "CHEM 1412"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "CHEM 1413"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "CHEM 1420"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "CHEM 1422"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "CHEM 1423"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "GEOG 1710"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "GEOL 1610"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "LING 3050"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MTSE 2000"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "NUTR 2460"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "NUTR 3460"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHYS 1052"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHYS 1062"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHYS 1270"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHYS 1315"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHYS 1410"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHYS 1420"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHYS 1510"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHYS 1520"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHYS 1710"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHYS 2220"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "AGER 2250"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3101"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3110"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3120"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3130"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3140"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3200"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3210"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3220"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3300"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3400"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3500"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3700"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 3710"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ART 2350"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ENGL 2321"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ENGL 2326"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ENGL 2331"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ENGL 2341"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ENGL 2351"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ENGL 3450"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "GEOG 1000"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "HDFS 2313"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "HIST 1050"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "HIST 1060"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "KINE 2050"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "LING 2050"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "LING 3010"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUET 2000"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUET 3030"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHIL 1050"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHIL 1400"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHIL 2050"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHIL 2070"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHIL 2600"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "THEA 3040"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 2400"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ART 1300"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ART 1301"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ART 2360"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ART 2370"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "COMM 2060"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "DANC 1200"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "DANC 2800"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUCO 1200"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUCO 3500"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUET 3060"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUJS 3400"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUMH 1610"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUMH 2040"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUMH 2050"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUMH 2060"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUMH 2080"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUMH 3000"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUMH 3010"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUMH 3100"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUMH 3200"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MUMH 3520"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHIL 1900"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "THEA 1340"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "THEA 2340"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "THEA 3030"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "HIST 2610"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "HIST 2620"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "HIST 2675"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "HIST 2685"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PSCI 2305"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PSCI 2315"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PSCI 2306"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PSCI 2316"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "AGER 4560"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "AGER 4800"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 1010"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ANTH 2300"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "BAAS 3000"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "BEHV 2300"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "CJUS 2100"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "COMM 2020"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "EADP 1010"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "EADP 4050"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ECON 1100"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "ECON 1110"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "FIPL 2770"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "GEOG 1200"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "GEOG 1500"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "HDFS 1013"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "HLTH 2200"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "JOUR 1210"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "LING 3060"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MDSE 2750"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PADM 2100"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PSYC 1630"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "RESM 3450"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "RHAB 3100"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "SOCI 1510"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "SOWK 1450"
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "core-curriculum.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+                      "anchor": "ComponentAreaOptionA",
+                      "heading": "Component Area Option A"
+                    }
+                  },
+                  {
+                    "kind": "hours",
+                    "name": "Three hours from Component Area Option B",
+                    "hours": 3,
+                    "options": [
+                      {
+                        "must": [
+                          "ADES 3700"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "COMM 1010"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "COMM 1440"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "CSCE 1010"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "HDFS 2033"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "INST 2100"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "JOUR 2300"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "LING 2070"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "MKTG 2650"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "PHED 1000"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "RHAB 3000"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "TECM 1500"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "UNIV 2100"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "UNIV 2300"
+                        ]
+                      },
+                      {
+                        "must": [
+                          "WGST 2100"
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "core-curriculum.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+                      "anchor": "ComponentAreaOptionB",
+                      "heading": "Component Area Option B"
+                    }
+                  }
+                ],
+                "citation": {
+                  "page": "core-curriculum.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+                  "anchor": "ComponentAreaOption6Hours",
+                  "heading": "Component Area Option, 6 hours"
+                }
+              }
+            }
+          ],
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "ComponentAreaOption6Hours",
+            "heading": "Component Area Option, 6 hours"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Component Area Option double-dip rule",
+          "text": "Note: Students may not “double-dip” courses to complete the University Core Curriculum. If a student completes PADM 2100 for the Social and Behavioral Sciences area, PADM 2100 may not count toward Component Area Option A.",
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "ComponentAreaOptionA",
+            "heading": "Component Area Option A"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Option A other-core courses",
+          "text": "Or any course included in the other core areas listed above (Communication, Life and Physical Sciences, etc.)",
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "ComponentAreaOptionA",
+            "heading": "Component Area Option A"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Other ways to complete the core",
+          "text": "A student who successfully completes the common core curriculum at a state-assisted institution of higher education in Texas may transfer as “core complete” to UNT. The student will receive academic credit for each of the courses transferred. See also the UNT transfer articulation web page on the Registrar’s Office web site, where you can find information on the online transfer course equivalency tool Transferology. Certain core areas may be completed, fully or in part, by the successful completion of the appropriate advanced standing examination (AP/IB/CLEP). More information about advanced standing examinations accepted by UNT may be found on the Test, Prior Learning and Transfer Credit page under “Advanced Placement and Credit by Examination.” Please speak to your advisor to determine how an advanced standing examination may be used in meeting your degree requirements.",
+          "citation": {
+            "page": "core-curriculum.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
+            "anchor": "TransferOfTheCoreCurriculum",
+            "heading": "Transfer of the Core Curriculum"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Total hours: 120",
+          "policy": {
+            "type": "totalHours",
+            "hours": 120
+          },
+          "quote": "Students must complete a minimum of 120 semester hours to earn a degree at UNT.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours at UNT: 24",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 24
+          },
+          "quote": "A minimum of 24 hours of advanced work (3000 or 4000 level) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Residency",
+          "policy": {
+            "type": "residencyPercent",
+            "percent": 25
+          },
+          "quote": "Residence: minimum of 25 percent of the total hours for the degree (e.g., 30 hours for a 120-hour degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Overall GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
+          },
+          "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "UNT GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
+          },
+          "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        }
+      ],
+      "coreSharedCourses": [
+        "ADES 3700",
+        "AGER 2250",
+        "AGER 4560",
+        "AGER 4800",
+        "ANTH 1010",
+        "ANTH 1150",
+        "ANTH 2300",
+        "ANTH 2400",
+        "ANTH 2700",
+        "ANTH 3101",
+        "ANTH 3110",
+        "ANTH 3120",
+        "ANTH 3130",
+        "ANTH 3140",
+        "ANTH 3200",
+        "ANTH 3210",
+        "ANTH 3220",
+        "ANTH 3300",
+        "ANTH 3400",
+        "ANTH 3500",
+        "ANTH 3700",
+        "ANTH 3710",
+        "ARCH 2800",
+        "ART 1300",
+        "ART 1301",
+        "ART 2350",
+        "ART 2360",
+        "ART 2370",
+        "BAAS 3000",
+        "BEHV 2300",
+        "BIOL 1082",
+        "BIOL 1112",
+        "BIOL 1132",
+        "BIOL 1710",
+        "BIOL 1711",
+        "BIOL 1720",
+        "BIOL 1722",
+        "BIOL 2301",
+        "BIOL 2302",
+        "BIOL 2700",
+        "CHEM 1360",
+        "CHEM 1410",
+        "CHEM 1412",
+        "CHEM 1413",
+        "CHEM 1420",
+        "CHEM 1422",
+        "CHEM 1423",
+        "CJUS 2100",
+        "COMM 1010",
+        "COMM 1440",
+        "COMM 2020",
+        "COMM 2040",
+        "COMM 2060",
+        "COMM 2140",
+        "COUN 2620",
+        "CSCE 1010",
+        "DANC 1200",
+        "DANC 2800",
+        "DSCI 2710",
+        "EADP 1010",
+        "EADP 4050",
+        "ECON 1100",
+        "ECON 1110",
+        "ENGL 1310",
+        "ENGL 1311",
+        "ENGL 1315",
+        "ENGL 1320",
+        "ENGL 1321",
+        "ENGL 1325",
+        "ENGL 2321",
+        "ENGL 2326",
+        "ENGL 2331",
+        "ENGL 2341",
+        "ENGL 2351",
+        "ENGL 3450",
+        "FIPL 2770",
+        "GEOG 1000",
+        "GEOG 1200",
+        "GEOG 1500",
+        "GEOG 1710",
+        "GEOL 1610",
+        "HDFS 1013",
+        "HDFS 2033",
+        "HDFS 2313",
+        "HDFS 3423",
+        "HIST 1050",
+        "HIST 1060",
+        "HIST 2610",
+        "HIST 2620",
+        "HIST 2675",
+        "HIST 2685",
+        "HLTH 2200",
+        "INST 2100",
+        "JOUR 1210",
+        "JOUR 2250",
+        "JOUR 2300",
+        "KINE 2050",
+        "LING 2050",
+        "LING 2070",
+        "LING 3010",
+        "LING 3050",
+        "LING 3060",
+        "MATH 1180",
+        "MATH 1190",
+        "MATH 1580",
+        "MATH 1650",
+        "MATH 1680",
+        "MATH 1710",
+        "MATH 1720",
+        "MATH 1810",
+        "MDSE 2750",
+        "MDSE 3370",
+        "MKTG 2650",
+        "MKTG 3010",
+        "MTSE 1100",
+        "MTSE 2000",
+        "MUCO 1200",
+        "MUCO 3500",
+        "MUET 2000",
+        "MUET 3030",
+        "MUET 3060",
+        "MUJS 3070",
+        "MUJS 3400",
+        "MUMH 1610",
+        "MUMH 2040",
+        "MUMH 2050",
+        "MUMH 2060",
+        "MUMH 2080",
+        "MUMH 3000",
+        "MUMH 3010",
+        "MUMH 3100",
+        "MUMH 3200",
+        "MUMH 3500",
+        "MUMH 3510",
+        "MUMH 3520",
+        "NUTR 1450",
+        "NUTR 2460",
+        "NUTR 3460",
+        "PADM 2100",
+        "PHED 1000",
+        "PHIL 1050",
+        "PHIL 1400",
+        "PHIL 1900",
+        "PHIL 2050",
+        "PHIL 2070",
+        "PHIL 2500",
+        "PHIL 2600",
+        "PHIL 3900",
+        "PHIL 4150",
+        "PHIL 4200",
+        "PHYS 1052",
+        "PHYS 1062",
+        "PHYS 1270",
+        "PHYS 1315",
+        "PHYS 1410",
+        "PHYS 1420",
+        "PHYS 1510",
+        "PHYS 1520",
+        "PHYS 1710",
+        "PHYS 2220",
+        "PSCI 2305",
+        "PSCI 2306",
+        "PSCI 2315",
+        "PSCI 2316",
+        "PSYC 1630",
+        "RESM 3450",
+        "RHAB 3000",
+        "RHAB 3100",
+        "SOCI 1510",
+        "SOCI 2070",
+        "SOWK 1450",
+        "SOWK 4540",
+        "TECM 1500",
+        "TECM 1600",
+        "TECM 1700",
+        "TECM 2700",
+        "THEA 1340",
+        "THEA 2340",
+        "THEA 3030",
+        "THEA 3040",
+        "UNIV 2100",
+        "UNIV 2300",
+        "WGST 2100"
+      ],
+      "oneCourseOneArea": true
+    }
+  ]
+};
