@@ -873,6 +873,12 @@ button.mv-gap__head {
   margin: 14px 0 0 44px;
 }
 
+/* The action keeps one line; the data date beside it wraps instead. */
+.mv-foot .mv-link {
+  flex: none;
+  white-space: nowrap;
+}
+
 .mv-source {
   margin: 0;
   font-size: 12px;

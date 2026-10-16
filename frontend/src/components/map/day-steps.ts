@@ -88,6 +88,30 @@ export function nextClassFrom(
   return null;
 }
 
+/**
+ * The first date the plan holds class, when none of its dated meetings has
+ * started by `todayIso`: a student planning Spring in October. Day shows
+ * that first week, dated, because today has nothing of this plan to show.
+ * Null once any dated meeting has started, and with no dated meeting at all
+ * (samples have no dates).
+ */
+export function firstWeekAhead(stopsByDay: Readonly<Record<ClassDay, readonly MapStop[]>>, todayIso: string): { iso: string; day: ClassDay } | null {
+  const starts = classDays.flatMap((day) => (stopsByDay[day] ?? []).flatMap((stop) => (stop.dates ? [stop.dates.start] : [])));
+  if (starts.length === 0 || starts.some((start) => start <= todayIso)) return null;
+  const first = starts.reduce((a, b) => (b < a ? b : a));
+  // Two weeks covers a first week that loses its only class day to a holiday.
+  for (let ahead = 0; ahead < 14; ahead += 1) {
+    const { iso, day } = shiftIso(first, ahead);
+    if ((stopsByDay[day] ?? []).some((stop) => meetsOn(stop, iso))) return { iso, day };
+  }
+  return null;
+}
+
+/** "Jan 11" for an ISO date, read as a calendar date in any time zone. */
+export function shortDate(iso: string): string {
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+}
+
 /** The campus date `day` next falls on, today included: Day's Thursday is this week's Thursday, or next week's once it has passed. */
 export function nextDateOf(day: ClassDay, todayIso: string): string {
   for (let ahead = 0; ahead < 7; ahead += 1) {

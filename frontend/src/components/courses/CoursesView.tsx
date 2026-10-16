@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { CONNECT_PATH, OPEN_CONNECT_EVENT } from "@/components/connect/open-connect";
 import { usePlanner } from "@/components/planner-provider";
-import { LENS_HREF } from "@/components/shell/routes";
+import { asksForMajor, LENS_HREF } from "@/components/shell/routes";
 import { useShell, useShellSearch, type ShellSearchProvider } from "@/components/shell/shell-context";
 import { ContextPanel } from "@/components/ui/ContextPanel";
 import { ChevronDown } from "@/components/ui/icons";
@@ -124,6 +124,16 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
   const idle = hydrated && untouched && !major;
   const sampleOnly = model.hasTranscript && transcriptRecords.every((record) => record.id.startsWith("sample-"));
   const say = setAnnouncement;
+
+  // Arriving from the landing's "Pick courses by hand": the student already
+  // chose how to start, so the major comes next, not this page's start options.
+  const majorAsked = useRef(false);
+  useEffect(() => {
+    if (!hydrated || majorAsked.current || !asksForMajor(window.location.search)) return;
+    majorAsked.current = true;
+    router.replace(LENS_HREF.courses, { scroll: false });
+    if (idle) setDegreeOpen(true);
+  }, [hydrated, idle, router]);
 
   /* ---------- motion ---------- */
 

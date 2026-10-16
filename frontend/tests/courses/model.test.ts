@@ -45,7 +45,15 @@ describe("rule text", () => {
     const node = ruleFromPrerequisite(and(course("CSCE 1040"), { kind: "unknown", detail: "x", source: "Can be taken concurrently with CSCE 2110 ." }));
     const { readable, unparsed } = splitUnparsed(node);
     expect(tokensToString(ruleTokens(readable))).toBe("CSCE 1040");
-    expect(unparsed).toEqual(["Can be taken concurrently with CSCE 2110."]);
+    expect(unparsed).toEqual(["Can be taken concurrently with CSCE 2110"]);
+  });
+
+  test("a whole rule the parser can't read is quoted without its closing period", () => {
+    // CSCE 1030's catalog rule, which the course detail quotes inside its own sentence.
+    const source = "CSCE 1010 (for CSE majors only) with a grade of C or better and MATH 1100, or MATH 1650 or MATH 1710 with a C or better.";
+    const { readable, unparsed } = splitUnparsed(ruleFromPrerequisite({ kind: "unknown", detail: "x", source }));
+    expect(readable).toBeNull();
+    expect(unparsed).toEqual([source.slice(0, -1)]);
   });
 
   test("unmet keeps only blocking branches of an AND and every alternative of an OR", () => {

@@ -114,13 +114,16 @@ export function onlyCheckable(node: RuleNode | null): RuleNode | null {
 /**
  * Splits top-level clauses the parser could not read from the readable rule,
  * so the panel can quote them separately instead of gluing catalog prose into
- * a sentence. Unparsed text nested inside an OR stays inline.
+ * a sentence. Unparsed text nested inside an OR stays inline. A quoted clause
+ * loses its closing punctuation, which the sentence quoting it supplies
+ * ("can't read "… or better", so check it", not "… or better.", so").
  */
 export function splitUnparsed(node: RuleNode | null): { readable: RuleNode | null; unparsed: string[] } {
   if (!node) return { readable: null, unparsed: [] };
-  if (node.kind === "unparsed") return { readable: null, unparsed: [node.text] };
+  const quoted = (text: string) => text.replace(/[\s.,;:]+$/, "");
+  if (node.kind === "unparsed") return { readable: null, unparsed: [quoted(node.text)] };
   if (node.kind !== "all") return { readable: node, unparsed: [] };
-  const unparsed = node.items.flatMap((item) => (item.kind === "unparsed" ? [item.text] : []));
+  const unparsed = node.items.flatMap((item) => (item.kind === "unparsed" ? [quoted(item.text)] : []));
   return { readable: group("all", node.items.filter((item) => item.kind !== "unparsed")), unparsed };
 }
 

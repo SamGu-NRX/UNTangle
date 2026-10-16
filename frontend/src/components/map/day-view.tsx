@@ -21,7 +21,7 @@ import { dayHero, type HeroClass } from "@/lib/leave-by";
 import { dayWalkMinutes, formatWalkMinutes, toMinutes, type StartPlace } from "@/lib/map-itinerary";
 import { classDays, type ClassDay } from "@/lib/types";
 import { DayHero, DayItinerary, DayStepper, OtherCampusHero, StartPicker, type NextClass } from "@/components/map/day-panel";
-import { campusNow, dayNames, meetsOn, nextClassDay, nextClassFrom, nextDateOf, stepperDays } from "@/components/map/day-steps";
+import { campusNow, dayNames, firstWeekAhead, meetsOn, nextClassDay, nextClassFrom, nextDateOf, shortDate, stepperDays } from "@/components/map/day-steps";
 import { findGapEvent, gapRows } from "@/components/map/gap-events";
 import type { CameraPadding, DayFrame } from "@/components/map/map-canvas";
 import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
@@ -115,10 +115,13 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
 
   const clockMinute = useClockMinute();
   const campusTime = useMemo(() => (clockMinute === null ? null : campusNow(new Date(clockMinute * 60_000))), [clockMinute]);
-  const today = campusTime?.day ?? null;
-  // Today comes first; the stepper reaches the rest. Kept while the student visits other lenses.
+  // Before the plan's classes begin, today has nothing of it to show: Day
+  // opens on their first week instead, each day dated, and has no Today.
+  const ahead = useMemo(() => (campusTime && onCampus ? firstWeekAhead(routeStops, campusTime.iso) : null), [campusTime, onCampus, routeStops]);
+  const today = ahead ? null : (campusTime?.day ?? null);
+  // Today, or that first week, comes first; the stepper reaches the rest. Kept while the student visits other lenses.
   const [pickedDay, setPickedDay] = usePageState<ClassDay | null>("day", null);
-  const day = pickedDay ?? today ?? "Mon";
+  const day = pickedDay ?? today ?? ahead?.day ?? "Mon";
   const isToday = day === today;
   const now = isToday && campusTime ? campusTime.minute : null;
 
@@ -127,19 +130,21 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
     [routeStops, onCampus],
   );
   const days = stepperDays(counts, today ?? day);
-  // Today counts only the meetings whose session runs today, and none on a
-  // holiday or break; another day shows the weekday's plan.
-  const todayDate = isToday && campusTime ? campusTime.iso : null;
+  // The date the day shown stands for: today, or its date in the first week
+  // ahead. A dated day counts only the meetings whose session runs then, and
+  // none on a holiday or break; an undated one shows the weekday's plan.
+  const dayDate = isToday && campusTime ? campusTime.iso : ahead ? nextDateOf(day, ahead.iso) : null;
   const stops = useMemo(() => {
     const all = onCampus ? (routeStops[day] ?? []) : [];
-    return todayDate ? all.filter((stop) => meetsOn(stop, todayDate)) : all;
-  }, [day, routeStops, onCampus, todayDate]);
+    return dayDate ? all.filter((stop) => meetsOn(stop, dayDate)) : all;
+  }, [day, routeStops, onCampus, dayDate]);
   const start = useStartingPoint();
   const itinerary = useItinerary(stops, start);
 
-  // Campus events in the day's gaps: today's, or on the date the weekday shown next falls on.
-  const gapDate = campusTime && onCampus ? (isToday ? campusTime.iso : nextDateOf(day, campusTime.iso)) : null;
-  // Asked for as soon as the date is known, alongside the planner and the routes, so the
+  // Campus events in the day's gaps: on its date, or on the date the weekday shown next falls on.
+  // Not before the sections load: until then the first week ahead is unknown, and today's date would be asked for.
+  const gapDate = ready && campusTime && onCampus ? (dayDate ?? nextDateOf(day, campusTime.iso)) : null;
+  // Asked for as soon as the date is known, alongside the routes, so the
   // rows are usually there with the itinerary. A late answer waits while the list is in use.
   const listBusy = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -161,8 +166,7 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
     [itinerary, gapDate, campusEvents, isToday, campusTime, selectedEventKey],
   );
   const gapsByLeg = useMemo(() => new Map(gaps.map((row) => [row.legKey, row])), [gaps]);
-  const gapDateLabel =
-    gapDate && !isToday ? new Date(`${gapDate}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }) : null;
+  const gapDateLabel = gapDate && !isToday ? shortDate(gapDate) : null;
 
   const hero = dayHero(
     itinerary.stops.map((entry, index): HeroClass => ({
@@ -308,6 +312,7 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
       itinerary={itinerary}
       day={day}
       isToday={isToday}
+      date={ahead ? dayDate : null}
       next={next}
       onShowDay={changeDay}
       hasClasses={counts.Mon + counts.Tue + counts.Wed + counts.Thu + counts.Fri + counts.Sat + counts.Sun > 0}
