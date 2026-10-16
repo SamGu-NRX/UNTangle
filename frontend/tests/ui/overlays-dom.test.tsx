@@ -83,13 +83,13 @@ describe("Toaster", () => {
     await view.unmount();
   });
 
-  test("while a modal is open the toast steps aside, message only; Undo returns when it closes", async () => {
+  test("over a modal sheet the toast waits above the sheet's edge, message only; Undo returns when it closes", async () => {
     const { Toaster, toast, dismissToast } = await import("@/components/ui/Toast");
     const { BottomSheet } = await import("@/components/ui/BottomSheet");
     const { act } = await import("react");
     const Harness = ({ open }: { open: boolean }) => (
       <>
-        <BottomSheet open={open} onOpenChange={() => {}} title="Find courses">
+        <BottomSheet open={open} onOpenChange={() => {}} title="Find courses" detents={["52%", "92%"]}>
           <button type="button">Add section 001</button>
         </BottomSheet>
         <Toaster />
@@ -100,15 +100,45 @@ describe("Toaster", () => {
       toast({ message: "Added CSCE 1030 section 001", action: { label: "Undo", onClick: () => {} } });
     });
     const toaster = () => document.querySelector(".ui-toaster")!;
-    // Over the sheet: marked so phones place it at the top, and with no buttons it couldn't use (the page is inert).
-    expect(toaster().hasAttribute("data-covered")).toBe(true);
+    // Over the sheet: marked for the strip above it (ui.css), with no buttons it couldn't use (the page is inert).
+    expect(toaster().getAttribute("data-covered")).toBe("sheet");
     expect(toaster().hasAttribute("inert")).toBe(true);
     expect(toaster().textContent).toContain("Added CSCE 1030 section 001");
     expect(toaster().querySelector("button")).toBeNull();
+    // The sheet opens at 52%: its top edge rests 48% of the way down the 900px window.
+    expect(document.documentElement.style.getPropertyValue("--sheet-top")).toBe(`${900 - 0.52 * 900}px`);
     await view.rerender(<Harness open={false} />);
     await act(async () => sleep(200));
     expect(toaster().hasAttribute("data-covered")).toBe(false);
+    expect(document.documentElement.style.getPropertyValue("--sheet-top")).toBe("");
     expect([...toaster().querySelectorAll("button")].map((b) => b.textContent || b.getAttribute("aria-label"))).toEqual(["Undo", "Dismiss"]);
+    await act(async () => dismissToast());
+    await view.unmount();
+  });
+
+  test("over the search palette or a dialog the toast hides, so it never covers the field or a title", async () => {
+    const { Toaster, toast, dismissToast } = await import("@/components/ui/Toast");
+    const { SearchPalette } = await import("@/components/ui/SearchPalette");
+    const { act } = await import("react");
+    const Harness = ({ open }: { open: boolean }) => (
+      <>
+        <SearchPalette open={open} onOpenChange={() => {}} query="" onQueryChange={() => {}} sections={[]} onSelect={() => {}} />
+        <Toaster />
+      </>
+    );
+    const view = await mount(<Harness open={false} />);
+    await act(async () => {
+      toast({ message: "Planned CSCE 1030", action: { label: "Undo", onClick: () => {} } });
+    });
+    expect(document.querySelector(".ui-toast")).not.toBeNull();
+    await view.rerender(<Harness open />);
+    expect(document.querySelector(".ui-toaster")!.getAttribute("data-covered")).toBe("dialog");
+    expect(document.querySelector(".ui-toast")).toBeNull();
+    // Still said: the announcement region keeps the message.
+    expect(document.querySelector("[data-ui-live]")?.textContent).toBe("Planned CSCE 1030");
+    await view.rerender(<Harness open={false} />);
+    await act(async () => sleep(200));
+    expect(document.querySelector(".ui-toast button")?.textContent).toBe("Undo");
     await act(async () => dismissToast());
     await view.unmount();
   });

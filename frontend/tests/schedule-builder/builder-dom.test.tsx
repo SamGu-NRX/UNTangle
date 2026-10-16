@@ -221,6 +221,33 @@ describe("Week", () => {
     }
   });
 
+  test("on a phone a class's sheet and an option's Details sheet have their title and a Close button", async () => {
+    const realMatch = window.matchMedia;
+    // The phone layout (PHONE_QUERY in use-media-query.ts); everything else stays as happy-dom answers.
+    const phoneList = (media: string) =>
+      ({ matches: true, media, onchange: null, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false }) as unknown as MediaQueryList;
+    window.matchMedia = ((query: string) => (query === "(max-width: 759px)" ? phoneList(query) : realMatch.call(window, query))) as typeof window.matchMedia;
+    try {
+      const week = [course(csceLate), course(math)];
+      const view = await render(host(week).value);
+      await click(view.container.querySelector('[data-key="CSCE 2110#0"]')!);
+      let sheet = document.querySelector<HTMLElement>('[role="dialog"]')!;
+      expect(sheet.querySelector("h2")?.textContent).toBe("CSCE 2110");
+      expect(buttons(sheet, /^Close CSCE 2110$/)).toHaveLength(1);
+      await click(buttons(sheet, /^Close CSCE 2110$/)[0]);
+
+      await click(buttons(view.container, /^Auto/)[0]);
+      await view.update(host(week, { runId: 1, status: "done", options: [{ "CSCE 2110": csce.id, "MATH 2700": math.id }] }).value);
+      await click(buttons(view.container, /^Details$/)[0]);
+      sheet = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].at(-1)!;
+      expect(sheet.querySelector("h2")?.textContent).toBe("Option 1 next to your week");
+      expect(buttons(sheet, /^Close Option 1 next to your week$/)).toHaveLength(1);
+      await view.unmount();
+    } finally {
+      window.matchMedia = realMatch;
+    }
+  });
+
   test("a result from settings that changed since can't be used", async () => {
     const week = [course(csce), course(math)];
     const view = await render(host(week).value);

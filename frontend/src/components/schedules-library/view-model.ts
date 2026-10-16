@@ -1,9 +1,9 @@
 import { figuresOf } from "@/components/schedule-builder/answer";
 import { eventsOf, walksOf, type WalkFn } from "@/components/schedule-builder/week";
-import { normalizePlannerState, resolveSectionPlan } from "@/lib/planner";
+import { normalizePlannerState } from "@/lib/planner";
 import type { PlanLockChange } from "@/lib/plan-library/diff";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
-import { optionIdLabel, sectionRef, type SectionCatalog } from "@/lib/planner-sections";
+import { optionIdLabel, sectionRef } from "@/lib/planner-sections";
 import { weekTravel } from "@/lib/planner-walking";
 import type { Section } from "@/lib/sections";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
@@ -85,11 +85,6 @@ export function samePlan(a: PlannerState, b: PlannerState): boolean {
  */
 export function hasSavedCopy(working: PlannerState, plans: readonly SavedPlanSnapshot[]): boolean {
   return plans.some((plan) => samePlan(working, plan.state));
-}
-
-/** The sections a saved schedule puts on the week, resolved the way Week resolves Main's. */
-export function placedSections(state: PlannerState, catalog: SectionCatalog): Section[] {
-  return resolveSectionPlan(normalizePlannerState(state), catalog).courses.flatMap((course) => (course.section ? [course.section] : []));
 }
 
 /**

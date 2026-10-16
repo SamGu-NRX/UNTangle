@@ -118,8 +118,8 @@ export function SchedulesClient() {
     id: MAIN_ID,
     name: SCHEDULE_NAME,
     active: true,
-    // A plan nobody has touched was only created, not edited.
-    fact: hasStartedPlan(plannerState, getInitialPlannerState()) ? whenText("Edited", plannerState.updatedAt, now) : "Nothing planned yet",
+    // A plan nobody has touched was only created, not edited. Until the stored plan loads, neither is known.
+    fact: !planner.hydrated ? "" : hasStartedPlan(plannerState, getInitialPlannerState()) ? whenText("Edited", plannerState.updatedAt, now) : "Nothing planned yet",
     state: plannerState,
     blocks: weekBlocks(scheduleEvents),
     snapshot: null,

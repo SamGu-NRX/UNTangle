@@ -27,7 +27,7 @@ afterAll(() => {
   removeDom();
 });
 
-async function page({ copies = true }: { copies?: boolean } = {}) {
+async function page({ copies = true, hydrated = true }: { copies?: boolean; hydrated?: boolean } = {}) {
   const { getInitialPlannerState, normalizePlannerState, resolveSectionPlan } = await import("@/lib/planner");
   const { eventsOf } = await import("@/lib/plan-library/week");
   const { sampleCatalog } = await import("@/lib/planner-sections");
@@ -62,6 +62,7 @@ async function page({ copies = true }: { copies?: boolean } = {}) {
     loadSections: () => {},
     transact: async () => ({ status: "committed", result: null }),
     identityReady: true,
+    hydrated,
     afterHydration: async () => {},
     planStamp: 0,
     saveState: { status: "saved" },
@@ -116,7 +117,7 @@ describe("Compare", () => {
     const view = await page();
     await click(button("Compare"));
     await click(button("Compare Main"));
-    await click(button("Compare Middle"));
+    await click(button("Compare Heavier"));
     // Week's own figures for Main: the sections it places, timed by the walk function Week's host uses.
     const events = gridEvents(mainSections);
     const week = figuresOf(events, walksOf(events, weekTravel));
@@ -124,6 +125,10 @@ describe("Compare", () => {
     expect(rows.find((row) => row[0] === "Walking a week")?.[1]).toBe(`${week.walkMinutes} min`);
     expect(rows.find((row) => row[0] === "Tight or late walks")?.[1]).toBe(String(week.badWalks));
     expect(rows.flat()).not.toContain("Unknown");
+    // Heavier's sample sections meet MWF at 8:00, 9:00 and 10:00 in three buildings, ten minutes apart: two walks a
+    // day that add up to 12 minutes, one of them tight, three days a week. Both are more than Main's, said in words too.
+    expect(rows.find((row) => row[0] === "Walking a week")?.[2]).toBe("36 min, worse");
+    expect(rows.find((row) => row[0] === "Tight or late walks")?.[2]).toBe("3, worse");
     await view.unmount();
   });
 
@@ -162,6 +167,18 @@ describe("Compare", () => {
     // The closed dialog's layer is released: the page scrolls again (modal-layer.ts holds the lock while any layer is open).
     expect(document.documentElement.style.overflow).toBe("");
     await view.unmount();
+  });
+
+  test("Main says nothing about when it was edited until the stored plan has loaded", async () => {
+    const mainRow = () => [...document.querySelectorAll("li")].find((li) => li.textContent?.includes("Main"))?.textContent ?? "";
+    const loading = await page({ copies: false, hydrated: false });
+    expect(mainRow()).not.toContain("Nothing planned yet");
+    expect(mainRow()).not.toContain("Edited");
+    await loading.unmount();
+    // Loaded, this Main plans two courses, so it was edited.
+    const loaded = await page({ copies: false });
+    expect(mainRow()).toContain("Edited");
+    await loaded.unmount();
   });
 
   test("two plans keep Both, and the credits row", async () => {

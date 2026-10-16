@@ -57,6 +57,9 @@ test("Week's search says what Courses says about a course's prerequisites", asyn
     expect(hit("CSCE 1030")?.textContent).toContain(", check with an advisor");
     expect(hit("CSCE 1030")?.textContent).not.toContain("locked");
     expect(hit("CSCE 1040")?.textContent).toContain(", locked");
+    // A course Courses has no row for is one nobody can vouch for.
+    const { requirementStatus } = await import("@/app/schedule/untangle-host");
+    expect(requirementStatus(undefined)).toBe("check");
   } finally {
     await planner.unmount();
   }

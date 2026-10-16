@@ -105,10 +105,13 @@ function noteFor(course: PlannedCourse): { state: WeekCourse["state"]; note?: st
 /**
  * A search hit's status for a course the student hasn't done, planned or
  * started, from Courses' row for it: a rule UNTangle can't read, or one that
- * needs consent, is "check" (check with an advisor), never "locked".
+ * needs consent, is "check" (check with an advisor), never "locked". A
+ * course Courses has no row for is one nobody can vouch for, so it is
+ * "check" too.
  */
 export function requirementStatus(row: Pick<CourseRowModel, "status"> | undefined): "available" | "locked" | "check" | "done" {
-  switch (row?.status) {
+  if (!row) return "check";
+  switch (row.status) {
     case "locked":
     case "check":
       return row.status;
@@ -494,9 +497,13 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     close: closeBrowse,
   };
 
-  // Courses' own model, so a course reads the same in Week's search as in Courses (CoursesView builds it from the same three fields).
+  // Courses' own model, so a course reads the same in Week's search as in Courses (CoursesView builds it from the
+  // same three fields). Built on the first search after a change, not on every visit to Week.
   const courseRows = useMemo(
-    () => buildCourseModel(untProfile(), snapshotOf(plannerState)).rows,
+    () => {
+      let rows: ReadonlyMap<string, CourseRowModel> | null = null;
+      return () => (rows ??= buildCourseModel(untProfile(), snapshotOf(plannerState)).rows);
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [plannerState.courseStatuses, plannerState.transcriptRecords, plannerState.coursePlan],
   );
@@ -513,7 +520,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
               ? "taking"
               : status === "inProgress"
                 ? "planned"
-                : requirementStatus(courseRows.get(code)),
+                : requirementStatus(courseRows().get(code)),
       };
     },
     [courseRows, plannerState.courseStatuses, takingNow],

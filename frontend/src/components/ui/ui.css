@@ -1703,11 +1703,33 @@
   .ui-toaster {
     bottom: calc(var(--tabbar-h) + 12px + var(--safe-b) + var(--toast-lift, 0px));
   }
-  /* Over a modal sheet, at the top: the sheet rises from the bottom, so its rows and buttons are never under the toast. */
-  .ui-toaster[data-covered] {
-    top: calc(12px + var(--safe-t));
-    bottom: auto;
+  /*
+   * Over a modal sheet, in the dimmed strip above its top edge (--sheet-top, from modal-layer.ts), so the sheet's
+   * title, rows and buttons are never under it. The strip is a size container: too short for a one-line toast
+   * (a sheet at its top detent), the toast hides; the live region has said it, and Undo comes back on close.
+   */
+  .ui-toaster[data-covered="sheet"] {
+    top: calc(8px + var(--safe-t));
+    bottom: calc(100% - var(--sheet-top, 0px) + 8px);
+    align-items: flex-end;
+    container: toast-strip / size;
   }
+  .ui-toaster[data-covered="sheet"] .ui-toast {
+    min-height: 36px;
+  }
+  @container toast-strip (max-height: 35.9px) {
+    .ui-toast {
+      visibility: hidden;
+    }
+  }
+}
+/* Over a modal the toast has no buttons; its message keeps to one line, and the live region holds the whole of it. */
+.ui-toaster[data-covered] .ui-toast__message {
+  min-width: 0;
+  overflow: hidden;
+  padding: 8px 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ui-toast {
   display: inline-flex;
@@ -2320,16 +2342,7 @@
     transform: translateY(8px);
   }
   /* At the top of a phone screen it comes down from the edge it sits against. */
-  @media (max-width: 759px) {
-    @starting-style {
-      .ui-toaster[data-covered] .ui-toast {
-        transform: translateY(-8px);
-      }
-    }
-    .ui-toaster[data-covered] .ui-toast[data-state="closed"] {
-      transform: translateY(-8px);
-    }
-  }
+
 
   .ui-dialog {
     transition:
