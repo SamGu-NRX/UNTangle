@@ -267,6 +267,34 @@ describe("GET /api/v1/programs/[id]/audit", () => {
     expect(overall?.status).toBe("unverifiable");
   });
 
+  test("a reviewRequired row is not read as completed evidence", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    pull.mockImplementation(async () => [
+      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
+    ]);
+    // The applied status reads completed, but the importer flagged the row
+    // for review (low-confidence import): the planner counts it for nothing,
+    // so the audit must not either.
+    get.mockImplementation(async () => ({
+      kind: "academic-record",
+      body: {
+        ...recordBody,
+        transcriptRecords: [{ ...recordBody.transcriptRecords[0]!, reviewRequired: true }],
+      },
+    }));
+
+    const response = await auditRoute.GET(
+      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
+      { params: Promise.resolve({ id: "cs-bs" }) },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { audit: { policies: { name: string; status: string }[] } };
+    // The only transcript row is awaiting review, so the GPA has no evidence
+    // and reports unverifiable instead of reading the row as completed.
+    const overall = body.audit.policies.find((policy) => policy.name === "Overall GPA");
+    expect(overall?.status).toBe("unverifiable");
+  });
+
   test("a passing retake replaces an earlier F under UNT's repeat rule", async () => {
     getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
     pull.mockImplementation(async () => [

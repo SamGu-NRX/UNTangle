@@ -72,9 +72,12 @@ function auditCourses(record: AcademicRecordBody): AuditCourse[] {
   const courses = new Map<string, { course: AuditCourse; term: number }>();
   for (const row of record.transcriptRecords) {
     // Ignored rows are excluded by the student; duplicate-excluded and
-    // needs-review rows are still working through the registrar process.
+    // needs-review rows are still working through the registrar process, and
+    // a review-required row (low-confidence import, provisional pass) counts
+    // for nothing until reviewed — the planner's evidence path excludes all
+    // of these regardless of the applied status, and so does the audit.
     // None of them is completed evidence an audit may read.
-    if (row.appliedStatus === "ignored" || row.appliedStatus === "needsReview" || row.duplicateExcluded) continue;
+    if (row.appliedStatus === "ignored" || row.appliedStatus === "needsReview" || row.duplicateExcluded || row.reviewRequired) continue;
     const inProgress = row.appliedStatus === "inProgress";
     // Current-term rows carry an empty grade; the engine then reads the slot
     // as in progress rather than completed without a grade.
