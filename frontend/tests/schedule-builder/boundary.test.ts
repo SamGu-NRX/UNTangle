@@ -32,6 +32,7 @@ const ALLOWED: RegExp[] = [
   /^@\/lib\/course-colors$/,
   /^@\/lib\/export\/[\w-]+$/,
   /^@\/lib\/planner-ics$/,
+  /^@\/lib\/sections\/open-seats$/, // one pure predicate, so search's Open seats matches Auto's
   // Pure: connected calendars' busy time as dated blocks and grid bands. Fetching stays with the host.
   /^@\/lib\/calendar-busy$/,
 ];

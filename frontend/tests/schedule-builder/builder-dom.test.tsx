@@ -9,7 +9,8 @@ import type { BuilderHost, OptionsFeed, WeekCourse } from "@/components/schedule
 import type { Section } from "@/lib/sections";
 import type { SchedulePreferences } from "@/lib/types";
 import { click, installDom, mount, press, removeDom } from "../ui/dom";
-import { meeting, section } from "./fixtures";
+import { newBusyId, paint } from "@/components/schedule-builder/limits";
+import { asyncMeeting, meeting, section } from "./fixtures";
 
 beforeAll(() => {
   installDom();
@@ -42,7 +43,7 @@ const preferences: SchedulePreferences = {
 const course = (s: Section, locked = false): WeekCourse => ({ code: s.courseCode, title: s.courseCode, credits: 3, section: s, state: "placed", locked });
 
 function host(courses: WeekCourse[], feed: Partial<OptionsFeed> = {}) {
-  const edits = { place: mock(() => {}), remove: mock(() => {}), keep: mock(() => {}), use: mock(() => {}), clear: mock(() => {}), undo: mock(() => {}), canUndo: true };
+  const edits = { place: mock((): string | null => null), remove: mock(() => {}), keep: mock(() => {}), use: mock((): string[] => []), clear: mock(() => {}), undo: mock(() => {}), canUndo: true };
   const optimizer: OptionsFeed = {
     runId: null,
     status: "idle",
@@ -66,7 +67,7 @@ function host(courses: WeekCourse[], feed: Partial<OptionsFeed> = {}) {
     preferencesReady: true,
     walk: (a, b) => {
       const minutes = MINUTES[`${a}|${b}`] ?? MINUTES[`${b}|${a}`];
-      return minutes === undefined ? null : { minutes, shuttle: false };
+      return minutes === undefined ? null : { seconds: minutes * 60, shuttle: false };
     },
     search: {
       find: (query) => (query.toUpperCase().startsWith("MATH 36") ? [{ code: "MATH 3680", title: "Applied Statistics" }] : []),
@@ -200,5 +201,143 @@ describe("Week", () => {
     await click(buttons(view.container, /^Allow classes on Mondays$/)[0]);
     expect(apply).toHaveBeenCalledTimes(1);
     await view.unmount();
+  });
+});
+
+describe("Week's review fixes", () => {
+  const hist = (sectionCode: string, overrides: Partial<Section> = {}, meetings = [meeting({ day: "Mon", at: "13:00", until: "13:50" })]) => ({
+    ...section({ courseCode: "HIST 2610", sectionCode, open: 20, meetings }),
+    ...overrides,
+  });
+  const lecture = hist("002");
+  const tba = { ...meeting({ day: "Mon", at: "9:00", until: "9:50" }), day: null, startMinutes: null, endMinutes: null, tba: true };
+  const HIST = [
+    hist("001", {}, [meeting({ day: "Sat", at: "9:00", until: "11:50" })]),
+    // Linked to a lab with no seats: the lecture's own count says open.
+    { ...lecture, components: [lecture.components[0], { ...lecture.components[0], id: "HIST 2610-lab", role: "required-linked" as const, seats: { open: 0, total: 20 } }] },
+    hist("003", { status: "waitlist" }),
+    hist("004", {}, [tba]),
+    hist("005", { online: true }, [asyncMeeting]),
+  ];
+  const withHistory = (base: BuilderHost, find: BuilderHost["search"]["find"] = () => [{ code: "HIST 2610", title: "American History" }]): BuilderHost => ({
+    ...base,
+    search: { ...base.search, find, options: (code) => (code === "HIST 2610" ? HIST : (OPTIONS[code] ?? null)) },
+  });
+  const rows = () => [...document.querySelectorAll('aside [aria-label="HIST 2610 sections"] button')].map((b) => /section (\d+)/.exec(b.getAttribute("aria-label")!)![1]);
+  const searchHistory = async (h: BuilderHost) => {
+    const view = await render(h, { nonce: 1, query: "HIST" });
+    await click(buttons(document.querySelector("aside")!, /^HIST 2610/)[0]);
+    return view;
+  };
+  // The live region announces a toast at once; the visible one waits for its predecessor's exit.
+  const toastText = () => document.querySelector("[data-ui-live]")?.textContent ?? null;
+  const withToaster = async () => {
+    const { Toaster } = await import("@/components/ui/Toast");
+    return mount(<Toaster />);
+  };
+
+  test("search shows weekend sections with no filter on", async () => {
+    const view = await searchHistory(withHistory(host([]).value));
+    expect(rows()).toEqual(["001", "002", "003", "004", "005"]);
+    await view.unmount();
+  });
+
+  test("Open seats hides wait-listed sections and those whose linked lab is full", async () => {
+    const view = await searchHistory(withHistory(host([]).value));
+    await click(buttons(document.querySelector("aside")!, /^Open seats$/)[0]);
+    expect(rows()).toEqual(["001", "004", "005"]);
+    await view.unmount();
+  });
+
+  test("a section with no set time counts as online only when it meets online", async () => {
+    const view = await searchHistory(withHistory(host([]).value));
+    await click(buttons(document.querySelector("aside")!, /^Online$/)[0]);
+    expect(rows()).toEqual(["001", "002", "003", "004"]);
+    await view.unmount();
+  });
+
+  test("a four-digit query is a course number when a course matches it, else a class number", async () => {
+    const base = host([]).value;
+    const classNumber = mock(async (n: string) => (n === "6862" ? { courseCode: "HIST 2610", sectionId: HIST[1].id } : null));
+    const find = (query: string) => (query === "2110" ? [{ code: "CSCE 2110", title: "Foundations of Data Structures" }] : query === "HIST 2610" ? [{ code: "HIST 2610", title: "American History" }] : []);
+    const h = withHistory({ ...base, search: { ...base.search, classNumber } }, find);
+    const view = await render(h, { nonce: 1, query: "2110" });
+    expect(buttons(document.querySelector("aside")!, /^CSCE 2110/)).toHaveLength(1);
+    await view.update(h, { nonce: 2, query: "6862" });
+    expect(classNumber.mock.calls.map(([n]) => n)).toEqual(["6862"]);
+    expect(rows()).toContain("002");
+    await view.unmount();
+  });
+
+  test("the toast's Undo works once the edit that showed it has committed", async () => {
+    const toaster = await withToaster();
+    const h = host([course(csce), course(math)]);
+    const view = await render({ ...h.value, edits: { ...h.edits, canUndo: false } }, { nonce: 1, query: "MATH 36" });
+    const panel = document.querySelector("aside")!;
+    await click(buttons(panel, /^MATH 3680/)[0]);
+    await click(buttons(panel, /^Add section 002$/)[0]);
+    // The edit commits: the host now has something to undo.
+    await view.update({ ...h.value, edits: { ...h.edits, canUndo: true } });
+    await click(document.querySelector(".ui-toast__action")!);
+    expect(h.edits.undo).toHaveBeenCalledTimes(1);
+    await view.unmount();
+    await toaster.unmount();
+  });
+
+  test("Use this names the courses it left out, and keeps the preview when it used none", async () => {
+    const toaster = await withToaster();
+    const { ScheduleBuilder } = await import("@/components/schedule-builder/ScheduleBuilder");
+    const shared = { term: "spring-2027", sections: { "CSCE 2110": csceLate.id, "MATH 2700": math.id } };
+    const h = host([course(csce)]);
+    const node = (edits: BuilderHost["edits"]) => <ScheduleBuilder host={{ ...h.value, edits }} scheduleName="Main" searchRequest={null} shared={shared} onSharedSeen={() => {}} />;
+    const refuseAll = { ...h.edits, use: mock(() => ["You're taking CSCE 2110 now, so it isn't planned for Spring 2027.", "MATH 2700 is done already."]) };
+    const view = await mount(node(refuseAll));
+    await click(buttons(view.container, /^Use this$/)[0]);
+    expect(toastText()).toBe("Nothing from the shared week was used. You're taking CSCE 2110 now, so it isn't planned for Spring 2027. MATH 2700 is done already.");
+    expect(view.container.querySelector('[aria-label="Shared week"]')).not.toBeNull();
+
+    await view.rerender(node({ ...h.edits, use: mock(() => ["MATH 2700 is done already."]) }));
+    await click(buttons(view.container, /^Use this$/)[0]);
+    expect(toastText()).toBe("Using the shared week. MATH 2700 is done already.");
+    expect(view.container.querySelector('[aria-label="Shared week"]')).toBeNull();
+    await view.unmount();
+    await toaster.unmount();
+  });
+
+  test("Export ranks a linked section by its scarcest component", async () => {
+    const roomy = section({ courseCode: "MATH 2700", sectionCode: "003", open: 12, classNumbers: ["2200"], meetings: math.meetings });
+    const linked = section({ courseCode: "CSCE 2110", sectionCode: "001", open: 99, classNumbers: ["1100"], meetings: csce.meetings });
+    const lab = { ...linked.components[0], id: "lab", classNumber: "1101", role: "required-linked" as const, seats: { open: 1, total: 20 } };
+    const view = await render(host([course(roomy), course({ ...linked, components: [...linked.components, lab] })]).value);
+    await click(buttons(view.container, /^Export$/)[0]);
+    const items = [...document.querySelectorAll("ol li")].map((li) => li.textContent);
+    expect(items).toEqual(["1100 1101CSCE 2110 §001Few seats", "2200MATH 2700 §003"]);
+    await view.unmount();
+  });
+
+  test("Undo on a painted busy time removes that time and keeps later preference changes, time painted on to it included", async () => {
+    const toaster = await withToaster();
+    let prefs = preferences;
+    const h = host([course(csce)]);
+    const view = await render({ ...h.value, setPreferences: (update) => void (prefs = update(prefs)) });
+    const tuesday = view.container.querySelector<HTMLElement>('[data-day="Tue"]')!;
+    tuesday.getBoundingClientRect = () => ({ top: 0, height: 900, left: 0, width: 100, right: 100, bottom: 900, x: 0, y: 0, toJSON: () => ({}) });
+    tuesday.setPointerCapture = () => {};
+    const { act } = await import("react");
+    // The grid runs 8 AM to 5 PM over 900px: 1 PM is 500px down, 3 PM 700px.
+    for (const [type, y] of [["pointerdown", 500], ["pointermove", 700], ["pointerup", 700]] as const) {
+      await act(async () => {
+        tuesday.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType: "mouse", button: 0, clientY: y, pointerId: 1 }));
+      });
+    }
+    expect(prefs.constraints.blocked.map(({ day, start, end }) => `${day} ${start}-${end}`)).toEqual(["Tue 780-900"]);
+    // Later, in Preferences: Fridays off, and 3:00–3:30 painted on, which grows the same block.
+    prefs = paint({ ...prefs, constraints: { ...prefs.constraints, daysOff: ["Fri"] } }, ["Tue"], 900, 930, "busy", newBusyId);
+    expect(prefs.constraints.blocked.map(({ day, start, end }) => `${day} ${start}-${end}`)).toEqual(["Tue 780-930"]);
+    await click(document.querySelector(".ui-toast__action")!);
+    expect(prefs.constraints.blocked.map(({ day, start, end }) => `${day} ${start}-${end}`)).toEqual(["Tue 900-930"]);
+    expect(prefs.constraints.daysOff).toEqual(["Fri"]);
+    await view.unmount();
+    await toaster.unmount();
   });
 });

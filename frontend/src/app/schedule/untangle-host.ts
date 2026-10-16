@@ -195,7 +195,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     canUndo: historySize > 0,
     place: (code, sectionId) => {
       const refused = refusal(code);
-      if (refused) return void toast({ message: refused, tone: "error" });
+      if (refused) return refused;
       change([code], (plan) => ({
         ...plan,
         courseStatuses: { ...plan.courseStatuses, [code]: "inProgress" },
@@ -203,6 +203,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
         // A kept section the student moves by hand stays kept, on its new section.
         lockedSections: plan.lockedSections?.[code] ? { ...plan.lockedSections, [code]: sectionId } : plan.lockedSections,
       }));
+      return null;
     },
     remove: (code) =>
       change([code], (plan) => ({
@@ -223,8 +224,10 @@ export function useUntangleHost(brand: Brand): BuilderHost {
       }));
     },
     use: (byCourse) => {
-      const codes = Object.keys(byCourse).filter((code) => refusal(code) === null);
-      if (codes.length === 0) return;
+      const checked = Object.keys(byCourse).map((code) => [code, refusal(code)] as const);
+      const codes = checked.flatMap(([code, refused]) => (refused ? [] : [code]));
+      const refusals = checked.flatMap(([, refused]) => (refused ? [refused] : []));
+      if (codes.length === 0) return refusals;
       change(codes, (plan) => {
         let locks = plan.lockedSections ?? {};
         for (const code of codes) if (locks[code] && locks[code] !== byCourse[code]) locks = withEntry(locks, code, undefined);
@@ -235,6 +238,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
           lockedSections: locks,
         };
       });
+      return refusals;
     },
     clear: () => {
       const codes = getPlanningTermCourseCodes(plannerState);
@@ -246,6 +250,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
             courseStatuses: { ...acc.courseStatuses, [code]: "notTaken" },
             selectedSections: withEntry(acc.selectedSections, code, undefined),
             lockedSections: withEntry(acc.lockedSections, code, undefined),
+            coursePlan: acc.coursePlan && { ...acc.coursePlan, autoPlanned: acc.coursePlan.autoPlanned.filter((c) => c !== code) },
           }),
           plan,
         ),
@@ -451,7 +456,8 @@ export function useUntangleHost(brand: Brand): BuilderHost {
 
   const walk = useCallback((from: string, to: string) => {
     const time = plannerTravelTime(from, to);
-    return time.seconds === null ? null : { minutes: Math.round(time.seconds / 60), shuttle: isShuttleLeg(from, to) };
+    // Whole seconds, as the optimizer rounds them (walkSeconds in lib/optimizer/score.ts), so Week and Auto agree at the boundary.
+    return time.seconds === null ? null : { seconds: Math.round(time.seconds), shuttle: isShuttleLeg(from, to) };
   }, []);
 
   return {

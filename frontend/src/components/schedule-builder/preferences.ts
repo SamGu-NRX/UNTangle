@@ -24,7 +24,7 @@ export const MOST_CREDITS: readonly (number | null)[] = [null, 12, 15, 18];
  */
 export const LUNCH = { start: 720, end: 780, label: "Lunch" } as const;
 const LUNCH_PREFIX = "lunch-";
-const isLunch = (block: BlockedTime) => block.id.startsWith(LUNCH_PREFIX);
+export const isLunch = (block: BlockedTime) => block.id.startsWith(LUNCH_PREFIX);
 
 /** A weight at or above this reads as the preference being on. */
 const WEIGHT_ON = 2;
@@ -82,6 +82,21 @@ export function addBusy(p: SchedulePreferences, block: Omit<BlockedTime, "id">, 
 
 export function removeBusy(p: SchedulePreferences, ids: readonly string[]): SchedulePreferences {
   return { ...p, constraints: { ...p.constraints, blocked: p.constraints.blocked.filter((b) => !ids.includes(b.id)) } };
+}
+
+/**
+ * Takes `start` to `end` back out of block `id`. Painting next to a block in
+ * Preferences grows it and keeps its id, so removing the whole block would
+ * also remove time painted on since; what lies outside the span stays.
+ */
+export function removeBusySpan(p: SchedulePreferences, id: string, start: number, end: number, newId: () => string): SchedulePreferences {
+  const block = p.constraints.blocked.find((b) => b.id === id);
+  if (!block) return p;
+  const rest: BlockedTime[] = [
+    ...(block.start < start ? [{ ...block, end: start }] : []),
+    ...(block.end > end ? [{ ...block, id: block.start < start ? newId() : block.id, start: end }] : []),
+  ];
+  return { ...p, constraints: { ...p.constraints, blocked: [...p.constraints.blocked.filter((b) => b.id !== id), ...rest] } };
 }
 
 /**
