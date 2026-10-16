@@ -349,6 +349,15 @@ export function useUntangleHost(brand: Brand): BuilderHost {
   );
   const inputKey = requestKey(request);
   const handMade = new Set(schedulePreferences.constraints.blocked.map((block) => block.id));
+  /**
+   * The fixes Auto and Browse all offer when nothing fits. A connected
+   * calendar's busy time comes from the calendar, so there is nothing here to
+   * loosen; the student removes the calendar in Preferences if it shouldn't count.
+   */
+  const fixesFor = (suggestions: readonly RelaxSuggestion[]) =>
+    suggestions
+      .filter((s) => s.relaxation.kind !== "blocked" || handMade.has(s.relaxation.blockedId))
+      .map((s) => ({ label: s.label, apply: () => relax(s) }));
   const relax = (suggestion: RelaxSuggestion) => {
     const r = suggestion.relaxation;
     if (r.kind === "unlock") return setSectionLock(r.courseCode, false);
@@ -403,11 +412,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
       result?.status === "infeasible"
         ? {
             sentence: result.explanation.sentence,
-            // A connected calendar's busy time comes from the calendar, so there is nothing here to loosen;
-            // the student removes the calendar in Preferences if it shouldn't count.
-            fixes: result.explanation.suggestions
-              .filter((s) => s.relaxation.kind !== "blocked" || handMade.has(s.relaxation.blockedId))
-              .map((s) => ({ label: s.label, apply: () => relax(s) })),
+            fixes: fixesFor(result.explanation.suggestions),
           }
         : result?.status === "timeout" && result.schedules.length === 0 && run.status === "done"
           ? { sentence: "No week turned up in time. Loosen a preference or keep fewer sections.", fixes: [] }
@@ -440,7 +445,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     stale: isStale(browseRun, inputKey),
     infeasible:
       listed?.status === "infeasible"
-        ? { sentence: listed.explanation.sentence, fixes: listed.explanation.suggestions.map((s) => ({ label: s.label, apply: () => relax(s) })) }
+        ? { sentence: listed.explanation.sentence, fixes: fixesFor(listed.explanation.suggestions) }
         : null,
     timedOut: listed?.status === "timeout",
     error: browseRun.error,
