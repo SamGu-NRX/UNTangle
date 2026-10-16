@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import path from "node:path";
+import type { Policy, RequirementNode } from "@untangle/core/degree/types";
 import { allSlots, parseUnits, unitOptions } from "../src/degree/derive";
 import { normalizeConnector, parseCourseListText, readCatalogPage } from "../src/degree/sections";
 import { buildDegreeData } from "../src/degree/build";
@@ -180,6 +181,41 @@ describe("derived requirement trees on the captured catalog pages", () => {
       };
       for (const node of program.requirements) walk(node as never);
     }
+  });
+});
+
+describe("review round ten: pool matches stay advisory", () => {
+  const data = buildDegreeData(dataDir, "2026-10-15T00:00:00.000Z");
+
+  test("the mathematics hours policy is scoped to confirmed major coursework", () => {
+    const math = data.programs.find((program) => program.id === "math-bsmth")!;
+    const findSubjectHours = (node: RequirementNode): Extract<Policy, { type: "subjectHours" }> | null => {
+      if (node.kind === "policy" && node.policy.type === "subjectHours") return node.policy;
+      if (node.kind === "group") {
+        for (const child of node.children) {
+          const hit = findSubjectHours(child);
+          if (hit !== null) return hit;
+        }
+      }
+      if (node.kind === "choice") {
+        for (const branch of node.branches) {
+          const hit = findSubjectHours(branch.node);
+          if (hit !== null) return hit;
+        }
+      }
+      return null;
+    };
+    let scoped: Extract<Policy, { type: "subjectHours" }> | null = null;
+    for (const node of math.requirements) {
+      const hit = findSubjectHours(node);
+      if (hit !== null) scoped = hit;
+    }
+    // Field assertions: toEqual's inference cannot pair the Policy union with
+    // a plain object literal.
+    expect(scoped?.type).toBe("subjectHours");
+    expect(scoped?.hours).toBe(43);
+    expect(scoped?.subjects).toEqual(["MATH", "STAT"]);
+    expect(scoped?.courseScope).toEqual({ kind: "major" });
   });
 });
 

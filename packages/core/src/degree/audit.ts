@@ -269,8 +269,10 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
       return { name: node.name, status, detail, citation: cite };
     }
     case "pool": {
+      // Matches stay on this advisory node: the pool's subject/level rule is
+      // the audit's approximation of a list the capture did not record, so
+      // its courses never confirm major coursework in any policy scope.
       const matching = matchingCourses(node, completed);
-      matching.forEach((code) => applied.add(code));
       const total = matching.length * 3;
       return {
         name: node.name,
@@ -365,7 +367,7 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
   }
 }
 
-type ScopeContext = { applied: Set<string>; poolMatches: Set<string> };
+type ScopeContext = { applied: Set<string> };
 
 /** The courses from `list` a typed scope admits. */
 function coursesInScope(scope: CourseScope, list: AuditCourse[], context: ScopeContext): AuditCourse[] {
@@ -375,7 +377,7 @@ function coursesInScope(scope: CourseScope, list: AuditCourse[], context: ScopeC
     case "unt":
       return list.filter((course) => course.sourceKind === "unt");
     case "major":
-      return list.filter((course) => context.applied.has(course.code) || context.poolMatches.has(course.code));
+      return list.filter((course) => context.applied.has(course.code));
     case "codes":
       return list.filter((course) => scope.codes.includes(course.code));
     case "subjectLevel":
@@ -398,7 +400,7 @@ function scopedCourses(p: { scope: string; courseScope?: CourseScope }, courses:
   if (p.scope === "overall") return completed;
   if (p.scope === "unt") return completed.filter((course) => course.sourceKind === "unt");
   if (p.scope === "all courses required in the major") {
-    return completed.filter((course) => context.applied.has(course.code) || context.poolMatches.has(course.code));
+    return completed.filter((course) => context.applied.has(course.code));
   }
   return null;
 }
@@ -458,8 +460,13 @@ function evaluatePolicy(policy: PolicyNode, courses: AuditCourse[], context: Sco
     case "residencyPercent":
       return { ...detail, status: "unverifiable", detail: `${policy.quote} — the record does not split hours by institution; verify with an advisor.` };
     case "subjectHours": {
-      const inSubject = completed.filter((course) => p.subjects.includes(subjectOf(course.code)));
-      const total = sum(inSubject);
+      // A policy may narrow the count to coursework its scope admits: the
+      // mathematics degree's hours total counts the mathematics courses the
+      // audit confirmed toward the major, not every MATH/STAT course on the
+      // record.
+      const bySubject = completed.filter((course) => p.subjects.includes(subjectOf(course.code)));
+      const inScope = p.courseScope ? coursesInScope(p.courseScope, bySubject, context) : bySubject;
+      const total = sum(inScope);
       if (total === null) return { ...detail, detail: `${policy.quote} — unknown credit values; cannot verify.` };
       return { ...detail, status: total >= p.hours ? "satisfied" : "unsatisfied", detail: `${total} hours in ${p.subjects.join("/")} of ${p.hours}` };
     }
@@ -501,16 +508,6 @@ function evaluatePolicy(policy: PolicyNode, courses: AuditCourse[], context: Sco
   return detail;
 }
 
-/** Completed courses matching any advisory pool in the tree (major floor scopes). */
-function collectPoolMatches(node: RequirementNode, completed: Set<string>, into: Set<string>): void {
-  switch (node.kind) {
-    case "pool": matchingCourses(node, completed).forEach((code) => into.add(code)); break;
-    case "choice": node.branches.forEach((branch) => collectPoolMatches(branch.node, completed, into)); break;
-    case "group": node.children.forEach((child) => collectPoolMatches(child, completed, into)); break;
-    default: break;
-  }
-}
-
 /** Every policy node in the tree, including ones nested in groups and choices. */
 function collectPolicyNodes(node: RequirementNode, into: PolicyNode[]): void {
   if (node.kind === "policy") {
@@ -528,20 +525,17 @@ export function auditProgram(program: ProgramData, courses: AuditCourse[]): Audi
   for (const course of courses) {
     if (course.credits !== null) creditsByCode.set(course.code, course.credits);
   }
-  const poolMatches = new Set<string>();
-  for (const node of program.requirements) collectPoolMatches(node, completed, poolMatches);
-
-  // One allocation shared across the tree: earlier nodes' claims are visible
-  // to later ones (areas before the Component Area Option choice).
-  const allocation: Allocation | null = program.oneCourseOneArea ? { used: new Set<string>() } : null;
   const applied = new Set<string>();
+  const allocation: Allocation | null = program.oneCourseOneArea ? { used: new Set<string>() } : null;
   const requirements = program.requirements.map((node) => evaluate(node, completed, inProgress, creditsByCode, allocation, applied));
-  // Grade floors apply to courses the audit actually used: what satisfied a
-  // slot, plus completed pool matches. Policies nested anywhere get outcomes,
-  // and each appears once.
+  // Grade floors and scoped hour totals apply to the coursework the audit
+  // confirmed: courses that satisfied captured requirements. Advisory pool
+  // matches are approximations whose authoritative lists were not captured;
+  // they inform their own advisory nodes and never confirm major coursework.
+  // Policies nested anywhere get outcomes, and each appears once.
   const policyNodes: PolicyNode[] = [];
   for (const node of program.requirements) collectPolicyNodes(node, policyNodes);
-  const context: ScopeContext = { applied, poolMatches };
+  const context: ScopeContext = { applied };
   const policies = policyNodes.map((node) => evaluatePolicy(node, courses, context));
 
   const summary = {

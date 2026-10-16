@@ -318,8 +318,10 @@ function deriveMathPage(page: CatalogPage): RequirementNode[] {
   if (comm) nodes.push(note("Communication core suggestion", paragraphs(comm).join(" "), citation(comm, page)));
 
   const majorSection = sectionByName(page, "Major requirements");
+  // The 43-hour total counts the mathematics courses the audit confirmed
+  // toward the major; other MATH/STAT coursework on the record does not count.
   const majorChildren: RequirementNode[] = majorSection
-    ? [policyNode("43 hours of mathematics courses", { type: "subjectHours", hours: 43, subjects: ["MATH", "STAT"] }, "43 hours of mathematics courses, which must include:", citation(majorSection, page))]
+    ? [policyNode("43 hours of mathematics courses", { type: "subjectHours", hours: 43, subjects: ["MATH", "STAT"], courseScope: { kind: "major" } }, "43 hours of mathematics courses, which must include:", citation(majorSection, page))]
     : [];
 
   const core = sectionByName(page, "Mathematics core, 19 hours");

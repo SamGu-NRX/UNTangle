@@ -164,7 +164,7 @@ describe("review round six: typed scopes, planned progress, and no-guessing", ()
     expect(result.policies[0]!.status).toBe("unverifiable");
   });
 
-  test("completed courses matching an advisory pool count toward the major floor", () => {
+  test("an advisory pool match cannot fail the major floor", () => {
     const pooled: ProgramData = {
       ...base,
       requirements: [
@@ -173,8 +173,14 @@ describe("review round six: typed scopes, planned progress, and no-guessing", ()
       ],
     };
     const result = auditProgram(pooled, [course("CSCE 4110", "D")]);
-    expect(floorOf(result).status).toBe("unsatisfied");
-    expect(floorOf(result).detail).toContain("CSCE 4110");
+    // The pool's own node still reports the match for the student to verify...
+    expect(result.requirements[0]!.status).toBe("advisory");
+    expect(result.requirements[0]!.detail).toContain("CSCE 4110");
+    // ...but the pool's subject/level rule is an approximation of a list the
+    // capture did not record, so nothing is confirmed in scope and the floor
+    // is not a check the record can fail yet.
+    expect(floorOf(result).status).toBe("unverifiable");
+    expect(floorOf(result).detail).toContain("no completed courses in scope");
   });
 
   test("the floor names only the alternatives the audit used", () => {
@@ -398,6 +404,50 @@ describe("review round eight: planned allocation and scoped hour totals", () => 
   });
 });
 
+describe("review round ten: pool matches are advisory, never confirmed coursework", () => {
+  const hoursPolicy: RequirementNode = {
+    kind: "policy",
+    name: "43 hours of mathematics courses",
+    citation,
+    quote: "43 hours of mathematics courses, which must include:",
+    policy: { type: "subjectHours", hours: 6, subjects: ["MATH", "STAT"], courseScope: { kind: "major" } },
+  };
+  const math = (): ProgramData => ({
+    ...base,
+    requirements: [
+      { kind: "all", name: "Mathematics core", citation, items: [{ alternatives: [{ must: ["MATH 1710"] }] }, { alternatives: [{ must: ["MATH 1730"] }] }] },
+      hoursPolicy,
+    ],
+  });
+
+  test("a confirmed major course passes the floor an unverified elective cannot fail", () => {
+    const mixed: ProgramData = {
+      ...base,
+      requirements: [
+        { kind: "all", name: "Programming", citation, items: [{ alternatives: [{ must: ["CSCE 1030"] }] }] },
+        { kind: "pool", name: "CSCE advanced electives, 6 hours", hours: 6, citation, match: { subjects: ["CSCE"], minLevel: 4000, maxLevel: null } },
+        floorPolicy,
+      ],
+    };
+    const result = auditProgram(mixed, [course("CSCE 1030", "A"), course("CSCE 4110", "D")]);
+    expect(floorOf(result).status).toBe("satisfied");
+    expect(floorOf(result).detail).not.toContain("CSCE 4110");
+  });
+
+  test("the scoped hours policy counts confirmed major coursework, not the whole subject pool", () => {
+    // Nine MATH/STAT hours on the record; six are confirmed toward the major
+    // and the three hours of outside precalculus do not count.
+    const result = auditProgram(math(), [course("MATH 1680", "A"), course("MATH 1710", "A"), course("MATH 1730", "B")]);
+    expect(result.policies[0]!.status).toBe("satisfied");
+    expect(result.policies[0]!.detail).toContain("6 hours in MATH/STAT of 6");
+  });
+
+  test("outside mathematics hours alone cannot satisfy the scoped hours policy", () => {
+    const result = auditProgram(math(), [course("MATH 1680", "A"), course("MATH 1690", "A"), course("MATH 1400", "A")]);
+    expect(result.policies[0]!.status).toBe("unsatisfied");
+    expect(result.policies[0]!.detail).toContain("0 hours in MATH/STAT of 6");
+  });
+});
 
 describe("review round nine: mixed completed and planned credit in hours details", () => {
   test("an allocated node with completed and planned hours reports the planned amount", () => {

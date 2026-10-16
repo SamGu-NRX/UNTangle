@@ -73,7 +73,7 @@ export type GroupNode = Base & { kind: "group"; children: RequirementNode[] };
 export type CourseScope =
   | { kind: "overall" }
   | { kind: "unt" }
-  /** Courses the audit applied toward the major, plus completed pool matches. */
+  /** Courses the audit confirmed toward the major by satisfying requirements. */
   | { kind: "major" }
   /** An explicit course set: one core area's list, or a program's foundation subtree. */
   | { kind: "codes"; codes: string[] }
@@ -85,7 +85,7 @@ export type Policy =
   | { type: "advancedHours"; hours: number }
   | { type: "residencyPercent"; percent: number }
   | { type: "advancedHoursAtUnt"; hours: number }
-  | { type: "subjectHours"; hours: number; subjects: string[] }
+  | { type: "subjectHours"; hours: number; subjects: string[]; courseScope?: CourseScope }
   | { type: "minGrade"; grade: string; scope: string; courseScope?: CourseScope }
   | { type: "gpa"; minimum: number; scope: string; courseScope?: CourseScope }
   /** A rule the audit cannot measure; shown, never silently dropped. */

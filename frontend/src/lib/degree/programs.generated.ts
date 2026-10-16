@@ -4,7 +4,7 @@
 export const DEGREE_DATA = {
   "catalogId": "catoid-40",
   "catalogYear": "2026-2027",
-  "builtAt": "2026-10-16T00:02:54.873Z",
+  "builtAt": "2026-10-16T01:31:34.930Z",
   "pages": [
     {
       "file": "cs-bs.html",
@@ -1543,7 +1543,10 @@ export const DEGREE_DATA = {
                 "subjects": [
                   "MATH",
                   "STAT"
-                ]
+                ],
+                "courseScope": {
+                  "kind": "major"
+                }
               },
               "quote": "43 hours of mathematics courses, which must include:",
               "citation": {
