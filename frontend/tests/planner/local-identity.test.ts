@@ -164,6 +164,11 @@ async function signOutFromMenu(planner: Awaited<ReturnType<typeof mount>>) {
   const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((el) => el.textContent?.trim() === "Sign out");
   expect(item).toBeDefined();
   await planner.run(() => item!.click());
+  // Saved schedules live only on this browser, so signing out asks before removing them.
+  const remove = () =>
+    [...document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')].find((el) => el.textContent?.trim().startsWith("Remove and sign out"));
+  await waitFor(() => pushes.length === 1 || remove() !== undefined, "signed out or asked");
+  if (pushes.length === 0) await planner.run(() => remove()!.click());
   await waitFor(() => pushes.length === 1, "signed out");
   // better-auth's session store answers the sign-out.
   await planner.run(() => setSession(null));
@@ -524,7 +529,7 @@ for (const failure of ["401", "500", "network"]) {
     expect(server.puts).toEqual([]);
 
     await planner.run((p) => p.retrySave());
-    await waitFor(() => label(planner) === "Saved on this device", "server ownership retry loaded");
+    await waitFor(() => label(planner) === "Synced", "server ownership retry loaded");
     expect(planner.get().plannerState.transcriptRecords).toEqual([transcript]);
     expect(window.localStorage.getItem(plannerStateKey(userA.id))).toBe(raw);
     expect(window.localStorage.getItem(LEGACY_PLANNER_STATE_STORE_KEY)).toBeNull();
@@ -690,7 +695,7 @@ test("StrictMode replay restarts bootstrap and ignores the retired first load", 
   mounted.push(planner.unmount);
   await waitFor(() => planner.get().hydrated, "replayed bootstrap loaded");
   expect(planner.get().plannerState.transcriptRecords).toEqual([transcript]);
-  expect(label(planner)).toBe("Saved on this device");
+  expect(label(planner)).toBe("Synced");
   await flushSaves();
   // The retired first run stops before it reaches the network; only the replay pulls.
   expect(server.pulls).toBe(1);

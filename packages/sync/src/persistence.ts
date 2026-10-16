@@ -53,7 +53,9 @@ export function parseStoreState(value: unknown, identity: Identity): StoreState 
     });
     for (let i = 0; i < pending.length; i++) {
       const baseBody = i === 0 ? confirmed.body : pending[i - 1].write.body;
-      if (pending[i].write.baseRevision !== confirmed.revision + i || !equal(pending[i].baseBody, baseBody)) throw new Error('Stored outbox revision chain is broken.');
+      // A first write may name the starting values it was made on (SyncEngine.save's startedFrom).
+      const firstWrite = i === 0 && confirmed.revision === 0;
+      if (pending[i].write.baseRevision !== confirmed.revision + i || (!firstWrite && !equal(pending[i].baseBody, baseBody))) throw new Error('Stored outbox revision chain is broken.');
     }
     if (pending.length && !equal(draft, pending.at(-1)?.write.body)) throw new Error('Stored draft does not match its final pending write.');
     if (identity.kind === 'guest' && pending.length) throw new Error('A guest cannot have a sync outbox.');

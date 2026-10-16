@@ -2,6 +2,7 @@ import {
   buildSavedPlanSnapshot,
   validateSavedPlanPayload,
 } from "@/lib/plan-library/snapshot";
+import { equal } from "@untangle/sync";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
 import type { SavedPlanSnapshot, SavedPlanSource } from "@/lib/plan-library/snapshot-types";
 import type { PlannerState } from "@/lib/types";
@@ -217,6 +218,12 @@ export type SavedPlanStore = {
   /** Raw quarantined bytes for a key (null when missing or unreadable). */
   readQuarantined(key: string): string | null;
   savePlan(input: { state: PlannerState; name?: string; now?: Date }): StoreWriteResult<SavedPlanSnapshot>;
+  /**
+   * Adds whole entries from another library (a guest's, moved on sign-in),
+   * every field kept. An entry already here unchanged is skipped; one whose
+   * id is taken by a different entry gets a new id and nothing else changes.
+   */
+  addSnapshots(plans: readonly SavedPlanSnapshot[]): StoreWriteResult<SavedPlanSnapshot[]>;
   renamePlan(planId: string, name: string): StoreWriteResult<SavedPlanSnapshot>;
   duplicatePlan(planId: string, now?: Date): StoreWriteResult<SavedPlanSnapshot>;
   setPlanArchived(planId: string, archived: boolean, now?: Date): StoreWriteResult<SavedPlanSnapshot>;
@@ -477,6 +484,19 @@ export function createSavedPlanStore(storage?: Storage | null, userId: string | 
         });
         doc.plans = [snapshot, ...doc.plans];
         return { value: snapshot };
+      });
+    },
+
+    addSnapshots(plans) {
+      return mutate((doc) => {
+        const added: SavedPlanSnapshot[] = [];
+        for (const plan of plans) {
+          const same = doc.plans.find((entry) => entry.planId === plan.planId);
+          if (same && equal(same, plan)) continue;
+          added.push(same ? { ...plan, planId: crypto.randomUUID() } : plan);
+        }
+        doc.plans = [...added, ...doc.plans];
+        return { value: added };
       });
     },
 

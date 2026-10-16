@@ -140,3 +140,14 @@ body:has(.sync-notice) .ui-toaster {
   line-height: var(--lh-sm);
   color: var(--ink-2);
 }
+
+.guest-sign-in__lead,
+.guest-sign-in__foot {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+.guest-sign-in__foot {
+  margin-top: 12px;
+}

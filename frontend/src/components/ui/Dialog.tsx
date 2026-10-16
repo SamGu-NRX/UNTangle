@@ -28,6 +28,13 @@ export type DialogProps = {
   /** `alertdialog` for a decision the user must make before continuing. */
   role?: "dialog" | "alertdialog";
   initialFocus?: RefObject<HTMLElement | null>;
+  /**
+   * Opens with focus on the title rather than the first control, as a sheet
+   * does (components.md, BottomSheet "Focus on open"): for a decision the
+   * student should read before reaching a button. The title is focusable by
+   * script only and draws no ring. Needs a string `title`.
+   */
+  focusTitle?: boolean;
   /** Where focus goes on close, when the opener may not have kept focus (Safari doesn't focus a clicked link). */
   returnFocus?: () => HTMLElement | null;
   /**
@@ -56,6 +63,7 @@ export function Dialog({
   dismissible = true,
   role = "dialog",
   initialFocus,
+  focusTitle = false,
   returnFocus,
   labelledBy,
   className,
@@ -65,6 +73,7 @@ export function Dialog({
   const [instant, setInstant] = useState(false);
   const { mounted, state } = usePresence(open, instant ? 0 : EXIT_MS);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
   // Keep the last title through the exit so the closing dialog stays named.
@@ -79,7 +88,7 @@ export function Dialog({
 
   useModalLayer(open, rootRef, {
     onEscape: dismissible ? () => onOpenChange(false) : undefined,
-    initialFocus,
+    initialFocus: initialFocus ?? (focusTitle ? titleRef : undefined),
     returnFocus,
   });
 
@@ -120,7 +129,13 @@ export function Dialog({
           <div className="ui-dialog__head">
             {heading ? (
               typeof heading === "string" ? (
-                <h2 id={titleId} className="ui-dialog__title">
+                <h2
+                  ref={titleRef}
+                  id={titleId}
+                  className="ui-dialog__title"
+                  tabIndex={focusTitle ? -1 : undefined}
+                  data-dialog-start={focusTitle ? "" : undefined}
+                >
                   {heading}
                 </h2>
               ) : (

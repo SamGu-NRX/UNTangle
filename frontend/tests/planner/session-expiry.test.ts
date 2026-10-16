@@ -58,7 +58,7 @@ async function mountWithStoredPlan() {
   const planner = await mountPlanner();
   mounted.push(planner.unmount);
   await planner.get().afterHydration();
-  await waitFor(() => planner.get().saveState.label === "Saved on this device", "stored plan loaded");
+  await waitFor(() => planner.get().saveState.label === "Synced", "stored plan loaded");
   return planner;
 }
 
@@ -150,7 +150,7 @@ describe("401 at load", () => {
 
     server.sessionValid = true;
     notifySessionRestored();
-    await waitFor(() => planner.get().saveState.label === "Saved on this device", "adopted");
+    await waitFor(() => planner.get().saveState.label === "Synced", "adopted");
     expect(planner.get().plannerState.optimization).toBe("clusterNight");
     expect(server.putsStarted).toBe(0);
   });

@@ -83,3 +83,38 @@ test("a question that appears while the dialog is open can be answered This devi
   // The major answered "This device"; CSCE 2100 left at the other device's value.
   expect([record.major, record.courseStatuses["CSCE 2100"]]).toEqual(["ce", "inProgress"]);
 });
+
+test("while a schedule conflict holds an unsaved edit, the page keeps room for the notice and leaving asks first", async () => {
+  const { SyncNotice } = await import("@/components/sync-notice");
+  const React = await import("react");
+  server.legacy.set(user.id, fixtures.savedPlan);
+  const planner = await mountPlanner(() => React.createElement(SyncNotice));
+  mounted.push(planner.unmount);
+  await waitFor(() => planner.get().hydrated && planner.get().plannerState.selectedMajor === "cs", "migrated plan shown");
+  const leaving = () => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+  const room = () => document.documentElement.style.getPropertyValue("--sync-notice-h");
+  expect([room(), leaving()]).toEqual(["", false]);
+
+  server.failNextPuts = Array.from({ length: 50 }, () => "drop" as const);
+  await planner.run((p) => p.setCourseStatus("MATH 1720", "notTaken"));
+  await waitFor(() => planner.get().saveState.label === "Save not confirmed (retrying)", "waiting");
+  const main = server.document(user.id, "main-unt-spring-2027")!.body as typeof fixtures.schedule;
+  server.writeElsewhere(user.id, "main-unt-spring-2027", "schedule", { ...main, courses: [...main.courses, "CSCE 2100"] });
+  server.failNextPuts = [];
+  await planner.run(() => window.dispatchEvent(new Event("focus")));
+  await waitFor(() => planner.get().syncConflict !== null, "conflict");
+  expect(room()).toMatch(/^\d+px$/);
+  // The edit that opened the conflict is in the outbox; one made after it is only in this tab.
+  expect(leaving()).toBe(false);
+  await planner.run((p) => p.setSelectedMajor("math"));
+  await planner.run((p) => p.setCourseStatus("CSCE 1040", "notTaken"));
+  await waitFor(() => leaving(), "leaving asks");
+
+  await planner.get().settleSyncConflict({ kind: "use-latest" });
+  await waitFor(() => planner.get().syncConflict === null, "settled");
+  expect([room(), leaving()]).toEqual(["", false]);
+});

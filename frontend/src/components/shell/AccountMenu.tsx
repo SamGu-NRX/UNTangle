@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { clearPlannerIdentity } from "@/lib/planner-store";
-import { clearSavedPlansIdentity } from "@/lib/saved-plans/store";
+import { forgetGuestWork, guestWorkIsThisSession } from "@/lib/guest-session";
+import { GUEST_ID_KEY, preferencesKey } from "@/components/schedule/preferences-store";
+import { clearPlannerIdentity, plannerStateKey } from "@/lib/planner-store";
+import { clearSavedPlansIdentity, createSavedPlanStore, savedPlansKey } from "@/lib/saved-plans/store";
 import { useState } from "react";
 import { openSignIn } from "@/components/auth-shell";
 import { authClient } from "@/lib/auth-client";
@@ -37,9 +39,12 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const [settingPassword, setSettingPassword] = useState(false);
   const { prepareSignOut } = usePlanner();
-  // Open while waiting writes need the student's choice before signing out.
-  const [unsyncedAsk, setUnsyncedAsk] = useState(false);
-  const [busy, setBusy] = useState<"sync" | "discard" | null>(null);
+  // Open while signing out would lose something the student hasn't agreed to lose.
+  const [ask, setAsk] = useState<Ask | null>(null);
+  // The last question, kept while the dialog plays its exit.
+  const [shownAsk, setShownAsk] = useState<Ask | null>(null);
+  if (ask && ask !== shownAsk) setShownAsk(ask);
+  const [busy, setBusy] = useState<"sync" | "discard" | "remove" | null>(null);
 
   if (account.status === "checking") {
     // Hold the avatar's space so the bar does not shift when the session lands.
@@ -58,14 +63,31 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   }
   const { user } = account;
   /**
-   * Signing out deletes this account's documents from the browser, so a
-   * write still waiting for the server is never dropped without the
-   * student's choice (docs/architecture/README.md, "Local data belongs to one identity").
+   * Signing out deletes this account's documents and saved schedules from the
+   * browser, and this browser's guest work. A write still waiting for the
+   * server is never dropped without the student's choice
+   * (docs/architecture/README.md, "Local data belongs to one identity"), and
+   * nothing that lives only on this browser is removed without saying so.
+   * Each dialog asks one question: discarding waiting writes then asks about
+   * saved schedules.
    */
-  const signOut = async ({ discard = false, prepared: given }: { discard?: boolean; prepared?: Awaited<ReturnType<typeof prepareSignOut>> } = {}) => {
+  const signOut = async ({
+    discard = false,
+    remove = false,
+    prepared: given,
+  }: { discard?: boolean; remove?: boolean; prepared?: Awaited<ReturnType<typeof prepareSignOut>> } = {}) => {
     const prepared = given ?? (await prepareSignOut());
     if (prepared.unsynced && !discard) {
-      setUnsyncedAsk(true);
+      setAsk({ kind: "unsynced" });
+      return false;
+    }
+    const library = createSavedPlanStore().list();
+    // Entries this version can't read are removed too, so they count; an unreadable library counts as one.
+    const saved = library.ok ? library.doc.plans.length + library.doc.unreadable.length : 1;
+    const guestWork = guestWorkOnBrowser();
+    if ((saved > 0 || guestWork) && !remove) {
+      // The answer to the first question travels with the second, so answering one never undoes the other.
+      setAsk({ kind: "remove", saved, guestWork, discard });
       return false;
     }
     let failed: boolean;
@@ -79,21 +101,22 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
       toast({
         message: "Couldn't sign out. You're still signed in on this device.",
         tone: "error",
-        action: { label: "Try again", onClick: () => void signOut({ discard, prepared }) },
+        action: { label: "Try again", onClick: () => void signOut({ discard, remove, prepared }) },
       });
       return false;
     }
-    setUnsyncedAsk(false);
+    setAsk(null);
     await prepared.forget(discard).catch((error: unknown) => console.error("Couldn't clear this account's documents from the browser", error));
     clearPlannerIdentity(user.id);
     clearSavedPlansIdentity(user.id);
     clearPlannerIdentity(null);
     clearSavedPlansIdentity(null);
+    clearGuestPreferences();
+    forgetGuestWork();
     router.push("/");
     return true;
   };
-  /** "Sync now" tries the waiting writes once more; "Sign out and discard" signs out with them still waiting. */
-  const settle = async (choice: "sync" | "discard") => {
+  const settle = async (choice: "sync" | "discard" | "remove") => {
     setBusy(choice);
     try {
       const prepared = await prepareSignOut();
@@ -101,11 +124,13 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
         toast({ message: "Couldn't sync, so you're still signed in. Try again, or sign out and discard them.", tone: "error" });
         return;
       }
-      await signOut({ discard: choice === "discard", prepared });
+      const discarded = choice === "discard" || (choice === "remove" && ask?.kind === "remove" && ask.discard);
+      await signOut({ discard: discarded, remove: choice === "remove", prepared });
     } finally {
       setBusy(null);
     }
   };
+  const view = ask ?? shownAsk;
   return (
     <>
       <Menu
@@ -129,22 +154,104 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
       />
       <SetPasswordDialog open={settingPassword} onOpenChange={setSettingPassword} />
       <Dialog
-        open={unsyncedAsk}
-        onOpenChange={setUnsyncedAsk}
+        open={ask !== null}
+        onOpenChange={(open) => (open ? undefined : setAsk(null))}
         role="alertdialog"
-        title="Some changes haven't synced"
-        description="Sync now, or sign out and discard them?"
+        focusTitle
+        title={view?.kind === "unsynced" ? "Some changes haven't synced" : view ? removalTitle(view) : undefined}
+        description={view?.kind === "unsynced" ? "Sync now, or sign out and discard them?" : view ? removalLine(view) : undefined}
         footer={
-          <>
-            <Button variant="destructive" loading={busy === "discard"} disabled={busy !== null} onClick={() => void settle("discard")}>
-              Sign out and discard
-            </Button>
-            <Button loading={busy === "sync"} disabled={busy !== null} onClick={() => void settle("sync")}>
-              Sync now
-            </Button>
-          </>
+          view?.kind === "unsynced" ? (
+            <>
+              <Button variant="destructive" loading={busy === "discard"} disabled={busy !== null} onClick={() => void settle("discard")}>
+                Sign out and discard
+              </Button>
+              <Button loading={busy === "sync"} disabled={busy !== null} onClick={() => void settle("sync")}>
+                Sync now
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="destructive" loading={busy === "remove"} disabled={busy !== null} onClick={() => void settle("remove")}>
+                Remove and sign out
+              </Button>
+              {view?.saved ? (
+                <Link href={SCHEDULES_HREF} className="ui-btn ui-btn--primary" data-ui="" onClick={() => setAsk(null)}>
+                  Open Schedules
+                </Link>
+              ) : null}
+            </>
+          )
         }
       />
     </>
   );
+}
+
+type GuestWork = "this-session" | "earlier" | null;
+type Ask = { kind: "unsynced" } | { kind: "remove"; saved: number; guestWork: GuestWork; discard: boolean };
+
+function removalTitle(ask: Ask): string {
+  if (ask.kind !== "remove" || ask.saved > 0) return "Signing out removes your saved schedules";
+  return ask.guestWork === "this-session" ? "Signing out removes your work from before you signed in" : "Signing out removes guest work kept on this browser";
+}
+
+function removalLine(ask: Ask): string {
+  if (ask.kind !== "remove") return "";
+  const { saved, guestWork } = ask;
+  const one = saved === 1;
+  const lines = [
+    saved > 0 ? `${saved} saved ${one ? "schedule is" : "schedules are"} kept only on this browser. Export ${one ? "it" : "them"} from Schedules to keep a copy.` : "",
+    guestWork === "this-session"
+      ? "What you did as a guest before signing in hasn't been added to your account yet. Stay signed in to choose what to keep."
+      : guestWork === "earlier"
+        ? "This browser also keeps guest work from an earlier visit."
+        : "",
+  ];
+  return lines.filter(Boolean).join(" ");
+}
+
+/**
+ * The guest work sign-out will delete: whatever the guest stores hold, read
+ * raw so nothing is migrated or moved by looking. A library that can't be
+ * read counts, as its bytes are deleted too. "this-session" when a guest
+ * wrote some of it in this browser session (lib/guest-session.ts), which
+ * signing in could still carry into the account.
+ */
+function guestWorkOnBrowser(): GuestWork {
+  try {
+    const storage = window.localStorage;
+    const guestId = storage.getItem(GUEST_ID_KEY);
+    const any =
+      storage.getItem(plannerStateKey(null)) !== null ||
+      (guestId !== null && storage.getItem(preferencesKey({ kind: "guest", id: guestId })) !== null) ||
+      guestLibraryEntries(storage.getItem(savedPlansKey(null))) > 0;
+    if (!any) return null;
+    return guestWorkIsThisSession() ? "this-session" : "earlier";
+  } catch {
+    // Storage denied: no guest work was kept.
+    return null;
+  }
+}
+
+/** Entries in a stored library, readable or not; an unparseable library counts as one. */
+function guestLibraryEntries(raw: string | null): number {
+  if (raw === null) return 0;
+  try {
+    const doc = JSON.parse(raw) as { plans?: unknown; unreadable?: unknown };
+    const count = (list: unknown) => (Array.isArray(list) ? list.length : 0);
+    return count(doc?.plans) + count(doc?.unreadable);
+  } catch {
+    return 1;
+  }
+}
+
+/** The guest's preferences go with the rest of the guest's work. */
+function clearGuestPreferences(): void {
+  try {
+    const guestId = window.localStorage.getItem(GUEST_ID_KEY);
+    if (guestId) window.localStorage.removeItem(preferencesKey({ kind: "guest", id: guestId }));
+  } catch {
+    // Storage denied: nothing was stored.
+  }
 }

@@ -23,7 +23,7 @@ Signing in compares each part of the guest's work with the matching account data
 | has work | has work, different | Show one sheet (below). |
 
 The sheet:
-- Title: "You made a schedule before signing in."
+- Title: "You made a schedule before signing in"
 - One line of difference, such as "3 courses differ from your saved schedule".
 - "Use this one" makes the guest plan Main. The account's previous Main stays in the library as a restore point.
 - "Keep my saved schedule" keeps the account's Main. The guest plan goes into the library as a saved copy named "From this browser, Oct 14".
