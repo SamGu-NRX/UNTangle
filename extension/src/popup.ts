@@ -1,9 +1,10 @@
 import { extensionTokens } from "@untangle/tokens/extension";
 import { UNTANGLE_ORIGIN } from "./config";
-import type { Preview, PreviewClash, PreviewGrades, PreviewMeeting, UnknownReason } from "./shared/extension-api";
+import type { Preview, PreviewClash, PreviewGrades, PreviewMeeting } from "./shared/extension-api";
 import { MARKER_STATES, PILL_CSS, type MarkerState } from "./shared/marker-states";
 import type { PanelState } from "./shared/panel";
 import { trackPress } from "./shared/press";
+import { canAdd, verdictOf } from "./shared/preview-view";
 
 // Layout follows the v3 course detail (frontend/src/components/courses/
 // DetailPanel.tsx): code and title, then one section per question, one fact
@@ -68,6 +69,8 @@ h2 + .meta { margin-top: var(--s1); }
 .state p:not(.lead) { margin-top: var(--s2); color: var(--ink-2); }
 .state p.small { margin-top: var(--s3); font-size: var(--text-meta); line-height: var(--lh-meta); }
 .state p.note { color: var(--attention); }
+/* The code the student matches against the approval tab: the strongest line on the screen, not muted body copy. */
+.state p.code { margin-top: var(--s4); color: var(--brand); letter-spacing: .06em; }
 .state .note + .lead { margin-top: var(--s3); }
 .mark { display: block; width: 40px; height: 40px; margin-bottom: var(--s4); }
 .loading { display: flex; align-items: center; gap: var(--s2); color: var(--ink-2); }
@@ -140,10 +143,6 @@ function pill(state: MarkerState): HTMLElement {
   return h("span", { class: "pill", "data-marker": state }, svg(MARKER_STATES[state].glyph, { viewBox: "0 0 16 16" }), MARKER_STATES[state].word);
 }
 const termLabel = (term: string) => term.replace(/^([a-z])([a-z]*)-(\d{4})$/, (_, first: string, rest: string, year: string) => `${first.toUpperCase()}${rest} ${year}`);
-/** "A", "A and B", "A, B and C". */
-function joined(parts: string[]): string {
-  return parts.length <= 1 ? parts.join("") : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
-}
 /** One row: a name and the one fact the student acts on, each with an optional quieter line under it. */
 function row(name: string, fact: string, sub: string | null = null, factSub: string | null = null): HTMLElement {
   return h("div", { class: "row" },
@@ -170,25 +169,9 @@ function meetingsSection(meetings: PreviewMeeting[]): HTMLElement {
       ? h("p", { class: "meta" }, "No meetings listed.")
       : h("div", { class: "rows" }, ...meetings.map(m => row(m.days, m.time ?? "No set time", m.room))));
 }
-const UNKNOWN_COPY: Record<UnknownReason, string> = {
-  "no-set-time": "This section has no set meeting time, so there's nothing to compare.",
-  "schedule-time-missing": "A section in Main has no set time, so UNTangle can't rule out an overlap.",
-  "schedule-unavailable": "Main couldn't be loaded, so nothing was compared.",
-};
 function verdictSection(p: Preview, changed: boolean): HTMLElement {
   const clashes: PreviewClash[] = p.clashes ?? [];
-  let marker: MarkerState = p.conflict;
-  let words: string;
-  if (p.inSchedule === true) {
-    marker = "added";
-    words = `${p.title} is already in Main.`;
-  }
-  else if (p.conflict === "conflict")
-    words = clashes.length > 0 ? `Overlaps ${joined(clashes.map(c => c.kind === "busy" ? `your busy time “${c.name}”` : c.name))}.` : "Overlaps something in Main.";
-  else if (p.conflict === "clear")
-    words = "Fits Main. It overlaps none of your classes or busy times.";
-  else
-    words = p.unknownReason ? UNKNOWN_COPY[p.unknownReason] : "UNTangle couldn't compare this section's times with Main.";
+  const { marker, words } = verdictOf(p);
   return h("section", { "aria-labelledby": "verdict-title" },
     h("h2", { id: "verdict-title" }, "Against Main"),
     h("p", { class: "sentence", "data-marker": marker }, svg(MARKER_STATES[marker].glyph, { viewBox: "0 0 16 16" }), h("span", {}, words)),
@@ -214,6 +197,7 @@ function gradesSection(grades: PreviewGrades, code: string): HTMLElement {
 function detail(next: PanelState, preview: Preview): Node[] {
   const ref = next.preview!.ref;
   const marker: MarkerState = preview.inSchedule === true ? "added" : preview.conflict;
+  const more = verdictOf(preview).more;
   return [
     h("div", { class: "head" },
       h("div", { class: "codeline" }, h("h1", { class: "code", id: "view-title", tabindex: "-1" }, preview.title), pill(marker)),
@@ -222,7 +206,7 @@ function detail(next: PanelState, preview: Preview): Node[] {
     preview.meetings ? meetingsSection(preview.meetings) : null,
     verdictSection(preview, next.outcome === "changed"),
     preview.grades ? gradesSection(preview.grades, preview.title) : null,
-    preview.details.length > 0 ? h("section", { "aria-labelledby": "more-title" }, h("h2", { id: "more-title" }, "More"), h("div", { class: "lines meta" }, ...preview.details.map(line => h("p", {}, line)))) : null,
+    more.length > 0 ? h("section", { "aria-labelledby": "more-title" }, h("h2", { id: "more-title" }, "More"), h("div", { class: "lines meta" }, ...more.map(line => h("p", {}, line)))) : null,
   ].filter((node): node is HTMLElement => node !== null);
 }
 function result(kind: keyof typeof MARKS | null, title: string, ...body: Child[]): Node[] {
@@ -297,7 +281,7 @@ function screen(): Screen {
   if (next.preview) {
     const p = next.preview.preview;
     const previewId = next.preview.previewId;
-    const add = p.inSchedule === true ? null : button("confirm", `Add ${p.title} to Main`, "Adding", "primary", event => {
+    const add = !canAdd(p) ? null : button("confirm", `Add ${p.title} to Main`, "Adding", "primary", event => {
       confirmedTitle = p.title;
       // A keyboard press (detail 0) never animates; it repeats too often.
       enterAdded = event.detail > 0;

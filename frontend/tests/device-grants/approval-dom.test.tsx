@@ -79,6 +79,7 @@ test("shows client, account, bound schedule and matching code before explicit ap
   expect(requests.some((request) => request.path.endsWith("/approve"))).toBe(false);
   await click(button(container, "Approve device"));
   expect(container.textContent).toContain("Device approved");
+  expect(container.textContent).toContain("Go back to myUNT class search");
   expect(container.textContent).toContain("60 seconds");
   const approval = requests.find((request) => request.path.endsWith("/approve"))!;
   expect(JSON.parse(String(approval.init?.body))).toEqual({ userCode: "ABCDEFGH", decision: "approve", expectedUserId: "student-1" });
@@ -169,7 +170,7 @@ test("email code sign-in, resend and change email do not approve the device", as
   session = null;
   const container = await setup();
   await click(button(container, "Check device code"));
-  await input(container, "Email", "owner@my.unt.edu");
+  await input(container, "UNT email", "owner@my.unt.edu");
   await click(button(container, "Send sign-in code"));
   expect(container.textContent).toContain("Check your inbox");
   await click(button(container, "Send a new code"));
@@ -183,4 +184,29 @@ test("email code sign-in, resend and change email do not approve the device", as
   expect(requests.some((request) => request.path.endsWith("/approve"))).toBe(false);
   const signIn = requests.find((request) => request.path.endsWith("sign-in/email-otp"))!;
   expect(JSON.parse(String(signIn.init?.body))).toEqual({ email: "owner@my.unt.edu", otp: "123456" });
+});
+
+test("a personal email address is refused on the page, before any code is sent", async () => {
+  session = null;
+  const container = await setup();
+  await click(button(container, "Check device code"));
+  await input(container, "UNT email", "student@gmail.com");
+  await click(button(container, "Send sign-in code"));
+  expect(container.textContent).toContain("Use a UNT email address ending in @unt.edu or @my.unt.edu.");
+  expect(container.querySelector('input[name="email"]')?.getAttribute("aria-invalid")).toBe("true");
+  expect(document.activeElement).toBe(container.querySelector('input[name="email"]'));
+  expect(requests.some((request) => request.path.endsWith("send-verification-otp"))).toBe(false);
+  await input(container, "UNT email", "student@my.unt.edu");
+  expect(container.querySelector('input[name="email"]')?.getAttribute("aria-invalid")).not.toBe("true");
+  await click(button(container, "Send sign-in code"));
+  expect(requests.filter((request) => request.path.endsWith("send-verification-otp"))).toHaveLength(1);
+});
+
+test("the mobile app is told to return to the app once approved", async () => {
+  details = { clientKind: "mobile", scopes: ["documents:read", "documents:write"], userCode: "ABCDEFGH", scheduleId: "" };
+  const container = await setup();
+  await click(button(container, "Check device code"));
+  await click(button(container, "Approve device"));
+  expect(container.textContent).toContain("Return to the app.");
+  expect(container.textContent).not.toContain("class search");
 });

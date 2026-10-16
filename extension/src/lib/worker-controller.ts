@@ -43,6 +43,7 @@ const sameSignIn = (stored: unknown, pending: PendingSignIn) => isPendingSignIn(
 export class WorkerController {
   private grant: StoredGrant | null = null;
   private preview: PanelPreview | null = null;
+  private proposalGeneration = 0;
   /** The sign-in this worker is polling; the panel shows its code. One at a time. */
   private signingIn: PendingSignIn | null = null;
   private notice = CHOOSE_SECTION;
@@ -186,9 +187,13 @@ export class WorkerController {
     }
   }
   private async refresh(ref: SectionRef): Promise<void> {
+    const generation = this.proposalGeneration;
     this.preview = null;
     const token = await this.session();
     const result = await this.client.preview(ref, token);
+    // A proposal made during this fetch needs its own fresh check.
+    if (generation !== this.proposalGeneration)
+      return;
     this.preview = { previewId: crypto.randomUUID(), ref, preview: result };
     this.notice = "Review this section before adding.";
     this.outcome = "none";
@@ -257,6 +262,11 @@ export class WorkerController {
       }
     }
     if (request.type === "proposal/request") {
+      // A marker click always gets a fresh check, even for the section on
+      // screen: Main may have changed since, and a preview with no add on
+      // offer would otherwise stay until another section is chosen.
+      this.proposalGeneration++;
+      this.preview = null;
       await this.store.set("proposed-section", request.ref);
       return { proposed: true };
     }

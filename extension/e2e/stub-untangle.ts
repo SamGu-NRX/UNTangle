@@ -15,6 +15,8 @@ let nextCommand: "reject" | "unauthorized" | null = null;
 let accessExpiresInSeconds: number | null = null;
 // When set, the /device page waits for its Approve button instead of approving on load.
 let holdApproval = false;
+// When set, the account has no Main: every preview is UNTangle's no-schedule answer.
+let noMain = false;
 const receipts = new Map<string, {
   body: string;
   reply: AddReply;
@@ -125,7 +127,9 @@ Bun.serve({
         accessExpiresInSeconds = null;
       if (typeof body.holdApproval === "boolean")
         holdApproval = body.holdApproval;
-      return json({ failPreviewFor, previewDelayMs, commandDelayMs, nextCommand, accessExpiresInSeconds, holdApproval });
+      if (typeof body.noMain === "boolean")
+        noMain = body.noMain;
+      return json({ failPreviewFor, previewDelayMs, commandDelayMs, nextCommand, accessExpiresInSeconds, holdApproval, noMain });
     }
     requests.push({ path, cookie: request.headers.has("cookie"), bearer: request.headers.get("authorization")?.startsWith("Bearer ") === true });
     if (request.headers.has("cookie"))
@@ -236,6 +240,14 @@ Bun.serve({
         await Bun.sleep(previewDelayMs);
       if (failPreviewFor === classNumber)
         return json({ error: "fixture failure" }, 500);
+      if (noMain) {
+        // The shape frontend/src/server/extension/preview.ts sends when the account has no Main.
+        const { courseTitle, section, meetings } = preview(classNumber);
+        return json({
+          scheduleId: "main", optionId: `section-${classNumber}`, revision: 0, title: titles[classNumber], conflict: "unknown", unknownReason: "schedule-unavailable",
+          details: ["Your UNTangle account has no Main schedule yet, so there is nothing to check this section against or add it to."], courseTitle, section, meetings,
+        });
+      }
       return json(preview(classNumber));
     }
     if (path === "/api/v1/extension/commands" && request.method === "POST") {
