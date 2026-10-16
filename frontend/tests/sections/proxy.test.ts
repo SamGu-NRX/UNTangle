@@ -190,6 +190,14 @@ describe("class numbers", () => {
     expect(await fakeVsb().proxy.findClassNumber("fall-2031", "6862")).toBeNull();
   });
 
+  test("a miss is a 503 when a course in the term file failed to parse; its other numbers still match", async () => {
+    const broken = { ...fixture, courses: { ...fixture.courses, "ACCT 5120": { ...fixture.courses["ACCT 5120"], status: "renamed" } } };
+    const vsb = fakeVsb(url => (url === termUrl ? Response.json(broken) : new Response(null, { status: 404 })));
+    expect(await vsb.proxy.findClassNumber("spring-2027", "6862")).toMatchObject({ courseCode: "MATH 1680" });
+    expect(await vsb.proxy.findClassNumber("spring-2027", "99999")).toBe("unavailable");
+    expect((await vsb.proxy.respondClassNumber("spring-2027", "99999")).status).toBe(503);
+  });
+
   test("malformed input is a 400 that never reaches vsb", async () => {
     const vsb = fakeVsb();
     for (const [term, number] of [["../x", "6862"], ["spring-2027", "68"], ["spring-2027", "686212"], ["spring-2027", "6862a"]]) {

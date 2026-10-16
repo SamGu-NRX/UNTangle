@@ -32,6 +32,7 @@ const ALLOWED: RegExp[] = [
   /^@\/lib\/course-colors$/,
   /^@\/lib\/export\/[\w-]+$/,
   /^@\/lib\/planner-ics$/,
+  /^@\/lib\/sections\/open-seats$/, // one pure predicate, so search's Open seats matches Auto's
 ];
 /** Shared data shapes: allowed as `import type` only. */
 const TYPES_ONLY: RegExp[] = [/^@\/lib\/sections(\/model)?$/, /^@\/lib\/types$/];

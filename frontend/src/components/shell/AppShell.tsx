@@ -10,7 +10,7 @@ import { SyncNotice } from "@/components/sync-notice";
 import { Toaster } from "@/components/ui/Toast";
 import { WebMcpTools } from "@/components/webmcp/WebMcpTools";
 import { courses } from "@/lib/seed-data";
-import { CLASS_NUMBER_ITEM, classNumberHref, classNumberSection } from "./class-number-search";
+import { CLASS_NUMBER_ITEM, classNumberHref, paletteSections } from "./class-number-search";
 import { courseHref, searchCourses } from "./course-search";
 import { useLensMemory } from "./lens-memory";
 import { lensForPath, shellModeFor } from "./routes";
@@ -67,8 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [mode, provider]);
 
   const results = useMemo(() => searchCourses(courses, query), [query]);
-  const classNumber = classNumberSection(query);
-  const sections = [...(classNumber ? [classNumber] : []), ...(provider ? provider.search(query) : [{ id: "courses", label: "Courses", items: results }])];
+  const sections = paletteSections(query, provider ? provider.search(query) : null, results);
 
   if (mode === "bare") {
     return (

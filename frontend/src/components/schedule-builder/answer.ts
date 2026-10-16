@@ -67,7 +67,7 @@ export function answerFor(input: {
 
   // The student's own spare-minutes setting, which Auto enforces, can be stricter than "tight".
   const buffer = preferences.constraints.walkingBufferMinutes;
-  const short = buffer ? walks.find((walk) => !walk.shuttle && walk.minutes + buffer > walk.to - walk.from) : undefined;
+  const short = buffer ? walks.find((walk) => !walk.shuttle && walk.seconds + buffer * 60 > (walk.to - walk.from) * 60) : undefined;
   if (short && buffer) {
     return {
       tone: "attention",

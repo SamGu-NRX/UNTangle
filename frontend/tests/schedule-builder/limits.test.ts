@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { changedCount, hourSpan, isBusy, leanOf, ledger, paint, renameBusy, stepCredits, toggleDayOff, withHours, withLean } from "@/components/schedule-builder/limits";
+import { preferenceSummary, withLunch } from "@/components/schedule-builder/preferences";
 import type { SchedulePreferences } from "@/lib/types";
 
 const defaults: SchedulePreferences = {
@@ -33,6 +34,19 @@ describe("painting busy times", () => {
     const work = renameBusy(paint(defaults, ["Tue"], 900, 1020, "busy", id), ["b" + n], "Work");
     const grown = paint(work, ["Tue"], 1020, 1080, "busy", id);
     expect(blocksOf(grown)).toEqual(["Work Tue 900-1080"]);
+  });
+
+  test("painting beside Lunch adds a block of its own, which outlasts turning Lunch off", () => {
+    const p = paint(withLunch(defaults, true), ["Tue"], 780, 900, "busy", id);
+    expect(blocksOf(p).filter((block) => block.includes("Tue"))).toEqual(["Busy Tue 780-900", "Lunch Tue 720-780"]);
+    expect(preferenceSummary(p, defaults)).toContain("busy Tue 1:00–3:00");
+    expect(blocksOf(withLunch(p, false))).toEqual(["Busy Tue 780-900"]);
+  });
+
+  test("time painted between two named blocks joins one of them, never both", () => {
+    const work = renameBusy(paint(defaults, ["Mon"], 600, 660, "busy", id), ["b" + n], "Work");
+    const both = renameBusy(paint(work, ["Mon"], 720, 780, "busy", id), ["b" + n], "Practice");
+    expect(blocksOf(paint(both, ["Mon"], 660, 720, "busy", id))).toEqual(["Practice Mon 720-780", "Work Mon 600-720"]);
   });
 
   test("freeing the middle of a block splits it in two, both keeping the name", () => {

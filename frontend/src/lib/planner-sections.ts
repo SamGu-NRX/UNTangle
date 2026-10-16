@@ -9,8 +9,12 @@ import { courses as catalogCourses, sections as seedSections } from "@/lib/seed-
 import type { CourseSections, Day, Meeting, SampleCourseSections, Section } from "@/lib/sections";
 import { sampleResult } from "@/lib/sections/sample";
 import type { DateRange } from "@/lib/sections/model";
+import { hasOpenSeats } from "@/lib/sections/open-seats";
 import { fullSession } from "@/lib/terms";
 import type { ScheduleEvent } from "@/lib/types";
+
+// Callers across the app import it from here.
+export { hasOpenSeats };
 
 /**
  * The term the planner schedules. Spring 2027 is the next registration term
@@ -242,12 +246,6 @@ export function otherSiteOf(section: Section): string | null {
     }
   }
   return null;
-}
-
-/** Open per INTEGRATION.md: not closed or wait-listed, and every component with known seats has one open. */
-export function hasOpenSeats(section: Pick<Section, "status" | "components">): boolean {
-  if (section.status === "closed" || section.status === "waitlist" || section.status === "cancelled") return false;
-  return section.components.every((component) => component.seats.open === null || component.seats.open > 0);
 }
 
 /** Whether the optimizer may suggest this option. */
