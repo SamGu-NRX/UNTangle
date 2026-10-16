@@ -8,7 +8,7 @@
  * titles are shown while checking, to pick one event, and are never stored
  * except as the name of the one busy time the student makes from an event.
  */
-import { busyFromFeed } from "./busy";
+import { busyFromFeed, OccurrenceBudgetError } from "./busy";
 import type { CalendarEvent, CalendarParseResult } from "./types";
 import { busyCount, readingOf, weekdayOf, type BusyPiece, type CheckedFeed, type FeedEvent, type FeedProblem, type FeedTerm, type Outcome } from "@/lib/calendar-busy";
 import type { ConnectedCalendar, WeekDay } from "@/lib/types";
@@ -75,7 +75,13 @@ export async function checkFeed(url: string, term: FeedTerm, fetchImpl: FetchLik
   if (!response.ok) return { ok: false, problem: await problemOf(response, "preview") };
   const feed = (await response.json()) as CalendarParseResult;
   // The same pipeline the busy route runs, so the count is what connecting stores.
-  const pieces = busyFromFeed(feed, { start: term.start, end: term.end });
+  let pieces: ReturnType<typeof busyFromFeed>;
+  try {
+    pieces = busyFromFeed(feed, { start: term.start, end: term.end });
+  } catch (error) {
+    if (error instanceof OccurrenceBudgetError) return { ok: false, problem: TOO_MANY };
+    throw error;
+  }
   const summaries = new Map<number, CalendarEvent>(feed.events.map((event) => [event.id, event]));
   const events = pieces
     .filter((piece) => !piece.allDay && WEEKDAYS.includes(weekdayOf(piece.date)))

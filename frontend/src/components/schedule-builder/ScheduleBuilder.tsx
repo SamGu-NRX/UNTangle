@@ -15,7 +15,7 @@ import { calendarBands, calendarBlockedTimes, weekdayCount } from "@/lib/calenda
 import type { BlockedTime, WeekDay } from "@/lib/types";
 import { answerFor, describeAlternative, type AnswerCourse } from "./answer";
 import styles from "./builder.module.css";
-import { hasNoSetTime, isTimed, meetingsOverlap } from "./conflicts";
+import { hasNoSetTime, isTimed, meetingsOverlap, meetTogether } from "./conflicts";
 import { ExportSheet } from "./ExportSheet";
 import type { BuilderHost } from "./host";
 import { NoticeStrip, OptionsStrip } from "./OptionsStrip";
@@ -345,6 +345,22 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   const calendarBlocks: BlockedTime[] = calendarTerm
     ? calendarBlockedTimes(host.preferences.calendars, calendarTerm.id, calendarTerm).flatMap((block) => (isWeekDay(block.day) ? [{ ...block, day: block.day }] : []))
     : [];
+  // Classes on the grid that meet during dated busy time, on a date they meet: marked like a clash, with the date.
+  const datedBlocks: BlockedTime[] = [...host.preferences.constraints.blocked.filter((block) => block.dates?.length), ...calendarBlocks];
+  const busyClash = new Map<string, string>();
+  for (const event of shown.events) {
+    for (const block of datedBlocks) {
+      if (block.day !== event.day || event.start >= block.end || block.start >= event.end) continue;
+      const dates = (block.dates ?? []).filter((range) => meetTogether(event.day, event.dates, range));
+      if (dates.length === 0) continue;
+      busyClash.set(event.key, `${block.label}, ${dates.length === 1 ? shortDate(dates[0].start) : `${dates.length} dates`}`);
+      break;
+    }
+  }
+  const clashing = shown.events.filter((event) => busyClash.has(event.key));
+  const besideClass = (block: Busy) =>
+    block.kind !== undefined && clashing.some((event) => event.day === block.day && event.start < block.end && block.start < event.end);
+  const busyShown = busy.map((block) => (besideClass(block) ? { ...block, beside: true } : block));
   const answerPreferences = calendarBlocks.length
     ? { ...host.preferences, constraints: { ...host.preferences.constraints, blocked: [...host.preferences.constraints.blocked, ...calendarBlocks] } }
     : host.preferences;
@@ -549,7 +565,8 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         selectedCourse={selectedCourse?.code ?? null}
         outlines={outlines}
         ghost={ghost}
-        busy={busy}
+        busy={busyShown}
+        busyClash={busyClash}
         limits={host.preferences.constraints}
         motion={{ key: shownKey, instant, exit }}
         interactive={!previewing}

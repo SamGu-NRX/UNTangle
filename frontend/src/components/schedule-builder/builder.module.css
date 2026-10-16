@@ -469,6 +469,14 @@
 .event[data-conflict]::before {
   background: var(--danger);
 }
+/* The dated busy time a class meets during, and when: "Work, Feb 16". */
+.eventBusy {
+  overflow: hidden;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--danger);
+}
 .event[data-dragging] {
   z-index: 6;
   box-shadow: var(--shadow-3);
