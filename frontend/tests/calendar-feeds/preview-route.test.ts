@@ -76,12 +76,22 @@ function tinyResponse(): Response {
   return new Response(TINY_ICS, { status: 200, headers: { "content-type": "text/calendar" } });
 }
 
-test("answers 401 without a session", async () => {
+test("previews for a guest, who connects calendars on the device", async () => {
   setSession(null);
-  const response = await POST(previewRequest(VALID_BODY));
-  expect(response.status).toBe(401);
-  expect(await response.json()).toEqual({ error: "Unauthorized" });
-  expect(dnsLookup).toHaveBeenCalledTimes(0);
+  const response = await POST(previewRequest(VALID_BODY, "192.0.2.70"));
+  expect(response.status).toBe(200);
+  const payload = await response.json();
+  expect(payload.events.map((event: { summary: string }) => event.summary)).toEqual(["Tiny event"]);
+  expect(fetchStub).toHaveBeenCalledTimes(1);
+  // The tests below count calls from zero.
+  dnsLookup.mockClear();
+  fetchStub.mockClear();
+});
+
+test("never takes a sealed address: titles leave only for someone holding the feed's address", async () => {
+  setSession({ user: { id: "user-sealed" } });
+  const response = await POST(previewRequest({ sealedUrl: "cf1.abc.def.ghi", rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }));
+  expect(response.status).toBe(400);
   expect(fetchStub).toHaveBeenCalledTimes(0);
 });
 
@@ -211,13 +221,13 @@ test("a feed blocked by SSRF rules answers 400 and an unreachable feed answers 5
 test(`answers 429 once an anonymous caller passes the ${budgets.calendarFeedPreview.ip} request IP budget`, async () => {
   pinClockMidWindow();
   setSession(null);
-  // Reset the network stubs: these calls answer 401 before any fetch happens.
+  // Reset the network stubs: every call fetches the tiny feed.
   dnsLookup.mockImplementation(async () => [{ address: "93.184.216.34", family: 4 }]);
   fetchStub.mockImplementation(async () => tinyResponse());
-  // Anonymous calls answer 401 (no session) - but the wrapper still counts them.
+  // Anonymous calls are previewed, and the wrapper counts them by address.
   const call = () => POST(previewRequest(VALID_BODY, "192.0.2.83"));
   for (let i = 0; i < budgets.calendarFeedPreview.ip; i++) {
-    expect((await call()).status).toBe(401);
+    expect((await call()).status).toBe(200);
   }
   const response = await call();
   expect(response.status).toBe(429);

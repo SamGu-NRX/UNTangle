@@ -17,6 +17,8 @@ import { SyncError } from "@/lib/document-sync/decision";
 import { applyAddOption, type ExtensionStore } from "./commands";
 import { extensionAddOptionCommandSchema, extensionAddReplySchema, extensionPreviewSchema } from "./extension-api";
 import { buildPreview, type SectionsSource } from "./preview";
+import { calendarBlockedTimes } from "@/lib/calendar-busy";
+import { termDates } from "@/lib/planner-sections";
 import { DocumentIdSchema } from "../../../../packages/contracts/src/ids";
 
 export type ExtensionDependencies = {
@@ -161,10 +163,13 @@ export function createExtensionHttp({ grants, store, sections, origin, extension
         }
         const identity = await authenticate(await requireBearer(request));
         // The bound schedule is the only one this grant reads or writes.
-        const [termSections, schedule, preferences] = await Promise.all([
+        // Busy blocks come from the preferences of Main's own institution.
+        const [termSections, { schedule, preferences }] = await Promise.all([
           sections.termSections(params.term),
-          loadSchedule(identity),
-          store.preferences(identity.userId),
+          loadSchedule(identity).then(async (schedule) => ({
+            schedule,
+            preferences: schedule ? await store.preferences(identity.userId, schedule.body.institutionId) : null,
+          })),
         ]);
         const preview = buildPreview({
           scheduleId: identity.scheduleId,
@@ -172,7 +177,11 @@ export function createExtensionHttp({ grants, store, sections, origin, extension
           classNumber: params.classNumber,
           sections: termSections,
           schedule,
-          blocked: preferences?.constraints.blocked ?? [],
+          // Connected calendars' busy time clashes too, on its own dates only.
+          blocked: [
+            ...(preferences?.constraints.blocked ?? []),
+            ...calendarBlockedTimes(preferences?.calendars, params.term, termDates[params.term] ?? null),
+          ],
         });
         // Self-check before the response leaves: the extension's guard rejects
         // anything this schema accepted by mistake.

@@ -1,23 +1,26 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import {
-  FakePlannerServer,
+  FakeDocumentServer,
   flushSaves,
   installDom,
   mountPlanner,
   removeDom,
+  resetDocumentStore,
   setSession,
   waitFor,
+  type PersistedDocumentStore,
 } from "./test-dom";
 import { getInitialPlannerState } from "@/lib/planner";
-import { plannerStateKey } from "@/lib/planner-store";
 import { notifySessionRestored, onSessionExpired } from "@/lib/session-events";
 
-// Item 5: a 401 keeps edits in memory and in the local mirror, says
-// "Not saved: signed out", tells the account layer, and on restore saves the
-// pending edit under the revision rules without overwriting anything.
+// A 401 keeps every edit in this device's outbox, says "Needs sign-in",
+// tells the account layer once, and on restore sends the waiting writes with
+// their first operation ids, without overwriting anything.
 
 const user = { id: "u5", email: "expiry@my.unt.edu", name: "Expiry Test" };
-let server: FakePlannerServer;
+const MAIN = "main-unt-spring-2027";
+let server: FakeDocumentServer;
+let store: PersistedDocumentStore;
 let previousFetch: typeof fetch;
 let expiredEvents = 0;
 let stopExpired = () => {};
@@ -31,7 +34,8 @@ afterAll(() => {
 });
 beforeEach(() => {
   window.localStorage.clear();
-  server = new FakePlannerServer();
+  store = resetDocumentStore();
+  server = new FakeDocumentServer();
   previousFetch = globalThis.fetch;
   globalThis.fetch = server.fetch as typeof fetch;
   expiredEvents = 0;
@@ -47,111 +51,98 @@ afterEach(async () => {
   setSession(null);
 });
 
-function mirrorOptimization(): string | null {
-  const raw = window.localStorage.getItem(plannerStateKey(user.id));
-  return raw ? (JSON.parse(raw) as { state: { optimization: string } }).state.optimization : null;
-}
+const stored = { ...getInitialPlannerState(), optimization: "clusterMorning" as const };
 
 async function mountWithStoredPlan() {
-  server.writeElsewhere({ ...getInitialPlannerState(), optimization: "clusterMorning" });
+  server.seedPlan(user.id, stored);
   const planner = await mountPlanner();
   mounted.push(planner.unmount);
   await planner.get().afterHydration();
-  await waitFor(() => planner.get().saveState.label === "Saved", "stored plan loaded");
+  await waitFor(() => planner.get().saveState.label === "Synced", "stored plan loaded");
   return planner;
 }
 
 describe("401 mid-save", () => {
-  test("401, then restore: the edit is saved on top of the revision this tab saw", async () => {
+  test("401, then restore: the waiting writes go out with their first operation ids, on top of the revision this tab saw", async () => {
     const planner = await mountWithStoredPlan();
     server.sessionValid = false;
 
     await planner.run((p) => p.setOptimization("compact"));
-    await waitFor(() => planner.get().saveState.label === "Not saved: signed out", "signed out");
+    await waitFor(() => planner.get().saveState.label === "Needs sign-in", "signed out");
     expect(planner.get().saveState.status).toBe("signed-out");
     expect(expiredEvents).toBe(1);
-    // The edit is kept in memory and in this browser's mirror.
+    const firstOperation = server.puts[0].write.operationId;
+    // Kept on screen and in this device's outbox.
     expect(planner.get().plannerState.optimization).toBe("compact");
-    expect(mirrorOptimization()).toBe("compact");
+    const outbox = (await store.stored(user.id)).documents.find((document) => document.documentId === "preferences-unt");
+    expect(outbox?.pending.map((pending) => (pending.write.body as { goal: string }).goal)).toEqual(["compact"]);
 
-    // A further edit while signed out: no request, mirror follows.
-    const postsWhileSignedOut = server.posts.length;
-    await planner.run((p) => p.setActiveDay("Fri"));
+    await planner.run((p) => p.setSchedulePreferences((current) => ({ ...current, constraints: { ...current.constraints, daysOff: ["Fri"] } })));
     await flushSaves();
-    expect(server.posts.length).toBe(postsWhileSignedOut);
-    expect(planner.get().saveState.label).toBe("Not saved: signed out");
+    expect(planner.get().saveState.label).toBe("Needs sign-in");
+    expect(server.puts.every((put) => put.status === 401)).toBe(true);
 
     server.sessionValid = true;
     notifySessionRestored();
-    await waitFor(() => planner.get().saveState.label === "Saved", "saved after restore");
+    await waitFor(() => planner.get().saveState.label === "Synced", "synced after restore");
 
-    const last = server.posts[server.posts.length - 1];
-    expect(last.status).toBe(200);
-    expect(last.baseRevision).toBe("1");
-    expect(server.row?.revision).toBe(2);
-    expect(server.row?.state.optimization).toBe("compact");
-    expect(server.row?.state.activeDay).toBe("Fri");
+    const delivered = server.puts.filter((put) => put.status === 200);
+    expect(delivered.map((put) => put.write.baseRevision)).toEqual([1, 2]);
+    expect(delivered[0].write.operationId).toBe(firstOperation);
+    expect(server.document(user.id, "preferences-unt")?.revision).toBe(3);
+    expect(server.plan(user.id)?.optimization).toBe("compact");
     expect(expiredEvents).toBe(1);
   });
 
-  test("401, another device saves meanwhile, then restore: a conflict is shown and nothing is overwritten", async () => {
+  test("401, another device changes Main meanwhile, then restore: a conflict is shown and nothing is overwritten", async () => {
     const planner = await mountWithStoredPlan();
     server.sessionValid = false;
-    await planner.run((p) => p.setOptimization("compact"));
+    await planner.run((p) => p.setCourseStatus("CSCE 1030", "inProgress"));
     await waitFor(() => planner.get().saveState.status === "signed-out", "signed out");
 
-    const theirs = { ...getInitialPlannerState(), optimization: "clusterNight" as const };
-    server.writeElsewhere(theirs);
+    server.seedPlan(user.id, { ...stored, courseStatuses: { ...stored.courseStatuses, "MATH 1710": "inProgress" } });
 
     server.sessionValid = true;
     notifySessionRestored();
-    await waitFor(() => planner.get().conflict !== null, "conflict raised");
+    await waitFor(() => planner.get().syncConflict !== null, "conflict raised");
 
-    // The other device's save is intact.
-    expect(server.row?.revision).toBe(2);
-    expect(server.row?.state.optimization).toBe("clusterNight");
-    const conflict = planner.get().conflict!;
-    expect(conflict.source).toBe("server");
-    expect(conflict.mine.optimization).toBe("compact");
-    expect(conflict.theirs?.optimization).toBe("clusterNight");
-    expect(planner.get().saveState.label).not.toBe("Saved");
-
-    // The user chooses to keep their edits: saved on top of revision 2.
-    await planner.run((p) => p.resolveConflict("keep-mine"));
-    await waitFor(() => planner.get().saveState.label === "Saved", "kept mine");
-    expect(server.posts[server.posts.length - 1].baseRevision).toBe("2");
-    expect(server.row?.revision).toBe(3);
-    expect(server.row?.state.optimization).toBe("compact");
+    // The other device's schedule is intact.
+    expect(server.document(user.id, MAIN)?.revision).toBe(2);
+    expect(server.plan(user.id)?.courseStatuses["MATH 1710"]).toBe("inProgress");
+    expect(server.plan(user.id)?.courseStatuses["CSCE 1030"]).toBe("notTaken");
+    expect(planner.get().syncConflict?.kind).toBe("schedule");
+    expect(planner.get().plannerState.courseStatuses["CSCE 1030"]).toBe("inProgress");
+    expect(planner.get().saveState.label).toBe("Resolve conflict");
   });
 });
 
 describe("401 at load", () => {
-  test("restore re-reads the server before writing; unsaved edits meet the stored plan in a conflict", async () => {
-    server.writeElsewhere({ ...getInitialPlannerState(), optimization: "clusterNight" });
+  test("restore reads the server before writing over it: an edit made before then meets the stored Main in a conflict", async () => {
+    server.seedPlan(user.id, { ...stored, courseStatuses: { ...stored.courseStatuses, "MATH 1710": "inProgress" } });
     server.sessionValid = false;
     const planner = await mountPlanner();
     mounted.push(planner.unmount);
     await planner.get().afterHydration();
-    expect(planner.get().saveState.label).toBe("Not saved: signed out");
+    expect(planner.get().saveState.label).toBe("Needs sign-in");
 
-    await planner.run((p) => p.setOptimization("compact"));
+    await planner.run((p) => p.setCourseStatus("CSCE 1030", "inProgress"));
     await flushSaves();
-    expect(server.posts).toHaveLength(0);
+    expect(server.puts.every((put) => put.status === 401)).toBe(true);
 
     server.sessionValid = true;
     notifySessionRestored();
-    await waitFor(() => planner.get().conflict !== null, "conflict after reload");
-    expect(server.posts).toHaveLength(0);
-    expect(server.row?.state.optimization).toBe("clusterNight");
+    await waitFor(() => planner.get().syncConflict !== null, "conflict after the read");
+    expect(server.document(user.id, MAIN)?.revision).toBe(1);
 
-    await planner.run((p) => p.resolveConflict("take-theirs"));
-    await waitFor(() => planner.get().saveState.label === "Saved", "took theirs");
-    expect(planner.get().plannerState.optimization).toBe("clusterNight");
-    expect(server.posts).toHaveLength(0);
+    await planner.get().settleSyncConflict({ kind: "use-latest" });
+    await waitFor(() => planner.get().syncConflict === null, "took the stored plan");
+    expect(planner.get().plannerState.courseStatuses["MATH 1710"]).toBe("inProgress");
+    expect(planner.get().plannerState.courseStatuses["CSCE 1030"]).toBe("notTaken");
+    expect(server.document(user.id, MAIN)?.revision).toBe(1);
   });
 
-  test("restore with no edits adopts the stored plan", async () => {
-    server.writeElsewhere({ ...getInitialPlannerState(), optimization: "clusterNight" });
+  test("restore with no edits adopts the stored plan and writes nothing", async () => {
+    server.seedPlan(user.id, { ...stored, optimization: "clusterNight" });
     server.sessionValid = false;
     const planner = await mountPlanner();
     mounted.push(planner.unmount);
@@ -159,8 +150,8 @@ describe("401 at load", () => {
 
     server.sessionValid = true;
     notifySessionRestored();
-    await waitFor(() => planner.get().saveState.label === "Saved", "adopted");
+    await waitFor(() => planner.get().saveState.label === "Synced", "adopted");
     expect(planner.get().plannerState.optimization).toBe("clusterNight");
-    expect(server.posts).toHaveLength(0);
+    expect(server.putsStarted).toBe(0);
   });
 });

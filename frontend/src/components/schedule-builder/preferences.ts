@@ -5,7 +5,10 @@
  * Auto follows exactly what the line says.
  */
 import type { BlockedTime, SchedulePreferences, WeekDay } from "@/lib/types";
-import { andList, clock, clockWithSuffix } from "./week";
+import { andList, clock, clockWithSuffix, shortDate } from "./week";
+
+/** Weekly busy time; one made from a calendar event holds on its dates only (limits.ts, isWeekly). */
+const weekly = (block: BlockedTime) => !block.dates || block.dates.length === 0;
 
 export const WEEKDAYS: readonly WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const PLURAL: Record<WeekDay, string> = { Mon: "Mondays", Tue: "Tuesdays", Wed: "Wednesdays", Thu: "Thursdays", Fri: "Fridays" };
@@ -21,7 +24,7 @@ export const MOST_CREDITS: readonly (number | null)[] = [null, 12, 15, 18];
  */
 export const LUNCH = { start: 720, end: 780, label: "Lunch" } as const;
 const LUNCH_PREFIX = "lunch-";
-const isLunch = (block: BlockedTime) => block.id.startsWith(LUNCH_PREFIX);
+export const isLunch = (block: BlockedTime) => block.id.startsWith(LUNCH_PREFIX);
 
 /** A weight at or above this reads as the preference being on. */
 const WEIGHT_ON = 2;
@@ -60,7 +63,7 @@ export type BusyGroup = { label: string; days: WeekDay[]; start: number; end: nu
 export function busyGroups(p: SchedulePreferences): BusyGroup[] {
   const groups = new Map<string, BusyGroup>();
   for (const block of p.constraints.blocked) {
-    if (isLunch(block)) continue;
+    if (isLunch(block) || !weekly(block)) continue;
     const key = `${block.label}|${block.start}|${block.end}`;
     const group = groups.get(key) ?? { label: block.label, days: [], start: block.start, end: block.end, ids: [] };
     if (!group.days.includes(block.day)) group.days.push(block.day);
@@ -79,6 +82,21 @@ export function addBusy(p: SchedulePreferences, block: Omit<BlockedTime, "id">, 
 
 export function removeBusy(p: SchedulePreferences, ids: readonly string[]): SchedulePreferences {
   return { ...p, constraints: { ...p.constraints, blocked: p.constraints.blocked.filter((b) => !ids.includes(b.id)) } };
+}
+
+/**
+ * Takes `start` to `end` back out of block `id`. Painting next to a block in
+ * Preferences grows it and keeps its id, so removing the whole block would
+ * also remove time painted on since; what lies outside the span stays.
+ */
+export function removeBusySpan(p: SchedulePreferences, id: string, start: number, end: number, newId: () => string): SchedulePreferences {
+  const block = p.constraints.blocked.find((b) => b.id === id);
+  if (!block) return p;
+  const rest: BlockedTime[] = [
+    ...(block.start < start ? [{ ...block, end: start }] : []),
+    ...(block.end > end ? [{ ...block, id: block.start < start ? newId() : block.id, start: end }] : []),
+  ];
+  return { ...p, constraints: { ...p.constraints, blocked: [...p.constraints.blocked.filter((b) => b.id !== id), ...rest] } };
 }
 
 /**
@@ -101,6 +119,8 @@ export function preferenceSummary(p: SchedulePreferences, defaults: SchedulePref
   if (c.openSeatsOnly !== defaults.constraints.openSeatsOnly) parts.push(c.openSeatsOnly ? "open seats only" : "full sections allowed");
   if (c.otherSites !== defaults.constraints.otherSites) parts.push(c.otherSites ? "other UNT sites too" : "Denton only");
   for (const group of busyGroups(p)) parts.push(`${group.label.toLowerCase()} ${andList(group.days)} ${clock(group.start)}–${clock(group.end)}`);
+  for (const block of c.blocked.filter((b) => !weekly(b))) parts.push(`${block.label.toLowerCase()} on ${block.dates?.[0] ? shortDate(block.dates[0].start) : block.day}`);
+  for (const calendar of p.calendars ?? []) parts.push(`busy times from ${calendar.name}`);
   const line = parts.join(", ");
   return line ? line[0].toUpperCase() + line.slice(1) : "";
 }

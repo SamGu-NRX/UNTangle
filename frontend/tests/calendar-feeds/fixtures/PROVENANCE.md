@@ -191,3 +191,21 @@ group and department feeds), the same rule the test uses to find them.
 - Source URL: https://calendar.unt.edu/group/admissions/calendar/ics (the feed carried 6 events over the verified 2026 range; category student-services).
 - Terms / robots: https://calendar.unt.edu/robots.txt — checked 2026-10-15 — sets `User-agent: * / Crawl-Delay: 1` and explicitly `Allow`s `/calendar/ics`, `/*/calendar/ics`, `/search/events.ics`, and `/*/search/events.ics`; this fixture's URL matches one of the allowed ICS patterns.
 - Fetched: 2026-10-14 with plain curl (a generic user agent) from this repo's sandbox, honoring the crawl delay.
+
+## work-shifts-spring-2027.ics and robotics-club-spring-2027.ics
+
+- Crafted by hand for the calendar busy-time lane (not downloaded); every
+  name and time is invented. They stand in for a student's private work
+  calendar and a public club calendar over the Spring 2027 term
+  (2027-01-11 to 2027-05-07, lib/planner-sections.ts).
+- Work: a weekly Tuesday and Thursday 3:00 to 6:00 PM shift for the whole
+  term (America/Chicago), one Monday 9:00 to noon shift on 2027-02-08, one
+  Tuesday 8:00 to 9:30 AM shift on 2027-02-16, which a class meeting
+  Tuesdays at 8:00 overlaps on that date only, two busy all-day events (a
+  one-day career fair on 2027-02-24 and a two-day conference on 2027-03-18
+  and 19), and one shift on 2027-06-07, after the term, which busy time must leave out.
+- Robotics Club: a Wednesday 6:00 to 7:30 PM meeting with COUNT=16, a
+  Tuesday 11:00 to 12:30 demo on 2027-03-02, a Friday 5:00 to 8:00 PM
+  kickoff on 2027-01-22, and a transparent social on 2027-02-05 that is
+  never busy.
+- CRLF line endings, as calendar servers send them.

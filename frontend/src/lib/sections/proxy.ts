@@ -83,7 +83,8 @@ export class SectionsProxy {
   /** Per term: when to try subject files again after vsb had none for a real subject. */
   private readonly subjectFilesOffUntil = new Map<string, number>();
   /** Class number -> section, built once per parsed term file and dropped with it. */
-  private readonly classIndex = new WeakMap<VsbTerm, Map<string, { courseCode: string; sectionId: string; primary: boolean }>>();
+  /** Per term file: where each class number points, and whether a course that failed to parse left the index incomplete. */
+  private readonly classIndex = new WeakMap<VsbTerm, { numbers: Map<string, { courseCode: string; sectionId: string; primary: boolean }>; incomplete: boolean }>();
   private readonly fetcher: Fetcher;
   private readonly now: () => number;
   private readonly retain: (work: Promise<void>) => void;
@@ -123,7 +124,8 @@ export class SectionsProxy {
    * The section a class number names, from the term file. A number shared by
    * several options (a lab linked to more than one lecture) names the option
    * whose primary component it is, else the first that lists it. "unavailable"
-   * when the term file could not be read, so a miss is never claimed blind.
+   * when the term file could not be read, or on a miss when a course in it
+   * failed to parse, so a miss is never claimed blind.
    */
   async findClassNumber(term: string, number: string): Promise<ClassNumberMatch | null | "unavailable"> {
     if (!supportedTerms.some(supported => supported.id === term)) return null;
@@ -131,22 +133,26 @@ export class SectionsProxy {
     if (!whole.data) return "unavailable";
     let index = this.classIndex.get(whole.data);
     if (!index) {
-      index = new Map();
+      index = { numbers: new Map(), incomplete: false };
       for (const [courseCode, record] of whole.data.courses) {
-        if (!Array.isArray(record)) continue;
+        if (!Array.isArray(record)) {
+          index.incomplete = true;
+          continue;
+        }
         for (const section of record) {
           for (const component of section.components) {
             if (!component.classNumber) continue;
             const primary = component.role === "primary";
-            const known = index.get(component.classNumber);
-            if (!known || (primary && !known.primary)) index.set(component.classNumber, { courseCode, sectionId: section.id, primary });
+            const known = index.numbers.get(component.classNumber);
+            if (!known || (primary && !known.primary)) index.numbers.set(component.classNumber, { courseCode, sectionId: section.id, primary });
           }
         }
       }
       this.classIndex.set(whole.data, index);
     }
-    const hit = index.get(number);
-    return hit ? { term, classNumber: number, courseCode: hit.courseCode, sectionId: hit.sectionId } : null;
+    const hit = index.numbers.get(number);
+    if (hit) return { term, classNumber: number, courseCode: hit.courseCode, sectionId: hit.sectionId };
+    return index.incomplete ? "unavailable" : null;
   }
 
   /**

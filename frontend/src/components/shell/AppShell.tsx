@@ -6,10 +6,12 @@ import { SignInHost } from "@/components/auth-client";
 import { ConnectHost } from "@/components/connect/connect-host";
 import { noteNavigation } from "@/components/ui/back-close";
 import { SearchPalette } from "@/components/ui/SearchPalette";
+import { SyncNotice } from "@/components/sync-notice";
+import { GuestSignInSheet } from "@/components/guest-sign-in-sheet";
 import { Toaster } from "@/components/ui/Toast";
 import { WebMcpTools } from "@/components/webmcp/WebMcpTools";
 import { courses } from "@/lib/seed-data";
-import { CLASS_NUMBER_ITEM, classNumberHref, classNumberSection } from "./class-number-search";
+import { CLASS_NUMBER_ITEM, classNumberHref, paletteSections } from "./class-number-search";
 import { courseHref, searchCourses } from "./course-search";
 import { useLensMemory } from "./lens-memory";
 import { lensForPath, shellModeFor } from "./routes";
@@ -66,8 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [mode, provider]);
 
   const results = useMemo(() => searchCourses(courses, query), [query]);
-  const classNumber = classNumberSection(query);
-  const sections = [...(classNumber ? [classNumber] : []), ...(provider ? provider.search(query) : [{ id: "courses", label: "Courses", items: results }])];
+  const sections = paletteSections(query, provider ? provider.search(query) : null, results);
 
   if (mode === "bare") {
     return (
@@ -92,6 +93,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
         <TabBar lens={lens} hrefs={hrefs} onPick={pick} />
       </div>
+      <SyncNotice />
+      <GuestSignInSheet />
       <SearchPalette
         open={searchOpen}
         onOpenChange={setSearchOpen}
