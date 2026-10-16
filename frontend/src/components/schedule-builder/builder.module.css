@@ -1167,12 +1167,28 @@
     height: 44px;
   }
 }
-/* Phone columns are narrow: the calendar's name alone, its edge rule and dots still say where it came from. */
+/*
+ * Phone columns are narrow: the calendar glyph goes (the edge rule and dots
+ * still say where the time came from), and the name and its weeks wrap
+ * rather than cut to a letter or two, since the weeks are the band's one fact.
+ */
+.grid[data-phone] .busy {
+  padding: 3px 5px;
+}
 .grid[data-phone] .busy[data-kind="calendar"] {
   grid-template-columns: minmax(0, 1fr);
   padding: 3px 4px 3px 5px;
 }
-.grid[data-phone] .busy[data-kind="calendar"] .busyGlyph,
-.grid[data-phone] .busy .busyNote {
+.grid[data-phone] .busy[data-kind="calendar"] .busyGlyph {
   display: none;
+}
+.grid[data-phone] .busy[data-kind="calendar"] .busyNote {
+  grid-column: 1;
+}
+.grid[data-phone] .busyLabel,
+.grid[data-phone] .busyNote {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.25;
 }
