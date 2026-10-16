@@ -1,7 +1,9 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:test";
 import { act, useLayoutEffect } from "react";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { GUEST_ID_KEY } from "@/components/schedule/preferences-store";
 import type { BuilderHost } from "@/components/schedule-builder/host";
+import { setupSeenKey } from "@/components/schedule/setup-store";
 import { installDom, mountPlanner, removeDom, setSession, waitFor } from "./planner/test-dom";
 
 let previousActEnvironment: boolean | undefined;
@@ -35,7 +37,14 @@ const shell = { openSearch() {}, setSearchProvider() {}, pageState: new Map<stri
 const label = (button: HTMLButtonElement) => (button.querySelector(".ui-btn__label")?.textContent || button.textContent || button.getAttribute("aria-label") || "").trim();
 const named = (root: Element, text: string) => [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => label(button) === text);
 
+/** A returning guest: Set up Auto was already seen, so it doesn't cover the week (its gate has its own test). */
+function returningGuest() {
+  window.localStorage.setItem(GUEST_ID_KEY, "guest-undo-0001");
+  window.localStorage.setItem(setupSeenKey({ kind: "guest", id: "guest-undo-0001" }), "2026-10-15T00:00:00.000Z");
+}
+
 test("Undo control restores the student's stored picks in the rendered week", async () => {
+  returningGuest();
   const { WeekPage } = await import("@/app/schedule/week-page");
   const { ShellContext } = await import("@/components/shell/shell-context");
   const planner = await mountPlanner(() => (
@@ -90,6 +99,7 @@ test("Undo control restores the student's stored picks in the rendered week", as
 });
 
 test("a refused add shows why, offers no Undo, and leaves the earlier edit alone", async () => {
+  returningGuest();
   const { WeekPage } = await import("@/app/schedule/week-page");
   const { ShellContext } = await import("@/components/shell/shell-context");
   const { Toaster } = await import("@/components/ui/Toast");

@@ -26,6 +26,7 @@ const KEYS = [
   "PointerEvent",
   "FocusEvent",
   "MutationObserver",
+  "IntersectionObserver",
   "getComputedStyle",
   "requestAnimationFrame",
   "cancelAnimationFrame",

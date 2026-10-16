@@ -7,6 +7,7 @@ on:
       - 'frontend/**'
       - 'packages/**'
       - 'output/playwright/scheduler-v2/journey.mjs'
+      - 'output/playwright/onboarding/journey.mjs'
       - 'output/playwright/design-pass-a/journey.mjs'
       - 'output/playwright/courses-v2/courses-v2-journey.mjs'
       - 'output/playwright/courses-v2/fixtures/**'
@@ -103,9 +104,9 @@ jobs:
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      # All five use synthetic or guest data. No journey needs a real UNT account.
+      # All six use synthetic or guest data. No journey needs a real UNT account.
       matrix:
-        name: [map, webmcp, scheduler-v2, design-pass-a, courses-v2]
+        name: [map, webmcp, scheduler-v2, design-pass-a, courses-v2, onboarding]
     # Production auth and API rate-limit counters use Postgres even for guests.
     # Each job gets an empty database; the bootstrap password is rotated below.
     services:
@@ -246,6 +247,7 @@ jobs:
             scheduler-v2) sudo --preserve-env -u journey "$(command -v node)" output/playwright/scheduler-v2/journey.mjs "$UNTANGLE_BASE_URL" "$UNTANGLE_OUT" ;;
             design-pass-a) sudo --preserve-env -u journey "$(command -v node)" output/playwright/design-pass-a/journey.mjs "$UNTANGLE_BASE_URL" http://localhost:4317 "$UNTANGLE_OUT" ;;
             courses-v2) sudo --preserve-env -u journey "$(command -v node)" output/playwright/courses-v2/courses-v2-journey.mjs ;;
+            onboarding) sudo --preserve-env -u journey "$(command -v node)" output/playwright/onboarding/journey.mjs "$UNTANGLE_BASE_URL" "$UNTANGLE_OUT" ;;
             *) echo "Unknown journey: $JOURNEY" >&2; exit 2 ;;
           esac
       - name: Stop servers and restore Actions network access

@@ -2,7 +2,9 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
-import type { BuilderEdits, BuilderHost, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
+import type { BuilderEdits, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
+import type { Identity } from "@/components/schedule/preferences-store";
+import { loadedIdentity, markSetupSeen, setupDue } from "@/components/schedule/setup-store";
 import { isStale, requestKey } from "@/components/schedule/run-state";
 import { useOptimizerRuns } from "@/components/schedule/use-optimizer";
 import { searchCourses } from "@/components/shell/course-search";
@@ -25,7 +27,7 @@ import { isShuttleLeg, plannerTravelTime } from "@/lib/planner-walking";
 import { findClassNumber } from "@/lib/sections/client";
 import { optionReasons } from "./option-reasons";
 import { courses as catalog } from "@/lib/seed-data";
-import type { CourseStatus, PlannerState } from "@/lib/types";
+import type { CourseStatus, PlannerState, SchedulePreferences } from "@/lib/types";
 
 /** What one undo puts back: the touched courses' status, section, lock and Auto-filled mark as they were. */
 type Snapshot = {
@@ -73,6 +75,50 @@ function noteFor(course: PlannedCourse): { state: WeekCourse["state"]; note?: st
   }
 }
 
+function browserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Identities marked seen during this page's life, so a browser that reads
+ * storage but refuses the write still doesn't reopen the setup when Week
+ * remounts.
+ */
+const seenThisPage = new Set<string>();
+
+/**
+ * Set up Auto's gate for the identity whose preferences are loaded. `due`
+ * is read from storage once per identity, when it first appears, so it
+ * describes the student's arrival: the setup's own first answer saves
+ * preferences, after which a fresh read would say "not due".
+ */
+function useSetup(ready: boolean, stamp: string, loaded: { preferences: SchedulePreferences; defaults: SchedulePreferences }): BuilderSetup {
+  const identity = loadedIdentity(ready, stamp, ready ? browserStorage() : null);
+  const tag = identity ? `${identity.kind}:${identity.id}` : null;
+  const [gate, setGate] = useState<{ tag: string | null; identity: Identity | null; due: boolean }>({ tag: null, identity: null, due: false });
+  // A new identity is read now and returned from this render too, so a caller deciding on this
+  // render never sees the previous identity's answer.
+  let current = gate;
+  if (gate.tag !== tag) {
+    const storage = identity ? browserStorage() : null;
+    current = { tag, identity, due: Boolean(identity && tag && storage && !seenThisPage.has(tag) && setupDue(storage, identity, loaded)) };
+    setGate(current);
+  }
+  return {
+    due: current.due,
+    markSeen: () => {
+      if (current.tag) seenThisPage.add(current.tag);
+      const storage = browserStorage();
+      if (current.identity && storage) markSetupSeen(storage, current.identity, new Date());
+      setGate((current) => ({ ...current, due: false }));
+    },
+  };
+}
+
 /**
  * The schedule builder's host in UNTangle: the week is the student's plan
  * (planner-provider), every change is one checked `transact`, and Undo puts
@@ -94,6 +140,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     planStamp,
   } = planner;
 
+  const setup = useSetup(preferencesReady, planStamp.identity, { preferences: schedulePreferences, defaults: defaultSchedulePreferences(plannerState.optimization) });
   const history = useRef<Snapshot[]>([]);
   const [historySize, setHistorySize] = useState(0);
   const { state: run, run: startRun, close: closeRun } = useOptimizerRuns();
@@ -411,6 +458,8 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     defaults: defaultSchedulePreferences(plannerState.optimization),
     setPreferences: setSchedulePreferences,
     preferencesReady,
+    // The setup speaks of Auto by name; the standalone builder's button is called something else.
+    setup: brand.id === "untangle" ? setup : null,
     walk,
     search,
     edits,
