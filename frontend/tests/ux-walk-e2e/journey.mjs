@@ -19,7 +19,7 @@
  *   Sample tag and a sentence saying they're made up, before one is added.
  * - The landing's "Pick courses by hand" opens the major choice in Courses,
  *   the address loses ?start=major, and closing the choice focuses the
- *   major line.
+ *   major line; so does choosing a major from Courses' own start options.
  * - Set up Auto's time picture: at "As early as I can" and "As late as I
  *   can" the sun or moon covers neither "8 AM" nor "10 PM".
  * - CSCE 1030's detail quotes its unreadable rule without the rule's own
@@ -203,6 +203,13 @@ async function landingByHand(browser, width) {
   await dialog.waitFor({ state: "hidden" });
   const focused = await page.evaluate(() => document.activeElement?.hasAttribute("data-degree") ?? false);
   check(`${width}: closing it focuses the major line, not the page`, focused);
+  // Courses' own "Pick courses by hand" goes away once a major is chosen, so focus can't return to it.
+  await page.getByRole("button", { name: /Pick courses by hand/ }).click();
+  await dialog.waitFor();
+  await dialog.getByRole("button", { name: "Computer Science" }).click();
+  await dialog.waitFor({ state: "hidden" });
+  const afterChoice = await page.evaluate(() => document.activeElement?.hasAttribute("data-degree") ?? false);
+  check(`${width}: choosing a major from Courses' start options focuses the major line`, afterChoice);
   await context.close();
 }
 

@@ -127,15 +127,15 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
 
   // Arriving from the landing's "Pick courses by hand": the student already
   // chose how to start, so the major comes next, not this page's start options.
-  // The landing's link that opened it is gone, so closing it focuses the degree line.
+  // The landing's link that opened it is gone, so closing it focuses the degree line (focusDegreeOnClose).
   const majorAsked = useRef(false);
-  const majorFromLanding = useRef(false);
+  const focusDegreeOnClose = useRef(false);
   useEffect(() => {
     if (!hydrated || majorAsked.current || !asksForMajor(window.location.search)) return;
     majorAsked.current = true;
     router.replace(window.location.pathname, { scroll: false });
     if (!idle) return;
-    majorFromLanding.current = true;
+    focusDegreeOnClose.current = true;
     setDegreeOpen(true);
   }, [hydrated, idle, router]);
 
@@ -600,7 +600,11 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
               applyTranscriptRecords(sampleTranscript);
               say("Added the sample transcript. Choose your major, then press Auto.");
             }}
-            onByHand={() => setDegreeOpen(true)}
+            onByHand={() => {
+              // This empty state, opener included, unmounts once a major is chosen.
+              focusDegreeOnClose.current = true;
+              setDegreeOpen(true);
+            }}
           />
         ) : (
           <>
@@ -686,10 +690,10 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
       <DegreeDialog
         open={degreeOpen}
         onOpenChange={setDegreeOpen}
-        // Read once, as it closes: later openings come from a button that is still there.
+        // Read once, as it closes, for an opener that may be gone by then; the degree line's own button stays.
         returnFocus={() => {
-          if (!majorFromLanding.current) return null;
-          majorFromLanding.current = false;
+          if (!focusDegreeOnClose.current) return null;
+          focusDegreeOnClose.current = false;
           return pageRef.current?.querySelector<HTMLElement>("[data-degree]") ?? null;
         }}
         major={plannerState.selectedMajor}
