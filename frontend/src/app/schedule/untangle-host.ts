@@ -5,7 +5,7 @@ import { buildCourseModel, type CourseRowModel } from "@/components/courses/mode
 import { snapshotOf } from "@/components/courses/model/plan-edits";
 import { untProfile } from "@/components/courses/school";
 import { usePlanner } from "@/components/planner-provider";
-import type { BrowseFeed, BuilderEdits, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
+import type { BrowseFeed, BuilderEdits, BuilderFinals, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
 import type { Identity } from "@/components/schedule/preferences-store";
 import { loadedIdentity, markSetupSeen, setupDue } from "@/components/schedule/setup-store";
 import { isStale, requestKey } from "@/components/schedule/run-state";
@@ -15,7 +15,8 @@ import { toast } from "@/components/ui/Toast";
 import type { Brand } from "@/lib/brand";
 import { calendarsToRefresh, currentProblems, withReading, type RefreshProblem } from "@/lib/calendar-busy";
 import { checkFeed, connectFeed, refreshCalendar, type FeedTerm } from "@/lib/calendar-feeds/client";
-import type { RelaxSuggestion } from "@/lib/optimizer/types";
+import { examOf, FINALS_SOURCE, PROJECTED_FINALS_NOTE, unknownExamSentence } from "@/lib/final-exams";
+import type { Explanation, RelaxSuggestion } from "@/lib/optimizer/types";
 import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
 import {
   buildOptimizeRequest,
@@ -43,6 +44,26 @@ type Snapshot = {
   locks: Record<string, string | undefined>;
   autoPlanned: Record<string, boolean>;
 };
+
+/** Finals from UNT's rule (lib/final-exams.ts), the same ones Auto checks. */
+const finals: BuilderFinals = {
+  examOf: (section) => {
+    const exam = examOf(section);
+    return exam.kind === "known" ? exam : { kind: "unknown", note: unknownExamSentence(section, exam.reason) };
+  },
+  projected: PROJECTED_FINALS_NOTE ? { label: "Projected", source: PROJECTED_FINALS_NOTE } : null,
+};
+
+/**
+ * The explanation's sentence, plus where its finals come from when they are
+ * part of why nothing fits and their times are projected.
+ */
+function infeasibleSentence(explanation: Explanation): string {
+  const finals = explanation.members.some((member) => member.kind === "exams");
+  return finals && FINALS_SOURCE.projected
+    ? `${explanation.sentence} Those finals are projected from UNT's ${FINALS_SOURCE.term} schedule.`
+    : explanation.sentence;
+}
 
 /** Undo steps kept per visit. More than anyone presses; a bound, not a rule. */
 const HISTORY = 50;
@@ -431,7 +452,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     infeasible:
       result?.status === "infeasible"
         ? {
-            sentence: result.explanation.sentence,
+            sentence: infeasibleSentence(result.explanation),
             fixes: fixesFor(result.explanation.suggestions),
           }
         : result?.status === "timeout" && result.schedules.length === 0 && run.status === "done"
@@ -465,7 +486,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     stale: isStale(browseRun, inputKey),
     infeasible:
       listed?.status === "infeasible"
-        ? { sentence: listed.explanation.sentence, fixes: fixesFor(listed.explanation.suggestions) }
+        ? { sentence: infeasibleSentence(listed.explanation), fixes: fixesFor(listed.explanation.suggestions) }
         : null,
     timedOut: listed?.status === "timeout",
     error: browseRun.error,
@@ -571,6 +592,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     edits,
     optimizer,
     browse,
+    finals,
     find,
     calendars: calendarHost,
     printHref: "/schedule/print",

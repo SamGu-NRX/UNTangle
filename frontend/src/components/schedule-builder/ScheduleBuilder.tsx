@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button, IconButton } from "@/components/ui/Button";
 import { ContextPanel } from "@/components/ui/ContextPanel";
 import { AlertGlyph, BookGlyph, SearchGlyph, ShareGlyph, SlidersGlyph, TrayIn, Undo } from "@/components/ui/icons";
@@ -17,6 +17,7 @@ import { answerFor, describeAlternative, timeLeanOf, type AnswerCourse } from ".
 import styles from "./builder.module.css";
 import { hasNoSetTime, isTimed, meetingsOverlap, meetTogether } from "./conflicts";
 import { ExportSheet } from "./ExportSheet";
+import { examLongDay, examStart, examTimes, finalsClashCount, weekFinals, type WeekFinal } from "./finals";
 import type { BuilderHost } from "./host";
 import { BrowsePanel, totalCount } from "./CombinationsList";
 import { BrowseStrip, NoticeStrip, OptionsStrip } from "./OptionsStrip";
@@ -155,19 +156,22 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       ]
     : placed;
 
+  const finals = host.finals ?? null;
   const now = useMemo(() => {
     const events = eventsOf(placed);
-    return { events, walks: walksOf(events, host.walk), sections: placed };
+    const exams = finals ? weekFinals(placed, finals) : [];
+    return { events, walks: walksOf(events, host.walk), sections: placed, finals: exams, finalsClashes: finalsClashCount(exams) };
     // `placed` is rebuilt every render; its ids say when it changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(current), host.walk]);
+  }, [JSON.stringify(current), host.walk, finals]);
   const shownKey = JSON.stringify(shownSections.map((section) => section.id).sort());
   const shown = useMemo(() => {
     const events = eventsOf(shownSections);
-    return { events, walks: walksOf(events, host.walk), sections: shownSections, placements: placeEvents(events) };
+    const exams = finals ? weekFinals(shownSections, finals) : [];
+    return { events, walks: walksOf(events, host.walk), sections: shownSections, placements: placeEvents(events), finals: exams, finalsClashes: finalsClashCount(exams) };
     // `shownSections` is rebuilt every render; `shownKey` names its sections.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shownKey, host.walk]);
+  }, [shownKey, host.walk, finals]);
 
   // Every course that can be drawn keeps its hue as others come and go (lib/course-colors.ts).
   const colorCodes = [...new Set([...host.courses.map((course) => course.code), ...shownSections.map((s) => s.courseCode), ...(preview ? [preview.courseCode] : [])])].join("|");
@@ -518,7 +522,14 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     state: course.state === "none" ? "pick" : course.state,
     note: course.note,
   }));
-  const answer = answerFor({ courses: answerCourses, events: now.events, walks: now.walks, preferences: answerPreferences, termLabel: host.term.label });
+  const answer = answerFor({
+    courses: answerCourses,
+    events: now.events,
+    walks: now.walks,
+    preferences: answerPreferences,
+    termLabel: host.term.label,
+    finals: now.finals,
+  });
   const summary = preferenceSummary(host.preferences, host.defaults);
   const prefCount = changedCount(host.preferences, host.defaults);
   const noSetTime = shownSections.filter(hasNoSetTime);
@@ -779,7 +790,9 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
           toast({ message: "Added a busy time. Auto keeps it free.", action: { label: "Undo", onClick: () => host.setPreferences((p) => removeBusySpan(p, id, start, end, newBusyId)) } });
         }}
         footer={
-          noSetTime.length > 0 || host.provenance === "sample" ? (
+          noSetTime.length > 0 || host.provenance === "sample" || (finals && shown.finals.some((entry) => entry.exam.kind === "known")) ? (
+            <>
+            {noSetTime.length > 0 || host.provenance === "sample" ? (
             <div className={styles.gridFoot}>
               {noSetTime.length > 0 ? (
                 <>
@@ -805,6 +818,17 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
                 </span>
               ) : null}
             </div>
+            ) : null}
+            {finals && shown.finals.some((entry) => entry.exam.kind === "known") ? (
+              <FinalsLine
+                list={shown.finals}
+                projected={finals.projected}
+                hueOf={hueOf}
+                disabled={previewing}
+                onOpen={(code) => openPanel({ kind: "event", code })}
+              />
+            ) : null}
+            </>
           ) : null
         }
         empty={
@@ -863,6 +887,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
               host.edits.remove(selectedCourse.code);
               toast({ message: `Removed ${selectedCourse.code}`, action: undoAction });
             }}
+            finals={finals}
           />
         ) : panel?.kind === "option" && strip?.kind === "options" ? (
           <OptionDetails
@@ -940,6 +965,69 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         scheduleName={scheduleName}
         onOpenWeek={openWeek}
       />
+    </div>
+  );
+}
+
+/**
+ * The week's finals, one pill per course under the grid, beside No set time
+ * and in the same shape: the course and when its final starts, or "Not
+ * known". A pill whose final overlaps another is outlined: attention for a
+ * projected time, which can still move, danger for a published one. The
+ * day, the full time and the overlap are in its accessible name, which
+ * starts with the pill's visible words, and in the course's panel, which the
+ * pill opens.
+ */
+function FinalsLine({
+  list,
+  projected,
+  hueOf,
+  disabled,
+  onOpen,
+}: {
+  list: readonly WeekFinal[];
+  projected: { label: string; source: string } | null;
+  hueOf: (code: string) => number;
+  disabled: boolean;
+  onOpen: (code: string) => void;
+}) {
+  const labelId = useId();
+  return (
+    <div className={`${styles.gridFoot} ${styles.finalsLine}`} role="group" aria-labelledby={labelId} data-finals="">
+      <span id={labelId} className={styles.label}>
+        Finals
+      </span>
+      {projected ? (
+        // Beside the label, so it reads as the whole line's, and kept on phones (the sample tag hides there):
+        // it is the only place the line says its times may move.
+        <ProvenanceTag source={projected.source}>{projected.label}</ProvenanceTag>
+      ) : null}
+      {list.map(({ courseCode, exam, clashesWith }) => {
+        const clash = clashesWith.length > 0;
+        const name =
+          exam.kind === "known"
+            ? `${courseCode} ${examStart(exam.exam)}, final on ${examLongDay(exam.exam)}, ${examTimes(exam.exam)}${clash ? `, overlaps ${andList(clashesWith)}` : ""}`
+            : `${courseCode} Not known: open it to see why its final time isn't known.`;
+        return (
+          <button
+            key={courseCode}
+            type="button"
+            className={styles.pill}
+            data-hue={hueOf(courseCode)}
+            data-clash={clash ? (exam.kind === "known" && exam.projected ? "check" : "conflict") : undefined}
+            disabled={disabled}
+            aria-label={name}
+            onClick={() => onOpen(courseCode)}
+          >
+            <span className={styles.code}>{courseCode}</span>
+            {/* The outline's color isn't the only sign of an overlap: the glyph marks it too. */}
+            <span className={styles.pillTime}>
+              {clash ? <AlertGlyph size={14} /> : null}
+              {exam.kind === "known" ? examStart(exam.exam) : "Not known"}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
