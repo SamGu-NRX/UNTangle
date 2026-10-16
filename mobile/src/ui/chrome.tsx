@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from "react-native";
+import { Pressable, StyleSheet, View, useWindowDimensions, type LayoutChangeEvent } from "react-native";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -7,6 +7,7 @@ import { router } from "expo-router";
 import { easing } from "@/theme/easing";
 import { color, layout, motion, radius, space } from "@/theme/tokens";
 
+import { PersonGlyph } from "./glyphs";
 import { tick } from "./haptics";
 import { PressScale } from "./press";
 import { Txt } from "./text";
@@ -23,12 +24,24 @@ export function ProvenanceTag({ label }: { label: string }) {
 }
 
 /**
+ * True when the window is too narrow for the full header and Week grid. The
+ * width is divided by the text size setting, since larger text needs the room
+ * a wider screen would give.
+ */
+export function useCompactWindow(): boolean {
+  const { width, fontScale } = useWindowDimensions();
+  return width / fontScale < layout.compactBelow;
+}
+
+/**
  * The phone header: wordmark left, the guest state and Sign in right. Guest
  * mode is the only mode until device sign-in ships, so the pill says so
- * plainly instead of naming a schedule that isn't saved anywhere.
+ * plainly. On a compact window Sign in is the web phone header's person
+ * button, so the wordmark keeps its room.
  */
 export function AppHeader() {
   const insets = useSafeAreaInsets();
+  const compact = useCompactWindow();
   return (
     <View style={[styles.header, { paddingTop: insets.top }]}>
       <View style={styles.headerRow}>
@@ -42,10 +55,18 @@ export function AppHeader() {
               Guest
             </Txt>
           </View>
-          <PressScale onPress={() => router.push("/sign-in")} accessibilityLabel="Sign in" style={styles.signIn}>
-            <Txt variant="meta" tone="brand" style={styles.signInText}>
-              Sign in
-            </Txt>
+          <PressScale
+            onPress={() => router.push("/sign-in")}
+            accessibilityLabel="Sign in"
+            style={[styles.signIn, compact && styles.signInIcon]}
+          >
+            {compact ? (
+              <PersonGlyph />
+            ) : (
+              <Txt variant="meta" tone="brand" style={styles.signInText}>
+                Sign in
+              </Txt>
+            )}
           </PressScale>
         </View>
       </View>
@@ -194,6 +215,7 @@ const styles = StyleSheet.create({
     backgroundColor: color.paper,
     justifyContent: "center",
   },
+  signInIcon: { width: 32, paddingHorizontal: 0, alignItems: "center" },
   signInText: { fontFamily: "DMSans_600SemiBold" },
   viewHead: {
     flexDirection: "row",

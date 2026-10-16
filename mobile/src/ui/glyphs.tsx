@@ -129,6 +129,26 @@ export function SlidersGlyph({ tint = color.brand }: { tint?: string }) {
   );
 }
 
+/** A head over shoulders, 16px: Sign in where the header has no room for the word, as the web's phone header shows it. */
+export function PersonGlyph({ tint = color.brand }: { tint?: string }) {
+  return (
+    <View style={{ width: 16, height: 16, alignItems: "center", justifyContent: "space-between" }}>
+      <View style={{ width: 7, height: 7, borderRadius: 4, borderWidth: 1.75, borderColor: tint }} />
+      <View
+        style={{
+          width: 13,
+          height: 6.5,
+          borderWidth: 1.75,
+          borderBottomWidth: 0,
+          borderColor: tint,
+          borderTopLeftRadius: 7,
+          borderTopRightRadius: 7,
+        }}
+      />
+    </View>
+  );
+}
+
 type TabName = "courses" | "week" | "day";
 
 /** Tab bar glyphs, 22px boxes: a list, a week grid, a route between two stops. */

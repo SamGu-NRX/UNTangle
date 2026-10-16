@@ -8,12 +8,12 @@ import { createUpdateController, type UpdateController } from "./update-controll
 /**
  * Real wiring for the update flow: check at launch, recheck on return to the
  * foreground after the app has sat in the background for a while, and download
- * in the background. Nothing here restarts the app: the guest's plan lives
- * only in memory (plan-store), so a restart when the app backgrounds would
- * wipe a student's picks after a quick app switch. A downloaded update
- * applies at the next cold start, which is expo-updates' own default, and
- * controller.applyWhenSafe stays reserved for when plans persist to SQLite
- * (docs/mobile/ota.md). Called once from the root layout; the returned
+ * in the background. Nothing here restarts the app: the guest's plan is
+ * saved on the device (saved-plan.ts), but a restart when the app backgrounds
+ * would drop what the student had open, such as an Auto review, after a quick
+ * app switch. A downloaded update applies at the next cold start, which is
+ * expo-updates' own default, and controller.applyWhenSafe stays reserved for
+ * when plans persist to SQLite (docs/mobile/ota.md). Called once from the root layout; the returned
  * cleanup unsubscribes.
  *
  * The app can stay resident for days, so a launch-only check would miss

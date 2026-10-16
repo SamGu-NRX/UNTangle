@@ -1,12 +1,16 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { firstFittingSection, samplePicks, sampleRecord, weekOf, type GuestRecord, type GuestWeek, type Picks } from "./guest-plan";
-import { samplePreferences, type Preferences } from "./preferences";
+import { firstFittingSection, sampleRecord, weekOf, type GuestRecord, type GuestWeek, type Picks } from "./guest-plan";
+import { planStorage } from "./plan-storage";
+import type { Preferences } from "./preferences";
+import { loadPlan, savePlan, withPicks, type GuestPlan } from "./saved-plan";
 
 /**
- * The guest's plan for this session: the sample record, the picked sections
- * and the week preferences. Nothing is saved; closing the app starts over,
- * and every lens says the data is a sample.
+ * The guest's plan: the sample record, the picked sections and the week
+ * preferences. It is saved on this device after every change and read back
+ * at launch (saved-plan.ts), so a reload or a restart keeps the student's
+ * week. With nothing saved yet, it is the sample student's plan, and every
+ * lens says the data is a sample.
  */
 type PlanStore = {
   record: GuestRecord;
@@ -24,53 +28,73 @@ type PlanStore = {
 
 const PlanContext = createContext<PlanStore | null>(null);
 
-export function PlanProvider({ children }: { children: ReactNode }) {
-  const [picks, setPicks] = useState<Picks>(samplePicks);
-  const [prefs, setPrefsState] = useState<Preferences>(samplePreferences);
+function readSavedPlan(): GuestPlan {
+  const { plan, problem } = loadPlan(planStorage);
+  if (problem) console.warn(`[plan] ${problem}`);
+  return plan;
+}
 
-  // The latest picks, updated in the same call that sets them, so two actions
+export function PlanProvider({ children }: { children: ReactNode }) {
+  const [plan, setPlan] = useState<GuestPlan>(readSavedPlan);
+  // The plan as launch read it, which is never written back: with nothing
+  // saved, the sample stays unsaved until the student changes something.
+  const launched = useRef(plan);
+
+  // The latest plan, updated in the same call that sets it, so two actions
   // before a re-render (an add, then an undo) each see the other's result and
   // a fit check never runs against a stale set.
-  const picksRef = useRef<Picks>(picks);
-  const commit = useCallback((next: Picks) => {
-    picksRef.current = next;
-    setPicks(next);
+  const planRef = useRef<GuestPlan>(plan);
+  const commit = useCallback((next: GuestPlan) => {
+    planRef.current = next;
+    setPlan(next);
   }, []);
+
+  useEffect(() => {
+    if (plan === launched.current) return;
+    try {
+      savePlan(planStorage, plan);
+    } catch (error) {
+      console.warn(`[plan] Saving the plan on this device failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }, [plan]);
 
   const add = useCallback(
     (code: string, sectionId?: string) => {
-      const current = picksRef.current;
-      const id = sectionId ?? firstFittingSection(code, current)?.id;
+      const current = planRef.current;
+      const id = sectionId ?? firstFittingSection(code, current.picks)?.id;
       if (!id) return false;
-      commit({ ...current, [code]: id });
+      commit(withPicks(current, { ...current.picks, [code]: id }));
       return true;
     },
     [commit],
   );
   const remove = useCallback(
     (code: string) => {
-      const next = { ...picksRef.current };
+      const next = { ...planRef.current.picks };
       delete next[code];
-      commit(next);
+      commit(withPicks(planRef.current, next));
     },
     [commit],
   );
-  const replace = useCallback((next: Picks) => commit({ ...next }), [commit]);
-  const setPrefs = useCallback((update: (prefs: Preferences) => Preferences) => setPrefsState(update), []);
+  const replace = useCallback((next: Picks) => commit(withPicks(planRef.current, { ...next })), [commit]);
+  const setPrefs = useCallback(
+    (update: (prefs: Preferences) => Preferences) => commit({ ...planRef.current, prefs: update(planRef.current.prefs) }),
+    [commit],
+  );
 
   const value = useMemo<PlanStore>(
     () => ({
       record: sampleRecord,
-      picks,
-      planned: new Set(Object.keys(picks)),
-      week: weekOf(picks),
-      prefs,
+      picks: plan.picks,
+      planned: new Set(Object.keys(plan.picks)),
+      week: weekOf(plan.picks, plan.colors),
+      prefs: plan.prefs,
       add,
       remove,
       replace,
       setPrefs,
     }),
-    [picks, prefs, add, remove, replace, setPrefs],
+    [plan, add, remove, replace, setPrefs],
   );
   return <PlanContext.Provider value={value}>{children}</PlanContext.Provider>;
 }

@@ -28,7 +28,10 @@ bun --no-env-file x expo export --platform web   # web bundle (what CI builds)
   `tokens.test.ts` fails when the two drift apart.
 - `src/plan` - the guest's plan: the sample record and course groups
   (`guest-plan.ts`), Week preferences (`preferences.ts`), Auto on the web's
-  optimizer (`auto.ts`), Day's stops and leave-by times (`day-plan.ts`).
+  optimizer (`auto.ts`), Day's stops and leave-by times (`day-plan.ts`),
+  and the plan as the device saves it (`saved-plan.ts`; `plan-storage.ts`
+  writes it to a file on iOS and Android, and `plan-storage.web.ts` writes it
+  to localStorage on web).
 - `src/ui` - press feedback, haptics, the tab and status glyphs, the week
   grid and the stepped slider.
 - `src/data` - unauthenticated API modules with an injected fetch, kept for

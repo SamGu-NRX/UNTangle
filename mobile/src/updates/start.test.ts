@@ -110,7 +110,7 @@ describe("startUpdateChecks", () => {
     await flush();
     expect(mockedUpdates.checkForUpdateAsync).toHaveBeenCalledTimes(3);
     // Nothing restarts the app: a downloaded update applies at the next cold
-    // start, never while the student's memory-only plan is on screen.
+    // start, never while the student has the app open.
     expect(mockedUpdates.reloadAsync).not.toHaveBeenCalled();
     cleanup();
   });

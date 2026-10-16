@@ -1,7 +1,9 @@
 import { optimize } from "@/lib/optimizer/optimize";
 import type { OptCourse, OptimizeRequest, OptSection, OptWeights } from "@/lib/optimizer/types";
 import { planningTerm, termDates, toOptSection } from "@/lib/planner-sections";
-import { plannerTravelTime } from "@/lib/planner-walking";
+import { plannerTravelTime, weekTravel } from "@/lib/planner-walking";
+import { describeAlternative, type TimeLean } from "@/schedule-builder/answer";
+import { eventsOf as gridEventsOf, unknownWalksOf, walksOf } from "@/schedule-builder/week";
 
 import { courseByCode, sectionsOf, type Picks } from "./guest-plan";
 import { busyBlocks, DAY_OFF, gridDays, isDayOff, type Preferences } from "./preferences";
@@ -63,7 +65,31 @@ export type AutoOption = {
   /** Planned courses whose section differs from the current week, in pick order. */
   moves: string[];
   days: number;
+  /** The option's one line, as the web's Week says it: its best gain over the current week, then its worst cost. */
+  sentence: string;
 };
+
+/** What the web's Week strip says when Auto's answer is the week the student already has (ScheduleBuilder). */
+export const SAME_WEEK = "Your week is already the best Auto found.";
+
+/** Which way the student leans on time of day, read the way the web reads it (schedule-builder/answer.ts timeLeanOf). */
+export function timeLeanOf(prefs: Preferences): TimeLean {
+  const time = Math.round(prefs.leanings.time);
+  return time < 0 ? "mornings" : time > 0 ? "afternoons" : null;
+}
+
+/** A week as describeAlternative compares it: the picked sections' timed meetings and the walks between them. */
+function comparedWeek(picks: Picks) {
+  const sections = Object.entries(picks).flatMap(([code, id]) => sectionsOf(code).filter((section) => section.id === id));
+  const events = gridEventsOf(sections);
+  return { events, walks: walksOf(events, weekTravel), unknownWalks: unknownWalksOf(events, weekTravel) };
+}
+
+/** An option's line: the web's describeAlternative against the current week, or SAME_WEEK when nothing moves. */
+export function optionSentence(now: Picks, next: Picks, moves: readonly string[], prefs: Preferences): string {
+  if (moves.length === 0) return SAME_WEEK;
+  return describeAlternative(comparedWeek(now), comparedWeek(next), timeLeanOf(prefs));
+}
 
 export type AutoResult =
   | { kind: "options"; options: AutoOption[] }
@@ -77,10 +103,14 @@ export function runAuto(picks: Picks, prefs: Preferences): AutoResult {
   }
   return {
     kind: "options",
-    options: result.schedules.map((schedule) => ({
-      picks: { ...schedule.byCourse },
-      moves: Object.keys(picks).filter((code) => schedule.byCourse[code] !== picks[code]),
-      days: schedule.breakdown.daysOnCampus,
-    })),
+    options: result.schedules.map((schedule) => {
+      const moves = Object.keys(picks).filter((code) => schedule.byCourse[code] !== picks[code]);
+      return {
+        picks: { ...schedule.byCourse },
+        moves,
+        days: schedule.breakdown.daysOnCampus,
+        sentence: optionSentence(picks, schedule.byCourse, moves, prefs),
+      };
+    }),
   };
 }

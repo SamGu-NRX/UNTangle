@@ -23,9 +23,9 @@ Mobile section of `docs/architecture/README.md`.
   the count is zero.
 - **`start.ts`** — the launch wiring: starts the controller, checks at launch,
   rechecks after a long backgrounding, and triggers a background download when
-  the app backgrounds. It never restarts the app: while the student's plan
-  lives only in memory, a restart on backgrounding would wipe their picks
-  after a quick app switch. A downloaded update applies at the next cold
+  the app backgrounds. It never restarts the app: the student's plan is saved
+  on the device, but a restart on backgrounding would drop what they had open,
+  such as an Auto review, after a quick app switch. A downloaded update applies at the next cold
   start, and screens can hold the flow still with an unsafe moment while a
   review is open.
 - **`eas-project.ts`** — resolves `EXPO_PUBLIC_EAS_PROJECT_ID` and
@@ -173,8 +173,8 @@ bump the pin only after checking the shape again.
   user is never blocked.
 - A rollback directive (`isRollBackToEmbedded`) readies without downloading.
 - A downloaded update is applied at the next cold start — the app never
-  restarts itself while the plan is memory-only, so a review or a quick app
-  switch can never lose the student's picks. `applyWhenSafe` keeps the
+  restarts itself, so a review or a quick app switch can never lose what the
+  student has open. `applyWhenSafe` keeps the
   explicit safety rule for the SQLite future: it refuses while an unsafe
   moment is open and stays `ready` so the next caller retries, never twice.
 

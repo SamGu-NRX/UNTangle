@@ -4,8 +4,8 @@ import { useEffect } from "react";
  * Screens hold the update flow while a moment is open that a restart must
  * never interrupt: reviewing an import, resolving a conflict or approving
  * Auto (docs/architecture/README.md, "Mobile"). A restart replaces the whole
- * JavaScript runtime and the guest's plan lives only in memory, so the
- * downloaded update simply waits until every hold is closed and the app next
+ * JavaScript runtime and what such a moment shows lives only in memory, so
+ * the downloaded update simply waits until every hold is closed and the app next
  * backgrounds.
  *
  * Holds refcount by label, so two mounted screens marking the same kind of
