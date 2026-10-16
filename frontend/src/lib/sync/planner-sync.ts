@@ -35,9 +35,8 @@ import {
 } from "../../../../packages/contracts/src/documents";
 import { ACCOUNT_HEADER, PullListSchema } from "../../../../packages/contracts/src/sync";
 import {
-  firstDocumentId,
   joinPlanner,
-  MAIN_SCHEDULE_NAME,
+  pickPlannerDocument,
   plannerKinds,
   rebase,
   splitPlanner,
@@ -161,26 +160,11 @@ export type PlannerSnapshot = {
 };
 
 /**
- * The document of a kind the planner uses: a live one (with a draft, which
- * during a conflict is the unsent side), preferring the kind's first id; a
- * schedule must also be this term's Main. With none live, the first id that
- * this device has never stored, because a deleted id is never reused.
+ * The document of a kind the planner uses (pickPlannerDocument). A document
+ * is live when it has a draft, which during a conflict is the unsent side.
  */
 function pick(documents: readonly LocalDocument[], kind: PlannerKind, termId: string): { id: string; document: LocalDocument | null } {
-  const first = kind === "schedule" ? firstDocumentId.schedule(termId) : firstDocumentId[kind];
-  const live = documents
-    .filter((document) => document.kind === kind && document.draft !== null)
-    .filter((document) => {
-      if (kind !== "schedule") return true;
-      const body = document.draft as PlannerBodies["schedule"];
-      return body.termId === termId && body.name === MAIN_SCHEDULE_NAME;
-    })
-    .sort((a, b) => (a.documentId === first ? -1 : b.documentId === first ? 1 : a.documentId.localeCompare(b.documentId)));
-  if (live[0]) return { id: live[0].documentId, document: live[0] };
-  const stored = new Set<string>(documents.map((document) => document.documentId));
-  let id = first;
-  for (let n = 2; stored.has(id); n++) id = `${first}-${n}`;
-  return { id, document: null };
+  return pickPlannerDocument(documents, kind, termId, (document) => document.draft);
 }
 
 export function plannerSnapshot(documents: readonly LocalDocument[], termId: string): PlannerSnapshot {

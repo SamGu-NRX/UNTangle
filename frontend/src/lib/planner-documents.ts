@@ -39,7 +39,8 @@ export const MAIN_SCHEDULE_NAME = "Main";
  * Fixed ids for each kind's first document, so two devices that each create
  * one offline meet as a revision conflict on one id instead of leaving two
  * records. A deleted id is never reused (the server refuses it), so a
- * replacement gets a random id and is found by its kind and term.
+ * replacement gets the next free id, such as `main-unt-spring-2027-2`, and is found by
+ * its kind and term (pickPlannerDocument).
  */
 export const firstDocumentId = {
   "academic-record": `academic-record-${INSTITUTION_ID}`,
@@ -54,6 +55,47 @@ export type PlannerBodies = {
 };
 export type PlannerKind = keyof PlannerBodies;
 export const plannerKinds: readonly PlannerKind[] = ["academic-record", "schedule", "preferences"];
+
+/**
+ * The document of a kind the planner uses: a live one, preferring the kind's
+ * first id; a schedule must also be this term's Main. With none live, the
+ * first id not among `documents`, because a deleted id is never reused.
+ *
+ * `documents` is every document the caller holds, deleted ones included, and
+ * `liveBody` gives a document's body, or null when it is deleted. The web
+ * planner calls this on its device's store; the extension routes call it on
+ * the account's stored documents, so an extension add reaches the Main the
+ * web planner shows.
+ */
+export function pickPlannerDocument<D extends { documentId: string; kind: string }>(
+  documents: readonly D[],
+  kind: PlannerKind,
+  termId: string,
+  liveBody: (document: D) => unknown,
+): { id: string; document: D | null } {
+  const first = kind === "schedule" ? firstDocumentId.schedule(termId) : firstDocumentId[kind];
+  const live = documents
+    .filter((document) => document.kind === kind && liveBody(document) !== null)
+    .filter((document) => {
+      if (kind !== "schedule") return true;
+      const body = liveBody(document) as Partial<ScheduleBody>;
+      return body.termId === termId && body.name === MAIN_SCHEDULE_NAME;
+    })
+    .sort((a, b) => (a.documentId === first ? -1 : b.documentId === first ? 1 : a.documentId.localeCompare(b.documentId)));
+  if (live[0]) return { id: live[0].documentId, document: live[0] };
+  const stored = new Set<string>(documents.map((document) => document.documentId));
+  let id = first;
+  for (let n = 2; stored.has(id); n++) id = `${first}-${n}`;
+  return { id, document: null };
+}
+
+/** A term's Main with nothing planned: the schedule body `splitPlanner` writes for an untouched plan. */
+export function emptyMainSchedule(termId: string): ScheduleBody {
+  return ScheduleBodySchema.parse({
+    institutionId: INSTITUTION_ID, termId, name: MAIN_SCHEDULE_NAME,
+    courses: [], selectedSections: {}, lockedSections: {}, autoPlanned: [], lastAuto: null,
+  });
+}
 
 /** The documents as the planner reads them; a missing document reads as starting values. */
 export type StoredBodies = { [K in PlannerKind]: PlannerBodies[K] | null };

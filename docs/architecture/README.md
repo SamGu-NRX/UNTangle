@@ -193,7 +193,7 @@ Surface:
 
 Mobile and the extension don't use better-auth's `bearer()` plugin. In the installed 1.5.5, it rewrites a bearer token into an ordinary full session cookie, with no scopes and no rotation (`better-auth/dist/plugins/bearer/index.mjs:19-57`). Instead there's one small first-party device-grant service. It is built in step 3b, just before the mobile and extension betas; the lead owns it, and it gets an independent security review before release.
 
-1. The client creates a PKCE verifier and sends its S256 challenge and the grant kind (and, for the extension, the schedule) to `device/start`. The server stores only hashes and returns a device code for the client, an 8-character user code for the student, the approval page's address (`/device`), a 10-minute expiry and a 5-second polling interval.
+1. The client creates a PKCE verifier and sends its S256 challenge and the grant kind (and, for the extension, the schedule role `main`) to `device/start`. The server stores only hashes and returns a device code for the client, an 8-character user code for the student, the approval page's address (`/device`), a 10-minute expiry and a 5-second polling interval.
 2. The student opens `/device` in a browser and enters the user code (`/device?user_code=` fills it in). A magic link from email could open in a different browser, so the page signs the student in with a one-time code by email instead (better-auth's `email-otp` plugin, in 1.5.5), unless they're already signed in there. Meanwhile the client polls `device/token` with the device code and the verifier.
 3. The page shows the account, the device and what it can do. Approving is a same-origin POST, protected the way cookie writes are today: a required custom header, which forces a preflight, plus SameSite=Lax and an Origin check.
 4. The page returns a single-use code that expires in 60 seconds.
@@ -201,7 +201,7 @@ Mobile and the extension don't use better-auth's `bearer()` plugin. In the insta
 
 There are two fixed grant kinds, not free-form scopes:
 - **`mobile`:** reads and changes the student's documents.
-- **`extension`:** reads a projection of the chosen schedule and sends `add-option`, nothing else.
+- **`extension`:** reads a projection of the account's Main and sends `add-option`, nothing else. The grant names the Main role, `main`, not a document. Each preview and add names a term (an add's option id carries it). For a term the web planner plans (`plannedTerms` in `server/extension/main-schedule.ts`, today only `planningTerm`), the server picks that term's Main the way the web planner does (`pickPlannerDocument` in `lib/planner-documents.ts`), and a first add to a term with no Main creates it with the id and body the web planner's first write would use. Another term's preview says which term UNTangle plans, and its add is refused, so the extension never makes a Main that Week doesn't show. When the planner plans more terms, `plannedTerms` has to be widened by hand to match.
 
 Neither can delete the account or change credentials; those always need a fresh browser sign-in.
 
