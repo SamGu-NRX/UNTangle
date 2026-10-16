@@ -383,26 +383,31 @@ test("the route's parsed response feeds buildOptimizeRequest as a dated calendar
   }
 });
 
-test("a response over 1 MiB answers 422 with a specific error instead of a cut-short body", async () => {
+test("a feed past the piece budget answers 422 with a specific error instead of a cut-short body", async () => {
   setSession({ user: { id: "user-too-many" } });
-  // Forty daily half-hour events over 390 days: about 15,600 busy pieces,
-  // under the piece budget but over 1 MiB of JSON, from a feed of a few KB.
+  // Forty daily half-hour events over the term: about 4,700 busy pieces, past the 4,000 budget, from a feed of a few KB.
   const events = Array.from({ length: 40 }, (_, i) => {
     const minutes = String((i % 2) * 30).padStart(2, "0");
     const hour = String(Math.floor(i / 2)).padStart(2, "0");
-    return `BEGIN:VEVENT\r\nUID:daily-${i}@t\r\nSUMMARY:Daily\r\nDTSTART:20260101T${hour}${minutes}00Z\r\nDTEND:20260101T${hour}${minutes === "00" ? "29" : "59"}00Z\r\nRRULE:FREQ=DAILY\r\nEND:VEVENT\r\n`;
+    return `BEGIN:VEVENT\r\nUID:daily-${i}@t\r\nSUMMARY:Daily\r\nDTSTART:20270101T${hour}${minutes}00Z\r\nDTEND:20270101T${hour}${minutes === "00" ? "29" : "59"}00Z\r\nRRULE:FREQ=DAILY\r\nEND:VEVENT\r\n`;
   }).join("");
   const daily = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\n${events}END:VCALENDAR\r\n`;
   fetchStub.mockImplementation(async () => new Response(daily, { status: 200, headers: { "content-type": "text/calendar" } }));
   try {
-    const response = await POST(
-      busyRequest({ ...VALID_BODY, rangeStart: "2026-01-01T00:00:00Z", rangeEnd: "2027-01-26T00:00:00Z" }, "192.0.2.90"),
-    );
+    const response = await POST(busyRequest({ url: VALID_BODY.url, termStart: "2027-01-11", termEnd: "2027-05-07" }, "192.0.2.90"));
     expect(response.status).toBe(422);
     expect(await response.json()).toEqual({ error: "This calendar has too many events to preview" });
   } finally {
     fetchStub.mockImplementation(async () => tinyResponse());
   }
+});
+
+test("a busy body over 1 MiB is refused whole, never cut short", async () => {
+  const { serializeBusy } = await import("@/lib/calendar-feeds/busy-serialize");
+  const piece = { date: "2027-01-12", startMinutes: 900, endMinutes: 1080, allDay: false };
+  const range = { start: "2027-01-11T06:00:00.000Z", end: "2027-05-08T05:00:00.000Z" };
+  expect(serializeBusy({ range, occurrences: Array.from({ length: 1_000 }, () => piece), skipped: [] })).not.toBeNull();
+  expect(serializeBusy({ range, occurrences: Array.from({ length: 20_000 }, () => piece), skipped: [] })).toBeNull();
 });
 
 test("a feed blocked by SSRF rules answers 400 and an unreachable feed answers 502", async () => {
@@ -453,7 +458,7 @@ describe("a feed built to cost the server", () => {
 
   test("many overlapping multi-day events are refused once they pass the piece budget, without building the rest", async () => {
     setSession({ user: { id: "user-overlap" } });
-    // 300 all-day events, each covering the whole term: 35,100 pieces, past the 20,000 budget.
+    // 300 all-day events, each covering the whole term: 35,100 pieces, past the 4,000 budget.
     const events = Array.from({ length: 300 }, (_, i) => `BEGIN:VEVENT\r\nUID:wide-${i}@t\r\nDTSTART;VALUE=DATE:20270101\r\nDTEND;VALUE=DATE:20270601\r\nEND:VEVENT\r\n`).join("");
     serve(feed(events));
     const started = performance.now();

@@ -9,13 +9,16 @@ import { feedOccurrences, type FeedOccurrence, type ParsedFeed } from "@untangle
 export { OccurrenceBudgetError } from "@untangle/core/occurrences";
 
 /**
- * Most busy pieces one feed may expand into. A busy response near the 1 MiB
- * cap holds about 15,000 pieces, so past this the response would be refused
- * anyway; checking during expansion refuses a feed built to expand into
- * millions of pieces (long or overlapping multi-day events) before it costs
- * that work. No measurement of real feeds is behind the exact number.
+ * Most busy pieces one feed may expand into, checked during expansion so a
+ * feed built to expand into millions of pieces (long or overlapping
+ * multi-day events) is refused before it costs that work. A connected
+ * calendar keeps at most 1,500 busy dates (MAX_CALENDAR_BUSY_DATES), so a
+ * feed past 4,000 pieces could never be kept anyway. Expansion costs about
+ * 40 microseconds a piece (timed on an Apple M4 Pro, DST-crossing worst
+ * case, 2026-10-16): about 0.8 s at the earlier 20,000, about 0.16 s here,
+ * which bounds what one anonymous request can make the server do.
  */
-export const MAX_BUSY_PIECES = 20_000;
+export const MAX_BUSY_PIECES = 4_000;
 
 import { FLOATING_TIME_ZONE } from "./datetime";
 import type { CalendarParseResult } from "./types";
