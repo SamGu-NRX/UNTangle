@@ -2,7 +2,7 @@ import { optionsConflict } from "@/lib/planner-sections";
 import { courses } from "@/lib/seed-data";
 import type { ScheduleEvent } from "@/lib/types";
 
-import { autoRequest, runAuto, weightsOf } from "./auto";
+import { autoRequest, optionSentence, runAuto, SAME_WEEK, weightsOf } from "./auto";
 import { dayPlan, rangeWithPeriod, sampleStart, walkMinutes } from "./day-plan";
 import {
   conflictsWith,
@@ -15,6 +15,7 @@ import {
   samplePlannedCodes,
   sampleRecord,
   sectionsOf,
+  sectionTimes,
   weekOf,
   type GuestRecord,
 } from "./guest-plan";
@@ -117,8 +118,8 @@ describe("section picking", () => {
   });
 
   it("counts the credits of the picked courses", () => {
-    expect(weekOf({ "MATH 1710": sectionsOf("MATH 1710")[0].id }).credits).toBe(3);
-    expect(weekOf({}).credits).toBe(0);
+    expect(weekOf({ "MATH 1710": sectionsOf("MATH 1710")[0].id }, new Map()).credits).toBe(3);
+    expect(weekOf({}, new Map()).credits).toBe(0);
   });
 });
 
@@ -193,6 +194,23 @@ describe("rangeWithPeriod", () => {
   });
 });
 
+describe("sectionTimes", () => {
+  const sectionAt = (code: string, start: number) => sectionsOf(code).find((section) => section.meetings[0]?.startMinutes === start);
+
+  test("says AM or PM, the way the web writes a range off the grid", () => {
+    // CSCE 2100's sample section at noon, which the walkthrough saw as "12:00 to 12:50".
+    const noon = sectionAt("CSCE 2100", 12 * 60);
+    expect(noon && sectionTimes(noon)).toEqual({ days: "Mon Wed Fri", time: "12:00 to 12:50 PM" });
+    const morning = sectionsOf("CSCE 2100").find((section) => (section.meetings[0]?.endMinutes ?? 720) < 720);
+    expect(morning && sectionTimes(morning)?.time).toMatch(/^\d{1,2}:\d{2} to \d{1,2}:\d{2} AM$/);
+  });
+
+  test("says nothing for a section with no set time", () => {
+    const section = sectionsOf("CSCE 2100")[0];
+    expect(sectionTimes({ ...section, meetings: [] })).toBeNull();
+  });
+});
+
 describe("preferences", () => {
   const blank: Preferences = { ...samplePreferences, busy: {} };
 
@@ -251,7 +269,7 @@ describe("Auto", () => {
     if (result.kind !== "options") return;
     for (const option of result.options) {
       expect(option.picks[kept]).toBe(picks[kept]);
-      const week = weekOf(option.picks);
+      const week = weekOf(option.picks, new Map());
       for (const block of week.blocks) {
         expect(block.start).toBeGreaterThanOrEqual(prefs.startAfter!);
         const work = (block.day === "Tue" || block.day === "Thu") && block.start < 1020 && block.end > 900;
@@ -259,6 +277,21 @@ describe("Auto", () => {
       }
       expect(option.moves).toEqual(Object.keys(picks).filter((code) => option.picks[code] !== picks[code]));
     }
+  });
+
+  it("words each option with the web Week's trade-off line, not a list of what moves", () => {
+    const picks = samplePicks();
+    const result = runAuto(picks, samplePreferences);
+    expect(result.kind).toBe("options");
+    if (result.kind !== "options") return;
+    // The web's describeAlternative: the best gain, then the worst cost. The
+    // sample student leans toward mornings, so earlier starts are no cost.
+    expect(result.options.map((option) => option.sentence)).toEqual(["Ends by 1:50.", "Frees Tuesday and Thursday.", "Frees Tuesday and Thursday."]);
+  });
+
+  it("says the week is already Auto's best when an option moves nothing", () => {
+    const picks = samplePicks();
+    expect(optionSentence(picks, picks, [], samplePreferences)).toBe(SAME_WEEK);
   });
 
   it("says nothing fits when the credit limit is below the planned courses", () => {

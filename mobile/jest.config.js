@@ -11,6 +11,7 @@ module.exports = {
   modulePaths: ["<rootDir>/node_modules"],
   moduleNameMapper: {
     "^@/lib/(.*)$": "<rootDir>/../frontend/src/lib/$1",
+    "^@/schedule-builder/(.*)$": "<rootDir>/../frontend/src/components/schedule-builder/$1",
     "^@/assets/(.*)$": "<rootDir>/assets/$1",
     "^@/(.*)$": "<rootDir>/src/$1",
   },

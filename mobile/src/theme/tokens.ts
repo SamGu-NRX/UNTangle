@@ -99,6 +99,16 @@ export const layout = {
   header: 52,
   /** One hour on the phone Week grid. */
   hour: 56,
+  /**
+   * Windows narrower than this, after dividing by the text size setting
+   * (320 on an iPhone SE with Display Zoom, small Androids), get the compact
+   * header and Week grid (ui/chrome.tsx useCompactWindow). Measured on the
+   * Expo web export at 320: the full header is 16px wider than the screen,
+   * and a Week column leaves 33px for a code that needs up to 38 (MGMT).
+   * The full header needs about 336px; 360 is a round margin above that,
+   * not a measured break.
+   */
+  compactBelow: 360,
 } as const;
 
 /**

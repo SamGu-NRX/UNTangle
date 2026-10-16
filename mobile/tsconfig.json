@@ -17,6 +17,9 @@
       ],
       "@/lib/*": [
         "../frontend/src/lib/*"
+      ],
+      "@/schedule-builder/*": [
+        "../frontend/src/components/schedule-builder/*"
       ]
     }
   },

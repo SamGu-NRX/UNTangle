@@ -33,7 +33,7 @@ export default function SignInSheet() {
       <View style={styles.note}>
         <Txt variant="bodyStrong">Until then, you're a guest.</Txt>
         <Txt variant="meta" tone="ink2">
-          The courses and week here belong to a sample student. Changes stay on this phone until you close the app.
+          The courses and week here belong to a sample student. Your changes stay on this phone.
         </Txt>
       </View>
       <Button label="Keep exploring" onPress={close} full />
