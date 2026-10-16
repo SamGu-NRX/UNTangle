@@ -64,12 +64,18 @@ export type BuilderSearch = {
 
 /** Changes to the week. Each is one undoable step. */
 export type BuilderEdits = {
-  /** Puts `sectionId` on the week, adding the course when it isn't there. */
-  place: (courseCode: string, sectionId: string) => void;
+  /**
+   * Puts `sectionId` on the week, adding the course when it isn't there.
+   * Returns why it refused, changing nothing; null when it placed the section.
+   */
+  place: (courseCode: string, sectionId: string) => string | null;
   remove: (courseCode: string) => void;
   keep: (courseCode: string, kept: boolean) => void;
-  /** Replaces the week's sections with an alternative's. */
-  use: (byCourse: Record<string, string>) => void;
+  /**
+   * Replaces the week's sections with an alternative's. Returns why each
+   * course it left out was refused, one sentence each; empty when none was.
+   */
+  use: (byCourse: Record<string, string>) => string[];
   clear: () => void;
   undo: () => void;
   canUndo: boolean;

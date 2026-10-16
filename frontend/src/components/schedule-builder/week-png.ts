@@ -3,7 +3,7 @@
  * canvas at 2x, in the page's own fonts and course colors, so it reads like
  * the screen without screenshotting it.
  */
-import { DAY_NAME, daysShown, hourRange, timeRange, type GridEvent } from "./week";
+import { DAY_NAME, daysShown, hourRange, placeEvents, timeRange, type GridEvent } from "./week";
 
 const SCALE = 2;
 const WIDTH = 1200;
@@ -64,26 +64,32 @@ export async function drawWeekPng(input: { title: string; events: readonly GridE
   }
   ctx.textAlign = "left";
 
+  // Events that share time sit side by side in lanes, as on the grid (WeekGrid).
+  const placements = placeEvents(input.events);
   for (const event of input.events) {
     const column = days.indexOf(event.day);
     const hue = input.hueOf(event.courseCode);
-    const x = PAD + GUTTER + column * columnWidth + 4;
+    const { lane = 0, lanes = 1 } = placements.get(event.key) ?? {};
+    const laneWidth = (columnWidth - 8) / lanes;
+    const x = PAD + GUTTER + column * columnWidth + 4 + lane * laneWidth;
+    const w = laneWidth - (lanes > 1 ? 2 : 0);
     const y = top + ((event.start - first * 60) / 60) * HOUR + 1;
     const h = ((event.end - event.start) / 60) * HOUR - 2;
     ctx.fillStyle = cssVar(`--c${hue}t`);
     ctx.beginPath();
-    ctx.roundRect(x, y, columnWidth - 8, h, 8);
+    ctx.roundRect(x, y, w, h, 8);
     ctx.fill();
     ctx.fillStyle = cssVar(`--c${hue}`);
     ctx.fillRect(x, y + 4, 3, h - 8);
     ctx.fillStyle = ink;
     // DM Sans like the grid; Syne belongs to the wordmark alone.
     ctx.font = `600 13px ${ui}`;
-    ctx.fillText(event.courseCode, x + 10, y + 18);
+    // A narrow lane condenses its text rather than spill into the next one.
+    ctx.fillText(event.courseCode, x + 10, y + 18, w - 14);
     if (h > 36) {
       ctx.fillStyle = ink2;
       ctx.font = `400 12px ${ui}`;
-      ctx.fillText(timeRange(event.start, event.end), x + 10, y + 34);
+      ctx.fillText(timeRange(event.start, event.end), x + 10, y + 34, w - 14);
     }
   }
 

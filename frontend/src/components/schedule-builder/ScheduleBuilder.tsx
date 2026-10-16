@@ -20,7 +20,7 @@ import type { BuilderHost } from "./host";
 import { NoticeStrip, OptionsStrip } from "./OptionsStrip";
 import { EventPanel, OptionDetails } from "./panels";
 import { changedCount, newBusyId } from "./limits";
-import { addBusy, preferenceSummary } from "./preferences";
+import { addBusy, preferenceSummary, removeBusySpan } from "./preferences";
 import { PreferencesPopover } from "./PreferencesPopover";
 import { SearchPanel } from "./SearchPanel";
 import type { SharedWeek } from "./share";
@@ -197,8 +197,13 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shared]);
 
+  // A toast keeps the Undo from the render that showed it, before its edit committed and made Undo possible.
+  const canUndo = useRef(host.edits.canUndo);
+  useLayoutEffect(() => {
+    canUndo.current = host.edits.canUndo;
+  });
   const undo = (fromKeyboard: boolean) => {
-    if (!host.edits.canUndo) return;
+    if (!canUndo.current) return;
     keyboard.current = fromKeyboard;
     exiting.current = true;
     host.edits.undo();
@@ -234,8 +239,10 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
 
   const place = (section: Section, overlaps: string[], fromKeyboard: boolean) => {
     const what = section.courseCode in current ? `Moved ${section.courseCode} to section ${sectionLabel(section)}` : `Added ${section.courseCode} section ${sectionLabel(section)}`;
+    const refused = host.edits.place(section.courseCode, section.id);
+    // Nothing changed, so there is nothing to undo: an Undo here would take back an earlier edit.
+    if (refused) return void toast({ message: refused, tone: "error" });
     keyboard.current = fromKeyboard;
-    host.edits.place(section.courseCode, section.id);
     setPreview(null);
     toast({ message: overlaps.length > 0 ? `${what}. It overlaps ${andList(overlaps)}.` : what, action: undoAction });
   };
@@ -266,10 +273,12 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     if (strip?.kind === "options" && (feed.stale || feed.status === "running")) return;
     const label = strip?.kind === "options" ? optionName(strip.index) : "the shared week";
     keyboard.current = false;
-    host.edits.use(previewMap);
+    const refused = host.edits.use(previewMap);
+    // Nothing was used: the preview stays, to keep or dismiss.
+    if (refused.length === Object.keys(previewMap).length) return void toast({ message: `Nothing from ${label} was used. ${refused.join(" ")}`, tone: "error" });
     closeStrip();
     if (panel?.kind === "option") setPanel(null);
-    toast({ message: `Using ${label}`, action: undoAction });
+    toast({ message: refused.length > 0 ? `Using ${label}. ${refused.join(" ")}` : `Using ${label}`, action: undoAction });
   };
 
   // What the grid draws besides the week.
@@ -526,9 +535,11 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         onBusy={(block) => {
           const day = block.day;
           if (!isWeekDay(day)) return;
-          const before = host.preferences;
-          host.setPreferences((p) => addBusy(p, { label: "Busy", day, start: block.start, end: block.end }, newBusyId()));
-          toast({ message: "Added a busy time. Auto keeps it free.", action: { label: "Undo", onClick: () => host.setPreferences(() => before) } });
+          const id = newBusyId();
+          const { start, end } = block;
+          host.setPreferences((p) => addBusy(p, { label: "Busy", day, start, end }, id));
+          // Undo takes back this time alone, keeping preferences changed since.
+          toast({ message: "Added a busy time. Auto keeps it free.", action: { label: "Undo", onClick: () => host.setPreferences((p) => removeBusySpan(p, id, start, end, newBusyId)) } });
         }}
         footer={
           noSetTime.length > 0 || host.provenance === "sample" ? (
