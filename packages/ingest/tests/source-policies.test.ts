@@ -30,7 +30,21 @@ describe("SOURCE_POLICIES", () => {
     expect(() => policy.allowedUrlPrefixes.push("https://example.com/")).toThrow(TypeError);
     expect(() => (SOURCE_POLICIES as SourcePolicy[]).push({ ...policy, sourceId: "unreviewed" })).toThrow(TypeError);
     expect(sourcePolicy("vsb-untgrades")).toMatchObject({ approval: "allowed", allowedUrlPrefixes: ["https://vsb.untgrades.app/data/"] });
-    expect(SOURCE_POLICIES).toHaveLength(2);
+    expect(SOURCE_POLICIES).toHaveLength(3);
+  });
+
+  describe("unt-registrar-exams", () => {
+    test("covers the saved final-exam page and nothing else on the registrar's site", () => {
+      const policy = sourcePolicy("unt-registrar-exams");
+      expect(policy.institutionId).toBe("unt");
+      expect(policy.acquisition).toBe("server");
+      expect(policy.maxConcurrency).toBe(1);
+      expect(policy.minIntervalMs).toBeGreaterThan(0);
+      const allowed = (url: string) => policy.allowedUrlPrefixes.some((prefix) => url.startsWith(prefix));
+      expect(allowed("https://registrar.unt.edu/exams/final-exam-schedule/fall.html")).toBe(true);
+      expect(allowed("https://registrar.unt.edu/exams/final-exam-schedule/spring.html")).toBe(true);
+      expect(allowed("https://registrar.unt.edu/registration/schedule-of-classes.html")).toBe(false);
+    });
   });
 
   describe("catalog-utexas", () => {

@@ -132,6 +132,14 @@ export function violations(request: OptimizeRequest, chosen: OptSection[]): stri
       if (a.day === b.day && a.start < b.end && b.start < a.end && shareAWeek(request, a, b)) problems.push(`overlap ${a.owner} ${b.owner}`);
     }
   }
+  // Contract (OptSection.exam): two known finals on one date that share a minute can't be in one schedule.
+  for (let i = 0; i < chosen.length; i += 1) {
+    for (let j = i + 1; j < chosen.length; j += 1) {
+      const a = chosen[i].exam;
+      const b = chosen[j].exam;
+      if (a && b && a.date === b.date && a.start < b.end && b.start < a.end) problems.push(`finals ${chosen[i].id} ${chosen[j].id}`);
+    }
+  }
   if (c.maxCredits !== null) {
     // Courses outside the request still count toward the limit (fixedCredits).
     const credits = chosen.reduce((sum, s) => sum + request.courses.find((course) => course.code === s.courseCode)!.credits, request.fixedCredits ?? 0);
@@ -293,7 +301,10 @@ export function combinationCount(request: OptimizeRequest): number {
  */
 export function referenceRestrict(request: OptimizeRequest, members: ExplainMember[]): OptimizeRequest {
   const named = (predicate: (m: ExplainMember) => boolean) => members.some(predicate);
-  const courses = request.courses.filter((course) => named((m) => m.kind === "course" && m.courseCode === course.code));
+  // Without the finals rule named, no section has a final to clash on.
+  const courses = request.courses
+    .filter((course) => named((m) => m.kind === "course" && m.courseCode === course.code))
+    .map((course) => (named((m) => m.kind === "exams") ? course : { ...course, sections: course.sections.map((s) => (s.exam ? { ...s, exam: null } : s)) }));
   const ids = new Set(courses.flatMap((course) => course.sections.map((s) => s.id)));
   const c = request.constraints;
   return {

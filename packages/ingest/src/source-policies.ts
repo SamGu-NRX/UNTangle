@@ -91,6 +91,28 @@ export const SOURCE_POLICIES: readonly ReviewedSourcePolicy[] = reviewed([
     policyEvidenceUrl: null,
     policyCheckedAt: null,
   },
+  {
+    sourceId: "unt-registrar-exams",
+    institutionId: "unt",
+    description:
+      "UNT Office of the Registrar final-exam schedule pages, one per term (registrar.unt.edu/exams/final-exam-schedule/fall.html, spring.html, summer.html), static HTML. Parsed from saved copies by packages/ingest/src/exam-schedule.ts; capture notes are in packages/ingest/tests/fixtures/unt-exams/SOURCES.md.",
+    acquisition: "server",
+    // Public, unauthenticated pages. robots.txt (read 2026-10-16) allows
+    // /exams/, and no terms page governs them, so policy evidence stays null
+    // and pacing is self-imposed. The schedule is UNT's publication, so
+    // redistribution is unverified, as for the class-search mirror.
+    approval: "allowed",
+    retention: "versioned",
+    redistribution: "unverified",
+    allowedUrlPrefixes: ["https://registrar.unt.edu/exams/final-exam-schedule/"],
+    // A handful of pages, captured once when a term's schedule is published.
+    // Three seconds between fetches matches the first capture; nothing was measured.
+    minIntervalMs: 3_000,
+    maxRequestsPerHour: 20,
+    maxConcurrency: 1,
+    policyEvidenceUrl: null,
+    policyCheckedAt: null,
+  },
 ]);
 
 /** The policy for `sourceId`. Throws when the table has none, so a job can't fetch from an unreviewed source. */

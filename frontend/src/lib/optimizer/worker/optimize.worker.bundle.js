@@ -290,6 +290,14 @@ function validateRequest(request, checkDeadline = () => {}) {
       }
       if (section.meetings.length === 0)
         throw new OptimizerInputError(`section ${section.id} has no meetings`);
+      const exam = section.exam;
+      if (exam !== undefined && exam !== null) {
+        if (dayNumber(exam.date) === null)
+          throw new OptimizerInputError(`section ${section.id} has an exam on ${JSON.stringify(exam.date)}; expected a real YYYY-MM-DD date`);
+        if (!isInteger(exam.start, 0, 24 * 60) || !isInteger(exam.end, 0, 24 * 60) || exam.end <= exam.start) {
+          throw new OptimizerInputError(`section ${section.id} has an exam with invalid times ${exam.start}-${exam.end}`);
+        }
+      }
       for (const meeting of section.meetings) {
         if ((steps++ & 127) === 0)
           checkDeadline();
@@ -369,6 +377,9 @@ function validateRequest(request, checkDeadline = () => {}) {
   const k = request.k ?? 3;
   if (!isInteger(k, 1, 20))
     throw new OptimizerInputError(`k must be an integer 1..20, got ${k}`);
+}
+function examsClash(a, b) {
+  return !!a && !!b && a.date === b.date && a.start < b.end && b.start < a.end;
 }
 function overlaps(a, b) {
   return a.day === b.day && a.start < b.end && b.start < a.end && (a.weeks & b.weeks) !== 0;
@@ -672,6 +683,8 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
   };
 }
 function incompatible(a, b, tightPair) {
+  if (examsClash(a.section.exam, b.section.exam))
+    return true;
   for (const ma of a.meetings) {
     for (const mb of b.meetings) {
       if (overlaps(ma, mb))
@@ -689,7 +702,9 @@ function incompatible(a, b, tightPair) {
 function dropTwins(candidates, walkingMatters) {
   const best = new Map;
   for (const candidate of candidates) {
-    const key = walkingMatters ? fullSignatureOf(candidate.section.meetings) : timeSignatureOf(candidate.section.meetings);
+    const exam = candidate.section.exam;
+    const examKey = exam ? `#${exam.date}/${exam.start}-${exam.end}` : "";
+    const key = (walkingMatters ? fullSignatureOf(candidate.section.meetings) : timeSignatureOf(candidate.section.meetings)) + examKey;
     const current = best.get(key);
     if (!current || candidate.self < current.self || candidate.self === current.self && compareIds(candidate.section.id, current.section.id) < 0) {
       best.set(key, candidate);
@@ -1458,6 +1473,8 @@ function allMembers(request) {
   const codes = request.courses.map((course) => course.code).sort();
   for (const code of codes)
     members.push({ kind: "course", courseCode: code });
+  if (hasExams(request))
+    members.push({ kind: "exams" });
   for (const sectionId of [...request.excluded].sort())
     members.push({ kind: "excluded", sectionId });
   for (const code of codes) {
@@ -1481,10 +1498,14 @@ function allMembers(request) {
     members.push({ kind: "maxCredits" });
   return members;
 }
+function hasExams(request) {
+  return request.courses.some((course) => course.sections.some((section) => section.exam));
+}
 function restrictTo(request, members) {
   const keys = new Set(members.map(memberKey));
-  const courses = request.courses.filter((course) => keys.has(`course:${course.code}`));
-  const kept = new Set(courses.map((course) => course.code));
+  const kept = request.courses.filter((course) => keys.has(`course:${course.code}`));
+  const courses = keys.has("exams") || !hasExams(request) ? kept : kept.map((course) => ({ ...course, sections: course.sections.map((section) => section.exam ? { ...section, exam: null } : section) }));
+  const keptCodes = new Set(courses.map((course) => course.code));
   const sectionCourse = new Map;
   for (const course of courses)
     for (const section of course.sections)
@@ -1493,7 +1514,7 @@ function restrictTo(request, members) {
   return {
     ...request,
     courses,
-    locks: Object.fromEntries(Object.entries(request.locks).filter(([code]) => kept.has(code) && keys.has(`lock:${code}`))),
+    locks: Object.fromEntries(Object.entries(request.locks).filter(([code]) => keptCodes.has(code) && keys.has(`lock:${code}`))),
     excluded: request.excluded.filter((id) => sectionCourse.has(id) && keys.has(`excluded:${id}`)),
     constraints: {
       earliestStart: keys.has("earliestStart") ? c.earliestStart : null,
@@ -1625,6 +1646,25 @@ function joinList(items) {
 function sectionLabel(section) {
   return section.label ?? section.id;
 }
+var WEEKDAY_SHORT = ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
+function examClock(minutes, suffix) {
+  const hours = Math.floor(minutes / 60);
+  const text = `${hours % 12 === 0 ? 12 : hours % 12}:${String(minutes % 60).padStart(2, "0")}`;
+  return suffix ? `${text} ${hours >= 12 ? "PM" : "AM"}` : text;
+}
+function examTimes(start, end) {
+  return start < 12 * 60 === end < 12 * 60 ? `${examClock(start, false)} to ${examClock(end, true)}` : `${examClock(start, true)} to ${examClock(end, true)}`;
+}
+function examLabel(exam) {
+  const weekday = WEEKDAY_SHORT[(dayNumber(exam.date) ?? 0) % 7];
+  const date = `${MONTHS[Number(exam.date.slice(5, 7)) - 1]} ${Number(exam.date.slice(8, 10))}`;
+  return `${weekday}, ${date}, ${examTimes(exam.start, exam.end)}`;
+}
+function examPair(a, b) {
+  if (a.date === b.date && a.start === b.start && a.end === b.end)
+    return `both ${examLabel(a)}`;
+  return `${examLabel(a)} and ${examTimes(b.start, b.end)}`;
+}
 function conditionPhrases(request, members) {
   const c = request.constraints;
   const has = (kind) => members.some((member) => member.kind === kind);
@@ -1649,6 +1689,8 @@ function conditionPhrases(request, members) {
     const buffer = c.walking?.bufferMinutes ?? 0;
     phrases.push(buffer > 0 ? `with time to walk between buildings plus ${buffer} minutes` : "with time to walk between buildings");
   }
+  if (has("exams"))
+    phrases.push("without overlapping finals");
   const excluded = members.filter((member) => member.kind === "excluded");
   if (excluded.length > 0) {
     const labels = excluded.map((member) => {
@@ -1709,6 +1751,12 @@ function explainSentence(request, members) {
     const [a, b] = codes;
     const onlyA = onlySection(a);
     const onlyB = onlySection(b);
+    const examA = onlyA?.exam;
+    const examB = onlyB?.exam;
+    if (onlyA && onlyB && examA && examB && conditions.length === 1 && members.some((member) => member.kind === "exams")) {
+      const named = (code, only) => locked.has(code) ? describe(code) : `${code} (${pattern(only)})`;
+      return `${named(a, onlyA)} and ${named(b, onlyB)} have overlapping finals (${examPair(examA, examB)}).`.replace(/^./, (s) => s.toUpperCase());
+    }
     if (conditions.length === 0) {
       if (onlyA && onlyB) {
         if (locked.has(a) || locked.has(b)) {
@@ -1733,12 +1781,15 @@ function explainSentence(request, members) {
     return `No pair of ${a} and ${b} sections fits together${where}.`;
   }
   const names = codes.map(describe);
-  return `${joinList(names)} can't all fit together${where}: every combination has a clash.`.replace(/^./, (s) => s.toUpperCase());
+  const overlap = members.some((member) => member.kind === "exams") ? "two classes or two finals that overlap" : "a clash";
+  return `${joinList(names)} can't all fit together${where}: every combination has ${overlap}.`.replace(/^./, (s) => s.toUpperCase());
 }
 function fallbackSentence(request, members) {
   const codes = members.filter((m) => m.kind === "course").map((m) => m.courseCode);
   const locks = members.filter((m) => m.kind === "lock").map((m) => `your ${m.courseCode} lock`);
-  const parts = [...codes, ...locks, ...conditionPhrases(request, members)];
+  const parts = [...codes, ...locks, ...conditionPhrases(request, members.filter((m) => m.kind !== "exams"))];
+  if (members.some((m) => m.kind === "exams"))
+    parts.push("finals that don't overlap");
   if (members.some((m) => m.kind === "maxCredits"))
     parts.push(`a ${request.constraints.maxCredits}-credit limit`);
   return `These can't all hold together: ${joinList(parts)}.`;
@@ -1829,6 +1880,7 @@ function relaxationsFor(request, members, check) {
         break;
       }
       case "course":
+      case "exams":
         break;
     }
   }

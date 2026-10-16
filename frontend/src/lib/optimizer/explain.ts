@@ -14,9 +14,10 @@
  * failing pair, and only then from the whole request.
  */
 
-import { OPT_DAYS, type ExplainMember, type Explanation, type OptDay, type OptimizeRequest, type OptSection, type Relaxation, type RelaxSuggestion } from "./types";
+import { OPT_DAYS, type ExplainMember, type Explanation, type OptDay, type OptExam, type OptimizeRequest, type OptSection, type Relaxation, type RelaxSuggestion } from "./types";
 import { prepare, PrepareBudgetExhausted } from "./prepare";
 import { isFeasible, type Budget } from "./search";
+import { dayNumber } from "./weeks";
 
 function memberKey(member: ExplainMember): string {
   switch (member.kind) {
@@ -40,6 +41,10 @@ export function allMembers(request: OptimizeRequest): ExplainMember[] {
   const members: ExplainMember[] = [];
   const codes = request.courses.map((course) => course.code).sort();
   for (const code of codes) members.push({ kind: "course", courseCode: code });
+  // First of the rest, so the filter drops it whenever another cause is enough
+  // on its own: a conflict is blamed on finals only when nothing the student
+  // can change explains it.
+  if (hasExams(request)) members.push({ kind: "exams" });
   for (const sectionId of [...request.excluded].sort()) members.push({ kind: "excluded", sectionId });
   for (const code of codes) {
     const sectionId = request.locks[code];
@@ -55,11 +60,20 @@ export function allMembers(request: OptimizeRequest): ExplainMember[] {
   return members;
 }
 
+function hasExams(request: OptimizeRequest): boolean {
+  return request.courses.some((course) => course.sections.some((section) => section.exam));
+}
+
 /** The request restricted to the given members: everything else is dropped. */
 export function restrictTo(request: OptimizeRequest, members: readonly ExplainMember[]): OptimizeRequest {
   const keys = new Set(members.map(memberKey));
-  const courses = request.courses.filter((course) => keys.has(`course:${course.code}`));
-  const kept = new Set(courses.map((course) => course.code));
+  const kept = request.courses.filter((course) => keys.has(`course:${course.code}`));
+  // Without the finals rule, no section has a final to clash on.
+  const courses =
+    keys.has("exams") || !hasExams(request)
+      ? kept
+      : kept.map((course) => ({ ...course, sections: course.sections.map((section) => (section.exam ? { ...section, exam: null } : section)) }));
+  const keptCodes = new Set(courses.map((course) => course.code));
   const sectionCourse = new Map<string, string>();
   for (const course of courses) for (const section of course.sections) sectionCourse.set(section.id, course.code);
   const c = request.constraints;
@@ -67,7 +81,7 @@ export function restrictTo(request: OptimizeRequest, members: readonly ExplainMe
     ...request,
     courses,
     locks: Object.fromEntries(
-      Object.entries(request.locks).filter(([code]) => kept.has(code) && keys.has(`lock:${code}`)),
+      Object.entries(request.locks).filter(([code]) => keptCodes.has(code) && keys.has(`lock:${code}`)),
     ),
     excluded: request.excluded.filter((id) => sectionCourse.has(id) && keys.has(`excluded:${id}`)),
     constraints: {
@@ -228,6 +242,34 @@ function sectionLabel(section: OptSection): string {
   return section.label ?? section.id;
 }
 
+const WEEKDAY_SHORT = ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
+
+/** "9:00", or "9:00 AM" with its half of the day: how Week writes a final's times (schedule-builder/finals.ts). */
+function examClock(minutes: number, suffix: boolean): string {
+  const hours = Math.floor(minutes / 60);
+  const text = `${hours % 12 === 0 ? 12 : hours % 12}:${String(minutes % 60).padStart(2, "0")}`;
+  return suffix ? `${text} ${hours >= 12 ? "PM" : "AM"}` : text;
+}
+
+/** "8:00 to 10:00 AM", or "10:30 AM to 12:30 PM" across noon, as Week writes them. */
+function examTimes(start: number, end: number): string {
+  return start < 12 * 60 === end < 12 * 60 ? `${examClock(start, false)} to ${examClock(end, true)}` : `${examClock(start, true)} to ${examClock(end, true)}`;
+}
+
+/** "Mon, May 3, 8:00 to 10:00 AM": a final as the student reads it in Week. */
+export function examLabel(exam: OptExam): string {
+  // Epoch day 0, 1970-01-01, was a Thursday.
+  const weekday = WEEKDAY_SHORT[(dayNumber(exam.date) ?? 0) % 7];
+  const date = `${MONTHS[Number(exam.date.slice(5, 7)) - 1]} ${Number(exam.date.slice(8, 10))}`;
+  return `${weekday}, ${date}, ${examTimes(exam.start, exam.end)}`;
+}
+
+/** Both overlapping finals: "both Mon, May 3, 8:00 to 10:00 AM", or each when they differ. */
+function examPair(a: OptExam, b: OptExam): string {
+  if (a.date === b.date && a.start === b.start && a.end === b.end) return `both ${examLabel(a)}`;
+  return `${examLabel(a)} and ${examTimes(b.start, b.end)}`;
+}
+
 function conditionPhrases(request: OptimizeRequest, members: ExplainMember[]): string[] {
   const c = request.constraints;
   const has = (kind: ExplainMember["kind"]) => members.some((member) => member.kind === kind);
@@ -250,6 +292,7 @@ function conditionPhrases(request: OptimizeRequest, members: ExplainMember[]): s
     const buffer = c.walking?.bufferMinutes ?? 0;
     phrases.push(buffer > 0 ? `with time to walk between buildings plus ${buffer} minutes` : "with time to walk between buildings");
   }
+  if (has("exams")) phrases.push("without overlapping finals");
   const excluded = members.filter((member): member is Extract<ExplainMember, { kind: "excluded" }> => member.kind === "excluded");
   if (excluded.length > 0) {
     const labels = excluded.map((member) => {
@@ -321,6 +364,13 @@ export function explainSentence(request: OptimizeRequest, members: ExplainMember
     const [a, b] = codes;
     const onlyA = onlySection(a);
     const onlyB = onlySection(b);
+    // Down to one section each, and the finals rule is all that stands between them: name the two finals.
+    const examA = onlyA?.exam;
+    const examB = onlyB?.exam;
+    if (onlyA && onlyB && examA && examB && conditions.length === 1 && members.some((member) => member.kind === "exams")) {
+      const named = (code: string, only: OptSection) => (locked.has(code) ? describe(code) : `${code} (${pattern(only)})`);
+      return `${named(a, onlyA)} and ${named(b, onlyB)} have overlapping finals (${examPair(examA, examB)}).`.replace(/^./, (s) => s.toUpperCase());
+    }
     if (conditions.length === 0) {
       if (onlyA && onlyB) {
         // A locked section already carries its pattern in describe(), so a
@@ -347,14 +397,16 @@ export function explainSentence(request: OptimizeRequest, members: ExplainMember
   }
 
   const names = codes.map(describe);
-  return `${joinList(names)} can't all fit together${where}: every combination has a clash.`.replace(/^./, (s) => s.toUpperCase());
+  const overlap = members.some((member) => member.kind === "exams") ? "two classes or two finals that overlap" : "a clash";
+  return `${joinList(names)} can't all fit together${where}: every combination has ${overlap}.`.replace(/^./, (s) => s.toUpperCase());
 }
 
 /** Used when the set could not be shown minimal: it conflicts, but may name more than needed. */
 export function fallbackSentence(request: OptimizeRequest, members: ExplainMember[]): string {
   const codes = members.filter((m) => m.kind === "course").map((m) => (m as { courseCode: string }).courseCode);
   const locks = members.filter((m): m is Extract<ExplainMember, { kind: "lock" }> => m.kind === "lock").map((m) => `your ${m.courseCode} lock`);
-  const parts = [...codes, ...locks, ...conditionPhrases(request, members)];
+  const parts = [...codes, ...locks, ...conditionPhrases(request, members.filter((m) => m.kind !== "exams"))];
+  if (members.some((m) => m.kind === "exams")) parts.push("finals that don't overlap");
   if (members.some((m) => m.kind === "maxCredits")) parts.push(`a ${request.constraints.maxCredits}-credit limit`);
   return `These can't all hold together: ${joinList(parts)}.`;
 }
@@ -455,6 +507,9 @@ function relaxationsFor(
         break;
       }
       case "course":
+      // UNT sets exam times, so the finals rule has no change to offer; a
+      // lock or an exclusion in the same set still offers its own.
+      case "exams":
         break;
     }
   }

@@ -4,7 +4,7 @@
  * so a mutation test can assert that a planted bug makes a check fail.
  */
 
-import type { Explanation, OptDateRange, OptDay, OptimizeRequest, OptimizeResult, OptMeeting } from "@/lib/optimizer/types";
+import type { Explanation, OptDateRange, OptDay, OptExam, OptimizeRequest, OptimizeResult, OptMeeting } from "@/lib/optimizer/types";
 import { FIRST_HALF, FULL_TERM, generateInstance, SECOND_HALF, syntheticWalkingTime, type InstanceShape } from "./generator";
 import {
   combinationCount,
@@ -28,6 +28,29 @@ export const SMALL_SHAPES: InstanceShape[] = [
 
 export function smallInstance(seed: number): OptimizeRequest {
   return generateInstance(seed, SMALL_SHAPES[seed % SMALL_SHAPES.length]);
+}
+
+/** A small instance whose sections each get one of four finals on two dates, so overlapping finals are common (OptSection.exam). */
+export function examInstance(seed: number): OptimizeRequest {
+  const request = smallInstance(seed);
+  const slots: OptExam[] = [
+    { date: "2027-05-03", start: 480, end: 600 },
+    { date: "2027-05-03", start: 540, end: 660 },
+    { date: "2027-05-03", start: 600, end: 720 },
+    { date: "2027-05-04", start: 480, end: 600 },
+  ];
+  let i = seed;
+  return {
+    ...request,
+    courses: request.courses.map((course) => ({
+      ...course,
+      sections: course.sections.map((section) => {
+        i = (i * 1103515245 + 12345) % 2147483648;
+        // About one section in five has no known final.
+        return { ...section, exam: i % 5 === 0 ? null : slots[i % slots.length] };
+      }),
+    })),
+  };
 }
 
 /** Small instances with Spring 2027 half-term dates and weekend meetings (see `terms` in generator.ts). */
