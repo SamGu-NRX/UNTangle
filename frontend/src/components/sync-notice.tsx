@@ -6,7 +6,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { toast } from "@/components/ui/Toast";
 import { usePlanner, type SyncConflict } from "@/components/planner-provider";
 import { getMajorById } from "@/lib/planner";
-import { academicQuestions, answerAcademicQuestions, scheduleDifference } from "@/lib/sync/planner-sync";
+import { academicQuestions, answerAcademicQuestions, questionKey, scheduleDifference } from "@/lib/sync/planner-sync";
 import type { AcademicQuestion, CourseFacts } from "@untangle/sync";
 import "./sync-notice.css";
 
@@ -25,21 +25,35 @@ const subject = {
   preferences: { name: "Your preferences", deleted: "Your preferences were" },
 } as const;
 
+const article = (grade: string) => (/^[AEFHILMNORSX]/.test(grade) ? "an" : "a");
+
+/**
+ * One side of a course question in the student's terms: where the status
+ * came from (a transcript row and its grade, or the student's own mark), so
+ * two sides that are both "done" still read differently.
+ */
 function courseFact(facts: CourseFacts): string {
-  if (facts.manualCredit) return "Done (your credit mark)";
-  if (facts.status === "completed") return "Done";
-  if (facts.status === "inProgress") return "Taking now";
+  if (facts.manualCredit) return "Marked done by you";
+  const row = facts.records.filter((record) => !record.duplicateExcluded).at(-1);
+  if (facts.status === "completed") {
+    return row?.grade ? `Done in ${row.term} with ${article(row.grade)} ${row.grade}` : row ? `Done in ${row.term}` : "Done";
+  }
+  if (facts.status === "inProgress") return row ? `Taking now in ${row.term}` : "Taking now";
   return "Not taken";
 }
 
-/** The two sides of one question as the student reads them, and whether to say which device each came from. */
-function sides(question: AcademicQuestion): { name: string; latest: string; mine: string; where: boolean } {
+/** Where each side of a question comes from, as the option's second line and inside sentences. */
+export type QuestionSides = { latest: string; mine: string; latestOf: string; mineOf: string };
+const DEVICES: QuestionSides = { latest: "Other device", mine: "This device", latestOf: "the other device", mineOf: "this device" };
+
+/** The two sides of one question as the student reads them, and whether to say where each came from. */
+function sides(question: AcademicQuestion, where: QuestionSides): { name: string; latest: string; mine: string; where: boolean } {
   switch (question.kind) {
     case "course": {
       const latest = courseFact(question.latest), mine = courseFact(question.local);
       // Same status, different transcript details: the device is the whole difference.
       return latest === mine
-        ? { name: question.course, latest: "Transcript from the other device", mine: "Transcript from this device", where: false }
+        ? { name: question.course, latest: `Transcript from ${where.latestOf}`, mine: `Transcript from ${where.mineOf}`, where: false }
         : { name: question.course, latest, mine, where: true };
     }
     case "major":
@@ -48,19 +62,24 @@ function sides(question: AcademicQuestion): { name: string; latest: string; mine
       return { name: "Catalog year", latest: question.latest ?? "Not set", mine: question.local ?? "Not set", where: true };
     case "transcript-id":
       // A transcript row moved to another course on one side; the row itself names no course to show.
-      return { name: "A transcript entry", latest: "Keep the other device's", mine: "Keep this device's", where: false };
+      return { name: "A transcript entry", latest: `Keep ${where.latestOf}'s`, mine: `Keep ${where.mineOf}'s`, where: false };
   }
 }
 
-/** What a question is about, so its answer stays with it. */
-function questionKey(question: AcademicQuestion): string {
-  return question.kind === "course" ? `course:${question.course}` : question.kind === "transcript-id" ? `row:${question.id}` : question.kind;
-}
-
 /** One question as a pair of radios; the other device's value is chosen until the student picks. */
-function Question({ question, value, onChange }: { question: AcademicQuestion; value: "latest" | "mine"; onChange: (value: "latest" | "mine") => void }) {
+export function Question({
+  question,
+  value,
+  onChange,
+  where = DEVICES,
+}: {
+  question: AcademicQuestion;
+  value: "latest" | "mine";
+  onChange: (value: "latest" | "mine") => void;
+  where?: QuestionSides;
+}) {
   const name = useId();
-  const text = sides(question);
+  const text = sides(question, where);
   return (
     <fieldset className="sync-question">
       <legend>{text.name}</legend>
@@ -69,7 +88,7 @@ function Question({ question, value, onChange }: { question: AcademicQuestion; v
           <input type="radio" name={name} checked={value === side} onChange={() => onChange(side)} />
           <span>
             {text[side]}
-            {text.where ? <span className="sync-question__where">{side === "latest" ? "Other device" : "This device"}</span> : null}
+            {text.where ? <span className="sync-question__where">{where[side]}</span> : null}
           </span>
         </label>
       ))}
@@ -168,7 +187,9 @@ export function SyncNotice() {
     const element = section.current;
     const root = document.documentElement;
     if (!element) return;
-    const observer = new ResizeObserver(() => root.style.setProperty("--sync-notice-h", `${element.offsetHeight}px`));
+    const measure = () => root.style.setProperty("--sync-notice-h", `${element.offsetHeight}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => {
       observer.disconnect();

@@ -411,7 +411,11 @@ export class PersistedDocumentStore implements LocalStore {
     return parseStoreState(raw === undefined ? undefined : JSON.parse(raw), identity);
   }
 
+  /** While true, every write fails, as when the browser's storage is full. */
+  refuseWrites = false;
+
   async transact<T>(identity: Identity, change: (state: StoreState) => T): Promise<T> {
+    if (this.refuseWrites) throw new Error("QuotaExceededError");
     const state = await this.read(identity);
     const result = change(state);
     if (result instanceof Promise) throw new Error("A sync storage transaction callback must be synchronous.");
@@ -431,8 +435,10 @@ export class PersistedDocumentStore implements LocalStore {
 
 let documentStore = new PersistedDocumentStore();
 let documentStoreFails = false;
-/** A fresh browser: no documents stored for anyone, and a store that opens. */
+/** A fresh browser: no documents stored for anyone, a store that opens, and no browser-session cookie. */
 export function resetDocumentStore(): PersistedDocumentStore {
+  // The browser closed: session cookies are gone.
+  document.cookie = "untangle_guest_session=; path=/; Max-Age=0";
   documentStore = new PersistedDocumentStore();
   documentStoreFails = false;
   return documentStore;

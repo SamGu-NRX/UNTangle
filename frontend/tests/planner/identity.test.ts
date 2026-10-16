@@ -63,7 +63,7 @@ describe("account switch", () => {
     await waitFor(() => planner.get().plannerState.optimization === "compact" && planner.get().hydrated, "B loaded");
     await flushSaves();
     expect(serverA.pulls).toBe(1);
-    expect(planner.get().saveState.label).toBe("Saved on this device");
+    expect(planner.get().saveState.label).toBe("Synced");
     expect(planner.get().syncConflict).toBeNull();
     expect(serverA.putsStarted + serverB.putsStarted).toBe(0);
 

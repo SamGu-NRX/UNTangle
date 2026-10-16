@@ -84,7 +84,7 @@ describe("rule 1: a save shown as Saved survives a reload", () => {
     setSession(user);
     await waitFor(() => second.get().isRegistered && second.get().hydrated, "signed in");
     await waitFor(() => second.get().plannerState.optimization === "compact", "loaded from the server");
-    expect(second.get().saveState.label).toBe("Saved on this device");
+    expect(second.get().saveState.label).toBe("Synced");
     expect(server.plan(user.id)?.optimization).toBe("compact");
   });
 });
@@ -119,7 +119,7 @@ describe("rule 1: an edit is not lost when the page goes away before its save", 
     setSession(user);
     server.seedPlan(user.id, { ...getInitialPlannerState(), optimization: "clusterMorning" });
     const first = await mount();
-    await waitFor(() => first.get().saveState.label === "Saved on this device", "loaded");
+    await waitFor(() => first.get().saveState.label === "Synced", "loaded");
     const release = server.holdNextPut();
     await first.run((p) => p.setOptimization("compact"));
     window.dispatchEvent(new window.Event("pagehide"));
@@ -275,13 +275,13 @@ describe("rule 5: another tab saves newer data", () => {
     setSession(user);
     server.seedPlan(user.id, { ...getInitialPlannerState(), optimization: "clusterMorning" });
     const planner = await mount();
-    await waitFor(() => planner.get().saveState.label === "Saved on this device", "loaded");
+    await waitFor(() => planner.get().saveState.label === "Synced", "loaded");
     server.seedPlan(user.id, { ...getInitialPlannerState(), optimization: "clusterNight" });
     // Polling: coming back to the tab pulls.
     await planner.run(() => window.dispatchEvent(new window.Event("focus")));
     await waitFor(() => planner.get().tookNewerVersion, "adopted");
     expect(planner.get().plannerState.optimization).toBe("clusterNight");
-    expect(planner.get().saveState.label).toBe("Saved on this device");
+    expect(planner.get().saveState.label).toBe("Synced");
     expect(server.putsStarted).toBe(0);
   });
 });

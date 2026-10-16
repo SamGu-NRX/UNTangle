@@ -141,3 +141,19 @@ test('concurrent first academic writes combine disjoint courses but ask about ov
   expect(result.body.courseStatuses).toEqual({ A: 'inProgress', B: 'inProgress', C: 'completed' });
   expect(result.questions.map((question) => question.kind === 'course' ? question.course : question.kind)).toEqual(['A']);
 });
+
+test('a first write made on starting values merges preferences against them, so groups it never touched take the server copy', async () => {
+  const { SyncEngine } = await import('../src/engine');
+  const { MemoryStore } = await import('../src/store');
+  const { io, preferences, remote } = await import('./fixtures');
+  const start = preferences();
+  const server = { ...start, constraints: { ...start.constraints, earliestStart: 540, latestEnd: 1020 } };
+  const engine = new SyncEngine(new MemoryStore(), { kind: 'user', id: 'student-a' }, io({
+    push: async () => ({ kind: 'conflict', latest: remote(server, 3, 'preferences') }),
+  }));
+  const mine = { ...start, constraints: { ...start.constraints, daysOff: ['Fri'] } };
+  await engine.save({ documentId: 'doc', kind: 'preferences', body: mine, expectedGeneration: 0, startedFrom: start });
+  await engine.syncNext('doc');
+  const draft = (await engine.read()).documents[0].draft as typeof start;
+  expect([draft.constraints.daysOff, draft.constraints.earliestStart, draft.constraints.latestEnd]).toEqual([['Fri'], 540, 1020]);
+});
