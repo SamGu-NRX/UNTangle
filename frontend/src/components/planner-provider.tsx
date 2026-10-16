@@ -1403,7 +1403,7 @@ function IdentityPlannerProvider({
             label: "Undo",
             onClick: () => {
               if (!current()) return;
-              // The carried parts go back to how the account had them; anything edited since stays.
+              // The carried parts go back to how the account had them; other parts keep any edits made since.
               const kept = hasCopyableWork(signIn) ? library.savePlan({ state, name: `From this browser, ${stamp}` }) : null;
               if (kept?.ok === false) {
                 toast({ message: "Couldn't keep this browser's work in Schedules, so nothing changed.", tone: "error" });

@@ -202,12 +202,17 @@ function removalLine(ask: Ask): string {
 
 /** Guest work from this browser session that signing in hasn't settled yet (lib/guest-session.ts). */
 function unsettledGuestWork(): boolean {
-  const plan = createPlannerStateStore(window.localStorage, null).read();
-  const guestId = window.localStorage.getItem(GUEST_ID_KEY);
-  return (
-    (guestWorkIsThisSession("plan") && plan.ok && plan.state !== null) ||
-    (guestWorkIsThisSession("preferences") && guestId !== null && window.localStorage.getItem(preferencesKey({ kind: "guest", id: guestId })) !== null)
-  );
+  try {
+    const plan = createPlannerStateStore(window.localStorage, null).read();
+    const guestId = window.localStorage.getItem(GUEST_ID_KEY);
+    return (
+      (guestWorkIsThisSession("plan") && plan.ok && plan.state !== null) ||
+      (guestWorkIsThisSession("preferences") && guestId !== null && window.localStorage.getItem(preferencesKey({ kind: "guest", id: guestId })) !== null)
+    );
+  } catch {
+    // Storage denied: no guest work was kept.
+    return false;
+  }
 }
 
 /** The guest's preferences go with the rest of the guest's work. */
