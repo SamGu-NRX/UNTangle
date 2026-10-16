@@ -150,6 +150,7 @@ export function buildDegreeData(dataDir: string, builtAt: string): DegreeData {
       sourceUrl: page.url,
       requirements,
       coreSharedCourses: coreSharedCourses(coreCodes, requirements),
+      courseSharing: spec.courseSharing,
     };
   });
 
@@ -160,6 +161,7 @@ export function buildDegreeData(dataDir: string, builtAt: string): DegreeData {
     sourceUrl: corePage.url,
     requirements: resolveCourseScopes(dedupePolicies(coreRequirements), communicationCodes),
     coreSharedCourses: [...coreCodes].sort(),
+    courseSharing: coreSpec.courseSharing,
   };
 
   return {

@@ -273,11 +273,36 @@ describe("the review's probe records against the real trees", () => {
     expect(status(auditProgram(program("cs-bs"), record, COMPLETE), "Laboratory science").detail).toStartWith("1/2 chosen");
   });
 
-  test("CE: required CSCE 3610 is not also a VLSI specialization course", () => {
+  test("CE: required CSCE 3610 is not silently a VLSI specialization course; an advisor decides", () => {
     const result = auditProgram(program("ce-bs"), [done("CSCE 3610"), done("CSCE 4610"), done("CSCE 4730")], COMPLETE);
-    expect(status(result, "Specialization area").status).toBe("unsatisfied");
+    expect(status(result, "Specialization area").name).toBe("Specialization area, 9 hours — VLSI and Electronics");
+    expect(status(result, "Specialization area").status).toBe("advisory");
     const vlsi = status(result, "Specialization area").children!.find((child) => child.name === "Three courses from VLSI and Electronics")!;
-    expect(vlsi.detail).toBe("2/3 chosen (CSCE 4610, CSCE 4730)");
+    expect(vlsi.detail).toStartWith("2/3 chosen (CSCE 4610, CSCE 4730); met if CSCE 3610 also counts here");
+    expect(status(auditProgram(program("ce-bs"), [done("CSCE 3610"), done("CSCE 4610"), done("CSCE 4730"), done("PHYS 4500")], COMPLETE), "Specialization area").status).toBe("satisfied");
+  });
+
+  test("the core never shares: an area course does not fill Component Area Option A too", () => {
+    const result = auditProgram(program("core"), [done("PADM 2100"), done("ANTH 1150")], COMPLETE);
+    expect(status(result, "Social and Behavioral Sciences").status).toBe("satisfied");
+    expect(status(result, "Component Area Option").status).toBe("unsatisfied");
+  });
+
+  test("a D beside passing alternatives does not fail the major's floor", () => {
+    const floorOf = (record: AuditCourse[]) => auditProgram(program("cs-bs"), record, COMPLETE).policies.find((outcome) => outcome.name === "Minimum grade of C (major courses)")!;
+    // The unclaimed CSCE 4115 D could still be one of the two advanced
+    // electives, until two passing candidates fill those six hours.
+    const csceCore = [done("CSCE 3530", 3, "B"), done("CSCE 4115", 3, "D"), done("CSCE 4430", 3, "B"), done("CSCE 4201", 3, "A"), done("CSCE 4210", 3, "A")];
+    expect(floorOf(csceCore).detail).toContain("CSCE 4115 (D) may count toward CSCE advanced electives, 6 hours");
+    expect(floorOf([...csceCore, done("CSCE 4230", 3, "B"), done("CSCE 4240", 3, "B")]).status).toBe("satisfied");
+    expect(floorOf([done("GEOG 1710", 3, "B"), done("GEOL 1610", 3, "D"), done("PHYS 1052", 3, "B")]).status).toBe("satisfied");
+    expect(floorOf([done("MATH 1710", 4, "D"), done("MATH 1810", 3, "B"), done("MATH 1820", 3, "B")]).status).toBe("satisfied");
+  });
+
+  test("a D that may be a CSCE advanced elective leaves the major's floor unverifiable", () => {
+    const outcome = auditProgram(program("cs-bs"), [done("CSCE 4560", 3, "D")], COMPLETE).policies.find((entry) => entry.name === "Minimum grade of C (major courses)")!;
+    expect(outcome.status).toBe("unverifiable");
+    expect(outcome.detail).toContain("CSCE 4560 (D) may count toward CSCE advanced electives, 6 hours");
   });
 
   test("core: two math courses of unknown credit do not starve the Component Area Option", () => {

@@ -74,7 +74,12 @@ function auditEvidence(record: AcademicRecordBody): Evidence {
   for (const row of record.transcriptRecords) {
     if (row.duplicateExcluded) continue;
     const grade = row.grade === "" ? null : row.grade;
-    const attempt = { code: row.code, grade, credits: row.credits, sourceKind: row.sourceKind, term: termRank(row.term) };
+    const inProgress = row.appliedStatus === "inProgress";
+    // The importer keeps the transcript's earned hours, and a current-term
+    // row may print 0.000 earned. That 0 is not the course's hours, so an
+    // in-progress row with 0 credits has unknown hours.
+    const credits = inProgress && row.credits === 0 ? null : row.credits;
+    const attempt = { code: row.code, grade, credits, sourceKind: row.sourceKind, term: termRank(row.term) };
     if (row.appliedStatus === "ignored") {
       if (grade !== null && NO_CREDIT_GRADES.has(grade)) attempts.push({ ...attempt, inProgress: false });
       continue;
@@ -83,7 +88,7 @@ function auditEvidence(record: AcademicRecordBody): Evidence {
       unreviewed.push(`${row.code} (${row.term})`);
       continue;
     }
-    attempts.push({ ...attempt, inProgress: row.appliedStatus === "inProgress" });
+    attempts.push({ ...attempt, inProgress });
   }
   return { attempts, unreviewed };
 }

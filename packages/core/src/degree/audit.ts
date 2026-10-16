@@ -127,7 +127,10 @@ type CourseEvidence = {
 /**
  * Groups attempts by code. A completed attempt stays completed when a later
  * retake is in progress: the retake can only add, so the course is credited
- * now and the retake is not counted again.
+ * now and the retake is not counted again. A code counts once however many
+ * of its attempts earned credit, so a course the catalog lets a student take
+ * again for credit (CSCE 4890 Directed Study, say) counts its latest credited
+ * attempt only; hours from the other attempts are an advisor's call.
  */
 function collectEvidence(courses: AuditCourse[]): Map<string, CourseEvidence> {
   const byCode = new Map<string, CourseEvidence>();
@@ -149,10 +152,28 @@ type Scenario = {
   used: Set<string>;
   /** Codes the tracked nodes claimed in an earlier pass; pools report only what they left. */
   claimedByTracked: Set<string> | null;
+  /**
+   * Credited codes whose grade falls below the major's grade floor. Nodes take
+   * them only when no passing course fits, so a D in one listed course does
+   * not fail the floor for a student who passed enough of the others.
+   */
+  belowFloor: Set<string>;
+  sharing: ProgramData["courseSharing"];
+  /** Each pool's unclaimed candidates, recorded by the pass that knows the tracked claims. */
+  pools: { node: PoolNode; codes: string[] }[];
 };
 
 type State = "met" | "unmet" | "undecided";
-type Evaluation = { name: string; kind: RequirementNode["kind"]; state: State; detail: string; citation: Citation; children?: Evaluation[] };
+type Evaluation = {
+  name: string;
+  kind: RequirementNode["kind"];
+  state: State;
+  detail: string;
+  citation: Citation;
+  /** How close the node came, from 0 to 1, so an unmet choice can name its closest branch. */
+  progress: number;
+  children?: Evaluation[];
+};
 
 function isFree(scenario: Scenario, code: string): boolean {
   return scenario.available.has(code) && !scenario.used.has(code);
@@ -166,74 +187,113 @@ function optionCount(option: OptionGroup): number {
   return option.counts ?? 1;
 }
 
+/** 1 when any course of the option falls below the major's floor, else 0. */
+function optionPenalty(option: OptionGroup, scenario: Scenario): number {
+  return option.must.some((code) => scenario.belowFloor.has(code)) ? 1 : 0;
+}
+
+/** Stable sort: the options with the lowest key first, catalog order within a key. */
+function sortedBy<T>(items: T[], key: (item: T) => number): T[] {
+  return items.map((item, index) => ({ item, index, key: key(item) })).sort((a, b) => a.key - b.key || a.index - b.index).map((entry) => entry.item);
+}
+
 /**
  * The slot picks that fill the most of `count` from free courses: each slot
- * gives at most one alternative, and slots may not share a course. Overlapping
- * alternatives make a first-fit undercount, so the search backtracks; slots
- * and alternatives are tried in catalog order and the first assignment that
- * reaches `count` wins, keeping the result deterministic.
+ * gives at most one alternative, and slots may not share a course. Among
+ * picks that fill as much, the one using fewest below-floor options wins.
+ * Overlapping alternatives make a first-fit undercount, so the search
+ * backtracks; slots and alternatives are tried in catalog order and the first
+ * best assignment found is kept, so the result is deterministic.
  */
 function bestSlotPicks(slots: CourseSlot[], count: number, scenario: Scenario): { covered: number; codes: string[] } {
   const candidates = slots
-    .map((slot) => slot.alternatives.filter((option) => option.must.every((code) => isFree(scenario, code))))
+    .map((slot) => sortedBy(slot.alternatives.filter((option) => option.must.every((code) => isFree(scenario, code))), (option) => optionPenalty(option, scenario)))
     .filter((alternatives) => alternatives.length > 0);
   const maxGain = candidates.map((alternatives) => Math.max(...alternatives.map(optionCount)));
   const remainingGain = new Array<number>(candidates.length + 1).fill(0);
   for (let index = candidates.length - 1; index >= 0; index -= 1) remainingGain[index] = remainingGain[index + 1]! + maxGain[index]!;
-  let best = { covered: 0, codes: [] as string[] };
+  let best = { covered: 0, penalty: 0, codes: [] as string[] };
+  let settled = false;
   const taken = new Set<string>();
   const picked: string[] = [];
-  const walk = (index: number, covered: number): boolean => {
+  const walk = (index: number, covered: number, penalty: number): void => {
     const capped = Math.min(covered, count);
-    if (capped > best.covered) best = { covered: capped, codes: [...picked] };
-    if (capped >= count) return true;
-    if (index >= candidates.length || Math.min(covered + remainingGain[index]!, count) <= best.covered) return false;
+    if (capped > best.covered || (capped === best.covered && penalty < best.penalty)) best = { covered: capped, penalty, codes: [...picked] };
+    if (capped >= count) {
+      if (penalty === 0) settled = true;
+      return;
+    }
+    const reachable = Math.min(covered + remainingGain[index]!, count);
+    if (settled || index >= candidates.length || reachable < best.covered || (reachable === best.covered && penalty >= best.penalty)) return;
     for (const option of candidates[index]!) {
       if (option.must.some((code) => taken.has(code))) continue;
       option.must.forEach((code) => taken.add(code));
       picked.push(...option.must);
-      const done = walk(index + 1, covered + optionCount(option));
+      walk(index + 1, covered + optionCount(option), penalty + optionPenalty(option, scenario));
       picked.splice(picked.length - option.must.length, option.must.length);
       option.must.forEach((code) => taken.delete(code));
-      if (done) return true;
+      if (settled) return;
     }
-    return walk(index + 1, covered);
+    walk(index + 1, covered, penalty);
   };
-  walk(0, 0);
-  return best;
+  walk(0, 0, 0);
+  return { covered: best.covered, codes: best.codes };
 }
 
 function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
+/**
+ * A node's evaluation, with the sharing rule applied: under an advisor's
+ * sharing rule, a course list met only by reusing a course an earlier node
+ * claimed is left to an advisor instead of reading unmet. CE's VLSI
+ * specialization with the required CSCE 3610 is the case the catalog prints.
+ */
 function evaluate(node: RequirementNode, scenario: Scenario): Evaluation {
+  const before = new Set(scenario.used);
+  const result = evaluateNode(node, scenario);
+  if (result.state !== "unmet" || scenario.sharing !== "advisor" || (node.kind !== "all" && node.kind !== "choose" && node.kind !== "hours")) return result;
+  const alone: Scenario = { ...scenario, used: new Set(), pools: [] };
+  if (evaluateNode(node, alone).state !== "met") return result;
+  const shared = [...alone.used].filter((code) => before.has(code)).sort();
+  return {
+    ...result,
+    state: "undecided",
+    detail: `${result.detail}; met if ${shared.join(", ")} also ${shared.length === 1 ? "counts" : "count"} here, though ${shared.length === 1 ? "it already counts" : "they already count"} toward an earlier requirement. One course may meet several requirements with an advisor's approval.`,
+  };
+}
+
+function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
   const base = { name: node.name, kind: node.kind, citation: node.citation };
   switch (node.kind) {
     case "all": {
-      // A required slot claims the first alternative it finds complete; the
-      // course is required here, so no later node has a better claim to it.
+      // A required slot claims the complete alternative with the best grades
+      // (catalog order among equals); the course is required here, so no
+      // later node has a better claim to it.
       let met = 0;
       for (const slot of node.items) {
-        const hit = slot.alternatives.find((option) => option.must.every((code) => isFree(scenario, code)));
+        const complete = slot.alternatives.filter((option) => option.must.every((code) => isFree(scenario, code)));
+        const hit = sortedBy(complete, (option) => optionPenalty(option, scenario))[0];
         if (!hit) continue;
         claim(scenario, hit.must);
         met += 1;
       }
-      return { ...base, state: met === node.items.length ? "met" : "unmet", detail: `${met}/${node.items.length} required courses or sequences complete` };
+      return { ...base, state: met === node.items.length ? "met" : "unmet", progress: met / node.items.length, detail: `${met}/${node.items.length} required courses or sequences complete` };
     }
     case "choose": {
       const { covered, codes } = bestSlotPicks(node.items, node.count, scenario);
       claim(scenario, codes);
-      return { ...base, state: covered >= node.count ? "met" : "unmet", detail: `${covered}/${node.count} chosen${codes.length > 0 ? ` (${codes.join(", ")})` : ""}` };
+      return { ...base, state: covered >= node.count ? "met" : "unmet", progress: covered / node.count, detail: `${covered}/${node.count} chosen${codes.length > 0 ? ` (${codes.join(", ")})` : ""}` };
     }
     case "hours": {
-      // Options with known credit go first, in catalog order. A course with
-      // unknown credit could be the one that fills the hours, so claiming
-      // stops there: the node cannot hoard more courses on a guess, and it
-      // reads advisory rather than satisfied or unsatisfied.
+      // Options with known credit go first, passing grades before ones below
+      // the major's floor, catalog order within each. A course with unknown
+      // credit could be the one that fills the hours, so claiming stops
+      // there: the node cannot hoard more courses on a guess, and it reads
+      // advisory rather than satisfied or unsatisfied.
       const known = (option: OptionGroup): boolean => option.must.every((code) => scenario.credits.get(code) != null);
-      const ordered = [...node.options.filter(known), ...node.options.filter((option) => !known(option))];
+      const ordered = sortedBy(node.options, (option) => (known(option) ? 0 : 2) + optionPenalty(option, scenario));
       let hours = 0;
       const taken: string[] = [];
       const unknown: string[] = [];
@@ -252,10 +312,13 @@ function evaluate(node: RequirementNode, scenario: Scenario): Evaluation {
       const state: State = hours >= node.hours ? "met" : unknown.length > 0 ? "undecided" : "unmet";
       const listed = taken.length > 0 ? ` (${taken.join(", ")})` : "";
       const unknownNote = unknown.length > 0 ? `; credit hours unknown for ${unknown.join(", ")}` : "";
-      return { ...base, state, detail: `${plural(taken.length, "course")}, ${hours}/${node.hours} hours${listed}${unknownNote}` };
+      return { ...base, state, progress: Math.min(hours / node.hours, 1), detail: `${plural(taken.length, "course")}, ${hours}/${node.hours} hours${listed}${unknownNote}` };
     }
-    case "pool":
-      return { ...base, state: "undecided", detail: poolDetail(node, scenario) };
+    case "pool": {
+      const codes = poolMatches(node, scenario);
+      if (scenario.claimedByTracked) scenario.pools.push({ node, codes });
+      return { ...base, state: "undecided", progress: 0, detail: poolDetail(node, codes, scenario) };
+    }
     case "choice": {
       // Every branch is tried against the claims made before the choice, so
       // each branch's progress is reported on equal terms. The first met
@@ -269,11 +332,15 @@ function evaluate(node: RequirementNode, scenario: Scenario): Evaluation {
       });
       const met = tried.find((entry) => entry.evaluation.state === "met");
       scenario.used = met ? met.after : start;
-      const undecided = tried.find((entry) => entry.evaluation.state === "undecided");
-      const shown = met ?? undecided ?? tried[0]!;
+      const undecided = tried.some((entry) => entry.evaluation.state === "undecided");
+      // Unmet, the choice names its closest branch; an undecided branch wins a tie.
+      const closer = (entry: (typeof tried)[number], best: (typeof tried)[number]): boolean =>
+        entry.evaluation.progress > best.evaluation.progress || (entry.evaluation.progress === best.evaluation.progress && entry.evaluation.state === "undecided" && best.evaluation.state !== "undecided");
+      const shown = met ?? tried.reduce((best, entry) => (closer(entry, best) ? entry : best));
       return {
         ...base,
         name: `${node.name} — ${shown.branch}`,
+        progress: shown.evaluation.progress,
         state: met ? "met" : undecided ? "undecided" : "unmet",
         detail: met ? shown.evaluation.detail : `No branch met. ${shown.branch}: ${shown.evaluation.detail}`,
         children: tried.map((entry) => entry.evaluation),
@@ -290,23 +357,23 @@ function evaluate(node: RequirementNode, scenario: Scenario): Evaluation {
       // group to an advisor: it cannot read satisfied with parts unchecked.
       const state: State = children.some((child) => child.state === "unmet") ? "unmet" : undecided.length > 0 ? "undecided" : "met";
       const review = undecided.length > 0 ? `; needs advisor review: ${undecided.map((child) => child.name).join(", ")}` : "";
-      return { ...base, state, detail: `${met}/${children.length} parts satisfied${review}`, children };
+      return { ...base, state, progress: children.length === 0 ? 1 : met / children.length, detail: `${met}/${children.length} parts satisfied${review}`, children };
     }
     case "policy":
-      return { ...base, state: "undecided", detail: node.quote };
+      return { ...base, state: "undecided", progress: 0, detail: node.quote };
     case "note":
-      return { ...base, state: "undecided", detail: node.text };
+      return { ...base, state: "undecided", progress: 0, detail: node.text };
   }
 }
 
 /**
- * An advisory pool's detail: the record's courses that match its subject and
- * level rule, after every tracked node took its courses. A required CSCE
- * course is never listed as an elective candidate.
+ * The record's courses that match a pool's subject and level rule, after
+ * every tracked node took its courses. A required CSCE course is never an
+ * elective candidate.
  */
-function poolDetail(node: PoolNode, scenario: Scenario): string {
+function poolMatches(node: PoolNode, scenario: Scenario): string[] {
   const excluded = scenario.claimedByTracked ?? scenario.used;
-  const matching = [...scenario.available].filter((code) => {
+  return [...scenario.available].filter((code) => {
     if (excluded.has(code)) return false;
     if (node.match.subjects === null || !node.match.subjects.includes(subjectOf(code))) return false;
     const level = levelOf(code);
@@ -314,6 +381,9 @@ function poolDetail(node: PoolNode, scenario: Scenario): string {
     if (node.match.maxLevel !== null && level > node.match.maxLevel) return false;
     return true;
   }).sort();
+}
+
+function poolDetail(node: PoolNode, matching: string[], scenario: Scenario): string {
   const known = matching.map((code) => scenario.credits.get(code));
   const hours = known.every((value) => value != null) ? `${known.reduce<number>((sum, value) => sum + (value ?? 0), 0)} hours` : "hours partly unknown";
   const list = matching.length > 0 ? `${matching.join(", ")} (${hours} of ${node.hours})` : "none";
@@ -321,15 +391,16 @@ function poolDetail(node: PoolNode, scenario: Scenario): string {
 }
 
 /** One full pass over the tree, then a second so pools see what the tracked nodes claimed. */
-function evaluateProgram(program: ProgramData, available: Set<string>, credits: Map<string, number | null>): { evaluations: Evaluation[]; used: Set<string> } {
+function evaluateProgram(program: ProgramData, available: Set<string>, credits: Map<string, number | null>, belowFloor: Set<string>): { evaluations: Evaluation[]; used: Set<string>; pools: Scenario["pools"] } {
   // Policies are checked separately and reported among the policies, not as requirement nodes.
   const nodes = program.requirements.filter((node) => node.kind !== "policy");
-  const first: Scenario = { available, credits, used: new Set(), claimedByTracked: null };
+  const fresh = (claimedByTracked: Set<string> | null): Scenario => ({ available, credits, used: new Set(), claimedByTracked, belowFloor, sharing: program.courseSharing, pools: [] });
+  const first = fresh(null);
   nodes.forEach((node) => evaluate(node, first));
   // Pools never claim, so the second pass makes the same claims as the first.
-  const second: Scenario = { available, credits, used: new Set(), claimedByTracked: first.used };
+  const second = fresh(first.used);
   const evaluations = nodes.map((node) => evaluate(node, second));
-  return { evaluations, used: second.used };
+  return { evaluations, used: second.used, pools: second.pools };
 }
 
 /**
@@ -368,7 +439,11 @@ function creditedHours(evidence: CourseEvidence[]): { hours: number | null; unkn
   return { hours: evidence.reduce((sum, entry) => sum + (entry.credit?.credits ?? 0), 0), unknown };
 }
 
-function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied: Set<string>, options: AuditOptions): PolicyOutcome {
+function belowGrade(grade: string | null | undefined, floor: string): boolean {
+  return grade != null && grade in GRADE_POINTS && LETTER_ORDER.indexOf(grade) < LETTER_ORDER.indexOf(floor);
+}
+
+function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied: Set<string>, pools: Scenario["pools"], options: AuditOptions): PolicyOutcome {
   const base: PolicyOutcome = { name: policy.name, status: "unverifiable", detail: policy.quote, citation: policy.citation };
   const credited = evidence.filter((entry) => entry.credit !== null);
   const p = policy.policy;
@@ -389,7 +464,7 @@ function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied:
       return { ...base, status: hours >= p.hours ? "satisfied" : "unsatisfied", detail: `${hours} advanced hours of ${p.hours}` };
     }
     case "advancedHoursAtUnt": {
-      const advanced = credited.filter((entry) => levelOf(entry.code) >= 3000);
+      const advanced = (p.courseScope ? evidenceInScope(p.courseScope, credited, applied) : credited).filter((entry) => levelOf(entry.code) >= 3000);
       const atUnt = advanced.filter((entry) => entry.credit?.sourceKind === "unt");
       const elsewhere = advanced.length - atUnt.length;
       const { hours, unknown } = creditedHours(atUnt);
@@ -408,19 +483,32 @@ function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied:
       // a D raised to a C on a retake passes, as the catalog's repeat wording
       // ("repeat the course and raise the grade") asks.
       const inScope = evidenceInScope(p.courseScope, credited, applied);
-      if (inScope.length === 0) return { ...base, detail: `${policy.quote} — no completed courses in scope (${p.scope}); nothing to check.` };
       const gradeOf = (entry: CourseEvidence): string => entry.credit?.grade ?? "no grade";
+      // An advisory pool's candidates are not claimed, but one of them may be
+      // the elective a student counts. When the passing candidates cannot fill
+      // the pool's hours, a below-floor candidate might have to count, so the
+      // floor cannot read satisfied.
+      const byCode = new Map(credited.map((entry) => [entry.code, entry]));
+      const poolRisk = p.courseScope.kind !== "applied" ? [] : pools.flatMap(({ node, codes }) => {
+        const entries = codes.flatMap((code) => byCode.get(code) ?? []);
+        const passingHours = entries.filter((entry) => !belowGrade(entry.credit?.grade, p.grade)).reduce((sum, entry) => sum + (entry.credit?.credits ?? 0), 0);
+        return passingHours >= node.hours ? [] : entries.filter((entry) => belowGrade(entry.credit?.grade, p.grade)).map((entry) => ({ entry, pool: node.name }));
+      });
+      const risk = poolRisk.length > 0 ? ` ${poolRisk.map(({ entry, pool }) => `${entry.code} (${gradeOf(entry)}) may count toward ${pool}`).join("; ")}; if it does, it falls below ${p.grade}.` : "";
+      if (inScope.length === 0) return { ...base, detail: `${policy.quote} — no completed courses in scope (${p.scope}); nothing to check.${risk}` };
       const lettered = inScope.filter((entry) => gradeOf(entry) in GRADE_POINTS);
       // Exam and transfer credit (CR, or no UNT grade) carries no letter to
       // compare; it is listed, not failed. A P on a major course is a
       // question for an advisor, so it makes the floor unverifiable.
       const creditOnly = inScope.filter((entry) => !(gradeOf(entry) in GRADE_POINTS) && (gradeOf(entry) === "CR" || entry.credit?.sourceKind === "transfer" || entry.credit?.sourceKind === "exam"));
       const unreadable = inScope.filter((entry) => !lettered.includes(entry) && !creditOnly.includes(entry));
-      const failing = lettered.filter((entry) => LETTER_ORDER.indexOf(gradeOf(entry)) < LETTER_ORDER.indexOf(p.grade));
+      const failing = lettered.filter((entry) => belowGrade(gradeOf(entry), p.grade));
       const describe = (list: CourseEvidence[]): string => list.map((entry) => `${entry.code} (${gradeOf(entry)})`).join(", ");
       const skipped = creditOnly.length > 0 ? ` Not checked, no letter grade: ${describe(creditOnly)}.` : "";
-      if (failing.length > 0) return { ...base, status: "unsatisfied", detail: `Below ${p.grade}: ${describe(failing)}.${skipped}` };
-      if (unreadable.length > 0) return { ...base, detail: `${policy.quote} — ${describe(unreadable)}: no grade on UNT's letter scale; cannot verify.${skipped}` };
+      if (failing.length > 0) return { ...base, status: "unsatisfied", detail: `Below ${p.grade}: ${describe(failing)}.${risk}${skipped}` };
+      if (unreadable.length > 0) return { ...base, detail: `${policy.quote} — ${describe(unreadable)}: no grade on UNT's letter scale; cannot verify.${risk}${skipped}` };
+      if (poolRisk.length > 0) return { ...base, detail: `${policy.quote} —${risk} Cannot verify.${skipped}` };
+      if (lettered.length === 0) return { ...base, detail: `${policy.quote} — every course in scope is credit without a letter grade; nothing to check.${skipped}` };
       return { ...base, status: "satisfied", detail: `No completed course in scope (${p.scope}) falls below ${p.grade}.${skipped}` };
     }
     case "gpa": {
@@ -457,7 +545,8 @@ function evaluateGpa(policy: PolicyNode, minimum: number, scope: CourseScope, ev
   if (graded.length === 0) reasons.push("no letter-graded attempts in scope");
   const hours = graded.reduce((sum, attempt) => sum + (attempt.credits ?? 0), 0);
   const points = graded.reduce((sum, attempt) => sum + GRADE_POINTS[attempt.grade!]! * (attempt.credits ?? 0), 0);
-  const value = noCredits.length === 0 && hours > 0 ? points / hours : null;
+  // A repeated course leaves the figure to UNT's repeat rule, so none is shown.
+  const value = noCredits.length === 0 && repeated.length === 0 && hours > 0 ? points / hours : null;
   const figure = value === null ? "" : `${value.toFixed(2)} over ${plural(graded.length, "graded attempt")}`;
   if (!options.gradeHistoryComplete) {
     reasons.push("the record holds only the transcript rows saved to the planner, which leaves out failed and withdrawn attempts the import did not save");
@@ -495,15 +584,20 @@ export function auditProgram(program: ProgramData, courses: AuditCourse[], optio
       projectedCredits.set(entry.code, entry.current.credits);
     }
   }
-  const now = evaluateProgram(program, finished, finishedCredits);
-  const later = evaluateProgram(program, projected, projectedCredits);
+  const policyNodes: PolicyNode[] = [];
+  for (const node of program.requirements) collectPolicyNodes(node, policyNodes);
+  // The major's own floor, the one scoped to the courses the nodes claim.
+  const majorFloor = policyNodes.map((node) => node.policy).find((policy) => policy.type === "minGrade" && policy.courseScope?.kind === "applied");
+  const belowFloor = new Set(
+    majorFloor?.type === "minGrade" ? [...evidence.values()].filter((entry) => belowGrade(entry.credit?.grade, majorFloor.grade)).map((entry) => entry.code) : [],
+  );
+  const now = evaluateProgram(program, finished, finishedCredits, belowFloor);
+  const later = evaluateProgram(program, projected, projectedCredits, belowFloor);
   const requirements = now.evaluations.map((evaluation, index) => combine(evaluation, later.evaluations[index]!));
 
   // Grade floors and scoped totals read the courses the requirement nodes
   // claimed from finished work. Advisory pool matches are never claimed.
-  const policyNodes: PolicyNode[] = [];
-  for (const node of program.requirements) collectPolicyNodes(node, policyNodes);
-  const policies = policyNodes.map((node) => evaluatePolicy(node, [...evidence.values()], now.used, options));
+  const policies = policyNodes.map((node) => evaluatePolicy(node, [...evidence.values()], now.used, now.pools, options));
 
   const count = (status: NodeOutcome["status"]): number => requirements.filter((result) => result.status === status).length;
   return {

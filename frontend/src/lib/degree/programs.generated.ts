@@ -6,7 +6,7 @@ import type { DegreeData } from "@untangle/core/degree/types";
 export const DEGREE_DATA: DegreeData = {
   "catalogId": "unt-2026-27",
   "catalogYear": "2026-2027",
-  "builtAt": "2026-10-16T12:01:25.493Z",
+  "builtAt": "2026-10-16T12:35:37.428Z",
   "pages": [
     {
       "file": "cs-bs.html",
@@ -681,6 +681,24 @@ export const DEGREE_DATA: DegreeData = {
         },
         {
           "kind": "policy",
+          "name": "Advanced hours in the major at UNT: 12",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 12,
+            "courseScope": {
+              "kind": "applied"
+            }
+          },
+          "quote": "A minimum of 12 hours of advanced work in the major (except for the BAAS degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
           "name": "Residency",
           "policy": {
             "type": "residencyPercent",
@@ -784,7 +802,8 @@ export const DEGREE_DATA: DegreeData = {
         "PHYS 1710",
         "PHYS 2220",
         "TECM 2700"
-      ]
+      ],
+      "courseSharing": "advisor"
     },
     {
       "id": "ce-bs",
@@ -1634,6 +1653,24 @@ export const DEGREE_DATA: DegreeData = {
         },
         {
           "kind": "policy",
+          "name": "Advanced hours in the major at UNT: 12",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 12,
+            "courseScope": {
+              "kind": "applied"
+            }
+          },
+          "quote": "A minimum of 12 hours of advanced work in the major (except for the BAAS degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
           "name": "Residency",
           "policy": {
             "type": "residencyPercent",
@@ -1724,7 +1761,8 @@ export const DEGREE_DATA: DegreeData = {
         "PHYS 1710",
         "PHYS 2220",
         "TECM 2700"
-      ]
+      ],
+      "courseSharing": "advisor"
     },
     {
       "id": "core",
@@ -4717,7 +4755,8 @@ export const DEGREE_DATA: DegreeData = {
         "UNIV 2100",
         "UNIV 2300",
         "WGST 2100"
-      ]
+      ],
+      "courseSharing": "forbidden"
     }
   ]
 };

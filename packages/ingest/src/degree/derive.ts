@@ -1,5 +1,5 @@
 import type { CatalogPage, FlowItem, Section } from "./sections";
-import type { AllNode, ChooseNode, Citation, CourseSlot, HoursNode, NoteNode, OptionGroup, PolicyNode, PoolNode, RequirementNode } from "@untangle/core/degree/types";
+import type { AllNode, ChooseNode, Citation, CourseSlot, HoursNode, NoteNode, OptionGroup, PolicyNode, PoolNode, ProgramData, RequirementNode } from "@untangle/core/degree/types";
 
 /**
  * Turns the section item streams of the saved catalog pages into the
@@ -168,6 +168,12 @@ export function universityPolicies(page: CatalogPage): PolicyNode[] {
   const residence = requireSection(page, "Residence");
   const atUnt: PolicyNode["policy"] = { type: "advancedHoursAtUnt", hours: 24 };
   nodes.push(policyNode(policyName(atUnt), atUnt, requireParagraph(page, residence, /24 hours of advanced work/), citation(residence, page)));
+  nodes.push(policyNode(
+    "Advanced hours in the major at UNT: 12",
+    { type: "advancedHoursAtUnt", hours: 12, courseScope: { kind: "applied" } },
+    requireParagraph(page, residence, /12 hours of advanced work in the major/),
+    citation(residence, page),
+  ));
   nodes.push(policyNode("Residency", { type: "residencyPercent", percent: 25 }, requireParagraph(page, hours, new RegExp(RESIDENCY_QUOTE)), citation(hours, page)));
   const gpa = requireSection(page, "Grade Point Average (GPA)");
   nodes.push(policyNode("Overall GPA", { type: "gpa", minimum: 2, scope: "overall" }, requireParagraph(page, gpa, /OGPA/), citation(gpa, page)));
@@ -356,6 +362,13 @@ export type ProgramSpec = {
   id: string;
   name: string;
   file: string;
+  /**
+   * The core page forbids counting a course in two areas ("Students may not
+   * double-dip"). The university's Minimum Hour Requirements say "One course
+   * may be used to meet multiple requirements. Students should speak to an
+   * advisor", which is how a major's shared course is reported.
+   */
+  courseSharing: ProgramData["courseSharing"];
   derive: (page: CatalogPage, university: CatalogPage) => RequirementNode[];
 };
 
@@ -367,10 +380,10 @@ export type ProgramSpec = {
  * that writes and cites that structure.
  */
 export const PROGRAM_SPECS: ProgramSpec[] = [
-  { id: "cs-bs", name: "Computer Science, BS", file: "cs-bs.html", derive: (page, university) => [...deriveEngineering(page, "cs"), ...universityPolicies(university)] },
-  { id: "ce-bs", name: "Computer Engineering, BS", file: "ce-bs.html", derive: (page, university) => [...deriveEngineering(page, "ce"), ...universityPolicies(university)] },
+  { id: "cs-bs", name: "Computer Science, BS", file: "cs-bs.html", courseSharing: "advisor", derive: (page, university) => [...deriveEngineering(page, "cs"), ...universityPolicies(university)] },
+  { id: "ce-bs", name: "Computer Engineering, BS", file: "ce-bs.html", courseSharing: "advisor", derive: (page, university) => [...deriveEngineering(page, "ce"), ...universityPolicies(university)] },
   // The core carries its own rules only. The degree-wide policies (total
   // hours, residence, GPA) belong to the major audit, which the audit route
   // returns beside every core audit.
-  { id: "core", name: "University Core Curriculum", file: "core-curriculum.html", derive: (page) => deriveCore(page) },
+  { id: "core", name: "University Core Curriculum", file: "core-curriculum.html", courseSharing: "forbidden", derive: (page) => deriveCore(page) },
 ];

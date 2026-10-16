@@ -98,7 +98,8 @@ export type Policy =
   | { type: "totalHours"; hours: number; courseScope?: CourseScope }
   | { type: "advancedHours"; hours: number }
   | { type: "residencyPercent"; percent: number }
-  | { type: "advancedHoursAtUnt"; hours: number }
+  /** Advanced (3000-4000 level) hours earned at UNT, optionally only among the courses the scope admits. */
+  | { type: "advancedHoursAtUnt"; hours: number; courseScope?: CourseScope }
   | { type: "minGrade"; grade: string; scope: string; courseScope?: CourseScope }
   | { type: "gpa"; minimum: number; scope: string; courseScope?: CourseScope }
   /** A rule the audit cannot measure; shown, never silently dropped. */
@@ -124,6 +125,14 @@ export type ProgramData = {
    * computed from the two captured pages.
    */
   coreSharedCourses: string[];
+  /**
+   * What happens when a requirement could be met only by a course an earlier
+   * requirement already claimed. "forbidden": it is unmet (the core's
+   * double-dip rule). "advisor": it is left to an advisor, because the
+   * university page lets one course meet several requirements with an
+   * advisor's say.
+   */
+  courseSharing: "forbidden" | "advisor";
 };
 
 /** The built dataset: the captured-page manifest plus the programs. */

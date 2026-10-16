@@ -185,6 +185,17 @@ describe("GET /api/v1/programs/[id]/audit", () => {
     expect(find(body.audit.policies, "Minimum grade of C (major courses)").status).toBe("satisfied");
   });
 
+  test("a current-term row that prints 0.000 earned has unknown hours, not zero", async () => {
+    const transcript = "2026 Spring\nMATH 1710 Calculus I  4.000  0.000  EN  0.000";
+    const rows = reconcileTranscriptCourses({ payload: buildLocalFallbackPayload(transcript), modelUsed: "local", extractionMode: "local" }).records;
+    expect(rows.map((row) => [row.code, row.appliedStatus, row.credits])).toEqual([["MATH 1710", "inProgress", 0]]);
+    serve(recordBody(importSelection(rows, {})));
+    const { body } = await audit("core");
+    const mathematics = find(body.audit.requirements, "Mathematics, 3 hours");
+    expect(mathematics.status).toBe("advisory");
+    expect(mathematics.detail).toContain("credit hours unknown for MATH 1710");
+  });
+
   test("exam and transfer credit rows are skipped by the GPA, not a reason to stop", async () => {
     serve(recordBody(savedRows()));
     const { body } = await audit("core");

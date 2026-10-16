@@ -157,6 +157,7 @@ describe("derived requirement trees on the captured catalog pages", () => {
 
   test("only CS BS, CE BS and the core are served, all from the 2026-27 catalog", () => {
     expect(data.catalogId).toBe("unt-2026-27");
+    expect(data.programs.map((entry) => [entry.id, entry.courseSharing])).toEqual([["cs-bs", "advisor"], ["ce-bs", "advisor"], ["core", "forbidden"]]);
     expect(data.programs.map((entry) => entry.id)).toEqual(["cs-bs", "ce-bs", "core"]);
     expect(data.pages.map((page) => page.file)).toEqual(["cs-bs.html", "ce-bs.html", "core-curriculum.html", "degree-requirements.html"]);
     for (const entry of data.programs) expect(entry.sourceUrl).toContain("catalog.unt.edu/preview_program.php?catoid=40");
@@ -170,7 +171,7 @@ describe("derived requirement trees on the captured catalog pages", () => {
       "Major requirements [Required courses; 55-hour major minimum; CSCE advanced electives, 6 hours]",
       "Other required courses", "CSCE core, 6 hours", "CSCE breadth courses, 6 hours", "Laboratory science, 6-8 hours (choose 2)", "Technical writing, 3 hours",
       "Note", "Minor", "Electives", "Minimum grade of C (major courses)",
-      "Advanced hours at UNT: 24", "Residency", "Overall GPA", "UNT GPA", "Communication core grade",
+      "Advanced hours at UNT: 24", "Advanced hours in the major at UNT: 12", "Residency", "Overall GPA", "UNT GPA", "Communication core grade",
     ]);
   });
 
@@ -180,7 +181,7 @@ describe("derived requirement trees on the captured catalog pages", () => {
       "Major requirements [Required courses; 52-hour major minimum]",
       "Other required courses", "Specialization area, 9 hours",
       "Note", "Minor", "Electives", "Minimum grade of C (major courses)",
-      "Total hours: 120", "Advanced hours at UNT: 24", "Residency", "Overall GPA", "UNT GPA", "Communication core grade",
+      "Total hours: 120", "Advanced hours at UNT: 24", "Advanced hours in the major at UNT: 12", "Residency", "Overall GPA", "UNT GPA", "Communication core grade",
     ]);
   });
 
