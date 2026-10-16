@@ -3,10 +3,12 @@
  * decision logic real writes use. Pins: every preview verdict (clear, conflict
  * by course and by busy block, each unknown reason), the add-command path
  * (receipt, same-command replay, reused-operation refusal, stale revision,
- * pinned lock), and the boundary (extension grants only, bound schedule only,
- * origin rules, no cookie credentials, revoked tokens). Every success and
- * rejection body is fed through the extension client's own guards, copied in
- * extension-api-guards.ts.
+ * pinned lock), which Main a preview or add uses (the term's, picked as the
+ * web planner picks it, created by a first add), and the boundary (extension
+ * grants bound to the Main role only, origin rules, no cookie credentials,
+ * revoked tokens). Every success and rejection body is fed through the
+ * extension client's own guards, copied in extension-api-guards.ts. The
+ * Postgres path runs in postgres-live.test.ts.
  */
 import { describe, expect, test } from "bun:test";
 import { createDeviceGrants, pkceChallenge } from "@/server/auth/device-grants";
@@ -15,16 +17,25 @@ import type { ExtensionStore } from "@/server/extension/commands";
 import { parseWrite, SyncError, decideWrite, type CurrentDocument } from "@/lib/document-sync/decision";
 import { extensionPreviewSchema, extensionAddReplySchema } from "@/server/extension/extension-api";
 import { extensionOptionId, parseExtensionOptionId, sectionMatchesOptionId } from "@/server/extension/option-id";
-import { DocumentSchema, type Document, type PreferencesBody } from "../../../packages/contracts/src/documents";
+import { DocumentSchema, type Document, type DocumentKind, type PreferencesBody } from "../../../packages/contracts/src/documents";
 import type { Receipt } from "../../../packages/contracts/src/sync";
 import type { Section } from "@/lib/sections/model";
+import type { RemoteDocument } from "@untangle/sync";
+import { splitPlanner } from "@/lib/planner-documents";
+import { defaultSchedulePreferences, getInitialPlannerState } from "@/lib/planner";
+import type { PlannerSyncIO } from "@/lib/sync/planner-sync";
+import type { StoredDocumentEntry } from "@/server/extension/main-schedule";
 import { MemoryDeviceStore } from "../device-grants/memory-store";
 import { isAddReply, isPreview } from "./extension-api-guards";
+import { webPlannerView } from "./web-planner";
 
 const origin = "https://untangle.example";
 const extension = `chrome-extension://${"a".repeat(32)}`;
-const scheduleId = "sched-main-1";
+/** What the extension sends to device/start and in every command: the Main role. */
+const role = "main";
 const term = "spring-2027";
+/** The web planner's id for spring-2027's Main (firstDocumentId.schedule). */
+const mainId = "main-unt-spring-2027";
 
 const meeting = (overrides: Partial<Section["meetings"][number]> = {}) => ({
   room: "F151", buildingCode: null, buildingId: null, buildingName: "Fossil Green Hall",
@@ -33,8 +44,8 @@ const meeting = (overrides: Partial<Section["meetings"][number]> = {}) => ({
   instructor: { display: null, raw: "" }, async: false, tba: false, ...overrides,
 });
 
-const section = (courseCode: string, sectionCode: string, classNumbers: string[], meetings: Section["meetings"]): Section => ({
-  id: `vsb:${term}:${courseCode}:${sectionCode}`, term, courseCode, sectionCode, classNumbers,
+const section = (courseCode: string, sectionCode: string, classNumbers: string[], meetings: Section["meetings"], sectionTerm = term): Section => ({
+  id: `vsb:${sectionTerm}:${courseCode}:${sectionCode}`, term: sectionTerm, courseCode, sectionCode, classNumbers,
   option: null, instructor: { display: null, raw: "" }, seats: { open: 3, total: 40 },
   status: "open", rawStatus: "Open", session: { label: "16W", dates: { start: null, end: null, raw: "" } },
   components: [], meetings, online: false, async: false, tba: meetings.some(m => m.tba),
@@ -61,18 +72,43 @@ const preferences = (blocked: unknown[] = []): PreferencesBody => ({
   weights: { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 },
 });
 
-/** A store with the real write decision logic and plain in-memory tables. */
+/** A store with the real write decision logic and plain in-memory tables, for one account. */
 class MemoryExtensionStore implements ExtensionStore {
-  #documents = new Map<string, { kind: string; revision: number; institutionId: string; deleted: boolean; body: unknown }>();
+  #documents = new Map<string, { kind: DocumentKind; revision: number; institutionId: string; deleted: boolean; body: unknown }>();
   #receipts = new Map<string, Receipt>();
   preferencesBody: PreferencesBody | null = null;
 
   seed(documentId: string, body: unknown) { this.#documents.set(documentId, { kind: "schedule", revision: 1, institutionId: "unt", deleted: false, body }); }
 
+  /** A schedule another device deleted, leaving its tombstone. */
+  seedDeleted(documentId: string) { this.#documents.set(documentId, { kind: "schedule", revision: 2, institutionId: "unt", deleted: true, body: null }); }
+
+  async documents(): Promise<StoredDocumentEntry[]> {
+    return [...this.#documents].map(([documentId, document]) => ({
+      documentId, kind: document.kind, revision: document.revision,
+      body: document.kind === "schedule" && !document.deleted ? document.body : null,
+    }));
+  }
+
+  /** The document as GET /api/v1/documents/:id returns it; a test reads through this. */
   async getDocument(userId: string, documentId: string): Promise<Document> {
     const document = this.#documents.get(documentId);
-    if (!document) throw new SyncError(404, "NOT_FOUND", "The document does not exist.");
+    if (!document || document.deleted) throw new SyncError(404, "NOT_FOUND", "The document does not exist.");
     return DocumentSchema.parse({ documentId, kind: document.kind, revision: document.revision, schemaVersion: 1, body: document.body });
+  }
+
+  /** The web planner's transport over these tables: the pull list and document reads, as /api/v1 serves them. */
+  syncIO(): PlannerSyncIO {
+    return {
+      operationId: () => crypto.randomUUID(),
+      sha256: async () => { throw new Error("The web planner only reads in these tests."); },
+      push: async () => { throw new Error("The web planner only reads in these tests."); },
+      fetch: async (userId, documentId) => (await this.getDocument(userId, documentId)) as RemoteDocument,
+      pullList: async () => ({
+        kind: "list",
+        list: [...this.#documents].map(([documentId, document]) => ({ documentId, kind: document.kind, revision: document.revision, deleted: document.deleted })),
+      }),
+    };
   }
 
   async preferences(userId: string, institutionId: string) {
@@ -91,7 +127,7 @@ class MemoryExtensionStore implements ExtensionStore {
     if (decision.kind === "replay") return decision.receipt;
     if (decision.kind !== "document") throw new SyncError(409, "KIND_MISMATCH", "Versions are created through the app.");
     this.#documents.set(documentId, {
-      kind: write.kind, revision: decision.revision, institutionId: decision.institutionId, deleted: false, body: decision.body,
+      kind: write.kind, revision: decision.revision, institutionId: decision.institutionId, deleted: decision.deleted, body: decision.body,
     });
     const receipt: Receipt = { userId, operationId: write.operationId, writeSha256, committedRevision: decision.revision };
     this.#receipts.set(write.operationId, receipt);
@@ -99,14 +135,23 @@ class MemoryExtensionStore implements ExtensionStore {
   }
 }
 
-function setup(options: { sections: Section[] | null; scheduleBody: unknown | null; preferences?: PreferencesBody | null } = { sections, scheduleBody: scheduleBody() }) {
+type SetupOptions = {
+  /** Every term's sections; a term's request gets those whose term it is. Null while the term files are down. */
+  sections: Section[] | null;
+  /** Spring 2027's Main, seeded at the web planner's id; null for an account with no Main. */
+  scheduleBody: unknown | null;
+  preferences?: PreferencesBody | null;
+};
+
+function setup(options: SetupOptions = { sections, scheduleBody: scheduleBody() }) {
   const grants = createDeviceGrants(new MemoryDeviceStore());
   const store = new MemoryExtensionStore();
-  if (options.scheduleBody) store.seed(scheduleId, options.scheduleBody);
+  if (options.scheduleBody) store.seed(mainId, options.scheduleBody);
   if (options.preferences !== undefined) store.preferencesBody = options.preferences;
-  const http = createExtensionHttp({ grants, store, sections: { termSections: async () => options.sections }, origin, extensionOrigins: [extension] });
+  const termSections = async (t: string) => options.sections?.filter((candidate) => candidate.term === t) ?? null;
+  const http = createExtensionHttp({ grants, store, sections: { termSections }, origin, extensionOrigins: [extension] });
   let account = "alice";
-  async function issue(clientKind: "extension" | "mobile" = "extension") {
+  async function issue(clientKind: "extension" | "mobile" = "extension", scheduleId = role) {
     const start = clientKind === "extension"
       ? { clientKind, codeChallenge: pkceChallenge("v".repeat(43)), codeChallengeMethod: "S256" as const, scheduleId }
       : { clientKind, codeChallenge: pkceChallenge("v".repeat(43)), codeChallengeMethod: "S256" as const };
@@ -125,7 +170,7 @@ function setup(options: { sections: Section[] | null; scheduleBody: unknown | nu
 }
 
 const addCommand = (overrides: Record<string, unknown> = {}) => ({
-  command: "add-option", operationId: "op-1", scheduleId, optionId: extensionOptionId(csce2110Later) as string,
+  command: "add-option", operationId: "op-1", scheduleId: role, optionId: extensionOptionId(csce2110Later) as string,
   expectedRevision: 1, ...overrides,
 });
 
@@ -174,24 +219,12 @@ describe("extension previews", () => {
     expect(withBusy.clashes).toEqual([{ kind: "busy", name: "Work shift", when: "Tue 9:35 AM to 10:00 AM" }]);
   });
 
-  test("unknown verdicts name why: missing section, no schedule, term mismatch, TBA, stale pick", async () => {
-    const hMissing = setup({ sections, scheduleBody: null });
-    const noSchedule = await readPreview(await hMissing.preview(await hMissing.issue()));
-    expect(noSchedule.conflict).toBe("unknown");
-    expect(noSchedule.unknownReason).toBe("schedule-unavailable");
-    expect(noSchedule.details.join(" ")).toContain("Sign in");
-
+  test("unknown verdicts name why: missing section, TBA, stale pick, term data down", async () => {
     const hNotFound = setup({ sections, scheduleBody: null });
     const unknownClass = await readPreview(await hNotFound.preview(await hNotFound.issue(), hNotFound.previewUrl(term, "99999")));
     expect(unknownClass.conflict).toBe("unknown");
     expect(unknownClass.unknownReason).toBe("schedule-unavailable");
     expect(unknownClass.details.join(" ")).toContain("99999");
-
-    const hTerm = setup({ sections, scheduleBody: scheduleBody({ termId: "fall-2027" }) });
-    const otherTerm = await readPreview(await hTerm.preview(await hTerm.issue()));
-    expect(otherTerm.conflict).toBe("unknown");
-    expect(otherTerm.unknownReason).toBe("schedule-unavailable");
-    expect(otherTerm.details.join(" ")).toContain("fall-2027");
 
     const hTba = setup({ sections, scheduleBody: scheduleBody() });
     const tba = await readPreview(await hTba.preview(await hTba.issue(), hTba.previewUrl(term, "30100")));
@@ -295,11 +328,15 @@ describe("extension previews", () => {
   });
 
   test("a term UNTangle has no dates for is unknown, not checked against another term's dates", async () => {
-    const h = setup({ sections, scheduleBody: scheduleBody({ termId: "fall-2027" }) });
+    const fall = section("CSCE 1030", "001", ["10234"], [meeting()], "fall-2027");
+    const h = setup({ sections: [...sections, fall], scheduleBody: scheduleBody() });
     const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl("fall-2027", "10234")));
     expect(preview.conflict).toBe("unknown");
     expect(preview.unknownReason).toBe("schedule-unavailable");
-    expect(preview.details).toEqual(["UNTangle doesn't have fall-2027's dates yet, so it can't check times."]);
+    expect(preview.details).toEqual([
+      "UNTangle doesn't have fall-2027's dates yet, so it can't check times.",
+      "Your Fall 2027 plan in UNTangle is empty.",
+    ]);
   });
 
   test("a course clashing with many meetings is one row, leaving room for busy clashes", async () => {
@@ -340,7 +377,7 @@ describe("extension add-option commands", () => {
     if (reply.kind !== "receipt") throw new Error(`expected a receipt, got ${reply.kind}`);
     expect(`${reply.operationId}`).toBe("op-1");
     expect(reply.committedRevision).toBe(2);
-    const document = await h.store.getDocument("alice", scheduleId);
+    const document = await h.store.getDocument("alice", mainId);
     expect(document.body).toMatchObject({
       courses: ["CSCE 1030", "CSCE 2110"],
       selectedSections: { "CSCE 1030": csce1030.id, "CSCE 2110": csce2110Later.id },
@@ -355,7 +392,7 @@ describe("extension add-option commands", () => {
     const second = await h.add(token, addCommand());
     expect(second.status).toBe(200);
     expect(await readAddReply(second)).toEqual(await readAddReply(first));
-    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(2);
+    expect((await h.store.getDocument("alice", mainId)).revision).toBe(2);
   });
 
   test("an operation id reused for a different command is refused, not acknowledged", async () => {
@@ -380,7 +417,7 @@ describe("extension add-option commands", () => {
     if (reusedRevisionReply.kind !== "rejection") throw new Error(`expected a rejection, got ${reusedRevisionReply.kind}`);
     expect(reusedRevisionReply.reason).toBe("forbidden");
     // The original command's commit stands untouched.
-    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(2);
+    expect((await h.store.getDocument("alice", mainId)).revision).toBe(2);
   });
 
   test("a retry while the term data is unavailable is 503, so the extension retries again", async () => {
@@ -406,23 +443,23 @@ describe("extension add-option commands", () => {
   test("a write that lands between the read and the commit is never overwritten", async () => {
     const h = setup();
     const token = await h.issue();
-    const store = h.store as unknown as { getDocument: (userId: string, documentId: string) => Promise<Document> };
-    const original = store.getDocument.bind(h.store);
+    const store = h.store as unknown as { documents: (userId: string) => Promise<StoredDocumentEntry[]> };
+    const original = store.documents.bind(h.store);
     // The command reads revision 1; a pin is saved on the web as revision 2;
     // the command expects revision 2, so the compare-and-set alone would pass.
-    store.getDocument = async (userId, documentId) => {
-      const read = await original(userId, documentId);
+    store.documents = async (userId) => {
+      const read = await original(userId);
       await h.store.write("alice", new TextEncoder().encode(JSON.stringify({
-        operationId: "web-pin", documentId: scheduleId, kind: "schedule", baseRevision: 1, schemaVersion: 1,
+        operationId: "web-pin", documentId: mainId, kind: "schedule", baseRevision: 1, schemaVersion: 1,
         body: scheduleBody({ lockedSections: { "CSCE 1030": csce1030.id } }),
-      })), scheduleId);
+      })), mainId);
       return read;
     };
     const response = await h.add(token, addCommand({ expectedRevision: 2 }));
-    store.getDocument = original;
+    store.documents = original;
     expect(response.status).toBe(409);
     expect(await readAddReply(response)).toMatchObject({ kind: "rejection", reason: "stale-revision" });
-    expect((await h.store.getDocument("alice", scheduleId)).body).toMatchObject({ lockedSections: { "CSCE 1030": csce1030.id } });
+    expect((await h.store.getDocument("alice", mainId)).body).toMatchObject({ lockedSections: { "CSCE 1030": csce1030.id } });
   });
 
   test("a retry answered after the schedule moved returns the original receipt", async () => {
@@ -437,37 +474,38 @@ describe("extension add-option commands", () => {
       "alice",
       new TextEncoder().encode(
         JSON.stringify({
-          operationId: "web-edit-1", documentId: scheduleId, kind: "schedule", baseRevision: 2, schemaVersion: 1,
+          operationId: "web-edit-1", documentId: mainId, kind: "schedule", baseRevision: 2, schemaVersion: 1,
           body: scheduleBody({ name: "Main (edited on the web)" }),
         }),
       ),
-      scheduleId,
+      mainId,
     );
-    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(3);
+    expect((await h.store.getDocument("alice", mainId)).revision).toBe(3);
     // The retry is the same command: answered with the original receipt, and
     // nothing is written again.
     const retry = await h.add(token, addCommand());
     expect(retry.status).toBe(200);
     expect(await readAddReply(retry)).toEqual(originalReply);
-    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(3);
+    expect((await h.store.getDocument("alice", mainId)).revision).toBe(3);
   });
 
   test("a storage failure is 503, never a not-found verdict", async () => {
     const h = setup();
     const token = await h.issue();
-    const store = h.store as unknown as { getDocument: () => Promise<Document> };
-    const original = store.getDocument;
-    store.getDocument = async () => {
+    const store = h.store as unknown as { documents: () => Promise<StoredDocumentEntry[]> };
+    const original = store.documents;
+    store.documents = async () => {
       throw new SyncError(503, "CONNECTION_FAILED", "The database is unreachable.");
     };
     const response = await h.add(token, addCommand());
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: "unavailable" });
-    store.getDocument = original;
+    expect((await h.preview(token)).status).toBe(503);
+    store.documents = original;
     expect(await h.store.receipt("alice", "op-1")).toBeNull();
   });
 
-  test("a schedule deleted between the read and the write is not-found", async () => {
+  test("a Main deleted between the read and the write is a stale revision, so the student sees a fresh preview", async () => {
     const h = setup();
     const token = await h.issue();
     const store = h.store as unknown as { write: () => Promise<Receipt> };
@@ -476,10 +514,10 @@ describe("extension add-option commands", () => {
       throw new SyncError(409, "DOCUMENT_DELETED", "This document was deleted. Save it as a new document.", 1);
     };
     const response = await h.add(token, addCommand());
-    expect(response.status).toBe(422);
+    expect(response.status).toBe(409);
     const reply = await readAddReply(response);
     if (reply.kind !== "rejection") throw new Error(`expected a rejection, got ${reply.kind}`);
-    expect(reply.reason).toBe("not-found");
+    expect(reply.reason).toBe("stale-revision");
     store.write = original;
   });
 
@@ -497,11 +535,11 @@ describe("extension add-option commands", () => {
     const first = await h.add(token, add);
     expect(first.status).toBe(200);
     const originalReply = await readAddReply(first);
-    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(2);
+    expect((await h.store.getDocument("alice", mainId)).revision).toBe(2);
     const retry = await h.add(token, add);
     expect(retry.status).toBe(200);
     expect(await readAddReply(retry)).toEqual(originalReply);
-    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(2);
+    expect((await h.store.getDocument("alice", mainId)).revision).toBe(2);
   });
 
   test("a stale expected revision is a typed rejection, never an overwrite", async () => {
@@ -540,14 +578,117 @@ describe("extension add-option commands", () => {
     expect(foreignBody.reason).toBe("forbidden");
   });
 
-  test("an unknown option id is not-found and keeps the operation uncommitted", async () => {
+  test("an unknown option id, or one without a term, is not-found and keeps the operation uncommitted", async () => {
     const h = setup();
-    const response = await h.add(await h.issue(), addCommand({ optionId: "CSCE1030-99999" }));
-    expect(response.status).toBe(422);
-    const reply = await readAddReply(response);
-    if (reply.kind !== "rejection") throw new Error(`expected a rejection, got ${reply.kind}`);
-    expect(reply.reason).toBe("not-found");
-    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(1);
+    const token = await h.issue();
+    // An earlier build's previews named options without their term.
+    for (const optionId of [`${term}-CSCE1030-99999`, "CSCE2110-20112"]) {
+      const response = await h.add(token, addCommand({ operationId: crypto.randomUUID(), optionId }));
+      expect(response.status).toBe(422);
+      const reply = await readAddReply(response);
+      if (reply.kind !== "rejection") throw new Error(`expected a rejection, got ${reply.kind}`);
+      expect(reply.reason).toBe("not-found");
+    }
+    expect((await h.store.getDocument("alice", mainId)).revision).toBe(1);
+  });
+});
+
+/** The add the panel sends when the student confirms a preview: its schedule, option and revision, echoed (worker-controller.ts on edge). */
+const confirmed = (preview: { scheduleId: string; optionId: string; revision: number }, operationId = crypto.randomUUID()) => ({
+  command: "add-option", operationId, scheduleId: preview.scheduleId, optionId: preview.optionId, expectedRevision: preview.revision,
+});
+
+describe("which Main the extension uses", () => {
+  test("an add for spring-2027 appears in the web planner's Main for spring-2027", async () => {
+    const h = setup();
+    const token = await h.issue();
+    const preview = await readPreview(await h.preview(token, h.previewUrl(term, "20112")));
+    expect(preview).toMatchObject({ scheduleId: role, revision: 1, conflict: "clear" });
+    expect(await readAddReply(await h.add(token, confirmed(preview)))).toMatchObject({ kind: "receipt", committedRevision: 2 });
+    const week = await webPlannerView(h.store.syncIO(), "alice", term);
+    expect(week.planned.toSorted()).toEqual(["CSCE 1030", "CSCE 2110"]);
+    expect(week.picks).toEqual({ "CSCE 1030": csce1030.id, "CSCE 2110": csce2110Later.id });
+  });
+
+  test("an add for another term goes to that term's Main, with that term's section for the class number", async () => {
+    // myUNT gives fall-2027's CSCE 2110 the class number spring's section 002 has.
+    const fallCsce2110 = section("CSCE 2110", "003", ["20112"], [meeting({ day: "Thu" })], "fall-2027");
+    const fallMain = "main-unt-fall-2027";
+    const h = setup({ sections: [...sections, fallCsce2110], scheduleBody: scheduleBody() });
+    h.store.seed(fallMain, scheduleBody({ termId: "fall-2027", courses: ["MATH 1710"], selectedSections: {} }));
+    const token = await h.issue();
+    const preview = await readPreview(await h.preview(token, h.previewUrl("fall-2027", "20112")));
+    expect(String(preview.optionId)).toBe(extensionOptionId(fallCsce2110) as string);
+    expect(preview.revision).toBe(1);
+    expect(await readAddReply(await h.add(token, confirmed(preview)))).toMatchObject({ kind: "receipt", committedRevision: 2 });
+
+    expect((await h.store.getDocument("alice", fallMain)).body).toMatchObject({
+      courses: ["MATH 1710", "CSCE 2110"], selectedSections: { "CSCE 2110": fallCsce2110.id },
+    });
+    expect(await h.store.getDocument("alice", mainId)).toMatchObject({ revision: 1, body: scheduleBody() });
+    expect((await webPlannerView(h.store.syncIO(), "alice", "fall-2027")).picks).toEqual({ "CSCE 2110": fallCsce2110.id });
+    expect((await webPlannerView(h.store.syncIO(), "alice", term)).picks).toEqual({ "CSCE 1030": csce1030.id });
+  });
+
+  test("a new account's preview says its plan is empty, and its first add creates Main as the web planner's first write would", async () => {
+    const h = setup({ sections, scheduleBody: null });
+    const token = await h.issue();
+    const preview = await readPreview(await h.preview(token, h.previewUrl(term, "20112")));
+    expect(preview).toMatchObject({ scheduleId: role, revision: 0, conflict: "clear", inSchedule: false });
+    expect(preview.details[0]).toBe("Your Spring 2027 plan in UNTangle is empty.");
+
+    const add = confirmed(preview, "op-first");
+    const first = await readAddReply(await h.add(token, add));
+    expect(first).toMatchObject({ kind: "receipt", committedRevision: 1 });
+    const untouched = splitPlanner(getInitialPlannerState(), defaultSchedulePreferences("compact"), term).schedule;
+    expect(await h.store.getDocument("alice", mainId)).toMatchObject({
+      revision: 1,
+      body: { ...untouched, courses: ["CSCE 2110"], selectedSections: { "CSCE 2110": csce2110Later.id } },
+    });
+    expect((await webPlannerView(h.store.syncIO(), "alice", term)).picks).toEqual({ "CSCE 2110": csce2110Later.id });
+
+    // A retry is the original receipt; a second confirm of the same empty-plan preview is stale now that Main exists.
+    expect(await readAddReply(await h.add(token, add))).toEqual(first);
+    const again = await h.add(token, confirmed(preview));
+    expect(again.status).toBe(409);
+    expect(await readAddReply(again)).toMatchObject({ kind: "rejection", reason: "stale-revision" });
+    expect((await h.store.getDocument("alice", mainId)).revision).toBe(1);
+  });
+
+  test("a grant approved as \"main\" before Main was a role adds to the term's Main, not a document named main", async () => {
+    // The extension has always sent "main" to device/start, so an older grant
+    // stored the same value. An account could also hold a document with that
+    // literal id, made by hand to get the extension working. Week reads the
+    // planner's own id first, so the add goes there too.
+    const h = setup();
+    h.store.seed("main", scheduleBody({ courses: ["MATH 1710"], selectedSections: {} }));
+    const token = await h.issue("extension", "main");
+    const preview = await readPreview(await h.preview(token, h.previewUrl(term, "20112")));
+    expect(await readAddReply(await h.add(token, confirmed(preview)))).toMatchObject({ kind: "receipt", committedRevision: 2 });
+    expect((await h.store.getDocument("alice", mainId)).body).toMatchObject({ selectedSections: { "CSCE 2110": csce2110Later.id } });
+    expect(await h.store.getDocument("alice", "main")).toMatchObject({ revision: 1, body: { courses: ["MATH 1710"] } });
+    expect((await webPlannerView(h.store.syncIO(), "alice", term)).picks).toEqual({ "CSCE 1030": csce1030.id, "CSCE 2110": csce2110Later.id });
+  });
+
+  test("Main is the document the web planner picks: a replacement after a deletion, and a fresh id once none is live", async () => {
+    const h = setup({ sections, scheduleBody: null });
+    h.store.seedDeleted(mainId);
+    // A saved copy for the term is not Main.
+    h.store.seed("copy-1", scheduleBody({ name: "From this browser, Oct 14" }));
+    const token = await h.issue();
+    const empty = await readPreview(await h.preview(token, h.previewUrl(term, "20112")));
+    expect(empty.revision).toBe(0);
+    expect(empty.details[0]).toBe("Your Spring 2027 plan in UNTangle is empty.");
+    // A deleted id is never reused, so the first add creates the next one.
+    expect(await readAddReply(await h.add(token, confirmed(empty)))).toMatchObject({ kind: "receipt", committedRevision: 1 });
+    expect((await h.store.getDocument("alice", `${mainId}-2`)).body).toMatchObject({ name: "Main", selectedSections: { "CSCE 2110": csce2110Later.id } });
+    expect((await webPlannerView(h.store.syncIO(), "alice", term)).picks).toEqual({ "CSCE 2110": csce2110Later.id });
+
+    // The live replacement is the Main every later preview and add reads.
+    const next = await readPreview(await h.preview(token, h.previewUrl(term, "10234")));
+    expect(next.revision).toBe(1);
+    expect(await readAddReply(await h.add(token, confirmed(next)))).toMatchObject({ kind: "receipt", committedRevision: 2 });
+    expect((await webPlannerView(h.store.syncIO(), "alice", term)).picks).toEqual({ "CSCE 2110": csce2110Later.id, "CSCE 1030": csce1030.id });
   });
 });
 
@@ -566,7 +707,14 @@ describe("extension boundary", () => {
     const other = await h.add(token, addCommand({ scheduleId: "sched-other-1" }));
     expect(other.status).toBe(401);
     expect((await other.json()).error).toBe("insufficient_scope");
-    expect(await h.store.getDocument("alice", scheduleId)).toBeTruthy();
+
+    // A grant bound to a document id rather than the Main role reads and adds nothing.
+    const literal = await h.issue("extension", mainId);
+    const literalPreview = await h.preview(literal);
+    expect(literalPreview.status).toBe(401);
+    expect((await literalPreview.json()).error).toBe("insufficient_scope");
+    expect((await h.add(literal, addCommand({ scheduleId: mainId }))).status).toBe(401);
+    expect((await h.store.getDocument("alice", mainId)).revision).toBe(1);
   });
 
   test("credentials and origins follow the device routes", async () => {
@@ -605,10 +753,15 @@ describe("extension option ids", () => {
   test("round-trip between the extension id and the term's sections", () => {
     const linked = section("ACCT 3120", "501", ["40220", "40221"], [meeting({ day: "Wed" })]);
     const id = extensionOptionId(linked);
-    expect(id).toBe("ACCT3120-40220-40221");
-    expect(parseExtensionOptionId(id as string)).toEqual({ courseCode: "ACCT 3120", classNumbers: ["40220", "40221"] });
+    expect(id).toBe("spring-2027-ACCT3120-40220-40221");
+    expect(parseExtensionOptionId(id as string)).toEqual({ term: "spring-2027", courseCode: "ACCT 3120", classNumbers: ["40220", "40221"] });
     expect(sectionMatchesOptionId(linked, id as string)).toBe(true);
     expect(sectionMatchesOptionId(csce1030, id as string)).toBe(false);
+    // myUNT reuses class numbers across terms; the id tells the terms apart.
+    const nextFall = section("ACCT 3120", "501", ["40220", "40221"], [meeting({ day: "Wed" })], "fall-2027");
+    expect(sectionMatchesOptionId(nextFall, id as string)).toBe(false);
+    // An earlier build's id, without the term, decodes to nothing.
+    expect(parseExtensionOptionId("ACCT3120-40220-40221")).toBeNull();
     // Sample sections without class numbers get no extension id.
     expect(extensionOptionId(section("MATH 2000", "001", [], []))).toBeNull();
   });

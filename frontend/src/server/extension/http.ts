@@ -13,13 +13,13 @@
 import { DeviceGrantError, type DeviceGrants } from "@/server/auth/device-grants";
 import { deviceBearer } from "@/server/auth/v1-auth";
 import type { DeviceScope } from "../../../../packages/contracts/src/device-grant";
-import { SyncError } from "@/lib/document-sync/decision";
 import { applyAddOption, type ExtensionStore } from "./commands";
 import { extensionAddOptionCommandSchema, extensionAddReplySchema, extensionPreviewSchema } from "./extension-api";
 import { buildPreview, type SectionsSource } from "./preview";
 import { calendarBlockedTimes } from "@/lib/calendar-busy";
 import { termDates } from "@/lib/planner-sections";
-import { DocumentIdSchema } from "../../../../packages/contracts/src/ids";
+import { INSTITUTION_ID } from "@/lib/planner-documents";
+import { MAIN_SCHEDULE_ROLE, termMain } from "./main-schedule";
 
 export type ExtensionDependencies = {
   grants: DeviceGrants;
@@ -29,8 +29,8 @@ export type ExtensionDependencies = {
   extensionOrigins: readonly string[];
 };
 
-/** The extension identity the routes act as: the grant's user and its bound schedule. */
-export type ExtensionIdentity = { userId: string; grantId: string; scheduleId: string };
+/** The extension identity the routes act as: the grant's user. The grant is bound to the Main role. */
+export type ExtensionIdentity = { userId: string; grantId: string };
 
 const classNumberPattern = /^\d{4,5}$/;
 
@@ -64,10 +64,10 @@ export function createExtensionHttp({ grants, store, sections, origin, extension
   }
 
   /** Authenticates an extension-kind grant. A mobile token, or an extension
-   * grant with no bound schedule, has no extension scopes here. Scope and kind
-   * failures are 401 like every other authentication failure — the extension
-   * answers 401 by asking the student to sign in again, and 403 is reserved
-   * for command rejections. */
+   * grant bound to anything but the Main role, has no extension scopes here.
+   * Scope and kind failures are 401 like every other authentication failure —
+   * the extension answers 401 by asking the student to sign in again, and 403
+   * is reserved for command rejections. */
   async function authenticate(token: string, scope?: DeviceScope, scheduleId?: string): Promise<ExtensionIdentity> {
     let identity: Awaited<ReturnType<DeviceGrants["authenticate"]>>;
     try {
@@ -79,11 +79,11 @@ export function createExtensionHttp({ grants, store, sections, origin, extension
       throw error;
     }
     if (identity.clientKind !== "extension") throw new DeviceGrantError("insufficient_scope", 401);
-    // The grant's schedule id names the only schedule this grant can see.
-    if (!identity.scheduleId || !DocumentIdSchema.safeParse(identity.scheduleId).success) {
-      throw new DeviceGrantError("insufficient_scope", 401);
-    }
-    return { userId: identity.userId, grantId: identity.grantId, scheduleId: identity.scheduleId };
+    // The grant reads and adds to the account's Main, the one for each
+    // request's term. A grant bound to any other id names a schedule this
+    // build doesn't serve; signing in again binds the role.
+    if (identity.scheduleId !== MAIN_SCHEDULE_ROLE) throw new DeviceGrantError("insufficient_scope", 401);
+    return { userId: identity.userId, grantId: identity.grantId };
   }
 
   async function readJsonBody(request: Request): Promise<unknown> {
@@ -111,22 +111,6 @@ export function createExtensionHttp({ grants, store, sections, origin, extension
       throw new DeviceGrantError("invalid_request");
     } finally {
       reader.releaseLock();
-    }
-  }
-
-  /** The student's Main schedule for the grant's bound schedule id, or null
-   * when it does not exist yet. Storage failures surface as 503, never as a
-   * verdict the check did not make. */
-  async function loadSchedule(identity: ExtensionIdentity) {
-    try {
-      // documentRepository.get throws NOT_FOUND for a missing or deleted
-      // document; either way the student has no schedule to check against.
-      const document = await store.getDocument(identity.userId, identity.scheduleId);
-      if (document.kind !== "schedule") return null;
-      return { body: document.body, revision: document.revision };
-    } catch (error) {
-      if (error instanceof SyncError && error.code === "NOT_FOUND") return null;
-      throw error;
     }
   }
 
@@ -161,18 +145,18 @@ export function createExtensionHttp({ grants, store, sections, origin, extension
         if (!termPattern(params.term) || !classNumberPattern.test(params.classNumber)) {
           throw new DeviceGrantError("invalid_request", 400);
         }
-        const identity = await authenticate(await requireBearer(request));
-        // The bound schedule is the only one this grant reads or writes.
-        // Busy blocks come from the preferences of Main's own institution.
+        const identity = await authenticate(requireBearer(request));
+        // The class search's term picks the Main this preview checks. Busy
+        // blocks come from the preferences of Main's own institution.
         const [termSections, { schedule, preferences }] = await Promise.all([
           sections.termSections(params.term),
-          loadSchedule(identity).then(async (schedule) => ({
-            schedule,
-            preferences: schedule ? await store.preferences(identity.userId, schedule.body.institutionId) : null,
-          })),
+          store.documents(identity.userId).then(async (documents) => {
+            const { schedule } = termMain(documents, params.term);
+            return { schedule, preferences: await store.preferences(identity.userId, schedule?.body.institutionId ?? INSTITUTION_ID) };
+          }),
         ]);
         const preview = buildPreview({
-          scheduleId: identity.scheduleId,
+          scheduleId: MAIN_SCHEDULE_ROLE,
           term: params.term,
           classNumber: params.classNumber,
           sections: termSections,
@@ -195,9 +179,9 @@ export function createExtensionHttp({ grants, store, sections, origin, extension
         const input = await readJsonBody(request);
         const parsed = extensionAddOptionCommandSchema.safeParse(input);
         if (!parsed.success) throw new DeviceGrantError("invalid_request", 400);
-        // The command may only target the grant's own bound schedule.
+        // The command may only target the grant's own bound schedule, the Main role.
         const identity = await authenticate(token, "schedule:add-option", parsed.data.scheduleId);
-        const outcome = await applyAddOption({ store, sections }, identity, parsed.data);
+        const outcome = await applyAddOption({ store, sections }, identity.userId, parsed.data);
         return json(extensionAddReplySchema.parse(outcome.body), outcome.status);
       });
     },
