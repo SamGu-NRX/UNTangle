@@ -70,6 +70,33 @@ test("choosing the section already on screen checks it again", async () => {
   expect((await state(worker)).preview?.preview).toMatchObject({ conflict: "clear", revision: 1 });
   expect(calls).toBe(2);
 });
+test("proposing the same section during a status refresh discards the stale result and fetches again", async () => {
+  const f = fixture();
+  let calls = 0;
+  let release: () => void = () => { };
+  let fetched: () => void = () => { };
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const fetching = new Promise<void>(resolve => { fetched = resolve; });
+  f.api.preview = async () => {
+    calls++;
+    if (calls === 1) {
+      fetched();
+      await gate;
+      return projection;
+    }
+    return { ...projection, revision: 2 };
+  };
+  const worker = f.make();
+  await worker.start();
+  const pending = state(worker);
+  await fetching;
+  expect(await worker.handle({ type: "proposal/request", ref })).toEqual({ proposed: true });
+  release();
+  expect((await pending).preview).toBeNull();
+  expect(calls).toBe(1);
+  expect((await state(worker)).preview?.preview).toMatchObject({ conflict: "clear", revision: 2 });
+  expect(calls).toBe(2);
+});
 test("only the displayed preview id can confirm, and storage already holds the exact command at send", async () => {
   const f = fixture();
   const worker = f.make();
