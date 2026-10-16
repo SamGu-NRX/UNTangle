@@ -51,13 +51,13 @@ type OptionsProps = {
   /** Opens Browse all; absent when the host can't list every week. */
   onBrowse?: (fromKeyboard: boolean) => void;
   /** The Browse all button, so focus can come back to it when the list closes. */
-  browseRef?: Ref<HTMLButtonElement>;
+  browseButton?: Ref<HTMLButtonElement>;
 };
 
 const keyboard = (event: { detail: number }) => event.detail === 0;
 
 /** One alternative at a time, in one sentence (untangle-v3.md rule 5). */
-export function OptionsStrip(props: OptionsProps) {
+export function OptionsStrip({ browseButton, ...props }: OptionsProps) {
   return (
     <div className={styles.strip} role="region" aria-label="Other weeks Auto found">
       <span className={styles.stripCount}>
@@ -66,7 +66,7 @@ export function OptionsStrip(props: OptionsProps) {
       </span>
       <SwapText className={styles.stripSentence} text={props.better ? "A better option is ready." : props.sentence} instant={props.instant} part="sentence" />
       {props.onBrowse ? (
-        <Button ref={props.browseRef} className={styles.stripBrowse} variant="quiet" size="sm" onClick={(event) => props.onBrowse?.(keyboard(event))}>
+        <Button ref={browseButton} className={styles.stripBrowse} variant="quiet" size="sm" onClick={(event) => props.onBrowse?.(keyboard(event))}>
           Browse all
         </Button>
       ) : null}

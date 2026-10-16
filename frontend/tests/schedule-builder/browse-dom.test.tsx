@@ -48,7 +48,7 @@ const row = (csce: Section, math: Section, days: number): BrowseRow => ({
 const ROWS: BrowseRow[] = [row(csce1, math1, 3), row(csce3, math1, 3), row(csce2, math1, 5), row(csce1, math2, 5)];
 
 function host(feed: Partial<BrowseFeed> = {}, options: Partial<OptionsFeed> = {}) {
-  const edits = { place: mock(() => {}), remove: mock(() => {}), keep: mock(() => {}), use: mock(() => {}), clear: mock(() => {}), undo: mock(() => {}), canUndo: true };
+  const edits = { place: mock((): string | null => null), remove: mock(() => {}), keep: mock(() => {}), use: mock((): string[] => []), clear: mock(() => {}), undo: mock(() => {}), canUndo: true };
   const optimizer: OptionsFeed = {
     runId: 1,
     status: "done",
