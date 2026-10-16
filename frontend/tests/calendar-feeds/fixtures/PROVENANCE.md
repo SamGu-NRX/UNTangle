@@ -199,8 +199,9 @@ group and department feeds), the same rule the test uses to find them.
   calendar and a public club calendar over the Spring 2027 term
   (2027-01-11 to 2027-05-07, lib/planner-sections.ts).
 - Work: a weekly Tuesday and Thursday 3:00 to 6:00 PM shift for the whole
-  term (America/Chicago), one Monday 9:00 to noon shift on 2027-02-08, and
-  one shift on 2027-06-07, after the term, which busy time must leave out.
+  term (America/Chicago), one Monday 9:00 to noon shift on 2027-02-08, one
+  Tuesday 8:00 to 9:30 AM shift on 2027-02-16, which a class meeting
+  Tuesdays at 8:00 overlaps on that date only, and one shift on 2027-06-07, after the term, which busy time must leave out.
 - Robotics Club: a Wednesday 6:00 to 7:30 PM meeting with COUNT=16, a
   Tuesday 11:00 to 12:30 demo on 2027-03-02, a Friday 5:00 to 8:00 PM
   kickoff on 2027-01-22, and a transparent social on 2027-02-05 that is
