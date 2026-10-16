@@ -163,6 +163,22 @@ describe("connecting a calendar", () => {
   });
 });
 
+describe("a calendar past the preferences document's limit", () => {
+  test("is refused at the check, in words, instead of saving preferences no device can store", async () => {
+    // Thirteen daily half-hour events across the term: about 1,520 busy pieces, over the 1,500 a calendar keeps.
+    const events = Array.from({ length: 13 }, (_, i) => {
+      const hour = String(7 + i).padStart(2, "0");
+      return `BEGIN:VEVENT\r\nUID:daily-${i}@fixture\r\nSUMMARY:Daily ${i}\r\nDTSTART;TZID=America/Chicago:20270111T${hour}0000\r\nDTEND;TZID=America/Chicago:20270111T${hour}3000\r\nRRULE:FREQ=DAILY;UNTIL=20270507T235959Z\r\nEND:VEVENT\r\n`;
+    }).join("");
+    const url = "https://calendar.example.edu/everything.ics";
+    feeds[url] = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\n${events}END:VCALENDAR\r\n`;
+    const { checkFeed, connectFeed } = await client();
+    const checked = await checkFeed(url, TERM, browserFetch);
+    expect(checked).toMatchObject({ ok: false, problem: { kind: "too-big" } });
+    expect(await connectFeed(url, "Everything", TERM, { fetchImpl: browserFetch })).toMatchObject({ ok: false, problem: { kind: "too-big" } });
+  });
+});
+
 describe("one event as a busy time", () => {
   test("the checked feed lists its timed weekday events, and one becomes a named busy time on its date only", async () => {
     const { checkFeed, eventBusyTime } = await client();

@@ -12,6 +12,7 @@ import { busyFromFeed } from "./busy";
 import type { CalendarEvent, CalendarParseResult } from "./types";
 import { slotsFromPieces, weekdayOf, type BusyPiece, type CheckedFeed, type FeedEvent, type FeedProblem, type FeedTerm, type Outcome } from "@/lib/calendar-busy";
 import type { ConnectedCalendar, WeekDay } from "@/lib/types";
+import { CalendarSchema, MAX_CALENDAR_BUSY_DATES } from "../../../../packages/contracts/src/documents";
 
 export { eventBusyTime, type CheckedFeed, type FeedEvent, type FeedProblem, type FeedTerm, type Outcome } from "@/lib/calendar-busy";
 
@@ -86,6 +87,7 @@ export async function checkFeed(url: string, term: FeedTerm, fetchImpl: FetchLik
       end: piece.endMinutes,
     }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
+  if (pieces.length > MAX_CALENDAR_BUSY_DATES) return { ok: false, problem: TOO_MANY };
   return { ok: true, value: { busyCount: pieces.length, events } };
 }
 
@@ -96,6 +98,22 @@ async function readBusy(fetchImpl: FetchLike, body: Record<string, unknown>, ter
   if (!response) return { ok: false, problem: OFFLINE };
   if (!response.ok) return { ok: false, problem: await problemOf(response, "busy") };
   return { ok: true, value: (await response.json()) as BusyResponse };
+}
+
+const TOO_MANY: FeedProblem = {
+  kind: "too-big",
+  message: `This calendar has more than ${MAX_CALENDAR_BUSY_DATES.toLocaleString("en-US")} busy times this term, more than UNTangle keeps. Try a smaller one.`,
+};
+
+/**
+ * The calendar as the preferences document will hold it. A feed that grew
+ * past the document's limit is refused here, with words, rather than
+ * producing preferences no device can save. Anything else the schema
+ * refuses is a bug in this file, so it throws.
+ */
+function kept(calendar: ConnectedCalendar): Outcome<ConnectedCalendar> {
+  if (calendar.busy.reduce((sum, slot) => sum + slot.dates.length, 0) > MAX_CALENDAR_BUSY_DATES) return { ok: false, problem: TOO_MANY };
+  return { ok: true, value: CalendarSchema.parse(calendar) };
 }
 
 /** A new calendar id. */
@@ -111,17 +129,14 @@ export async function connectFeed(
   const read = await readBusy(options.fetchImpl ?? globalThis.fetch, { url: url.trim(), seal: true }, term);
   if (!read.ok) return read;
   if (!read.value.sealedUrl) throw new Error("The busy route didn't return the sealed address it was asked for.");
-  return {
-    ok: true,
-    value: {
-      id: options.id ?? newCalendarId(),
-      name: name.trim().slice(0, 40) || "Calendar",
-      sealedUrl: read.value.sealedUrl,
-      termId: term.id,
-      checkedAt: (options.now ?? (() => new Date()))().toISOString(),
-      busy: slotsFromPieces(read.value.occurrences, term),
-    },
-  };
+  return kept({
+    id: options.id ?? newCalendarId(),
+    name: name.trim().slice(0, 40) || "Calendar",
+    sealedUrl: read.value.sealedUrl,
+    termId: term.id,
+    checkedAt: (options.now ?? (() => new Date()))().toISOString(),
+    busy: slotsFromPieces(read.value.occurrences, term),
+  });
 }
 
 /** The calendar read again over `term` from its sealed address. */
@@ -132,8 +147,5 @@ export async function refreshCalendar(
 ): Promise<Outcome<ConnectedCalendar>> {
   const read = await readBusy(options.fetchImpl ?? globalThis.fetch, { sealedUrl: calendar.sealedUrl }, term);
   if (!read.ok) return read;
-  return {
-    ok: true,
-    value: { ...calendar, termId: term.id, checkedAt: (options.now ?? (() => new Date()))().toISOString(), busy: slotsFromPieces(read.value.occurrences, term) },
-  };
+  return kept({ ...calendar, termId: term.id, checkedAt: (options.now ?? (() => new Date()))().toISOString(), busy: slotsFromPieces(read.value.occurrences, term) });
 }
