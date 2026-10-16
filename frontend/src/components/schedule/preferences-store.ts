@@ -25,11 +25,21 @@ export function preferencesKey(identity: Identity): string {
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
+/** This browser's guest id if it has one; null when there is none yet or storage is unusable. */
+export function readGuestId(storage: Pick<Storage, "getItem">): string | null {
+  try {
+    const existing = storage.getItem(GUEST_ID_KEY);
+    return existing && /^[A-Za-z0-9-]{8,64}$/.test(existing) ? existing : null;
+  } catch {
+    return null;
+  }
+}
+
 /** This browser's guest id, created on first use; null when storage is unusable. */
 export function readOrCreateGuestId(storage: StorageLike, makeId: () => string): string | null {
   try {
-    const existing = storage.getItem(GUEST_ID_KEY);
-    if (existing && /^[A-Za-z0-9-]{8,64}$/.test(existing)) return existing;
+    const existing = readGuestId(storage);
+    if (existing) return existing;
     const id = makeId();
     storage.setItem(GUEST_ID_KEY, id);
     return id;

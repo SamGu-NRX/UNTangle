@@ -1,9 +1,10 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import {
-  FakePlannerServer,
+  FakeDocumentServer,
   installDom,
   mountPlanner,
   removeDom,
+  resetDocumentStore,
   setSession,
   waitFor,
 } from "./test-dom";
@@ -95,7 +96,7 @@ describe("lockedSections in planner state", () => {
 });
 
 const user = { id: "u-locks", email: "locks@my.unt.edu", name: "Lock Test" };
-let server: FakePlannerServer;
+let server: FakeDocumentServer;
 let previousFetch: typeof fetch;
 const mounted: Array<() => Promise<void>> = [];
 
@@ -108,7 +109,8 @@ describe("lock control in the planner", () => {
   });
   beforeEach(() => {
     window.localStorage.clear();
-    server = new FakePlannerServer();
+    resetDocumentStore();
+    server = new FakeDocumentServer();
     previousFetch = globalThis.fetch;
     globalThis.fetch = server.fetch as typeof fetch;
     setSession(null);
@@ -219,19 +221,20 @@ describe("lock control in the planner", () => {
     expect(second.get().plannerState.selectedSections["MATH 1710"]).toBe(locked);
   });
 
-  test("registered: a lock is sent to the server and survives reload", async () => {
+  test("registered: a lock is sent to the server and survives a reload on a fresh browser", async () => {
     setSession(user);
     const first = await mountWithLocks();
     await takeCourses(first);
     await first.run((p) => p.setSectionLock("MATH 1710", true));
     const locked = first.get().plannerState.selectedSections["MATH 1710"];
-    await waitFor(() => first.get().saveState.label === "Saved", "saved");
-    expect(server.row?.state.lockedSections).toEqual({ "MATH 1710": locked });
+    await waitFor(() => first.get().saveState.label === "Synced", "synced");
+    expect((server.document(user.id, "main-unt-spring-2027")?.body as { lockedSections: unknown }).lockedSections).toEqual({ "MATH 1710": locked });
     await first.unmount();
     mounted.splice(mounted.indexOf(first.unmount), 1);
 
+    resetDocumentStore();
     const second = await mountWithLocks();
-    await waitFor(() => second.get().saveState.label === "Saved", "loaded");
+    await waitFor(() => second.get().plannerState.lockedSections?.["MATH 1710"] === locked, "loaded from the server");
     expect(second.get().plannerState.lockedSections).toEqual({ "MATH 1710": locked });
     expect(kept(second, "MATH 1710")).toBe(true);
   });

@@ -33,6 +33,11 @@ export function clockWithSuffix(minutes: number): string {
 
 export const timeRange = (start: number, end: number) => `${clock(start)}–${clock(end)}`;
 
+/** "Feb 3": an ISO date as Week says it. */
+export function shortDate(date: string): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+}
+
 /** How Week names Auto's alternative at a rank, inside a sentence ("option 2"); the strip shows "2 of 3". */
 export const optionName = (index: number) => `option ${index + 1}`;
 const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -150,8 +155,8 @@ export function placeEvents(events: readonly GridEvent[]): Map<string, Placement
   return out;
 }
 
-/** Walking time between two buildings, or null when it isn't known. */
-export type WalkFn = (fromBuilding: string, toBuilding: string) => { minutes: number; shuttle: boolean } | null;
+/** Walking time between two buildings, in seconds as the optimizer counts it, or null when it isn't known. */
+export type WalkFn = (fromBuilding: string, toBuilding: string) => { seconds: number; shuttle: boolean } | null;
 
 /** Breaks longer than this get no walk chip: the walk can't be tight. */
 export const WALK_GAP_MAX = 30;
@@ -169,7 +174,9 @@ export type WalkLeg = {
   /** Where the line runs: the first class's end to the next class's start. */
   from: number;
   to: number;
+  /** Rounded, for the chip and its label; `seconds` decides late and tight, as Auto does. */
   minutes: number;
+  seconds: number;
   shuttle: boolean;
   kind: "ok" | "tight" | "late";
 };
@@ -203,7 +210,7 @@ export function walksOf(events: readonly GridEvent[], walk: WalkFn): WalkLeg[] {
       if (!before.building || !next.building || before.building === next.building) continue;
       const time = walk(before.building, next.building);
       if (!time) continue;
-      const gap = next.start - before.end;
+      const gapSeconds = (next.start - before.end) * 60;
       legs.push({
         day: next.day,
         fromKey: before.key,
@@ -211,9 +218,10 @@ export function walksOf(events: readonly GridEvent[], walk: WalkFn): WalkLeg[] {
         toCourse: next.courseCode,
         from: before.end,
         to: next.start,
-        minutes: time.minutes,
+        minutes: Math.round(time.seconds / 60),
+        seconds: time.seconds,
         shuttle: time.shuttle,
-        kind: time.minutes > gap ? "late" : time.minutes + TIGHT_BUFFER >= gap ? "tight" : "ok",
+        kind: time.seconds > gapSeconds ? "late" : time.seconds + TIGHT_BUFFER * 60 >= gapSeconds ? "tight" : "ok",
       });
     }
   }

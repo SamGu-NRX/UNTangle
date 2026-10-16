@@ -38,8 +38,11 @@ import {
 import { compareAcademicTerms } from "@/lib/term-chronology";
 import { plannerTravelTime, type WalkingTimeFn } from "@/lib/planner-walking";
 import { optimize } from "@/lib/optimizer/optimize";
+import { examOf } from "@/lib/final-exams";
 import { GOAL_WEIGHTS, NO_CONSTRAINTS } from "@/lib/optimizer/presets";
 import type { SerializedBusyOccurrence } from "@/lib/calendar-feeds/busy-serialize";
+import { calendarBlockedTimes } from "@/lib/calendar-busy";
+import { PreferencesBodySchema } from "../../../packages/contracts/src/documents";
 import type { OptBlockedTime, OptCourse, OptDay, OptimizeRequest, OptSection } from "@/lib/optimizer/types";
 import {
   classDays,
@@ -178,6 +181,16 @@ const planningTermDates = termDates[planningTerm.id];
 export const DEFAULT_CANDIDATE_FILTER: CandidateFilter = { openSeatsOnly: false, otherSites: false };
 
 /**
+ * An option in the optimizer's shape, carrying its final when UNT's rule
+ * places it (lib/final-exams.ts), so Auto never pairs two clashing finals.
+ */
+function toSearchedSection(section: Section, evidence?: number | null): OptSection | null {
+  const searched = toOptSection(section, evidence);
+  const exam = examOf(section);
+  return searched && exam.kind === "known" ? { ...searched, exam: exam.exam } : searched;
+}
+
+/**
  * Each course's options that have a set time and pass `filter`, in the
  * optimizer's shape. Courses still loading, and courses with no such option,
  * are left out.
@@ -196,7 +209,7 @@ export function toOptimizerCourses(
     const evidence = evidenceHundredths?.[code];
     const sections = options.result.sections
       .filter((section) => isCandidate(section, filter))
-      .map((section) => toOptSection(section, evidence?.[section.id]))
+      .map((section) => toSearchedSection(section, evidence?.[section.id]))
       .filter((section): section is OptSection => section !== null);
     if (sections.length === 0) return [];
     return [{ code, credits: Number.isFinite(course.creditHours) && course.creditHours >= 0 ? course.creditHours : 0, sections }];
@@ -219,7 +232,10 @@ const RECOMMEND_MAX_NODES = 20_000;
  * a course whose fixed pick is not one of them: a pick that no longer
  * resolves, or one with no set time, is not the optimizer's to replace. When
  * the fixed sections clash so that nothing fits, they are returned as they
- * are and the clash is left for the page to show.
+ * are and the clash is left for the page to show. Finals count, unless they
+ * overlap between two fixed sections: those two are searched without their
+ * finals, so the other courses still get a suggestion, and Week names the
+ * overlap.
  */
 export function recommendSections(
   option: OptimizationKey,
@@ -241,23 +257,35 @@ export function recommendSections(
   if (optimizerCourses.length === 0) {
     return {};
   }
-  const result = optimize({
-    courses: optimizerCourses,
-    locks,
-    excluded: [],
-    term: planningTermDates,
-    constraints: NO_CONSTRAINTS,
-    weights: GOAL_WEIGHTS[option],
-    walkingTime,
-    k: 1,
-    maxNodes: RECOMMEND_MAX_NODES,
-    timeBudgetMs: Number.POSITIVE_INFINITY,
-    explainBudgetMs: 0,
-  });
-  if (result.schedules.length > 0) {
-    return { ...result.schedules[0].byCourse };
-  }
-  return locks;
+  const best = (searched: OptCourse[]) =>
+    optimize({
+      courses: searched,
+      locks,
+      excluded: [],
+      term: planningTermDates,
+      constraints: NO_CONSTRAINTS,
+      weights: GOAL_WEIGHTS[option],
+      walkingTime,
+      k: 1,
+      maxNodes: RECOMMEND_MAX_NODES,
+      timeBudgetMs: Number.POSITIVE_INFINITY,
+      explainBudgetMs: 0,
+    }).schedules[0] ?? null;
+  // Two picks whose finals overlap would leave every other course without a suggestion, and Week would
+  // blame those courses. The overlap is Week's to name (answer.ts), so the search runs again without
+  // those two picks' finals; every other final still counts. Auto's own request keeps them all.
+  const lockedSections = optimizerCourses.flatMap((course) => course.sections.filter((section) => section.id === locks[course.code]));
+  const overlapping = new Set(
+    lockedSections
+      .filter((a) => lockedSections.some((b) => a !== b && a.exam && b.exam && a.exam.date === b.exam.date && a.exam.start < b.exam.end && b.exam.start < a.exam.end))
+      .map((section) => section.id),
+  );
+  const found =
+    best(optimizerCourses) ??
+    (overlapping.size > 0
+      ? best(optimizerCourses.map((course) => ({ ...course, sections: course.sections.map((section) => (overlapping.has(section.id) ? { ...section, exam: null } : section)) })))
+      : null);
+  return found ? { ...found.byCourse } : locks;
 }
 
 /**
@@ -422,6 +450,9 @@ export function parseSchedulePreferences(raw: unknown): SchedulePreferences | nu
   // Blocked-time ids name the cause in an infeasibility explanation; the optimizer rejects duplicates.
   const blockedIds = (c.blocked as Array<{ id: string }>).map((block) => block.id);
   if (new Set(blockedIds).size !== blockedIds.length) return null;
+  // Connected calendars follow the preferences document's own schema, which refuses a plain feed address.
+  const calendars = PreferencesBodySchema.shape.calendars.safeParse(raw.calendars);
+  if (!calendars.success) return null;
   return {
     constraints: {
       earliestStart: c.earliestStart as number | null,
@@ -435,6 +466,7 @@ export function parseSchedulePreferences(raw: unknown): SchedulePreferences | nu
       otherSites: c.otherSites === true,
     },
     weights: Object.fromEntries(weightKeys.map((key) => [key, w[key]])) as SchedulePreferences["weights"],
+    ...(calendars.data ? { calendars: calendars.data } : {}),
   };
 }
 
@@ -503,7 +535,7 @@ export function buildOptimizeRequest(
   const held = new Set(heldOutCourses(state, catalog, preferences.constraints, codes, options.evidenceHundredths).map((course) => course.code));
   const keptAsIs = [...held].flatMap((code): OptCourse[] => {
     const section = findOption(catalog, code, state.selectedSections[code]);
-    const fixed = section && toOptSection(section);
+    const fixed = section && toSearchedSection(section);
     const course = getCourseByCode(code);
     return fixed && course ? [{ code, credits: course.creditHours, sections: [fixed] }] : [];
   });
@@ -536,7 +568,11 @@ export function buildOptimizeRequest(
       earliestStart: c.earliestStart,
       latestEnd: c.latestEnd,
       daysOff: c.daysOff,
-      blocked: [...c.blocked, ...busyOccurrencesToBlockedTime(options.busyOccurrences ?? [], planningTermDates)],
+      blocked: [
+        ...c.blocked,
+        ...calendarBlockedTimes(preferences.calendars, planningTerm.id, planningTermDates ?? null),
+        ...busyOccurrencesToBlockedTime(options.busyOccurrences ?? [], planningTermDates),
+      ],
       maxCredits: c.maxCredits,
       walking: c.walkingBufferMinutes === null ? null : { bufferMinutes: c.walkingBufferMinutes },
     },

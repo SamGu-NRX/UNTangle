@@ -51,6 +51,13 @@ export type OptMeeting = {
   dates?: OptDateRange | null;
 };
 
+/**
+ * A final exam sitting: an ISO date and minutes after midnight, half-open
+ * `[start, end)`. Two sections whose exams share a minute on the same date
+ * can't be in one schedule, like two classes that overlap.
+ */
+export type OptExam = { date: string; start: number; end: number };
+
 export type OptSection = {
   id: string;
   courseCode: string;
@@ -70,6 +77,12 @@ export type OptSection = {
   instructorGpaHundredths?: number | null;
   /** How a student refers to the section, such as "002"; defaults to the id. */
   label?: string;
+  /**
+   * The section's final exam. Absent or null when it isn't known: such a
+   * section clashes with no exam, and the caller says the check didn't
+   * cover it.
+   */
+  exam?: OptExam | null;
 };
 
 export type OptCourse = {
@@ -215,7 +228,9 @@ export type ExplainMember =
   | { kind: "dayOff"; day: OptDay }
   | { kind: "blocked"; blockedId: string }
   | { kind: "maxCredits" }
-  | { kind: "walking" };
+  | { kind: "walking" }
+  /** The rule that two finals may not overlap. It has no one-click change: UNT sets exam times. */
+  | { kind: "exams" };
 
 /** A one-click change that removes one member of the explanation. */
 export type Relaxation =

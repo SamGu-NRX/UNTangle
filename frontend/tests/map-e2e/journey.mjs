@@ -27,14 +27,28 @@
  * control tilts and flattens, instantly from the keyboard; a stop chosen
  * with 3D turned off stays flat, and a new day forgets that choice; under
  * reduced motion 3D is disabled with a description and pressing it keeps
- * the map flat. Any failed check exits 1.
+ * the map flat.
+ *
+ * In this gap: GET /api/v1/events answers from fixtures/events-2026-10-12.json,
+ * never the network. Its titles, places and links are real UNT calendar
+ * events from the recorded directory feeds (tests/calendar-feeds/fixtures/
+ * directory), moved onto the sample Monday so each lands on a case: two fit
+ * the 70-minute break after ANTH 3700 (one tight on the way back), one has no
+ * catalogue building, one can't get back to GAB in time, one overlaps
+ * ANTH 3700, one is all day, one sits in the 10-minute break and one in the
+ * break before Discovery Park. The checks: only the events that fit appear,
+ * the first two show with the rest one press away, a selected event puts its
+ * pin and walks on the map clear of the panel and opens to its event page,
+ * the phone sheet drops to half to show it, and a failing feed leaves the
+ * itinerary as it was. Any failed check exits 1.
  *
  * Env: UNTANGLE_BASE_URL, UNTANGLE_OUT (screenshots, video, report),
  * UNTANGLE_E2E_MODULES (a node_modules with playwright and axe-core).
  */
 import { createRequire } from "node:module";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const BASE = process.env.UNTANGLE_BASE_URL ?? "http://127.0.0.1:3217";
 const OUT = process.env.UNTANGLE_OUT;
@@ -86,9 +100,22 @@ const plannerDoc = {
 
 const kerrHall = { name: "Kerr Hall", point: { lat: 33.2077137, lng: -97.1475024 } };
 
-async function seed(context) {
-  // Monday 12 October 2026, 8:37 local: Date is fixed, timers keep running.
-  await context.clock.setFixedTime(new Date(2026, 9, 12, 8, 37));
+const EVENTS = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures", "events-2026-10-12.json"), "utf8");
+
+/** The events feed from the fixture, or failing with a 503 when `feed` is "down". */
+async function stubEvents(context, feed = "up") {
+  await context.route("**/api/v1/events?**", (route) =>
+    feed === "up"
+      ? route.fulfill({ status: 200, contentType: "application/json", body: EVENTS })
+      : route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "unavailable" }) }),
+  );
+}
+
+async function seed(context, feed = "up") {
+  await stubEvents(context, feed);
+  // Monday 12 October 2026, 8:37 in Denton (CDT, UTC-5), whatever zone the
+  // runner is in. Date is fixed, timers keep running.
+  await context.clock.setFixedTime(new Date("2026-10-12T08:37:00-05:00"));
   await context.addInitScript(({ doc, start }) => {
     // The planner reads the guest identity's store (#77).
     if (!window.localStorage.getItem("untangle.planner-state.v1:guest")) {
@@ -111,6 +138,21 @@ const camera = (page) =>
 async function settle(page, ms = 900) {
   // Camera moves are 250-500 ms; give the moveend handler time to record.
   await pause(page, ms);
+}
+
+/**
+ * The camera once a stop's flight has landed (zoomed past 17), or after 6 s.
+ * Under software WebGL a tilted flight's frames come slowly (13 to 87 frames
+ * in 3 s on a dev server), and the camera is recorded only at moveend. A fixed
+ * 1.4 s wait failed that way on PR #128's first CI run: the screenshot taken
+ * right after the check shows the flight had landed by then.
+ */
+async function landed(page) {
+  await page
+    .waitForFunction(() => Number(document.querySelector('[data-testid="campus-map"]')?.dataset.zoom) > 17, null, { timeout: 6000 })
+    .catch(() => undefined);
+  await pause(page, 200);
+  return camera(page);
 }
 
 async function openMap(page) {
@@ -150,7 +192,12 @@ async function targetBlocked(page, kind, key) {
       .flatMap((selector) => [...document.querySelectorAll(selector)].map((el) => ({ selector, box: el.getBoundingClientRect() })))
       .filter(({ box }) => box.width > 0 && box.height > 0);
     const pinFor = (stopKey) => [...document.querySelectorAll(".mv-pin")].find((pin) => (pin.dataset.stopKeys ?? "").split("|").includes(stopKey));
-    const ends = kind === "stop" ? [pinFor(key)] : key.split(">").map((end) => (end === "start" ? document.querySelector(".mv-start-pin") : pinFor(end)));
+    const ends =
+      kind === "stop"
+        ? [pinFor(key)]
+        : kind === "event"
+          ? [document.querySelector(".mv-event-pin")]
+          : key.split(">").map((end) => (end === "start" ? document.querySelector(".mv-start-pin") : pinFor(end)));
     const problems = [];
     for (const el of ends) {
       if (!el) {
@@ -198,6 +245,111 @@ async function everyTargetClear(page, label, prepare = async () => {}) {
 }
 /** Holds a settled state on screen so the desktop recording is watchable; it changes no check. */
 const beat = (page) => pause(page, 1800);
+
+/* ---------- in this gap ---------- */
+
+const gapText = (page) => page.locator(".mv-gap").evaluateAll((els) => els.map((el) => el.textContent ?? ""));
+
+/** The rows, the opened list and a selected event, on whichever layout `page` has. */
+async function gapJourney(page, label, prepare = async () => {}) {
+  await prepare();
+  const gaps = await gapText(page);
+  const all = gaps.join(" | ");
+  check(
+    `${label}: the 70-minute break after ANTH 3700 shows "In this gap" with the first two events that fit`,
+    gaps.length === 2 &&
+      /^In this gap/.test(gaps[0]) &&
+      /The Dialogue Society/.test(gaps[0]) &&
+      /Road Trip to Registration/.test(gaps[0]) &&
+      /1 more/.test(gaps[0]) &&
+      !/TinkerCAD/.test(gaps[0]),
+    all,
+  );
+  check(
+    `${label}: events that overlap a class, can't get back in time, last all day or sit in the 10-minute break are not listed`,
+    !/Physics Colloquium|College Democrats|Badminton|Cybersecurity/.test(all),
+    all,
+  );
+  const first = page.locator(".mv-gap").first();
+  const dialogue = first.locator(".mv-gap__event", { hasText: "The Dialogue Society" });
+  const roadTrip = first.locator(".mv-gap__event", { hasText: "Road Trip to Registration" });
+  const dialogueText = (await dialogue.textContent()) ?? "";
+  check(
+    `${label}: an event row says the place, the walk there, its start and that ANTH 1010 still works`,
+    /UU/.test(dialogueText) && /8 min walk/.test(dialogueText) && /11:00\s*AM/.test(dialogueText) && /On time for ANTH 1010/.test(dialogueText),
+    dialogueText,
+  );
+  const roadText = (await roadTrip.textContent()) ?? "";
+  check(
+    `${label}: a tight return says when to leave`,
+    (await roadTrip.getAttribute("data-fit")) === "tight" && /Leave by 11:53\s*AM/.test(roadText),
+    roadText,
+  );
+
+  const head = first.locator("button.mv-gap__head");
+  await head.click();
+  await settle(page, 400);
+  const tinker = first.locator(".mv-gap__event", { hasText: "TinkerCAD Workshop" });
+  const tinkerText = (await tinker.textContent().catch(() => "")) ?? "";
+  check(
+    `${label}: opening the gap lists the rest, and a place off the building list shows as written with no walk`,
+    (await head.getAttribute("aria-expanded")) === "true" &&
+      /Willis Library/.test(tinkerText) &&
+      !/min walk/.test(tinkerText) &&
+      /Ends 10 min before ANTH 1010/.test(tinkerText),
+    tinkerText,
+  );
+
+  await prepare();
+  const key = await dialogue.getAttribute("data-event-key");
+  await dialogue.click();
+  await settle(page, 1600);
+  const pins = await page.locator(".mv-event-pin").count();
+  const blocked = await targetBlocked(page, "event", key);
+  check(`${label}: a selected event shows its pin on the map, clear of the panel, sheet and controls`, pins === 1 && blocked === null, blocked ?? `${pins} event pins`);
+  const view = await camera(page);
+  check(`${label}: a selected event is framed flat with its walks`, view.pitch < 1, `pitch ${view.pitch}`);
+  const detail = page.locator(".mv-more--gap");
+  const detailText = (await detail.textContent().catch(() => "")) ?? "";
+  const link = detail.locator("a.mv-link");
+  check(
+    `${label}: the selected event says how to make ANTH 1010 and links to its event page`,
+    /8 min walk from ENV/.test(detailText) &&
+      /Leave by 11:54\s*AM to make ANTH 1010/.test(detailText) &&
+      (await link.getAttribute("href")) === "https://calendar.unt.edu/event/the-dialogue-society-general-b" &&
+      (await link.getAttribute("target")) === "_blank",
+    detailText,
+  );
+  const sheet = page.locator(".mv-sheet");
+  if (await sheet.count()) {
+    check(`${label}: an event chosen from the full sheet drops it to half, so the map shows`, (await sheet.getAttribute("data-detent")) === "half");
+  }
+  await shoot(page, `${label}-gap-event-selected.png`);
+  await page.keyboard.press("Escape");
+  await settle(page, 400);
+  check(`${label}: Escape clears the event and its pin`, (await page.locator(".mv-event-pin").count()) === 0 && (await dialogue.getAttribute("aria-expanded")) === "false");
+  // Close the gap again, so the checks after this see the resting itinerary.
+  await prepare();
+  await head.click();
+  await settle(page, 300);
+}
+
+/** With the events feed down, Day shows its itinerary and nothing about events. */
+async function feedDown(browser) {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await seed(context, "down");
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await openMap(page);
+  await settle(page, 600);
+  check(
+    "feed down: the itinerary has no gap rows and no error",
+    (await page.locator(".mv-gap").count()) === 0 && (await page.locator(".mv-stop").count()) === 4 && errors.length === 0,
+    errors.join(" | ") || null,
+  );
+  await context.close();
+}
 
 /* ---------- desktop ---------- */
 
@@ -320,8 +472,7 @@ async function desktop(browser) {
   const gabRow = page.locator(".mv-stop").nth(1);
   const gabKey = await gabRow.getAttribute("data-stop-key");
   await gabRow.click();
-  await settle(page, 1400);
-  after = await camera(page);
+  after = await landed(page);
   const gabPin = page.locator(".mv-pin", { has: page.locator(".mv-pin__disc", { hasText: /^2$/ }) });
   check("desktop: selecting a row selects its pin", (await gabPin.getAttribute("data-selected")) === "true");
   check("desktop: selecting a row flies in and tilts", after.zoom > 17 && after.pitch > 30, `zoom ${after.zoom}, pitch ${after.pitch}`);
@@ -336,6 +487,17 @@ async function desktop(browser) {
   await settle(page, 900);
   check("desktop: zooming out keeps the selection", (await gabRow.getAttribute("aria-expanded")) === "true");
   const gatePin = page.locator(".mv-pin", { has: page.locator(".mv-pin__disc", { hasText: /^3$/ }) });
+  // The itinerary with its gap rows can reach the panel's full height, so drag GATE out from under it first.
+  const panelRight = (await page.locator(".mv-panel").boundingBox()).x + (await page.locator(".mv-panel").boundingBox()).width;
+  const gateBox = await gatePin.boundingBox();
+  if (gateBox && gateBox.x < panelRight + 40) {
+    const from = { x: mapBox.x + mapBox.width * 0.6, y: mapBox.y + mapBox.height * 0.5 };
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x + (panelRight + 120 - gateBox.x), from.y - 120, { steps: 12 });
+    await page.mouse.up();
+    await settle(page, 900);
+  }
   await gatePin.click();
   await settle(page, 1400);
   const gateRow = page.locator(".mv-stop").nth(2);
@@ -366,6 +528,8 @@ async function desktop(browser) {
   await settle(page, 400);
   check("desktop: Escape clears the selection", (await page.locator('.mv-stop[aria-expanded="true"], .mv-leg__row[aria-expanded="true"]').count()) === 0);
 
+  await gapJourney(page, "desktop");
+
   await everyTargetClear(page, "desktop");
   await page.keyboard.press("Escape");
 
@@ -392,8 +556,7 @@ async function desktop(browser) {
 
   // 3D is now off by choice: a chosen stop flies there flat, until the day changes.
   await gabRow.click();
-  await settle(page, 1400);
-  after = await camera(page);
+  after = await landed(page);
   check("desktop: with 3D turned off, a chosen stop stays flat", after.zoom > 17 && after.pitch < 1, `zoom ${after.zoom}, pitch ${after.pitch}`);
   await page.keyboard.press("Escape");
 
@@ -407,8 +570,7 @@ async function desktop(browser) {
   check("desktop: the first day is the stepper's start", await page.getByRole("button", { name: "Previous day" }).isDisabled());
   await settle(page, 1200);
   await gabRow.click();
-  await settle(page, 1400);
-  after = await camera(page);
+  after = await landed(page);
   check("desktop: a new day forgets the 3D choice, so a chosen stop tilts again", after.pitch > 30, `pitch ${after.pitch}`);
   await page.keyboard.press("Escape");
   await settle(page, 400);
@@ -505,6 +667,11 @@ async function phone(browser) {
   await shoot(page, "phone-03b-from-full.png");
   await page.keyboard.press("Escape");
 
+  await gapJourney(page, "phone", async () => {
+    if ((await sheet.getAttribute("data-detent")) !== "full") await drag(-420);
+    await page.locator(".mv-gap").first().scrollIntoViewIfNeeded();
+  });
+
   // Rows below the half sheet are out of reach, as they are for a thumb: open it to full, then tap.
   await everyTargetClear(page, "phone", async () => {
     if ((await sheet.getAttribute("data-detent")) !== "full") await drag(-420);
@@ -584,6 +751,7 @@ try {
   await desktop(browser);
   await phone(browser);
   await reducedMotion(browser);
+  await feedDown(browser);
 } catch (error) {
   check("journey ran to completion", false, error.stack ?? String(error));
 } finally {

@@ -2,13 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
-import type { BuilderEdits, BuilderHost, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
+import type { BrowseFeed, BuilderEdits, BuilderFinals, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
+import type { Identity } from "@/components/schedule/preferences-store";
+import { loadedIdentity, markSetupSeen, setupDue } from "@/components/schedule/setup-store";
 import { isStale, requestKey } from "@/components/schedule/run-state";
-import { useOptimizerRuns } from "@/components/schedule/use-optimizer";
+import { useBrowseRuns, useOptimizerRuns } from "@/components/schedule/use-optimizer";
 import { searchCourses } from "@/components/shell/course-search";
 import { toast } from "@/components/ui/Toast";
 import type { Brand } from "@/lib/brand";
-import type { RelaxSuggestion } from "@/lib/optimizer/types";
+import { calendarsToRefresh, currentProblems, withReading, type RefreshProblem } from "@/lib/calendar-busy";
+import { checkFeed, connectFeed, refreshCalendar, type FeedTerm } from "@/lib/calendar-feeds/client";
+import { examOf, FINALS_SOURCE, PROJECTED_FINALS_NOTE, unknownExamSentence } from "@/lib/final-exams";
+import type { Explanation, RelaxSuggestion } from "@/lib/optimizer/types";
 import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
 import {
   buildOptimizeRequest,
@@ -20,7 +25,7 @@ import {
   takeFromAutoRun,
   type PlannedCourse,
 } from "@/lib/planner";
-import { findOption, optionIdLabel, planningTerm, sectionRef, type CourseOptions } from "@/lib/planner-sections";
+import { findOption, optionIdLabel, planningTerm, sectionRef, termDates, type CourseOptions } from "@/lib/planner-sections";
 import { isShuttleLeg, plannerTravelTime } from "@/lib/planner-walking";
 import { findClassNumber } from "@/lib/sections/client";
 import { fetchCourseHistory, fetchMissingHistories } from "@/lib/grades-history/course-history";
@@ -28,7 +33,9 @@ import type { CourseHistory, HistoryResult } from "@/lib/grades-history/types";
 import { courseEvidenceHundredths } from "@/lib/sections/instructor-evidence";
 import { optionReasons } from "./option-reasons";
 import { courses as catalog } from "@/lib/seed-data";
-import type { CourseStatus, PlannerState } from "@/lib/types";
+import type { CourseStatus, PlannerState, SchedulePreferences } from "@/lib/types";
+
+const feedTerm: FeedTerm | null = termDates[planningTerm.id] ? { ...planningTerm, ...termDates[planningTerm.id] } : null;
 
 /** What one undo puts back: the touched courses' status, section, lock and Auto-filled mark as they were. */
 type Snapshot = {
@@ -38,6 +45,26 @@ type Snapshot = {
   locks: Record<string, string | undefined>;
   autoPlanned: Record<string, boolean>;
 };
+
+/** Finals from UNT's rule (lib/final-exams.ts), the same ones Auto checks. */
+const finals: BuilderFinals = {
+  examOf: (section) => {
+    const exam = examOf(section);
+    return exam.kind === "known" ? exam : { kind: "unknown", note: unknownExamSentence(section, exam.reason) };
+  },
+  projected: PROJECTED_FINALS_NOTE ? { label: "Projected", source: PROJECTED_FINALS_NOTE } : null,
+};
+
+/**
+ * The explanation's sentence, plus where its finals come from when they are
+ * part of why nothing fits and their times are projected.
+ */
+function infeasibleSentence(explanation: Explanation): string {
+  const finals = explanation.members.some((member) => member.kind === "exams");
+  return finals && FINALS_SOURCE.projected
+    ? `${explanation.sentence} Those finals are projected from UNT's ${FINALS_SOURCE.term} schedule.`
+    : explanation.sentence;
+}
 
 /** Undo steps kept per visit. More than anyone presses; a bound, not a rule. */
 const HISTORY = 50;
@@ -88,6 +115,67 @@ function noteFor(course: PlannedCourse): { state: WeekCourse["state"]; note?: st
   }
 }
 
+function browserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Identities marked seen during this page's life, so a browser that reads
+ * storage but refuses the write still doesn't reopen the setup when Week
+ * remounts.
+ */
+const seenThisPage = new Set<string>();
+
+/**
+ * Set up Auto's gate for the identity whose preferences are loaded. `due`
+ * is read from storage once per identity, when it first appears, so it
+ * describes the student's arrival: the setup's own first answer saves
+ * preferences, after which a fresh read would say "not due".
+ */
+function useSetup(ready: boolean, stamp: string, loaded: { preferences: SchedulePreferences; defaults: SchedulePreferences }): BuilderSetup {
+  const identity = loadedIdentity(ready, stamp, ready ? browserStorage() : null);
+  const tag = identity ? `${identity.kind}:${identity.id}` : null;
+  const [gate, setGate] = useState<{ tag: string | null; identity: Identity | null; due: boolean }>({ tag: null, identity: null, due: false });
+  // A new identity is read now and returned from this render too, so a caller deciding on this
+  // render never sees the previous identity's answer.
+  let current = gate;
+  if (gate.tag !== tag) {
+    const storage = identity ? browserStorage() : null;
+    current = { tag, identity, due: Boolean(identity && tag && storage && !seenThisPage.has(tag) && setupDue(storage, identity, loaded)) };
+    setGate(current);
+  }
+  return {
+    due: current.due,
+    markSeen: () => {
+      if (current.tag) seenThisPage.add(current.tag);
+      const storage = browserStorage();
+      if (current.identity && storage) markSetupSeen(storage, current.identity, new Date());
+      setGate((current) => ({ ...current, due: false }));
+    },
+  };
+}
+
+/**
+ * The plan after using `byCourse` for `codes` (Use this, and choosing a
+ * combination in Browse all): each course planned on its section, and a
+ * kept section that changes no longer kept. Courses outside `codes` are
+ * left as they are.
+ */
+export function withSections(plan: PlannerState, byCourse: Record<string, string>, codes: readonly string[]): PlannerState {
+  let locks = plan.lockedSections ?? {};
+  for (const code of codes) if (locks[code] && locks[code] !== byCourse[code]) locks = withEntry(locks, code, undefined);
+  return {
+    ...plan,
+    courseStatuses: { ...plan.courseStatuses, ...Object.fromEntries(codes.map((code) => [code, "inProgress" as const])) },
+    selectedSections: { ...plan.selectedSections, ...Object.fromEntries(codes.map((code) => [code, byCourse[code]])) },
+    lockedSections: locks,
+  };
+}
+
 /**
  * The schedule builder's host in UNTangle: the week is the student's plan
  * (planner-provider), every change is one checked `transact`, and Undo puts
@@ -109,9 +197,11 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     planStamp,
   } = planner;
 
+  const setup = useSetup(preferencesReady, planStamp.identity, { preferences: schedulePreferences, defaults: defaultSchedulePreferences(plannerState.optimization) });
   const history = useRef<Snapshot[]>([]);
   const [historySize, setHistorySize] = useState(0);
   const { state: run, run: startRun, close: closeRun } = useOptimizerRuns();
+  const { state: browseRun, run: startBrowse, close: closeBrowse } = useBrowseRuns();
 
   const courses = useMemo<WeekCourse[]>(
     () =>
@@ -199,7 +289,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     canUndo: historySize > 0,
     place: (code, sectionId) => {
       const refused = refusal(code);
-      if (refused) return void toast({ message: refused, tone: "error" });
+      if (refused) return refused;
       change([code], (plan) => ({
         ...plan,
         courseStatuses: { ...plan.courseStatuses, [code]: "inProgress" },
@@ -207,6 +297,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
         // A kept section the student moves by hand stays kept, on its new section.
         lockedSections: plan.lockedSections?.[code] ? { ...plan.lockedSections, [code]: sectionId } : plan.lockedSections,
       }));
+      return null;
     },
     remove: (code) =>
       change([code], (plan) => ({
@@ -227,18 +318,12 @@ export function useUntangleHost(brand: Brand): BuilderHost {
       }));
     },
     use: (byCourse) => {
-      const codes = Object.keys(byCourse).filter((code) => refusal(code) === null);
-      if (codes.length === 0) return;
-      change(codes, (plan) => {
-        let locks = plan.lockedSections ?? {};
-        for (const code of codes) if (locks[code] && locks[code] !== byCourse[code]) locks = withEntry(locks, code, undefined);
-        return {
-          ...plan,
-          courseStatuses: { ...plan.courseStatuses, ...Object.fromEntries(codes.map((code) => [code, "inProgress" as const])) },
-          selectedSections: { ...plan.selectedSections, ...Object.fromEntries(codes.map((code) => [code, byCourse[code]])) },
-          lockedSections: locks,
-        };
-      });
+      const checked = Object.keys(byCourse).map((code) => [code, refusal(code)] as const);
+      const codes = checked.flatMap(([code, refused]) => (refused ? [] : [code]));
+      const refusals = checked.flatMap(([, refused]) => (refused ? [refused] : []));
+      if (codes.length === 0) return refusals;
+      change(codes, (plan) => withSections(plan, byCourse, codes));
+      return refusals;
     },
     clear: () => {
       const codes = getPlanningTermCourseCodes(plannerState);
@@ -250,6 +335,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
             courseStatuses: { ...acc.courseStatuses, [code]: "notTaken" },
             selectedSections: withEntry(acc.selectedSections, code, undefined),
             lockedSections: withEntry(acc.lockedSections, code, undefined),
+            coursePlan: acc.coursePlan && { ...acc.coursePlan, autoPlanned: acc.coursePlan.autoPlanned.filter((c) => c !== code) },
           }),
           plan,
         ),
@@ -352,6 +438,16 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     [plannerState, schedulePreferences, sectionCatalog, catalogVersion, evidenceHundredths],
   );
   const inputKey = requestKey(request);
+  const handMade = new Set(schedulePreferences.constraints.blocked.map((block) => block.id));
+  /**
+   * The fixes Auto and Browse all offer when nothing fits. A connected
+   * calendar's busy time comes from the calendar, so there is nothing here to
+   * loosen; the student removes the calendar in Preferences if it shouldn't count.
+   */
+  const fixesFor = (suggestions: readonly RelaxSuggestion[]) =>
+    suggestions
+      .filter((s) => s.relaxation.kind !== "blocked" || handMade.has(s.relaxation.blockedId))
+      .map((s) => ({ label: s.label, apply: () => relax(s) }));
   const relax = (suggestion: RelaxSuggestion) => {
     const r = suggestion.relaxation;
     if (r.kind === "unlock") return setSectionLock(r.courseCode, false);
@@ -404,7 +500,10 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     stale: isStale(run, inputKey),
     infeasible:
       result?.status === "infeasible"
-        ? { sentence: result.explanation.sentence, fixes: result.explanation.suggestions.map((s) => ({ label: s.label, apply: () => relax(s) })) }
+        ? {
+            sentence: infeasibleSentence(result.explanation),
+            fixes: fixesFor(result.explanation.suggestions),
+          }
         : result?.status === "timeout" && result.schedules.length === 0 && run.status === "done"
           ? { sentence: "No week turned up in time. Loosen a preference or keep fewer sections.", fixes: [] }
           : null,
@@ -415,6 +514,33 @@ export function useUntangleHost(brand: Brand): BuilderHost {
       startRun(toPlainRequest(request), inputKey);
     },
     close: closeRun,
+  };
+
+  // Browse all: the same request as Auto's, so the same pins, kept sections, blocked times and preferences.
+  const listed = browseRun.result;
+  const browse: BrowseFeed = {
+    status: browseRun.status,
+    rows:
+      listed?.status === "listed"
+        ? listed.schedules.map(({ byCourse, breakdown }) => ({
+            byCourse,
+            daysOnCampus: breakdown.daysOnCampus,
+            earliestStart: breakdown.earliestStart,
+            latestEnd: breakdown.latestEnd,
+          }))
+        : [],
+    total: listed?.total ?? 0,
+    totalExact: listed?.totalExact ?? true,
+    proven: listed?.status === "listed" ? listed.schedules.every((schedule) => schedule.proven) : true,
+    stale: isStale(browseRun, inputKey),
+    infeasible:
+      listed?.status === "infeasible"
+        ? { sentence: infeasibleSentence(listed.explanation), fixes: fixesFor(listed.explanation.suggestions) }
+        : null,
+    timedOut: listed?.status === "timeout",
+    error: browseRun.error,
+    run: () => startBrowse(toPlainRequest(request), inputKey),
+    close: closeBrowse,
   };
 
   const hitFor = useCallback(
@@ -460,9 +586,45 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     [brand.suggestions, catalogVersion, hitFor, loadSections, plannerState.selectedMajor, sectionCatalog],
   );
 
+  // Connected calendars read for another term, or a while ago, are read again once per visit.
+  const [calendarProblems, setCalendarProblems] = useState<Record<string, RefreshProblem>>({});
+  const refreshed = useRef(new Set<string>());
+  const calendars = schedulePreferences.calendars;
+  useEffect(() => {
+    if (!preferencesReady || !feedTerm) return;
+    const term = feedTerm;
+    for (const calendar of calendarsToRefresh(calendars, term.id, Date.now(), refreshed.current)) {
+      refreshed.current.add(calendar.id);
+      void refreshCalendar(calendar, term).then((outcome) => {
+        if (!outcome.ok) {
+          setCalendarProblems((problems) => ({ ...problems, [calendar.id]: { sealedUrl: calendar.sealedUrl, message: outcome.problem.message } }));
+          return;
+        }
+        setCalendarProblems((problems) => Object.fromEntries(Object.entries(problems).filter(([id]) => id !== calendar.id)));
+        setSchedulePreferences((p) => withReading(p, calendar, outcome.value));
+      });
+    }
+  }, [calendars, preferencesReady, setSchedulePreferences]);
+
+  // A problem belongs to the token that failed: reconnecting (a new sealed address under the same id) retires it.
+  const problems = useMemo(() => currentProblems(calendarProblems, calendars), [calendarProblems, calendars]);
+  const calendarHost = useMemo<BuilderHost["calendars"]>(
+    () =>
+      feedTerm
+        ? {
+            term: feedTerm,
+            check: (url) => checkFeed(url, feedTerm),
+            connect: (url, name, { countAllDay }) => connectFeed(url, name, feedTerm, { countAllDay }),
+            problems,
+          }
+        : null,
+    [problems],
+  );
+
   const walk = useCallback((from: string, to: string) => {
     const time = plannerTravelTime(from, to);
-    return time.seconds === null ? null : { minutes: Math.round(time.seconds / 60), shuttle: isShuttleLeg(from, to) };
+    // Whole seconds, as the optimizer rounds them (walkSeconds in lib/optimizer/score.ts), so Week and Auto agree at the boundary.
+    return time.seconds === null ? null : { seconds: Math.round(time.seconds), shuttle: isShuttleLeg(from, to) };
   }, []);
 
   return {
@@ -474,11 +636,16 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     defaults: defaultSchedulePreferences(plannerState.optimization),
     setPreferences: setSchedulePreferences,
     preferencesReady,
+    // The setup speaks of Auto by name; the standalone builder's button is called something else.
+    setup: brand.id === "untangle" ? setup : null,
     walk,
     search,
     edits,
     optimizer,
+    browse,
+    finals,
     find,
+    calendars: calendarHost,
     printHref: "/schedule/print",
     shareUrl: (encoded) => {
       const url = new URL("/schedule", window.location.origin);

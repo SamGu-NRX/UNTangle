@@ -26,7 +26,7 @@ const tecm = section({ courseCode: "TECM 2700", sectionCode: "900", online: true
 const MINUTES: Record<string, number> = { "gab|cury": 4, "cury|phys": 8, "gab|phys": 7, "phys|essc": 6 };
 const walk: WalkFn = (a, b) => {
   const minutes = MINUTES[`${a}|${b}`] ?? MINUTES[`${b}|${a}`];
-  return minutes === undefined ? null : { minutes, shuttle: false };
+  return minutes === undefined ? null : { seconds: minutes * 60, shuttle: false };
 };
 const week = (sections: Section[]) => {
   const events = eventsOf(sections);
@@ -105,23 +105,29 @@ describe("the grid", () => {
     expect(walksOf(eventsOf([csce2110, mwf("BIOL 1710", "001", "9:55", "10:45", "life")]), walk)).toEqual([]);
   });
 
+  test("late and tight are decided in seconds, as Auto decides them; only the chip rounds", () => {
+    // 10:20 across a 10-minute break: rounded to 10 minutes it would read as merely tight.
+    const legs = walksOf(eventsOf([csce2110, mwf("PHYS 1710", "001", "10:00", "10:50", "phys")]), () => ({ seconds: 620, shuttle: false }));
+    expect(legs[0]).toMatchObject({ minutes: 10, seconds: 620, kind: "late" });
+  });
+
   test("a class's predecessor depends on the week: a first-half class doesn't hide the second-half walk", () => {
     const full = (code: string, at: string, until: string, building: string) => section({ courseCode: code, meetings: [meeting({ day: "Mon", at, until, building })] });
     const a = full("HIST 2610", "9:30", "10:20", "gab");
     const b = section({ courseCode: "SPAN 2040", meetings: [meeting({ day: "Mon", at: "9:45", until: "10:35", building: "cury", dates: { start: "2027-01-11", end: "2027-03-05" } })] });
     const c = full("PHYS 1710", "10:40", "11:30", "phys");
-    const legs = walksOf(eventsOf([a, b, c]), () => ({ minutes: 25, shuttle: false }));
+    const legs = walksOf(eventsOf([a, b, c]), () => ({ seconds: 25 * 60, shuttle: false }));
     expect(legs.map((w) => [w.fromKey, w.toKey, w.to - w.from, w.kind])).toEqual([
       ["HIST 2610#0", "PHYS 1710#0", 20, "late"],
       ["SPAN 2040#0", "PHYS 1710#0", 5, "late"],
     ]);
     // A full-term class in between hides the earlier one in every week.
     const between = full("ECON 1100", "9:45", "10:35", "blb");
-    expect(walksOf(eventsOf([a, between, c]), () => ({ minutes: 4, shuttle: false })).map((w) => w.fromKey)).toEqual(["ECON 1100#0"]);
+    expect(walksOf(eventsOf([a, between, c]), () => ({ seconds: 4 * 60, shuttle: false })).map((w) => w.fromKey)).toEqual(["ECON 1100#0"]);
   });
 
   test("a shuttle leg says so", () => {
-    const legs = walksOf(eventsOf([csce2110, mwf("CSCE 3110", "001", "10:10", "11:00", "ntdp")]), () => ({ minutes: 20, shuttle: true }));
+    const legs = walksOf(eventsOf([csce2110, mwf("CSCE 3110", "001", "10:10", "11:00", "ntdp")]), () => ({ seconds: 20 * 60, shuttle: true }));
     expect(legs[0]).toMatchObject({ minutes: 20, shuttle: true, kind: "tight" });
   });
 
@@ -181,10 +187,29 @@ describe("the answer line", () => {
     expect(answer([csce2110, csce2610])).toEqual({ tone: "quiet", text: "This week fits your preferences.", action: null, fits: true });
   });
 
+  test("busy time on one date clashes only with a class that meets that date, and names it", () => {
+    const tr = (dates?: { start: string; end: string }) =>
+      section({ courseCode: "ENGL 1310", meetings: (["Tue", "Thu"] as const).map((day) => meeting({ day, at: "8:00", until: "9:20", dates })) });
+    const shift = { id: "calendar-cal-work-Tue-480-570", label: "Work", day: "Tue" as const, start: 480, end: 570, dates: [{ start: "2027-02-16", end: "2027-02-16" }] };
+    const busy = { ...defaults, constraints: { ...defaults.constraints, blocked: [shift] } };
+    expect(answer([tr()], busy)?.text).toBe("ENGL 1310 meets during work on Tuesday, Feb 16.");
+    // The second eight weeks start in March, after the shift.
+    expect(answer([tr({ start: "2027-03-08", end: "2027-05-07" })], busy)?.text).toBe("This week fits your preferences.");
+  });
+
   test("the saved spare-minutes setting is a preference the week can break", () => {
     const buffered = { ...defaults, constraints: { ...defaults.constraints, walkingBufferMinutes: 10 } };
     // GAB to CURY is 4 minutes in a 10-minute break: fine at 2 spare minutes, short of 10.
     expect(answer([csce2110, math2700], buffered)?.text).toBe("The walk to MATH 2700 on Monday leaves less than your 10 spare minutes.");
+  });
+
+  test("the spare-minutes check counts seconds, as Auto does", () => {
+    const buffered = { ...defaults, constraints: { ...defaults.constraints, walkingBufferMinutes: 5 } };
+    // 5:20 plus 5 spare minutes overruns a 10-minute break, though 5 rounded minutes plus 5 would not.
+    const events = eventsOf([csce2110, math2700]);
+    const walks = walksOf(events, () => ({ seconds: 320, shuttle: false }));
+    const line = answerFor({ courses: placed(["CSCE 2110", "MATH 2700"]), events, walks, preferences: buffered, termLabel: "Spring 2027" });
+    expect(line?.text).toBe("The walk to MATH 2700 on Monday leaves less than your 5 spare minutes.");
   });
 
   test("nothing while empty; a quiet line while sections load", () => {

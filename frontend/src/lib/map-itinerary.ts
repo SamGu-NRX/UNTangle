@@ -259,7 +259,7 @@ export function placementKey(placement: MappedPlacement): string {
   return pointKey(placement.point, placement.buildingId);
 }
 
-type RunPoint = { key: string; point: MapRoutePoint; buildingId?: string };
+export type RunPoint = { key: string; point: MapRoutePoint; buildingId?: string };
 
 function startPoint(start: StartPlace): RunPoint {
   return { key: pointKey(start.point), point: start.point };
@@ -318,7 +318,8 @@ function legRoute(from: ItineraryStop, to: ItineraryStop, answers: ReadonlyMap<s
   );
 }
 
-function routeBetween(from: RunPoint, to: RunPoint, answers: ReadonlyMap<string, PairAnswer>): LegRoute {
+/** The route between two map points from the routing answers: loading, the same building, a walk, or a straight line when routing failed. */
+export function routeBetween(from: RunPoint, to: RunPoint, answers: ReadonlyMap<string, PairAnswer>): LegRoute {
   if (from.key === to.key) {
     return { kind: "same-building" };
   }

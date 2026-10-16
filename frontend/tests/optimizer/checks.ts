@@ -4,7 +4,7 @@
  * so a mutation test can assert that a planted bug makes a check fail.
  */
 
-import type { OptDateRange, OptDay, OptimizeRequest, OptimizeResult, OptMeeting } from "@/lib/optimizer/types";
+import type { Explanation, OptDateRange, OptDay, OptExam, OptimizeRequest, OptimizeResult, OptMeeting } from "@/lib/optimizer/types";
 import { FIRST_HALF, FULL_TERM, generateInstance, SECOND_HALF, syntheticWalkingTime, type InstanceShape } from "./generator";
 import {
   combinationCount,
@@ -28,6 +28,29 @@ export const SMALL_SHAPES: InstanceShape[] = [
 
 export function smallInstance(seed: number): OptimizeRequest {
   return generateInstance(seed, SMALL_SHAPES[seed % SMALL_SHAPES.length]);
+}
+
+/** A small instance whose sections each get one of four finals on two dates, so overlapping finals are common (OptSection.exam). */
+export function examInstance(seed: number): OptimizeRequest {
+  const request = smallInstance(seed);
+  const slots: OptExam[] = [
+    { date: "2027-05-03", start: 480, end: 600 },
+    { date: "2027-05-03", start: 540, end: 660 },
+    { date: "2027-05-03", start: 600, end: 720 },
+    { date: "2027-05-04", start: 480, end: 600 },
+  ];
+  let i = seed;
+  return {
+    ...request,
+    courses: request.courses.map((course) => ({
+      ...course,
+      sections: course.sections.map((section) => {
+        i = (i * 1103515245 + 12345) % 2147483648;
+        // About one section in five has no known final.
+        return { ...section, exam: i % 5 === 0 ? null : slots[i % slots.length] };
+      }),
+    })),
+  };
 }
 
 /** Small instances with Spring 2027 half-term dates and weekend meetings (see `terms` in generator.ts). */
@@ -135,10 +158,41 @@ export function checkAgainstReference(
 }
 
 /**
- * On infeasible enumerable instances: the explanation's set is infeasible on
- * its own, dropping any one member makes it feasible (checked by the
- * reference), and the result says it is minimal.
+ * The explanation's set is infeasible on its own, and when it says it is
+ * minimal, each named constraint is needed by the full request and dropping
+ * any one member makes the set feasible (all checked by the reference). A set
+ * that is not minimal must be worded as such, and only the walking check may
+ * leave it unreduced.
  */
+export function explanationFailures(request: OptimizeRequest, explanation: Explanation): string[] {
+  const failures: string[] = [];
+  const { members, minimal, sentence } = explanation;
+  if (referenceFeasible(referenceRestrict(request, members))) failures.push(`set ${JSON.stringify(members)} is feasible on its own`);
+  // Each constraint the explanation names is needed by the full request:
+  // with every course kept, relaxing just that one makes the rest fit.
+  const allCourses = request.courses.map((course) => ({ kind: "course" as const, courseCode: course.code }));
+  const named = members.filter((m) => m.kind !== "course");
+  if (minimal) {
+    named.forEach((member, index) => {
+      const others = named.filter((_, i) => i !== index);
+      if (!referenceFeasible(referenceRestrict(request, [...allCourses, ...others]))) {
+        failures.push(`${JSON.stringify(member)} is blamed but not needed by the full request`);
+      }
+    });
+    members.forEach((member, index) => {
+      const without = members.filter((_, i) => i !== index);
+      if (!referenceFeasible(referenceRestrict(request, without))) failures.push(`marked minimal, but dropping ${JSON.stringify(member)} leaves it infeasible`);
+    });
+  } else if (!sentence.startsWith("These can't all hold together")) {
+    failures.push(`not minimal, yet worded as a precise cause: ${sentence}`);
+  } else if (!members.some((m) => m.kind === "walking")) {
+    // With an unlimited budget only the walking check may leave a set unreduced.
+    failures.push(`not minimal without the walking check: ${JSON.stringify(members)}`);
+  }
+  return failures;
+}
+
+/** On infeasible enumerable instances: `explanationFailures`, and every suggestion's `resolves` matches the reference. */
 export function checkExplanations(
   optimize: OptimizeFn,
   seeds: number[],
@@ -156,30 +210,8 @@ export function checkExplanations(
     const result = optimize(request);
     if (result.status !== "infeasible") continue;
     checked += 1;
-    const { members, minimal, sentence } = result.explanation;
     const fail = (message: string) => failures.push(`seed ${seed}: ${message}`);
-    if (referenceFeasible(referenceRestrict(request, members))) fail(`set ${JSON.stringify(members)} is feasible on its own`);
-    // Each constraint the explanation names is needed by the full request:
-    // with every course kept, relaxing just that one makes the rest fit.
-    const allCourses = request.courses.map((course) => ({ kind: "course" as const, courseCode: course.code }));
-    const named = members.filter((m) => m.kind !== "course");
-    if (minimal) {
-      named.forEach((member, index) => {
-        const others = named.filter((_, i) => i !== index);
-        if (!referenceFeasible(referenceRestrict(request, [...allCourses, ...others]))) {
-          fail(`${JSON.stringify(member)} is blamed but not needed by the full request`);
-        }
-      });
-      members.forEach((member, index) => {
-        const without = members.filter((_, i) => i !== index);
-        if (!referenceFeasible(referenceRestrict(request, without))) fail(`marked minimal, but dropping ${JSON.stringify(member)} leaves it infeasible`);
-      });
-    } else if (!sentence.startsWith("These can't all hold together")) {
-      fail(`not minimal, yet worded as a precise cause: ${sentence}`);
-    } else if (!members.some((m) => m.kind === "walking")) {
-      // With an unlimited budget only the walking check may leave a set unreduced.
-      fail(`not minimal without the walking check: ${JSON.stringify(members)}`);
-    }
+    explanationFailures(request, result.explanation).forEach(fail);
     for (const suggestion of result.explanation.suggestions) {
       const truth = referenceFeasible(referenceRelax(request, suggestion.relaxation));
       if (suggestion.resolves !== truth) fail(`suggestion "${suggestion.label}" says resolves=${suggestion.resolves}, reference says ${truth}`);

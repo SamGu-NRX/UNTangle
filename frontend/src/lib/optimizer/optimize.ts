@@ -109,7 +109,8 @@ export function optimize(request: OptimizeRequest): OptimizeResult {
   return ranOut ? { status: "feasible", schedules, stats: stats() } : { status: "optimal", schedules, stats: stats() };
 }
 
-function toRanked(request: OptimizeRequest, prepared: ReturnType<typeof prepare>, leaf: Leaf, proven: boolean): RankedSchedule {
+/** A search leaf as the page reads it, rescored from scratch; the two costs must agree exactly. Shared with enumerate.ts. */
+export function toRanked(request: OptimizeRequest, prepared: ReturnType<typeof prepare>, leaf: Leaf, proven: boolean): RankedSchedule {
   const sections = leaf.picks.map((pick) => pick.section);
   const { cost, breakdown } = scoreSchedule({
     sections,

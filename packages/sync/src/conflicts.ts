@@ -1,5 +1,5 @@
 import {
-  AcademicRecordBodySchema, PreferencesBodySchema, ScheduleBodySchema,
+  AcademicRecordBodySchema, MAX_CALENDARS, PreferencesBodySchema, ScheduleBodySchema,
   type AcademicRecordBody, type PreferencesBody, type DocumentKind,
 } from '@untangle/contracts/documents';
 import type { Body } from './store';
@@ -33,7 +33,32 @@ export function mergePreferences(base: PreferencesBody, local: PreferencesBody, 
   }
   group('daysOff'); group('blocked'); group('maxCredits'); group('walkingBufferMinutes');
   group('excludedSections'); group('openSeatsOnly'); group('otherSites');
-  return PreferencesBodySchema.parse({ institutionId: latest.institutionId, ...preset, constraints });
+  const calendars = mergeCalendars(base.calendars ?? [], local.calendars ?? [], latest.calendars ?? []);
+  return PreferencesBodySchema.parse({ institutionId: latest.institutionId, ...preset, constraints, ...(calendars.length ? { calendars } : {}) });
+}
+
+type Calendar = NonNullable<PreferencesBody['calendars']>[number];
+
+/**
+ * Calendars settle one by one, three-way, so connecting a calendar on the
+ * phone and another on the laptop keeps both. A calendar only one side
+ * changed (connected, refreshed, renamed or removed) takes that side; one
+ * both changed takes this client's side, as every preferences group does.
+ * The latest's order holds, with this side's new calendars after it.
+ */
+function mergeCalendars(base: readonly Calendar[], local: readonly Calendar[], latest: readonly Calendar[]): Calendar[] {
+  const byId = (list: readonly Calendar[]) => new Map(list.map((calendar) => [calendar.id, calendar]));
+  const before = byId(base), mine = byId(local), theirs = byId(latest);
+  const ids = [...new Set([...latest.map((calendar) => calendar.id), ...local.map((calendar) => calendar.id)])];
+  const merged = ids.flatMap((id) => {
+    const was = before.get(id) ?? null, now = mine.get(id) ?? null;
+    const chosen = equal(was, now) ? (theirs.get(id) ?? null) : now;
+    return chosen ? [chosen] : [];
+  });
+  // Two devices each connecting calendars offline can pass the limit together. A merge the
+  // schema refuses would stop syncing for good, so this side's newest calendars are dropped;
+  // the student connects them again. The UI's limit makes this rare.
+  return merged.slice(0, MAX_CALENDARS);
 }
 
 export type CourseFacts = {

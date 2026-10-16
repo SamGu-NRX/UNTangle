@@ -17,6 +17,7 @@ import {
   checkLargeInstancesValid,
   checkRegressions,
   evidenceInstance,
+  examInstance,
   termInstance,
   type OptimizeFn,
 } from "./checks";
@@ -256,6 +257,13 @@ const MUTATIONS: Array<{ name: string; file: string; from: string; to: string; c
     from: "(locked === undefined || section.id === locked)",
     to: "(locked === undefined || section.id !== null)",
     check: (fn) => checkLargeInstancesValid(fn, [1, 2, 3, 4, 5, 6]),
+  },
+  {
+    name: "two sections with overlapping finals are allowed together",
+    file: "prepare.ts",
+    from: "if (examsClash(a.section.exam, b.section.exam)) return true;",
+    to: "",
+    check: (fn) => checkAgainstReference(fn, SEEDS.slice(0, 120), examInstance),
   },
 ];
 
