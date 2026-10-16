@@ -21,7 +21,7 @@ import { dayHero, type HeroClass } from "@/lib/leave-by";
 import { dayWalkMinutes, formatWalkMinutes, toMinutes, type StartPlace } from "@/lib/map-itinerary";
 import { classDays, type ClassDay } from "@/lib/types";
 import { DayHero, DayItinerary, DayStepper, OtherCampusHero, StartPicker, type NextClass } from "@/components/map/day-panel";
-import { campusNow, dayNames, firstWeekAhead, meetsOn, nextClassDay, nextClassFrom, nextDateOf, shortDate, stepperDays } from "@/components/map/day-steps";
+import { campusNow, dayNames, firstWeekAhead, meetsOn, nextClassDay, nextClassFrom, nextDateOf, shortDate, shownDate, stepperDays } from "@/components/map/day-steps";
 import { findGapEvent, gapRows } from "@/components/map/gap-events";
 import type { CameraPadding, DayFrame } from "@/components/map/map-canvas";
 import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
@@ -130,10 +130,10 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
     [routeStops, onCampus],
   );
   const days = stepperDays(counts, today ?? day);
-  // The date the day shown stands for: today, or its date in the first week
-  // ahead. A dated day counts only the meetings whose session runs then, and
-  // none on a holiday or break; an undated one shows the weekday's plan.
-  const dayDate = isToday && campusTime ? campusTime.iso : ahead ? nextDateOf(day, ahead.iso) : null;
+  // The date the day shown stands for: today, or its date in the first class
+  // week ahead. A dated day counts only the meetings whose session runs then,
+  // and none on a holiday or break; an undated one shows the weekday's plan.
+  const dayDate = shownDate(day, { todayIso: isToday && campusTime ? campusTime.iso : null, ahead });
   const stops = useMemo(() => {
     const all = onCampus ? (routeStops[day] ?? []) : [];
     return dayDate ? all.filter((stop) => meetsOn(stop, dayDate)) : all;

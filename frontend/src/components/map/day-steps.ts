@@ -107,6 +107,19 @@ export function firstWeekAhead(stopsByDay: Readonly<Record<ClassDay, readonly Ma
   return null;
 }
 
+/**
+ * The date Day shows `day` for: today's date when it is today. Before the
+ * plan's classes begin, the day's date in the calendar week (Monday first)
+ * of the first class (`ahead`), so with a first class on Tuesday, Monday is
+ * that week's Monday, not the next one. Otherwise null: the weekday's plan,
+ * undated.
+ */
+export function shownDate(day: ClassDay, { todayIso, ahead }: { todayIso: string | null; ahead: { iso: string; day: ClassDay } | null }): string | null {
+  if (todayIso) return todayIso;
+  if (!ahead) return null;
+  return shiftIso(ahead.iso, classDays.indexOf(day) - classDays.indexOf(ahead.day)).iso;
+}
+
 /** "Jan 11" for an ISO date, read as a calendar date in any time zone. */
 export function shortDate(iso: string): string {
   return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });

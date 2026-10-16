@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { campusNow, firstWeekAhead, meetsOn, nextClassDay, nextClassFrom, sessionOf, shortDate, stepperDays } from "@/components/map/day-steps";
+import { campusNow, firstWeekAhead, meetsOn, nextClassDay, nextClassFrom, sessionOf, shortDate, shownDate, stepperDays } from "@/components/map/day-steps";
 import type { ClassDay, MapStop } from "@/lib/types";
 
 const none: Record<ClassDay, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
@@ -139,5 +139,21 @@ describe("firstWeekAhead", () => {
 describe("shortDate", () => {
   test("a calendar date, whatever the device's zone", () => {
     expect(shortDate("2027-01-11")).toBe("Jan 11");
+  });
+});
+
+describe("shownDate", () => {
+  // Spring 2027's first class in this plan is Tuesday 12 January (firstWeekAhead).
+  const ahead = { iso: "2027-01-12", day: "Tue" as const };
+  test("before the term, each day is dated in the first class week, Monday included", () => {
+    // Not the 18th: that is the next week, and Martin Luther King Jr. Day.
+    expect(shownDate("Mon", { todayIso: null, ahead })).toBe("2027-01-11");
+    expect(shownDate("Tue", { todayIso: null, ahead })).toBe("2027-01-12");
+    expect(shownDate("Fri", { todayIso: null, ahead })).toBe("2027-01-15");
+    expect(shownDate("Sun", { todayIso: null, ahead })).toBe("2027-01-17");
+  });
+  test("today is today's date; with no week ahead another day is undated", () => {
+    expect(shownDate("Fri", { todayIso: "2026-10-16", ahead: null })).toBe("2026-10-16");
+    expect(shownDate("Mon", { todayIso: null, ahead: null })).toBeNull();
   });
 });
