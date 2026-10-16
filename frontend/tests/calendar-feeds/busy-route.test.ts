@@ -143,7 +143,7 @@ test("skipped entries carry an index and a reason, never event text", async () =
     const response = await POST(busyRequest(VALID_BODY, "192.0.2.91"));
     expect(response.status).toBe(200);
     const payload = await response.json();
-    expect(payload.skipped).toEqual([{ index: 0, reason: "RECURRENCE-ID override has no matching recurring event" }]);
+    expect(payload.skipped).toEqual([{ index: 0, reason: "unmatched-override" }]);
     const text = JSON.stringify(payload);
     expect(text).not.toContain("Internal reorg plans");
     expect(text).not.toContain("orphan@t");
@@ -378,14 +378,18 @@ test("the route's parsed response feeds buildOptimizeRequest as a dated calendar
 
 test("a response over 1 MiB answers 422 with a specific error instead of a cut-short body", async () => {
   setSession({ user: { id: "user-too-many" } });
-  // One daily event over 54 years: about 19,700 busy pieces, near 1 MB of
-  // JSON, from a feed of a few hundred bytes.
-  const daily =
-    "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:daily@t\r\nSUMMARY:Daily\r\nDTSTART:20260101T140000Z\r\nDTEND:20260101T150000Z\r\nRRULE:FREQ=DAILY\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+  // Forty daily half-hour events over 390 days: about 15,600 busy pieces,
+  // under the piece budget but over 1 MiB of JSON, from a feed of a few KB.
+  const events = Array.from({ length: 40 }, (_, i) => {
+    const minutes = String((i % 2) * 30).padStart(2, "0");
+    const hour = String(Math.floor(i / 2)).padStart(2, "0");
+    return `BEGIN:VEVENT\r\nUID:daily-${i}@t\r\nSUMMARY:Daily\r\nDTSTART:20260101T${hour}${minutes}00Z\r\nDTEND:20260101T${hour}${minutes === "00" ? "29" : "59"}00Z\r\nRRULE:FREQ=DAILY\r\nEND:VEVENT\r\n`;
+  }).join("");
+  const daily = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\n${events}END:VCALENDAR\r\n`;
   fetchStub.mockImplementation(async () => new Response(daily, { status: 200, headers: { "content-type": "text/calendar" } }));
   try {
     const response = await POST(
-      busyRequest({ ...VALID_BODY, rangeStart: "2026-01-01T00:00:00Z", rangeEnd: "2080-01-01T00:00:00Z" }, "192.0.2.90"),
+      busyRequest({ ...VALID_BODY, rangeStart: "2026-01-01T00:00:00Z", rangeEnd: "2027-01-26T00:00:00Z" }, "192.0.2.90"),
     );
     expect(response.status).toBe(422);
     expect(await response.json()).toEqual({ error: "This calendar has too many events to preview" });
@@ -412,6 +416,66 @@ test("a feed blocked by SSRF rules answers 400 and an unreachable feed answers 5
   });
   expect((await POST(busyRequest(VALID_BODY, "192.0.2.82"))).status).toBe(502);
   fetchStub.mockImplementation(async () => tinyResponse());
+});
+
+describe("a feed built to cost the server", () => {
+  const feed = (events: string) => `BEGIN:VCALENDAR\r\nVERSION:2.0\r\n${events}END:VCALENDAR\r\n`;
+  const serve = (body: string) => fetchStub.mockImplementation(async () => new Response(body, { status: 200, headers: { "content-type": "text/calendar" } }));
+  const term = { url: VALID_BODY.url, termStart: "2027-01-11", termEnd: "2027-05-07" };
+
+  test("a range or term over 400 days is refused before anything is fetched", async () => {
+    setSession({ user: { id: "user-wide" } });
+    fetchStub.mockClear();
+    const wide = await POST(busyRequest({ url: VALID_BODY.url, rangeStart: "1900-01-01T00:00:00Z", rangeEnd: "2200-01-01T00:00:00Z" }, "192.0.2.110"));
+    expect(wide.status).toBe(400);
+    const longTerm = await POST(busyRequest({ url: VALID_BODY.url, termStart: "2027-01-01", termEnd: "2028-03-01" }, "192.0.2.110"));
+    expect(longTerm.status).toBe(400);
+    expect(fetchStub).toHaveBeenCalledTimes(0);
+  });
+
+  test("one event lasting centuries yields only the term's days", async () => {
+    setSession({ user: { id: "user-long-event" } });
+    serve(feed("BEGIN:VEVENT\r\nUID:long@t\r\nDTSTART;VALUE=DATE:19000101\r\nDTEND;VALUE=DATE:22000101\r\nEND:VEVENT\r\n"));
+    const started = performance.now();
+    const response = await POST(busyRequest(term, "192.0.2.111"));
+    expect(response.status).toBe(200);
+    expect((await response.json()).occurrences).toHaveLength(117);
+    expect(performance.now() - started).toBeLessThan(2000);
+    fetchStub.mockImplementation(async () => tinyResponse());
+  });
+
+  test("many overlapping multi-day events are refused once they pass the piece budget, without building the rest", async () => {
+    setSession({ user: { id: "user-overlap" } });
+    // 300 all-day events, each covering the whole term: 35,100 pieces, past the 20,000 budget.
+    const events = Array.from({ length: 300 }, (_, i) => `BEGIN:VEVENT\r\nUID:wide-${i}@t\r\nDTSTART;VALUE=DATE:20270101\r\nDTEND;VALUE=DATE:20270601\r\nEND:VEVENT\r\n`).join("");
+    serve(feed(events));
+    const started = performance.now();
+    const response = await POST(busyRequest(term, "192.0.2.112"));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({ error: "This calendar has too many events to preview" });
+    expect(performance.now() - started).toBeLessThan(2000);
+    fetchStub.mockImplementation(async () => tinyResponse());
+  });
+
+  test("warnings are fixed codes: a TZID or VALUE carrying a secret never comes back", async () => {
+    setSession({ user: { id: "user-warnings" } });
+    const secret = "private-0d6f2a9e7c4b1385a2f9e0c7d6b5a4f3";
+    serve(
+      feed(
+        `BEGIN:VEVENT\r\nUID:tz@t\r\nDTSTART;TZID="https://calendar.google.com/calendar/ical/x/${secret}/basic.ics":20270112T150000\r\nDTEND;TZID="https://calendar.google.com/calendar/ical/x/${secret}/basic.ics":20270112T160000\r\nEND:VEVENT\r\n` +
+          `BEGIN:VEVENT\r\nUID:value@t\r\nDTSTART;VALUE=${secret.toUpperCase()}:20270113T150000\r\nDTEND:20270113T160000Z\r\nEND:VEVENT\r\n`,
+      ),
+    );
+    const response = await POST(busyRequest(term, "192.0.2.113"));
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    expect(text.toLowerCase()).not.toContain(secret);
+    expect(JSON.parse(text).skipped).toEqual([
+      { index: 0, reason: "unknown-time-zone" },
+      { index: 1, reason: "invalid-date" },
+    ]);
+    fetchStub.mockImplementation(async () => tinyResponse());
+  });
 });
 
 describe("sealed addresses", () => {
@@ -482,12 +546,27 @@ describe("sealed addresses", () => {
       expect((await POST(busyRequest({ sealedUrl: accountToken, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.95"))).status).toBe(401);
     }));
 
-  test("a guest's token opens for guests", async () =>
+  test("a guest's token opens for guests, and each refresh hands back a fresh one", async () =>
     withKey(KEY, async () => {
       setSession(null);
       const { sealedUrl } = await (await POST(busyRequest({ ...VALID_BODY, seal: true }, "192.0.2.92"))).json();
       const refreshed = await POST(busyRequest({ sealedUrl, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.92"));
       expect(refreshed.status).toBe(200);
+      const fresh = (await refreshed.json()).sealedUrl;
+      expect(fresh).toMatch(/^cf1\./);
+      expect(fresh).not.toBe(sealedUrl);
+    }));
+
+  test("a guest's token sealed over 30 days ago asks to reconnect", async () =>
+    withKey(KEY, async () => {
+      setSession(null);
+      const { sealFeedUrl, GUEST_TOKEN_MAX_AGE_MS } = await import("@/lib/calendar-feeds/seal");
+      const old = sealFeedUrl(VALID_BODY.url, { kind: "guest" }, Buffer.from(KEY, "base64"), Date.now() - GUEST_TOKEN_MAX_AGE_MS - 60_000);
+      fetchStub.mockClear();
+      const response = await POST(busyRequest({ sealedUrl: old, rangeStart: VALID_BODY.rangeStart, rangeEnd: VALID_BODY.rangeEnd }, "192.0.2.96"));
+      expect(response.status).toBe(422);
+      expect((await response.json()).code).toBe("CALENDAR_RECONNECT");
+      expect(fetchStub).toHaveBeenCalledTimes(0);
     }));
 
   test("without a key, sealing answers 503 and fetches nothing", async () =>

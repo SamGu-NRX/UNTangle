@@ -1,7 +1,8 @@
 /**
  * The JSON body of a busy response: the same size cap as a preview, but
  * occurrences carry only `{ date, startMinutes, endMinutes, allDay }` and skipped
- * entries carry only `{ index, reason }`. The serializer drops fields
+ * entries carry only `{ index, reason }`, where `reason` is a fixed code
+ * (SKIP_CODES), never the parser's text. The serializer drops fields
  * explicitly rather than passing values through, so a future field on the
  * internal occurrence or skipped types cannot leak event text into the
  * response by accident — not the event title, not the UID, and not the feed
@@ -34,6 +35,44 @@ export type SerializedBusyOccurrence = {
  */
 export type SerializedBusyPiece = SerializedBusyOccurrence & { allDay: boolean };
 
+/**
+ * Why an event was left out, as one of a fixed set of codes. The parser's
+ * own reasons quote values from the feed (a TZID, a VALUE parameter), and a
+ * feed controls those, so they could carry an address, a token or event text
+ * into the response. Only the fixed parts of the reason are matched, and only
+ * a code from this list is ever sent.
+ */
+export const SKIP_CODES = [
+  "budget",
+  "unsupported-duration",
+  "unsupported-rdate",
+  "unsupported-rrule",
+  "unsupported-range",
+  "unmatched-override",
+  "shared-uid",
+  "missing-start",
+  "year-out-of-bounds",
+  "unknown-time-zone",
+  "invalid-date",
+  "unsupported",
+] as const;
+export type SkipCode = (typeof SKIP_CODES)[number];
+
+export function skipCode(reason: string): SkipCode {
+  if (reason.endsWith("budget exceeded")) return "budget";
+  if (reason.startsWith("DURATION is not supported")) return "unsupported-duration";
+  if (reason === "RDATE is not supported" || reason.endsWith("with its own RRULE or RDATE is not supported")) return "unsupported-rdate";
+  if (reason === "unsupported or malformed RRULE") return "unsupported-rrule";
+  if (reason.startsWith("RECURRENCE-ID with RANGE=")) return "unsupported-range";
+  if (reason === "RECURRENCE-ID override has no matching recurring event") return "unmatched-override";
+  if (reason === "several events share this UID and it has RECURRENCE-ID overrides") return "shared-uid";
+  if (reason === "event has no DTSTART") return "missing-start";
+  if (reason.startsWith("event dates fall outside the years")) return "year-out-of-bounds";
+  if (reason.includes("unknown time zone")) return "unknown-time-zone";
+  if (/(malformed|VALUE=|out of range|did not resolve|not an iCalendar)/.test(reason)) return "invalid-date";
+  return "unsupported";
+}
+
 export function serializeBusy(payload: {
   range: { start: string; end: string };
   occurrences: ReadonlyArray<SerializedBusyOccurrence & { allDay?: boolean }>;
@@ -51,7 +90,7 @@ export function serializeBusy(payload: {
     })),
     skipped: payload.skipped.map((entry, index) => ({
       index,
-      reason: entry.reason,
+      reason: skipCode(entry.reason),
     })),
     ...(payload.sealedUrl ? { sealedUrl: payload.sealedUrl } : {}),
   };

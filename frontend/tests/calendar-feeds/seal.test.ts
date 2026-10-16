@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CALENDAR_FEED_KEY_ENV, feedKeyFromEnv, FeedSealError, openFeedUrl, sealFeedUrl } from "@/lib/calendar-feeds/seal";
+import { CALENDAR_FEED_KEY_ENV, feedKeyFromEnv, FeedSealError, GUEST_TOKEN_MAX_AGE_MS, openFeedUrl, sealFeedUrl } from "@/lib/calendar-feeds/seal";
 import { SealedFeedUrlSchema } from "../../../packages/contracts/src/documents";
 
 const KEY = Buffer.alloc(32, 7);
@@ -57,6 +57,22 @@ describe("sealing a feed address", () => {
   test("without a key nothing seals or opens", () => {
     expect(failure(() => sealFeedUrl(SECRET_URL, student, null))).toBe("not-configured");
     expect(failure(() => openFeedUrl("cf1.a.b.c", student, null))).toBe("not-configured");
+  });
+});
+
+describe("how long a token opens", () => {
+  const issued = Date.parse("2026-10-15T12:00:00Z");
+  const day = 24 * 60 * 60 * 1000;
+
+  test("a guest's token stops opening 30 days after it was sealed", () => {
+    const token = sealFeedUrl(SECRET_URL, { kind: "guest" }, KEY, issued);
+    expect(openFeedUrl(token, { kind: "guest" }, KEY, issued + 29 * day)).toBe(SECRET_URL);
+    expect(failure(() => openFeedUrl(token, { kind: "guest" }, KEY, issued + GUEST_TOKEN_MAX_AGE_MS + 1000))).toBe("expired");
+  });
+
+  test("an account's token keeps opening for its account", () => {
+    const token = sealFeedUrl(SECRET_URL, student, KEY, issued);
+    expect(openFeedUrl(token, student, KEY, issued + 400 * day)).toBe(SECRET_URL);
   });
 });
 

@@ -6,6 +6,17 @@
 
 import { feedOccurrences, type FeedOccurrence, type ParsedFeed } from "@untangle/core/occurrences";
 
+export { OccurrenceBudgetError } from "@untangle/core/occurrences";
+
+/**
+ * Most busy pieces one feed may expand into. A busy response near the 1 MiB
+ * cap holds about 15,000 pieces, so past this the response would be refused
+ * anyway; checking during expansion refuses a feed built to expand into
+ * millions of pieces (long or overlapping multi-day events) before it costs
+ * that work. No measurement of real feeds is behind the exact number.
+ */
+export const MAX_BUSY_PIECES = 20_000;
+
 import { FLOATING_TIME_ZONE } from "./datetime";
 import type { CalendarParseResult } from "./types";
 
@@ -16,7 +27,8 @@ export type BusyTermRange = { start: string; end: string };
 export type BusyOccurrence = FeedOccurrence;
 
 /**
- * Expand a parsed feed into busy dated pieces across `termRange`.
+ * Expand a parsed feed into busy dated pieces across `termRange`. Throws
+ * OccurrenceBudgetError past MAX_BUSY_PIECES.
  *
  * This is the occurrence pipeline the events API uses (core's
  * `feedOccurrences`), so recurring series, canceled instances and
@@ -36,7 +48,10 @@ export function busyFromFeed(
     })),
     occurrences: feed.occurrences,
   };
-  return feedOccurrences(parsed, { first: termRange.start, last: termRange.end }, timeZone).filter(
+  // Transparent events are left out before expanding, so they never count toward the budget.
+  const transparent = new Set(feed.events.filter((event) => event.transparent).map((event) => event.id));
+  const busyOnly: ParsedFeed = { ...parsed, occurrences: parsed.occurrences.filter((occurrence) => !transparent.has(occurrence.eventId)) };
+  return feedOccurrences(busyOnly, { first: termRange.start, last: termRange.end }, timeZone, { maxPieces: MAX_BUSY_PIECES }).filter(
     (piece) => piece.busy,
   );
 }

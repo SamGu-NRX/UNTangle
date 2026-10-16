@@ -6,7 +6,7 @@ import { calendarDateOfInstant, parseRangeInstant, zoneWallTime, FLOATING_TIME_Z
 import { CalendarFetchError, CalendarParseError } from "@/lib/calendar-feeds/errors";
 import { fetchCalendarIcs } from "@/lib/calendar-feeds/fetch";
 import { parseCalendarFeed } from "@/lib/calendar-feeds/parse";
-import { busyFromFeed, type BusyOccurrence } from "@/lib/calendar-feeds/busy";
+import { busyFromFeed, OccurrenceBudgetError, type BusyOccurrence } from "@/lib/calendar-feeds/busy";
 import { serializeBusy } from "@/lib/calendar-feeds/busy-serialize";
 import { TOO_MANY_EVENTS_MESSAGE } from "@/lib/calendar-feeds/preview";
 import { feedKeyFromEnv, FeedSealError, openFeedUrl, sealFeedUrl, type FeedOwner } from "@/lib/calendar-feeds/seal";
@@ -18,6 +18,14 @@ export const runtime = "nodejs";
 
 /** The default busy window without a term: now through now plus 60 days. */
 const DEFAULT_RANGE_DAYS = 60;
+
+/**
+ * The widest range or term the route reads: a little over a year, wide
+ * enough for any academic term or a whole year's plan, and narrow enough
+ * that a long all-day event can't expand into centuries of pieces. A
+ * starting value; nothing is measured behind it.
+ */
+const MAX_RANGE_DAYS = 400;
 
 type BusyBody = {
   url?: unknown;
@@ -61,13 +69,15 @@ type BusyBody = {
  * derived by the caller, `allDay` marks a piece of an all-day event, and no
  * event title, location, or description is included;
  * event text never crosses this boundary. `skipped` lists `{ index, reason }`
- * warnings for events and series left out of the busy picture; a skipped
+ * warnings for events and series left out of the busy picture, `reason`
+ * being a fixed code (SKIP_CODES in busy-serialize.ts), never feed text; a skipped
  * transparent or free event is reported, not silently dropped.
  *
- * Errors: 400 for a bad body, range, term, or URL, a
- * blocked or invalid feed, or one that does not parse, 502 for an
- * unreachable or slow feed, and 422 with "This calendar has too many events
- * to preview" when the response would be over 1 MiB. The response is never
+ * Errors: 400 for a bad body, range, term, or URL (a range or term over 400
+ * days included), a blocked or invalid feed, or one that does not parse, 502
+ * for an unreachable or slow feed, and 422 with "This calendar has too many
+ * events to preview" when the feed expands past MAX_BUSY_PIECES or the
+ * response would be over 1 MiB. The response is never
  * cut short to fit. A sealed address this server can't open for the caller
  * answers 422 with code `CALENDAR_RECONNECT`, or, without a session, 401
  * with code `CALENDAR_SIGN_IN`; with no sealing key
@@ -147,9 +157,16 @@ async function busyHandler(request: Request) {
     if (!(error instanceof CalendarParseError)) throw error;
     return NextResponse.json({ error: "Could not parse the calendar feed" }, { status: 400 });
   }
+  let pieces: BusyOccurrence[];
+  try {
+    pieces = clipToRange(busyFromFeed(result, term ?? { start: zonedDateOf(range.start), end: zonedDateOf(range.end) }), range);
+  } catch (error) {
+    if (!(error instanceof OccurrenceBudgetError)) throw error;
+    return NextResponse.json({ error: TOO_MANY_EVENTS_MESSAGE }, { status: 422 });
+  }
   const json = serializeBusy({
     range,
-    occurrences: clipToRange(busyFromFeed(result, term ?? { start: zonedDateOf(range.start), end: zonedDateOf(range.end) }), range),
+    occurrences: pieces,
     skipped: result.skipped,
     sealedUrl,
   });
@@ -165,10 +182,13 @@ async function busyHandler(request: Request) {
  * move of guest preferences into the account carries over. Any guest can open
  * a guest token, so opening it for the account gives nothing away; it comes
  * back sealed for the account (`sealedUrl`), and the client keeps that one.
+ * A guest's own token comes back sealed again with a new issue time.
  */
 function openForCaller(token: string, owner: FeedOwner, key: Buffer | null): { url: string; sealedUrl?: string } {
   try {
-    return { url: openFeedUrl(token, owner, key) };
+    const url = openFeedUrl(token, owner, key);
+    // A guest's token expires (GUEST_TOKEN_MAX_AGE_MS), so every refresh hands back a fresh one.
+    return owner.kind === "guest" ? { url, sealedUrl: sealFeedUrl(url, owner, key) } : { url };
   } catch (error) {
     if (owner.kind !== "user" || !(error instanceof FeedSealError) || error.kind !== "unreadable") throw error;
     let url: string;
@@ -218,8 +238,8 @@ function zonedDateOf(instant: string): string {
 }
 
 /**
- * The requested range as UTC instants; null when malformed, or when a term is
- * given and the range does not cover it, since the parse drops every
+ * The requested range as UTC instants; null when malformed, wider than
+ * MAX_RANGE_DAYS, or when a term is given and the range does not cover it, since the parse drops every
  * occurrence outside the range. Without a range: the term's own window, else
  * now through now plus 60 days.
  */
@@ -238,6 +258,7 @@ function resolveRange(rangeStart: unknown, rangeEnd: unknown, term: { start: str
   const startMs = parseRangeInstant(rangeStart);
   const endMs = parseRangeInstant(rangeEnd);
   if (startMs === null || endMs === null || endMs <= startMs) return null;
+  if (endMs - startMs > MAX_RANGE_DAYS * 86_400_000) return null;
   if (window && (startMs > window.startMs || endMs < window.endMs)) return null;
   return { start: new Date(startMs).toISOString(), end: new Date(endMs).toISOString() };
 }
@@ -266,6 +287,7 @@ function resolveTerm(termStart: unknown, termEnd: unknown): { start: string; end
   if (new Date(startMs).toISOString().slice(0, 10) !== termStart) return null;
   if (new Date(endMs).toISOString().slice(0, 10) !== termEnd) return null;
   if (endMs < startMs) return null;
+  if (endMs - startMs >= MAX_RANGE_DAYS * 86_400_000) return null;
   return { start: termStart, end: termEnd };
 }
 

@@ -58,7 +58,8 @@ anywhere:
   The busy route (`frontend/src/app/api/v1/calendar-feeds/busy/route.ts`)
   fetches, parses, and returns these pieces through a serializer that maps
   fields explicitly — occurrences carry only `{ date, startMinutes,
-  endMinutes, allDay }` and skipped entries only `{ index, reason }` (no summary,
+  endMinutes, allDay }` and skipped entries only `{ index, reason }`, the
+  reason a fixed code because the parser's reasons quote feed values (no summary,
   UID, or feed URL: a Google secret-address URL carries a private token), so
   a future field on the internal types cannot leak event text into the
   response by accident; the planner converts them to dated blocked times in

@@ -37,7 +37,20 @@ export type SealFailure =
   /** The token isn't one this server wrote, belongs to someone else, or was changed. */
   | "unreadable"
   /** The token was sealed under a key this server no longer has. */
-  | "other-key";
+  | "other-key"
+  /** A guest's token older than GUEST_TOKEN_MAX_AGE_MS. */
+  | "expired";
+
+/**
+ * How long a guest's token opens. A guest token opens for any guest, so it
+ * is a bearer credential: whoever copies a guest's stored preferences could
+ * otherwise watch that calendar's busy times for as long as the address and
+ * the key last. Every refresh seals the address again, so a guest who keeps
+ * using Week never sees this; one who comes back after 30 days pastes the
+ * address again. Account tokens don't expire: only their account opens
+ * them. Thirty days is a starting value with nothing measured behind it.
+ */
+export const GUEST_TOKEN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export class FeedSealError extends Error {
   constructor(readonly kind: SealFailure) {
@@ -46,7 +59,9 @@ export class FeedSealError extends Error {
         ? `${CALENDAR_FEED_KEY_ENV} is not set, so calendar feeds can't be sealed.`
         : kind === "other-key"
           ? "This calendar was connected under a key the server no longer has."
-          : "This sealed calendar address can't be opened.",
+          : kind === "expired"
+            ? "This guest calendar was sealed too long ago to open."
+            : "This sealed calendar address can't be opened.",
     );
     this.name = "FeedSealError";
   }
@@ -77,18 +92,27 @@ const keyId = (key: Buffer) => createHash("sha256").update(key).digest().subarra
 const associatedData = (owner: FeedOwner) =>
   Buffer.from(`untangle calendar feed ${VERSION} ${owner.kind === "user" ? `user:${owner.id}` : "guest"}`, "utf8");
 
-/** Seals `url` for `owner`. Each call uses a fresh IV, so sealing one address twice gives two tokens. */
-export function sealFeedUrl(url: string, owner: FeedOwner, key: Buffer | null): string {
+/**
+ * Seals `url` for `owner`. Each call uses a fresh IV, so sealing one address
+ * twice gives two tokens. The sealed text is the issue time in whole seconds,
+ * a space, then the address, so the issue time is as tamper-proof as the
+ * address.
+ */
+export function sealFeedUrl(url: string, owner: FeedOwner, key: Buffer | null, now: number = Date.now()): string {
   if (!key) throw new FeedSealError("not-configured");
   const iv = randomBytes(IV_BYTES);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
   cipher.setAAD(associatedData(owner));
-  const sealed = Buffer.concat([cipher.update(url, "utf8"), cipher.final(), cipher.getAuthTag()]);
+  const sealed = Buffer.concat([cipher.update(`${Math.floor(now / 1000)} ${url}`, "utf8"), cipher.final(), cipher.getAuthTag()]);
   return [VERSION, keyId(key), iv.toString("base64url"), sealed.toString("base64url")].join(".");
 }
 
-/** The address inside `token`, if it was sealed for `owner` under `key`; throws FeedSealError otherwise. */
-export function openFeedUrl(token: string, owner: FeedOwner, key: Buffer | null): string {
+/**
+ * The address inside `token`, if it was sealed for `owner` under `key` (and,
+ * for a guest, within GUEST_TOKEN_MAX_AGE_MS of `now`); throws FeedSealError
+ * otherwise.
+ */
+export function openFeedUrl(token: string, owner: FeedOwner, key: Buffer | null, now: number = Date.now()): string {
   if (!key) throw new FeedSealError("not-configured");
   const parts = token.split(".");
   if (parts.length !== 4 || parts[0] !== VERSION || parts.slice(1).some((part) => !/^[A-Za-z0-9_-]+$/.test(part))) {
@@ -98,14 +122,19 @@ export function openFeedUrl(token: string, owner: FeedOwner, key: Buffer | null)
   const iv = Buffer.from(parts[2], "base64url");
   const sealed = Buffer.from(parts[3], "base64url");
   if (iv.length !== IV_BYTES || sealed.length <= TAG_BYTES) throw new FeedSealError("unreadable");
+  let text: string;
   try {
     const decipher = createDecipheriv("aes-256-gcm", key, iv);
     decipher.setAAD(associatedData(owner));
     decipher.setAuthTag(sealed.subarray(sealed.length - TAG_BYTES));
-    return Buffer.concat([decipher.update(sealed.subarray(0, sealed.length - TAG_BYTES)), decipher.final()]).toString("utf8");
+    text = Buffer.concat([decipher.update(sealed.subarray(0, sealed.length - TAG_BYTES)), decipher.final()]).toString("utf8");
   } catch {
     // GCM refuses a changed token or another owner's alike; the reason isn't recoverable from here.
     throw new FeedSealError("unreadable");
   }
+  const match = /^(\d{1,12}) ([^]+)$/.exec(text);
+  if (!match) throw new FeedSealError("unreadable");
+  if (owner.kind === "guest" && now - Number(match[1]) * 1000 > GUEST_TOKEN_MAX_AGE_MS) throw new FeedSealError("expired");
+  return match[2];
 }
 

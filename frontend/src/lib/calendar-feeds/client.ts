@@ -154,7 +154,7 @@ export async function refreshCalendar(
   if (!read.ok) return read;
   return kept({
     ...calendar,
-    // A guest's token refreshed by a signed-in student comes back sealed for the account.
+    // The server can hand back a new token: a guest's sealed again with a new issue time, or one sealed for the account that refreshed it.
     sealedUrl: read.value.sealedUrl ?? calendar.sealedUrl,
     termId: term.id,
     checkedAt: (options.now ?? (() => new Date()))().toISOString(),
