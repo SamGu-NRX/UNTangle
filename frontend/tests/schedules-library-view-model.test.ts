@@ -236,6 +236,17 @@ describe("a week's walking, as Week's Details counts it", () => {
     expect(weekWalking(week, travel)).toEqual({ walkMinutes: 6, tightWalks: 0, unknownWalks: 1 });
   });
 
+  it("counts a timed in-person class with no room yet beside a mapped one as an unknown walk; an online class is no walk", async () => {
+    const { weekWalking } = await import("@/components/schedules-library/view-model");
+    const { meeting, section } = await import("./schedule-builder/fixtures");
+    const mapped = await at("A 1", ["Mon"], "9:00", "9:50", "gab");
+    // Rooms as the registrar writes them: "No Facility Assigned" and "UNT Internet Course" (lib/sections/buildings.ts).
+    const unassigned = section({ courseCode: "B 1", meetings: [meeting({ day: "Mon", at: "10:00", until: "10:50", building: null, room: "No Facility Assigned", kind: "unassigned" })] });
+    const online = section({ courseCode: "C 1", meetings: [meeting({ day: "Mon", at: "10:00", until: "10:50", building: null, room: "UNT Internet Course", kind: "online" })] });
+    expect(weekWalking([mapped, unassigned], travel)).toEqual({ walkMinutes: 0, tightWalks: 0, unknownWalks: 1 });
+    expect(weekWalking([mapped, online], travel)).toEqual({ walkMinutes: 0, tightWalks: 0, unknownWalks: 0 });
+  });
+
   it("doesn't count a shuttle ride as walking, though it can still be tight", async () => {
     const { weekWalking } = await import("@/components/schedules-library/view-model");
     const week = [await at("A 1", ["Mon"], "9:00", "9:50", "gab"), await at("B 1", ["Mon"], "10:00", "10:50", "ntdp")];

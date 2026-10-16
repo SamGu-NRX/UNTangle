@@ -17,6 +17,8 @@ export const DAY_NAME: Record<Day, string> = {
   Sun: "Sunday",
 };
 const dayIndex = (day: Day) => DAY_ORDER.indexOf(day);
+/** GridEvent.place for an online class. */
+export const ONLINE = "online";
 
 /** "9:00" for 540: times as people read them inside a day (DESIGN.md §9.7). */
 export function clock(minutes: number): string {
@@ -88,7 +90,16 @@ export type GridEvent = {
   day: Day;
   start: number;
   end: number;
+  /** The campus map's building id; null for an online class, a room not yet assigned, or a building not on the map. */
   building: string | null;
+  /**
+   * Where the class meets, as walks need it: "online" (the registrar's room
+   * "UNT Internet Course"), never a walk; a place key (the map's building id,
+   * else the room's building code, such as "FRLD" for a building not on the
+   * map); or null for an in-person room not yet assigned ("No Facility
+   * Assigned", "None", "TBA"). See lib/sections/buildings.ts resolveRoom.
+   */
+  place: string | null;
   dates: { start: string | null; end: string | null };
 };
 
@@ -106,6 +117,7 @@ export function eventsOf(sections: readonly Section[]): GridEvent[] {
         start: meeting.startMinutes,
         end: meeting.endMinutes,
         building: meeting.buildingId,
+        place: meeting.kind === "online" ? ONLINE : (meeting.buildingId ?? meeting.buildingCode),
         dates: meeting.dates,
       })),
   );
@@ -198,7 +210,7 @@ const covers = (outer: Dates, inner: Dates) =>
  */
 export function walksOf(events: readonly GridEvent[], walk: WalkFn): WalkLeg[] {
   return walkPairs(events).flatMap(({ before, next, from, to }): WalkLeg[] => {
-    const time = walk(from, to);
+    const time = from && to ? walk(from, to) : null;
     if (!time) return [];
     const gapSeconds = (next.start - before.end) * 60;
     return [
@@ -219,17 +231,23 @@ export function walksOf(events: readonly GridEvent[], walk: WalkFn): WalkLeg[] {
 }
 
 /**
- * The walks `walksOf` leaves out because `walk` has no time for them (a
- * building that isn't on the campus map), so a total can say it is
- * incomplete instead of counting them as no walking at all.
+ * The walks `walksOf` leaves out because no time can be given for them, so
+ * a total can say it is incomplete instead of counting them as no walking
+ * at all: a building with no walking time, one that isn't on the campus
+ * map, or an in-person room not yet assigned.
  */
 export function unknownWalksOf(events: readonly GridEvent[], walk: WalkFn): number {
-  return walkPairs(events).filter(({ from, to }) => !walk(from, to)).length;
+  return walkPairs(events).filter(({ from, to }) => !from || !to || !walk(from, to)).length;
 }
 
-type WalkPair = { before: GridEvent; next: GridEvent; from: string; to: string };
+/** `from` and `to` are the map's building ids, null where the class has none. */
+type WalkPair = { before: GridEvent; next: GridEvent; from: string | null; to: string | null };
 
-/** The consecutive classes `walksOf` describes, each pair in two different buildings, both known. */
+/**
+ * Consecutive in-person classes that may be in different places: a walk,
+ * timed or not. A pair with an online class is no walk, and neither is one
+ * in the same known place.
+ */
 function walkPairs(events: readonly GridEvent[]): WalkPair[] {
   const pairs: WalkPair[] = [];
   const ordered = [...events].sort((a, b) => dayIndex(a.day) - dayIndex(b.day) || a.start - b.start);
@@ -241,7 +259,8 @@ function walkPairs(events: readonly GridEvent[]): WalkPair[] {
         (other) => other !== before && (other.end > before.end || (other.end === before.end && other.key < before.key)) && covers(other.dates, shared),
       );
       if (hidden || next.start - before.end > WALK_GAP_MAX) continue;
-      if (!before.building || !next.building || before.building === next.building) continue;
+      if (before.place === ONLINE || next.place === ONLINE) continue;
+      if (before.place !== null && before.place === next.place) continue;
       pairs.push({ before, next, from: before.building, to: next.building });
     }
   }
