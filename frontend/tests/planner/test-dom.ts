@@ -23,6 +23,7 @@ import { PullListSchema, type Receipt, type Write } from "../../../packages/cont
 import { decideWrite, parseWrite, SyncError } from "@/lib/document-sync/decision";
 import { documentHandlers } from "@/lib/document-sync/handlers";
 import { legacyDocuments } from "@/lib/document-sync/legacy-migration";
+import { forgetGuestHere } from "@/lib/guest-sign-in";
 import { defaultSchedulePreferences } from "@/lib/planner";
 import { firstDocumentId, joinPlanner, splitPlanner, type PlannerBodies } from "@/lib/planner-documents";
 import { planningTerm } from "@/lib/planner-sections";
@@ -430,8 +431,9 @@ export class PersistedDocumentStore implements LocalStore {
 
 let documentStore = new PersistedDocumentStore();
 let documentStoreFails = false;
-/** A fresh browser: no documents stored for anyone, and a store that opens. */
+/** A fresh browser: no documents stored for anyone, a store that opens, and no browser-session cookie. */
 export function resetDocumentStore(): PersistedDocumentStore {
+  forgetGuestHere();
   documentStore = new PersistedDocumentStore();
   documentStoreFails = false;
   return documentStore;

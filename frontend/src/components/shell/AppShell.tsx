@@ -7,6 +7,7 @@ import { ConnectHost } from "@/components/connect/connect-host";
 import { noteNavigation } from "@/components/ui/back-close";
 import { SearchPalette } from "@/components/ui/SearchPalette";
 import { SyncNotice } from "@/components/sync-notice";
+import { GuestSignInSheet } from "@/components/guest-sign-in-sheet";
 import { Toaster } from "@/components/ui/Toast";
 import { WebMcpTools } from "@/components/webmcp/WebMcpTools";
 import { courses } from "@/lib/seed-data";
@@ -94,6 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <TabBar lens={lens} hrefs={hrefs} onPick={pick} />
       </div>
       <SyncNotice />
+      <GuestSignInSheet />
       <SearchPalette
         open={searchOpen}
         onOpenChange={setSearchOpen}
