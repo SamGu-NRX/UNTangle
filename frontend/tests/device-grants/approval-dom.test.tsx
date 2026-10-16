@@ -13,7 +13,7 @@ let details = {
   clientKind: "extension",
   scopes: ["schedule:read", "schedule:add-option"],
   userCode: "ABCDEFGH",
-  scheduleId: "schedule-123",
+  scheduleId: "main",
 };
 
 beforeAll(() => installDom());
@@ -26,7 +26,7 @@ afterEach(async () => {
   failApproval = false;
   inspectStatus = 200;
   retryAfter = null;
-  details = { clientKind: "extension", scopes: ["schedule:read", "schedule:add-option"], userCode: "ABCDEFGH", scheduleId: "schedule-123" };
+  details = { clientKind: "extension", scopes: ["schedule:read", "schedule:add-option"], userCode: "ABCDEFGH", scheduleId: "main" };
 });
 afterAll(removeDom);
 
@@ -67,7 +67,6 @@ async function input(container: Element, name: string, value: string) {
 }
 
 test("shows client, account, what it may do with Main and matching code before explicit approval", async () => {
-  details.scheduleId = "main";
   const container = await setup();
   expect(requests.some((request) => request.path.endsWith("/approve"))).toBe(false);
   await click(button(container, "Check device code"));
@@ -212,4 +211,24 @@ test("the mobile app is told to return to the app once approved", async () => {
   await click(button(container, "Approve device"));
   expect(container.textContent).toContain("Return to the app.");
   expect(container.textContent).not.toContain("class search");
+});
+
+test("an extension grant for any schedule but Main can't be approved, and claims no Main access", async () => {
+  details.scheduleId = "schedule-123";
+  const container = await setup();
+  await click(button(container, "Check device code"));
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe("UNTangle can't connect this request. In the extension, select Sign in again to get a new code.");
+  expect(container.textContent).not.toContain("Approve device");
+  expect(container.textContent).not.toContain("Deny device");
+  expect(container.textContent).not.toContain("Main");
+  expect(container.textContent).not.toContain("schedule-123");
+  await click(button(container, "Use a different device code"));
+  expect(container.textContent).toContain("Check device code");
+  expect(requests.some((request) => request.path.endsWith("/approve"))).toBe(false);
+});
+
+test("the page's Main id is the one the extension routes serve", async () => {
+  const { EXTENSION_SCHEDULE_ID } = await import("@/app/device/DeviceApproval");
+  const { MAIN_SCHEDULE_ROLE } = await import("@/server/extension/main-schedule");
+  expect(EXTENSION_SCHEDULE_ID).toBe(MAIN_SCHEDULE_ROLE);
 });
