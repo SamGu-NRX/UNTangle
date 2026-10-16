@@ -139,6 +139,15 @@ describe("Toaster", () => {
     await view.rerender(<Harness open={false} />);
     await act(async () => sleep(200));
     expect(document.querySelector(".ui-toast button")?.textContent).toBe("Undo");
+    // An error stays in view under a dialog, message only: it may be the only word on what failed.
+    await view.rerender(<Harness open />);
+    await act(async () => {
+      toast({ message: "Couldn't sign out.", tone: "error", action: { label: "Try again", onClick: () => {} } });
+    });
+    await act(async () => sleep(200));
+    expect(document.querySelector(".ui-toast__message")?.textContent).toBe("Couldn't sign out.");
+    expect(document.querySelector(".ui-toast button")).toBeNull();
+    await view.rerender(<Harness open={false} />);
     await act(async () => dismissToast());
     await view.unmount();
   });

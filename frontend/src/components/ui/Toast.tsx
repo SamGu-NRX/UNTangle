@@ -62,7 +62,9 @@ export function useIsClient() {
  * Bottom-centre toast, above the tab bar on phones: 44px, ink, white 14px.
  * While a modal is open the page under it is inert, toast included, and the
  * live region has already said the message. Over a dialog or the search
- * palette the toast hides. Over a modal sheet it shows its message on one
+ * palette a toast hides, except an error, which keeps its usual place: it
+ * may be the only visible word on why the dialog's action failed (a
+ * sign-out that didn't go through). Over a modal sheet it shows its message on one
  * line, without buttons it couldn't use; on a phone it sits in the dimmed
  * space above the sheet's top edge (`--sheet-top`), and hides when that
  * space is too short. When the modal closes it enters again in its usual
@@ -158,7 +160,7 @@ export function Toaster() {
       )}
       {createPortal(
         <div className="ui-toaster" data-ui="" data-covered={over ?? undefined}>
-          {shown && over !== "dialog" ? (
+          {shown && (over !== "dialog" || shown.tone === "error") ? (
             <div
               // On a phone a sheet moves the toast to the top: a new key makes it enter again there instead of jumping.
               key={`${shown.id}${phone && over === "sheet" ? ":over-sheet" : ""}`}
