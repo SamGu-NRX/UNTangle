@@ -227,9 +227,9 @@ export function DeviceApproval({ initialUserCode = "" }: { initialUserCode?: str
           <div className={styles.permissions}>
             <h2 className={styles.subtitle}>What this device can do</h2>
             {grant.clientKind === "mobile" ? <p>Read and change your saved plans and preferences</p> : <>
-              <p>View the selected schedule</p>
-              <p>Add a section after you confirm</p>
-              <p className={styles.identifier}>Schedule identifier: {grant.scheduleId ?? "No schedule selected"}</p>
+              {/* The grant's schedule id is the Main role, "main", whatever the term: the student's Main for each term they add to. */}
+              <p>See your Main schedule in UNTangle</p>
+              <p>Add sections to Main after you confirm each one</p>
             </>}
             <p>It cannot change your password or delete your account.</p>
           </div>
