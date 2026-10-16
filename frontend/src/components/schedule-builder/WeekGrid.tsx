@@ -39,7 +39,12 @@ export type Busy = {
   beside?: boolean;
 };
 
-/** How much of its lane a class keeps when it meets during dated busy time, leaving the rest for the busy band's words. */
+/**
+ * How much of its lane a class keeps when it meets during dated busy time,
+ * leaving the rest for the busy band's words. Phone columns are too narrow to
+ * share, so there the class keeps its lane and carries the busy time's name
+ * and date itself.
+ */
 const BESIDE_SHARE = 0.6;
 
 /** Calendar busy time can run all day; the grid stretches for it only within these hours. */
@@ -308,8 +313,12 @@ export function WeekGrid(props: Props) {
                     key={block.id}
                     className={styles.busy}
                     data-kind={block.kind}
-                    data-beside={block.beside ? "" : undefined}
-                    style={{ top: at(top, first), height: span(top, bottom), ...(block.beside ? { paddingLeft: `calc(8px + (100% - 8px) * ${BESIDE_SHARE})` } : {}) }}
+                    data-beside={block.beside && !phone ? "" : undefined}
+                    style={{
+                      top: at(top, first),
+                      height: span(top, bottom),
+                      ...(block.beside && !phone ? { paddingLeft: `calc(8px + (100% - 8px) * ${BESIDE_SHARE})` } : {}),
+                    }}
                   >
                     {block.kind === "calendar" ? <CalendarGlyph size={12} className={styles.busyGlyph} /> : null}
                     <span className={styles.busyLabel}>{block.label}</span>
@@ -349,7 +358,7 @@ export function WeekGrid(props: Props) {
                     data-conflict={placement?.conflict || busyClash ? "" : undefined}
                     aria-pressed={props.selectedCourse === event.courseCode}
                     tabIndex={interactive ? 0 : -1}
-                    style={{ top: at(event.start, first), height: `calc(${span(event.start, event.end)} - 2px)`, ...lane(placement, busyClash ? BESIDE_SHARE : 1) }}
+                    style={{ top: at(event.start, first), height: `calc(${span(event.start, event.end)} - 2px)`, ...lane(placement, busyClash && !phone ? BESIDE_SHARE : 1) }}
                     onClick={(click) => {
                       if (swallowClick.current) {
                         swallowClick.current = false;
@@ -367,7 +376,7 @@ export function WeekGrid(props: Props) {
                       <span className={styles.eventSubject}>{event.courseCode.split(" ")[0]}</span> {event.courseCode.split(" ").slice(1).join(" ")}
                     </span>{" "}
                     <span className={tall && !phone ? styles.eventTime : "sr-only-v2"}>{timeRange(event.start, event.end)}</span>
-                    {busyClash && tall && !phone ? (
+                    {busyClash && tall ? (
                       <span className={styles.eventBusy} aria-hidden="true">
                         {busyClash}
                       </span>
