@@ -784,7 +784,15 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         </div>
       ) : null}
 
-      <ContextPanel open={panel !== null} onClose={closePanel} title={panelTitle} returnFocus={() => trigger.current}>
+      <ContextPanel
+        open={panel !== null}
+        onClose={closePanel}
+        title={panelTitle}
+        // On a phone the list's sheet shows its title and a Close button, and opening it focuses the title
+        // (BottomSheet's opening focus): a long list mustn't leave dragging as the only way out.
+        heading={panel?.kind === "browse" ? panelTitle : undefined}
+        returnFocus={() => trigger.current}
+      >
         {panel?.kind === "search" ? (
           <SearchPanel host={host} query={query} onQuery={setQuery} week={placed} onPlace={place} onPreview={setPreview} autoFocus={!phone} />
         ) : panel?.kind === "event" && selectedCourse ? (

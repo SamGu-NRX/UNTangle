@@ -269,6 +269,28 @@ describe("Browse all", () => {
     await view.unmount();
   });
 
+  test("on a phone the list's sheet has its title and a Close button, and opening it focuses the title", async () => {
+    const realMatch = window.matchMedia;
+    // The phone layout (PHONE_QUERY in use-media-query.ts); everything else stays as happy-dom answers.
+    const phoneList = (media: string) =>
+      ({ matches: true, media, onchange: null, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false }) as unknown as MediaQueryList;
+    window.matchMedia = ((query: string) => (query === "(max-width: 759px)" ? phoneList(query) : realMatch.call(window, query))) as typeof window.matchMedia;
+    try {
+      const h = host();
+      const view = await openBrowse(h);
+      const sheet = document.querySelector<HTMLElement>('[role="dialog"]')!;
+      expect(sheet.querySelector("h2")?.textContent).toBe("All combinations");
+      expect(buttons(sheet, /^Close All combinations$/)).toHaveLength(1);
+      // A tap opened it: focus starts on the title, not in the list.
+      expect(document.activeElement).toBe(sheet.querySelector("h2"));
+      await click(buttons(sheet, /^Close All combinations$/)[0]);
+      expect(h.browse.close).toHaveBeenCalled();
+      await view.unmount();
+    } finally {
+      window.matchMedia = realMatch;
+    }
+  });
+
   test("closing the list goes back to Auto's strip", async () => {
     const h = host();
     const view = await openBrowse(h);
