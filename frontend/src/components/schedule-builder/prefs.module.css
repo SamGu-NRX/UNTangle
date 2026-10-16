@@ -88,6 +88,9 @@
   font-size: 13px;
   color: var(--ink-2);
 }
+.setUp {
+  flex: none;
+}
 .scroll {
   flex: 1;
   min-height: 0;
@@ -192,8 +195,9 @@
   opacity: 0;
   transition: opacity var(--t-hover) ease;
 }
+/* --ink-2, not --ink-3: the struck-out day is still text, and ink-3 is 4.26:1 (axe, Set up Auto's journey). */
 .paintDay[aria-pressed="true"] {
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 .paintDay[aria-pressed="true"] span {
   text-decoration: line-through;

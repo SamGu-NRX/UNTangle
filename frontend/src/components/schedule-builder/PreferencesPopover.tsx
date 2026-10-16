@@ -76,14 +76,14 @@ export type PreferencesContentProps = {
 
 /* ───────── Times you can't have class ───────── */
 
-const ROW_ICON: Record<LedgerRow["kind"], ReactNode> = {
+export const ROW_ICON: Record<LedgerRow["kind"], ReactNode> = {
   start: <SunriseGlyph size={16} />,
   end: <MoonGlyph size={16} />,
   off: <CalendarOffGlyph size={16} />,
   busy: <BriefcaseGlyph size={16} />,
 };
 
-function Ledger({ preferences: p, onChange }: Pick<PreferencesContentProps, "preferences" | "onChange">) {
+export function Ledger({ preferences: p, onChange }: Pick<PreferencesContentProps, "preferences" | "onChange">) {
   const rows = ledger(p);
   if (rows.length === 0) return <p className={styles.ledgerEmpty}>Nothing blocked. Auto may use any weekday time.</p>;
   const clear = (row: LedgerRow): ((q: SchedulePreferences) => SchedulePreferences) => {
@@ -537,6 +537,8 @@ type ShellProps = PreferencesContentProps & {
   anchor: () => HTMLElement | null;
   phone: boolean;
   ready: boolean;
+  /** Opens Set up Auto, the first-run setup, again; null when the host has none. */
+  onSetUp: (() => void) | null;
 };
 
 const EXIT_MS = 140;
@@ -549,7 +551,7 @@ const EXIT_MS = 140;
  * the keyboard, nothing animates; under reduced motion it only fades.
  */
 export function PreferencesPopover(props: ShellProps) {
-  const { open, onClose, anchor, phone, ready } = props;
+  const { open, onClose, anchor, phone, ready, onSetUp } = props;
   const [mounted, setMounted] = useState(open);
   const [shown, setShown] = useState(false);
   const [instant, setInstant] = useState(false);
@@ -626,6 +628,12 @@ export function PreferencesPopover(props: ShellProps) {
         </h2>
         <p>Auto builds your week around these.</p>
       </div>
+      {/* Only once preferences have loaded: the setup's Undo must start from the student's real ones. */}
+      {onSetUp && ready ? (
+        <Button variant="quiet" size="sm" className={styles.setUp} onClick={onSetUp}>
+          Set up Auto
+        </Button>
+      ) : null}
       <IconButton
         label="Close preferences"
         size="sm"
