@@ -84,6 +84,7 @@ describe("a signed-in student", () => {
     const laptop = await mount();
     const calendar = workCalendar({ kind: "user", id: user.id });
     await laptop.run((p) => p.setSchedulePreferences(addCalendar(calendar)));
+    await waitFor(() => Boolean((server.document(user.id, PREFERENCES)?.body as { calendars?: unknown } | undefined)?.calendars), "the calendar on the server");
     await waitFor(() => laptop.get().saveState.label === "Synced", "synced");
 
     const stored = server.document(user.id, PREFERENCES)?.body as { calendars?: ConnectedCalendar[] };
@@ -111,8 +112,8 @@ describe("a signed-in student", () => {
     await laptop.run((p) =>
       p.setSchedulePreferences((current) => ({ ...current, calendars: current.calendars?.map((c) => ({ ...c, countAllDay: true })) })),
     );
+    await waitFor(() => (server.document(user.id, PREFERENCES)?.body as { calendars?: ConnectedCalendar[] } | undefined)?.calendars?.[0]?.countAllDay === true, "the choice on the server");
     await waitFor(() => laptop.get().saveState.label === "Synced", "synced");
-    expect((server.document(user.id, PREFERENCES)?.body as { calendars: ConnectedCalendar[] }).calendars[0].countAllDay).toBe(true);
 
     resetDocumentStore();
     const phone = await mount();
@@ -125,15 +126,16 @@ describe("a signed-in student", () => {
     setSession(user);
     const laptop = await mount();
     await laptop.run((p) => p.setSchedulePreferences(addCalendar(workCalendar({ kind: "user", id: user.id }))));
+    await waitFor(() => Boolean((server.document(user.id, PREFERENCES)?.body as { calendars?: unknown } | undefined)?.calendars), "the calendar on the server");
     await waitFor(() => laptop.get().saveState.label === "Synced", "synced");
 
     resetDocumentStore();
     const phone = await mount();
     await waitFor(() => phone.get().schedulePreferences.calendars?.length === 1, "the calendar on the phone");
     await phone.run((p) => p.setSchedulePreferences(removeCalendar("cal-work")));
+    // The label already read Synced before the edit, so wait on the server's copy itself.
+    await waitFor(() => !("calendars" in ((server.document(user.id, PREFERENCES)?.body ?? {}) as Record<string, unknown>)), "removal on the server");
     await waitFor(() => phone.get().saveState.label === "Synced", "removal synced");
-    const body = server.document(user.id, PREFERENCES)?.body as Record<string, unknown>;
-    expect("calendars" in body).toBe(false);
 
     resetDocumentStore();
     const again = await mount();
