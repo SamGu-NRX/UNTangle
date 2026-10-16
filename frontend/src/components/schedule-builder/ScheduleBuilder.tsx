@@ -229,6 +229,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       return;
     }
     load(Object.keys(week.sections));
+    if (strip?.kind === "browse") browse?.close();
     setStrip({ kind: "shared", week });
   };
 

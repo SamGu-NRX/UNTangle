@@ -482,7 +482,8 @@ export function SchedulesClient() {
           <p className={styles.quiet} role="status">
             {sides.length < 2
               ? `Pick ${sides.length ? "one or two more schedules" : "two or three schedules"} to compare.`
-              : `${sides.length} picked: ${sides.map((side, i) => `${"ABC"[i]}, ${side.name}`).join("; ")}.`}
+              : `${sides.length} picked.`}
+            {sides.length >= 2 ? <span className="sr-only-v2"> {sides.map((side, i) => `${"ABC"[i]}, ${side.name}`).join("; ")}.</span> : null}
           </p>
           {sides.length >= 2 ? (
             <Button ref={showCompareButton} onClick={() => setViewingCompare(true)}>

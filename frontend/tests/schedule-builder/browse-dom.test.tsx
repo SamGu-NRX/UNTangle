@@ -258,6 +258,16 @@ describe("Browse all", () => {
     await view.unmount();
   });
 
+  test("Auto pressed while the list is open stops the list and closes it", async () => {
+    const h = host();
+    const view = await openBrowse(h);
+    await click(buttons(view.container, /^Auto/)[0]);
+    expect(h.browse.close).toHaveBeenCalled();
+    expect(listbox()).toBeNull();
+    expect(view.container.querySelector('[aria-label="Other weeks Auto found"]')).not.toBeNull();
+    await view.unmount();
+  });
+
   test("closing the list goes back to Auto's strip", async () => {
     const h = host();
     const view = await openBrowse(h);
