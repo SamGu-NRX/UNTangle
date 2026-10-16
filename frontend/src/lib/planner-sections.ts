@@ -269,6 +269,7 @@ export function toOptSection(section: Section): OptSection | null {
       start: meeting.startMinutes,
       end: meeting.endMinutes,
       buildingId: meeting.buildingId,
+      place: meeting.kind === "online" ? "online" : (meeting.buildingId ?? meeting.buildingCode),
       dates: knownRange(meeting.dates),
     }),
   );

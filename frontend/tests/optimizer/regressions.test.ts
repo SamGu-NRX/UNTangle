@@ -414,7 +414,7 @@ describe("explanations name dates when the sessions differ", () => {
 });
 
 
-test("unroutable same-ID meetings fail a hard walking constraint in direct and worker searches", () => {
+test("same-place meetings do not require a walk when the provider cannot route them", () => {
   const request: OptimizeRequest = {
     courses: [
       { code: "A", credits: 3, sections: [{ id: "a", courseCode: "A", rating: null, meetings: [{ day: "Mon", start: 540, end: 590, buildingId: "ntdp" }] }] },
@@ -425,11 +425,61 @@ test("unroutable same-ID meetings fail a hard walking constraint in direct and w
     weights: { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 },
     walkingTime: () => ({ seconds: null, source: "unknown" }),
   };
-  expect(optimize(request).status).toBe("infeasible");
-  expect(referenceTopK(request).schedules).toEqual([]);
-  expect(optimize(fromPlainRequest(toPlainRequest(request), 60_000)).status).toBe("infeasible");
+  expect(optimize(request).status).toBe("optimal");
+  expect(referenceTopK(request).schedules).not.toEqual([]);
+  expect(optimize(fromPlainRequest(toPlainRequest(request), 60_000)).status).toBe("optimal");
   const scored = { ...request, constraints: { ...request.constraints, walking: null }, weights: { ...request.weights, walking: 1 } };
-  expect(optimize(scored).schedules[0]).toMatchObject({ cost: 600, breakdown: { unknownWalks: 1, walkSeconds: 0 } });
-  expect(referenceTopK(scored).schedules[0]).toMatchObject({ cost: 600, breakdown: { unknownWalks: 1, walkSeconds: 0 } });
+  expect(optimize(scored).schedules[0]).toMatchObject({ cost: 0, breakdown: { unknownWalks: 0, walkSeconds: 0 } });
+  expect(referenceTopK(scored).schedules[0]).toMatchObject({ cost: 0, breakdown: { unknownWalks: 0, walkSeconds: 0 } });
   expect(optimize({ ...request, walkingTime: () => ({ seconds: 0, source: "campus-network" }) }).status).toBe("optimal");
+});
+
+describe("walking places", () => {
+  const weights = { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 1, rating: 0 };
+  const none = { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: null };
+  const request = (meetings: OptMeeting[], constraints: OptimizeRequest["constraints"] = none): OptimizeRequest => ({
+    courses: meetings.map((meeting, i) => ({
+      code: `C${i}`,
+      credits: 3,
+      sections: [{ id: `c${i}`, courseCode: `C${i}`, rating: null, meetings: [meeting] }],
+    })),
+    locks: {},
+    excluded: [],
+    constraints,
+    weights,
+    walkingTime: () => ({ seconds: null, source: "unknown" }),
+  });
+
+  test("a timed online class has no cost and does not fail a tight walking check", () => {
+    const meetings: OptMeeting[] = [
+      { day: "Mon", start: 540, end: 590, buildingId: null, place: "online" },
+      { day: "Mon", start: 591, end: 641, buildingId: "cury", place: "cury" },
+    ];
+    const scored = optimize(request(meetings));
+    expect(scored).toMatchObject({ status: "optimal", schedules: [{ cost: 0, breakdown: { walkSeconds: 0, unknownWalks: 0 } }] });
+    expect(referenceTopK(request(meetings)).schedules[0]).toMatchObject({ cost: 0, breakdown: { walkSeconds: 0, unknownWalks: 0 } });
+
+    const checked = optimize(request(meetings, { ...none, walking: { bufferMinutes: 0 } }));
+    expect(checked.status).toBe("optimal");
+  });
+
+  test("an unassigned in-person class still has an unknown walk to a mapped building", () => {
+    const result = optimize(request([
+      { day: "Mon", start: 540, end: 590, buildingId: null, place: null },
+      { day: "Mon", start: 591, end: 641, buildingId: "cury", place: "cury" },
+    ]));
+    expect(result).toMatchObject({ status: "optimal", schedules: [{ cost: 600, breakdown: { walkSeconds: 0, unknownWalks: 1 } }] });
+  });
+
+  test("two classes in the same unmapped building have no walk", () => {
+    const result = optimize(request([
+      { day: "Mon", start: 540, end: 590, buildingId: null, place: "FRLD" },
+      { day: "Mon", start: 591, end: 641, buildingId: null, place: "FRLD" },
+    ]));
+    expect(result).toMatchObject({ status: "optimal", schedules: [{ cost: 0, breakdown: { walkSeconds: 0, unknownWalks: 0 } }] });
+    expect(referenceTopK(request([
+      { day: "Mon", start: 540, end: 590, buildingId: null, place: "FRLD" },
+      { day: "Mon", start: 591, end: 641, buildingId: null, place: "FRLD" },
+    ])).schedules[0]).toMatchObject({ cost: 0, breakdown: { walkSeconds: 0, unknownWalks: 0 } });
+  });
 });
