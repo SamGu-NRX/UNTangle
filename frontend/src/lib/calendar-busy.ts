@@ -259,3 +259,23 @@ export function withReading<P extends { calendars?: ConnectedCalendar[] }>(prefe
     ),
   };
 }
+
+/** Why reading a calendar again failed, kept with the sealed address that failed. */
+export type RefreshProblem = { sealedUrl: string; message: string };
+
+/**
+ * The refresh problems still worth showing, by calendar id: those whose
+ * calendar still holds the sealed address that failed. Pasting the address
+ * again (the way to reconnect) gives the calendar a new token under the same
+ * id, and that retires the problem.
+ */
+export function currentProblems(
+  problems: Readonly<Record<string, RefreshProblem>>,
+  calendars: readonly ConnectedCalendar[] | undefined,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(problems).flatMap(([id, problem]) =>
+      (calendars ?? []).some((calendar) => calendar.id === id && calendar.sealedUrl === problem.sealedUrl) ? [[id, problem.message]] : [],
+    ),
+  );
+}

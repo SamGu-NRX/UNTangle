@@ -1,6 +1,6 @@
 /** Which connected calendars Week reads again, and how a fresh reading lands on the preferences. */
 import { describe, expect, test } from "bun:test";
-import { CALENDAR_STALE_MS, calendarsToRefresh, withReading } from "@/lib/calendar-busy";
+import { CALENDAR_STALE_MS, calendarsToRefresh, currentProblems, withReading } from "@/lib/calendar-busy";
 import type { ConnectedCalendar } from "@/lib/types";
 
 const NOW = Date.parse("2026-10-15T18:00:00Z");
@@ -48,5 +48,25 @@ describe("reading calendars again", () => {
     const read = calendar("work");
     const reading = { ...read, sealedUrl: "cf1.k.i.account" };
     expect(withReading({ calendars: [read] }, read, reading).calendars?.[0].sealedUrl).toBe("cf1.k.i.account");
+  });
+});
+
+describe("a refresh problem on a calendar's row", () => {
+  const message = "Paste this calendar's address again to refresh it.";
+
+  test("shows while the calendar still holds the token that failed", () => {
+    const work = calendar("work");
+    expect(currentProblems({ work: { sealedUrl: work.sealedUrl, message } }, [work])).toEqual({ work: message });
+  });
+
+  test("goes once the student reconnects: same id, a new sealed address", () => {
+    const failed = calendar("work");
+    const reconnected = { ...failed, sealedUrl: "cf1.k.i.reconnected" };
+    expect(currentProblems({ work: { sealedUrl: failed.sealedUrl, message } }, [reconnected])).toEqual({});
+  });
+
+  test("goes with a calendar that was removed", () => {
+    expect(currentProblems({ work: { sealedUrl: calendar("work").sealedUrl, message } }, [])).toEqual({});
+    expect(currentProblems({ work: { sealedUrl: calendar("work").sealedUrl, message } }, undefined)).toEqual({});
   });
 });

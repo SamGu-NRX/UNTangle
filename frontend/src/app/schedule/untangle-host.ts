@@ -10,7 +10,7 @@ import { useBrowseRuns, useOptimizerRuns } from "@/components/schedule/use-optim
 import { searchCourses } from "@/components/shell/course-search";
 import { toast } from "@/components/ui/Toast";
 import type { Brand } from "@/lib/brand";
-import { calendarsToRefresh, withReading } from "@/lib/calendar-busy";
+import { calendarsToRefresh, currentProblems, withReading, type RefreshProblem } from "@/lib/calendar-busy";
 import { checkFeed, connectFeed, refreshCalendar, type FeedTerm } from "@/lib/calendar-feeds/client";
 import type { RelaxSuggestion } from "@/lib/optimizer/types";
 import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
@@ -497,7 +497,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
   );
 
   // Connected calendars read for another term, or a while ago, are read again once per visit.
-  const [calendarProblems, setCalendarProblems] = useState<Record<string, string>>({});
+  const [calendarProblems, setCalendarProblems] = useState<Record<string, RefreshProblem>>({});
   const refreshed = useRef(new Set<string>());
   const calendars = schedulePreferences.calendars;
   useEffect(() => {
@@ -507,7 +507,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
       refreshed.current.add(calendar.id);
       void refreshCalendar(calendar, term).then((outcome) => {
         if (!outcome.ok) {
-          setCalendarProblems((problems) => ({ ...problems, [calendar.id]: outcome.problem.message }));
+          setCalendarProblems((problems) => ({ ...problems, [calendar.id]: { sealedUrl: calendar.sealedUrl, message: outcome.problem.message } }));
           return;
         }
         setCalendarProblems((problems) => Object.fromEntries(Object.entries(problems).filter(([id]) => id !== calendar.id)));
@@ -516,6 +516,8 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     }
   }, [calendars, preferencesReady, setSchedulePreferences]);
 
+  // A problem belongs to the token that failed: reconnecting (a new sealed address under the same id) retires it.
+  const problems = useMemo(() => currentProblems(calendarProblems, calendars), [calendarProblems, calendars]);
   const calendarHost = useMemo<BuilderHost["calendars"]>(
     () =>
       feedTerm
@@ -523,10 +525,10 @@ export function useUntangleHost(brand: Brand): BuilderHost {
             term: feedTerm,
             check: (url) => checkFeed(url, feedTerm),
             connect: (url, name, { countAllDay }) => connectFeed(url, name, feedTerm, { countAllDay }),
-            problems: calendarProblems,
+            problems,
           }
         : null,
-    [calendarProblems],
+    [problems],
   );
 
   const walk = useCallback((from: string, to: string) => {
