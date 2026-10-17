@@ -504,13 +504,22 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
   validateRequest(request, checkDeadline);
   const { constraints, weights } = request;
   const sortedCourses = [...request.courses].sort((a, b) => compareIds(a.code, b.code));
-  const evidenceHundredths = instructorEvidenceContributions(sortedCourses.map((course) => ({
-    courseCode: course.code,
-    options: Object.fromEntries(course.sections.map((section) => [
-      section.id,
-      typeof section.instructorGpaHundredths === "number" ? { kind: "known", meanGradePointsHundredths: section.instructorGpaHundredths } : { kind: "unknown" }
-    ]))
-  })));
+  const evidenceHundredths = {};
+  for (const course of sortedCourses) {
+    if (course.sections.length === 0) {
+      evidenceHundredths[course.code] = { counted: false, options: {} };
+      continue;
+    }
+    Object.assign(evidenceHundredths, instructorEvidenceContributions([
+      {
+        courseCode: course.code,
+        options: Object.fromEntries(course.sections.map((section) => [
+          section.id,
+          typeof section.instructorGpaHundredths === "number" ? { kind: "known", meanGradePointsHundredths: section.instructorGpaHundredths } : { kind: "unknown" }
+        ]))
+      }
+    ]));
+  }
   const walkingMatters = weights.walking > 0 || constraints.walking !== null;
   const buildingIndex = new Map;
   const intern = (id) => {
