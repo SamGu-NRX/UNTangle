@@ -560,6 +560,15 @@ function IdentityPlannerProvider({
   // maps to nulls — unknown evidence never enters the tie-break, so a
   // throttle never reads as weak grades.
   const [evidenceHundredths, setEvidenceHundredths] = useState<Record<string, Record<string, number | null>>>({});
+  // The map the plan and the context read: no planned courses read no
+  // evidence, derived during render — the effect must not clear state
+  // synchronously (react-hooks/set-state-in-effect), and the retained map
+  // matches the once-per-session cache it feeds (histories are
+  // session-stable; the next plan's fetch replaces the whole map).
+  const shownEvidenceHundredths: Readonly<Record<string, Record<string, number | null>>> = useMemo(
+    () => (plannedKey ? evidenceHundredths : {}),
+    [plannedKey, evidenceHundredths],
+  );
   // One fetch per course per session: a course's history does not change with
   // the catalog, so each catalogVersion re-maps the cached results instead of
   // refetching every history. Failures cache too, so one dead course costs one
@@ -567,10 +576,7 @@ function IdentityPlannerProvider({
   const historiesRef = useRef(new Map<string, Promise<HistoryResult<CourseHistory>>>());
   useEffect(() => {
     const codes = plannedKey ? plannedKey.split("|") : [];
-    if (codes.length === 0) {
-      setEvidenceHundredths({});
-      return;
-    }
+    if (codes.length === 0) return;
     const fetchOne = (code: string) => {
       const [subject, number = ""] = code.split(" ");
       // A history the browser cannot read (offline, endpoint down, a test
@@ -643,10 +649,10 @@ function IdentityPlannerProvider({
   const sectionPlan = useMemo(
     // The evidence map is the same one Auto's request carries: a recommendation
     // the page shows tie-breaks on accepted instructor evidence, not section id.
-    () => resolveSectionPlan(normalizedState, sectionStore.catalog, { openSeatsOnly, otherSites }, undefined, evidenceHundredths),
+    () => resolveSectionPlan(normalizedState, sectionStore.catalog, { openSeatsOnly, otherSites }, undefined, shownEvidenceHundredths),
     // catalogVersion is how the catalog says it has more loaded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [normalizedState, sectionStore, catalogVersion, openSeatsOnly, otherSites, evidenceHundredths],
+    [normalizedState, sectionStore, catalogVersion, openSeatsOnly, otherSites, shownEvidenceHundredths],
   );
   // Actions read the newest plan: a lock pins the section the page shows.
   const sectionPlanRef = useRef(sectionPlan);
@@ -1629,7 +1635,7 @@ function IdentityPlannerProvider({
       sectionPlan,
       sectionCatalog: sectionStore.catalog,
       catalogVersion,
-      evidenceHundredths,
+      evidenceHundredths: shownEvidenceHundredths,
       loadSections: sectionStore.ensure,
       routeStops: routeStopsOf(scheduleEvents),
       scheduleEvents,
@@ -1870,6 +1876,7 @@ function IdentityPlannerProvider({
     catalogVersion,
     normalizedState,
     sectionPlan,
+    shownEvidenceHundredths,
     sectionStore,
     conflict,
     guestStorageAvailable,
