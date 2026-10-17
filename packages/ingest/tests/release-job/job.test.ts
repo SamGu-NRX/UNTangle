@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { runReleaseJob } from "../../src/release-job/job";
@@ -150,7 +150,8 @@ describe("runReleaseJob", () => {
     const before = pointerFile();
     const report = await job();
     expect(report.outcome).toBe("unchanged");
-    expect(report.reason).toBe("not-modified");
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified"]);
+    expect(report.wrote).toBe(false);
     expect(pointerFile()).toBe(before);
   });
 
@@ -194,10 +195,9 @@ describe("runReleaseJob", () => {
   });
 
   test("a watched term that is absent gets an appeared=false report", async () => {
-    // The term file's validators match now, so this run is a 304 — and the
-    // watch still runs: the watchdog is a report, not a side effect of
-    // publishing.
-    const report = await job({ watchTerms: ["fall-2027"] });
+    // Keep the published subject overlay so the cached build is unchanged.
+    // The watch still runs when nothing is published.
+    const report = await job({ subjects: ["MATH"], watchTerms: ["fall-2027"] });
     expect(report.outcome).toBe("unchanged");
     expect(report.termWatch).toEqual([
       { termId: "fall-2027", appeared: false, schemaOk: null, detail: expect.stringContaining("404"), sourceObservedAt: null },
@@ -258,6 +258,30 @@ describe("runReleaseJob, one run at a time", () => {
     };
     return new Map(release.courses.map(course => [course.courseCode, course.sections?.[0]?.components[0]?.openSeats.value]));
   };
+
+  test("a 304 retries publishing after a pointer write fails", async () => {
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    mkdirSync(pointerPath, { recursive: true });
+    writeFileSync(path.join(pointerPath, "obstruction"), "block the pointer rename");
+    const lastModified = "Fri, 01 Jan 2027 00:00:00 GMT";
+    files["/data/spring-2027.json"] = { body: changedBody, etag: '"v2"', lastModified };
+
+    await expect(job()).rejects.toMatchObject({ code: "EISDIR", syscall: "rename" });
+    const state = JSON.parse(readFileSync(path.join(outDir, "state.json"), "utf8")) as {
+      files: Record<string, { etag: string; lastModified: string }>;
+    };
+    expect(state.files[`${stub.url}/data/spring-2027.json`]).toMatchObject({ etag: '"v2"', lastModified });
+
+    rmSync(pointerPath, { recursive: true });
+    const report = await job();
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified"]);
+    expect(report.outcome).toBe("published");
+    expect(report.wrote).toBe(true);
+    const pointer = JSON.parse(readFileSync(pointerPath, "utf8")) as { releaseId: string; file: string };
+    expect(report.releaseId).toBe(pointer.releaseId);
+    expect(report.file).toBe(pointer.file);
+    expect(publishedCourses(pointer.file).get("MATH 1680")).toBe(3);
+  });
 
   test("a refused run still saves the request log, including the watch's request", async () => {
     files["/data/spring-2027.json"] = { body: '{"schema_version":3}', etag: '"v4"' };

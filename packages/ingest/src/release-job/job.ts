@@ -176,15 +176,12 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
     return { termId, outcome: "error", reason: "absent-upstream", detail: `the mirror has no file for ${termId}`, fetched, subjects: subjectReports, termWatch: [], wrote: false };
   }
   const subjects = options.subjects ?? [];
-  // With no subjects, a 304 means the build would repeat the published one.
-  // With subjects, the cached term body is rebuilt, since a subject file can
-  // change while the term file does not.
-  if (termOutcome.kind === "not-modified" && !subjects.length) {
-    return { termId, outcome: "unchanged", reason: "not-modified", detail: `HTTP 304 for ${termUrl}; the published release stays`, fetched, subjects: subjectReports, termWatch: await runWatch(), wrote: false };
-  }
 
-  // 2. Subject overlays, then build. A subject file that fails its own
-  //    schema check, or that the mirror no longer has, is dropped and
+  // 2. Subject overlays, then build. A 304 builds from the cached term body:
+  //    it confirms that body, not that it was published, since a publish can
+  //    fail after the state saved its validators. The content hash check in
+  //    step 3 decides whether anything changed. A subject file that fails its
+  //    own schema check, or that the mirror no longer has, is dropped and
   //    reported; the term file's slice for that subject stands. A subject the
   //    run could not ask about (deferred or failed) uses its cached body, and
   //    with none cached the run publishes nothing, since the term file's
