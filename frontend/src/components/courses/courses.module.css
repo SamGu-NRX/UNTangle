@@ -608,6 +608,7 @@
   }
   /* .extLink sets 24px later in this file; the pair outranks it. */
   .reqCourse,
+  .reqSet,
   .extLink.catalogLink {
     min-height: 44px;
   }
@@ -615,6 +616,7 @@
   .reqSet .courseLink {
     display: inline-block;
     padding: 12px 0;
+    line-height: 20px;
   }
 }
 
