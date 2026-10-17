@@ -40,8 +40,14 @@ export type OptMeeting = {
   day: OptDay;
   start: number;
   end: number;
-  /** null when the catalog has no building: every walk to or from it is unknown. */
+  /** null when the catalog has no mapped building. */
   buildingId: string | null;
+  /**
+   * Place used to decide whether a walk exists. `"online"` is never a walk;
+   * an unmapped room uses its building code; null means an unassigned room.
+   * Older synthetic requests may omit it, which falls back to buildingId.
+   */
+  place?: string | null;
   /**
    * Inclusive activity range; absent or null uses the request's term.
    * Meetings share activity only on actual occurrences of their weekday
@@ -64,18 +70,19 @@ export type OptSection = {
   meetings: OptMeeting[];
   /** Instructor rating 0..5, or null when there is none. */
   rating: number | null;
+  /**
+   * Mean grade points of this instructor's past students in this course, in
+   * hundredths (3.27 is 327), a whole number from 0 to 400, from accepted
+   * grade-history evidence (a confident instructor match with enough graded
+   * sections; the caller decides what counts as accepted). Null or absent
+   * when there is none: unknown evidence never satisfies the instructor
+   * tie-break, which leaves a course out entirely when any of its options
+   * lacks evidence (docs/architecture/README.md). Grade history never
+   * enters `rating`.
+   */
+  instructorGpaHundredths?: number | null;
   /** How a student refers to the section, such as "002"; defaults to the id. */
   label?: string;
-  /**
-   * Mean grade points (0 to 4 scale) of the section's instructor's past
-   * students in this course, from grade history. Null or absent when there
-   * is no confident instructor match or no history. Missing data is never
-   * treated as evidence: if any option of a course lacks this value, the
-   * course contributes no evidence for any plan (the omit-per-course rule,
-   * see `courseEvidenceEligible`), so the value can neither penalize nor
-   * reward a plan on its own.
-   */
-  instructorGpa?: number | null;
   /**
    * The section's final exam. Absent or null when it isn't known: such a
    * section clashes with no exam, and the caller says the check didn't

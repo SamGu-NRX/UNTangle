@@ -13,16 +13,11 @@
  * or bitmasks. Dates with identical active meetings need only one pair check.
  */
 
+import { instructorTiebreak } from "@untangle/core/instructor-tiebreak";
 import type { ExplainMember, Relaxation, OptCourse, OptDay, OptimizeRequest, OptMeeting, OptSection, OptWeights } from "@/lib/optimizer/types";
-import { leafBefore } from "@/lib/optimizer/search";
 
 const DAYS: OptDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const UNKNOWN_WALK = 600;
-
-// A known instructor gpa, written out on purpose rather than imported: a
-// changed rule in the engine is a disagreement here.
-const knownGpa = (section: OptSection): section is OptSection & { instructorGpa: number } =>
-  section.instructorGpa !== undefined && section.instructorGpa !== null;
 
 function runsOn(request: OptimizeRequest, meeting: OptMeeting, date: string): boolean {
   const range = meeting.dates ?? request.term;
@@ -89,8 +84,6 @@ export type RefSchedule = {
   sections: OptSection[];
   byCourse: Record<string, string>;
   cost: number;
-  /** The engine's tie-break evidence: the omit-per-course mean of known gpas. */
-  evidence: number;
   key: string[];
   breakdown: {
     daysOnCampus: number;
@@ -102,6 +95,16 @@ export type RefSchedule = {
     credits: number;
   };
 };
+
+function placeOf(meeting: Pick<OptMeeting, "buildingId" | "place">): string | null {
+  return meeting.place === undefined ? meeting.buildingId : meeting.place;
+}
+
+function noWalkBetween(a: Pick<OptMeeting, "buildingId" | "place">, b: Pick<OptMeeting, "buildingId" | "place">): boolean {
+  const from = placeOf(a);
+  const to = placeOf(b);
+  return from === "online" || to === "online" || (from !== null && from === to);
+}
 
 function walkBetween(request: OptimizeRequest, a: string | null, b: string | null): number | null {
   if (a === null || b === null) return null;
@@ -155,7 +158,7 @@ export function violations(request: OptimizeRequest, chosen: OptSection[]): stri
   }
   if (c.walking !== null) {
     for (const [prev, next] of backToBackPairs(request, chosen)) {
-      if (prev.buildingId !== null && prev.buildingId === next.buildingId && walkBetween(request, prev.buildingId, next.buildingId) === 0) continue;
+      if (noWalkBetween(prev, next)) continue;
       const walk = walkBetween(request, prev.buildingId, next.buildingId) ?? UNKNOWN_WALK;
       if ((next.start - prev.end) * 60 < walk + c.walking.bufferMinutes * 60) problems.push(`walk ${prev.owner} -> ${next.owner}`);
     }
@@ -177,6 +180,7 @@ export function referenceCost(request: OptimizeRequest, chosen: OptSection[]): P
   const days = new Set(all.map((m) => m.day));
   for (const [prev, next] of backToBackPairs(request, chosen)) {
     gap += Math.max(0, next.start - prev.end);
+    if (noWalkBetween(prev, next)) continue;
     const seconds = walkBetween(request, prev.buildingId, next.buildingId);
     if (seconds === null) unknown += 1;
     else walk += seconds;
@@ -235,30 +239,41 @@ export function referenceMinDifferent(request: OptimizeRequest): number {
   return Math.max(1, Math.min(2, variable));
 }
 
+function compareKey(a: string[], b: string[]): number {
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
+  return 0;
+}
+
 /** Every valid schedule, best first. */
 export function enumerateValid(request: OptimizeRequest): RefSchedule[] {
   const courses = [...request.courses].sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
   const out: RefSchedule[] = [];
   const current: OptSection[] = [];
+  // The evidence tier is core's rule, read off the request exactly as the
+  // engine prepares it: per option, the accepted hundredths; the comparator
+  // applies the omit rule (a course with any option without evidence
+  // contributes 0 for every schedule).
+  const compareEvidence = instructorTiebreak(
+    request.courses.map((course) => ({
+      courseCode: course.code,
+      options: Object.fromEntries(
+        course.sections.map((section) => [
+          section.id,
+          typeof section.instructorGpaHundredths === "number"
+            ? { kind: "known" as const, meanGradePointsHundredths: section.instructorGpaHundredths }
+            : { kind: "unknown" as const },
+        ]),
+      ),
+    })),
+  );
   const walk = (index: number) => {
     if (index === courses.length) {
       if (violations(request, current).length > 0) return;
       const { cost, breakdown } = referenceCost(request, current);
-      // The engine's omit-per-course evidence, written from the contract:
-      // a course contributes only when every one of its options has a
-      // known gpa; with no contributing course the evidence is 0.
-      const eligible = courses.map((course) => course.sections.every(knownGpa));
-      const contributing: Array<OptSection & { instructorGpa: number }> = [];
-      current.forEach((section, index) => {
-        if (eligible[index] && knownGpa(section)) contributing.push(section);
-      });
-      const evidence =
-        contributing.length > 0 ? contributing.reduce((sum, section) => sum + section.instructorGpa, 0) / contributing.length : 0;
       out.push({
         sections: [...current],
         byCourse: Object.fromEntries(current.map((s) => [s.courseCode, s.id])),
         cost,
-        evidence,
         key: current.map((s) => s.id),
         breakdown,
       });
@@ -271,7 +286,9 @@ export function enumerateValid(request: OptimizeRequest): RefSchedule[] {
     }
   };
   walk(0);
-  return out.sort((a, b) => (leafBefore(a, b) ? -1 : leafBefore(b, a) ? 1 : 0));
+  // Same order the engine must return: ascending cost, then core's
+  // instructor-evidence order, then the section ids in course-code order.
+  return out.sort((a, b) => a.cost - b.cost || compareEvidence(a.byCourse, b.byCourse) || compareKey(a.key, b.key));
 }
 
 /** Top k under the contract: best first, each next the best that differs enough from all picked. */

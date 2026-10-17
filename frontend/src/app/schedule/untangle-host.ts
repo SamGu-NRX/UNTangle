@@ -198,6 +198,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     sectionPlan,
     sectionCatalog,
     catalogVersion,
+    evidenceHundredths,
     loadSections,
     schedulePreferences,
     setSchedulePreferences,
@@ -388,10 +389,10 @@ export function useUntangleHost(brand: Brand): BuilderHost {
 
   // Auto: the same request the optimizer receives everywhere in UNTangle.
   const request = useMemo(
-    () => buildOptimizeRequest(plannerState, schedulePreferences, { catalog: sectionCatalog }),
+    () => buildOptimizeRequest(plannerState, schedulePreferences, { catalog: sectionCatalog, evidenceHundredths }),
     // catalogVersion is how the catalog says it has more loaded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [plannerState, schedulePreferences, sectionCatalog, catalogVersion],
+    [plannerState, schedulePreferences, sectionCatalog, catalogVersion, evidenceHundredths],
   );
   const inputKey = requestKey(request);
   const handMade = new Set(schedulePreferences.constraints.blocked.map((block) => block.id));
