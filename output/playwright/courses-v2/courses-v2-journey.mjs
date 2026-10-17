@@ -165,7 +165,7 @@ async function journey(browser, viewport) {
   await pick();
   check(`${tag}: major chosen`, (await page.getByRole("button", { name: /^Computer Science/ }).first().innerText()).includes("Computer Science"));
   // The degree audit answers first: transcript credits left (9 finished, ENGL 1320's 3 in progress), then what's left by area.
-  const left = page.getByRole("region", { name: /credits left$/ });
+  const left = page.locator('section[aria-labelledby="left-title"]');
   await left.waitFor();
   const leftTitle = await left.getByRole("heading", { level: 2 }).innerText();
   check(`${tag}: the credits left come from the transcript`, leftTitle === "108 credits left", leftTitle);
