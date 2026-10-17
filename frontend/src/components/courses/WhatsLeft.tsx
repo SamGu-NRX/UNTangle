@@ -85,14 +85,16 @@ function LeftGroup({ id, title, summary, open, onToggle, children }: { id: LeftG
     <section className={styles.group} aria-labelledby={headId} data-open={open}>
       <h2 className={styles.groupHeading}>
         <button id={headId} type="button" className={styles.groupHead} aria-expanded={open} onClick={() => onToggle(id)}>
-          <span>{title}</span>
-          {/* A closed area says what is left; an open one shows it. */}
-          {open || summary === null ? null : (
-            <span className={styles.count}>
-              <span className={styles.srOnly}>, </span>
-              {summary}
-            </span>
-          )}
+          <span className={styles.leftHeadText}>
+            <span>{title}</span>
+            {/* A closed area says what is left; an open one shows it. */}
+            {open || summary === null ? null : (
+              <span className={styles.count}>
+                <span className={styles.srOnly}>, </span>
+                {summary}
+              </span>
+            )}
+          </span>
           <ChevronDown size={16} className={styles.chev} />
         </button>
       </h2>

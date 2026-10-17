@@ -103,6 +103,13 @@
   color: var(--ink-2);
   text-wrap: pretty;
 }
+/* An area's title and, closed, what it still needs: one line here, two on a phone. */
+.leftHeadText {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
 /*
  * A requirement row has no action column: the name and its one fact fill it.
  * Selection follows the arrow keys, and a keyboard action never animates, so
@@ -1405,6 +1412,14 @@
   /* A requirement row is one line of name and fact, so its glyph centers on that line (course rows span two). */
   .reqOpen > .lead {
     grid-row: auto;
+  }
+  /* The summary goes under the title, so neither wraps beside the other. */
+  .leftHeadText {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 8px 0;
+    line-height: 20px;
   }
   .reqOpen > .fact {
     align-self: center;
