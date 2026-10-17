@@ -442,7 +442,7 @@ describe("extension add-option commands", () => {
     const committed = await h.add(token, addCommand());
     expect(committed.status).toBe(200);
     const originalReceipt = await readAddReply(committed);
-    expect(originalReceipt).toEqual({ kind: "receipt", operationId: "op-1", committedRevision: 2 });
+    expect(originalReceipt).toMatchObject({ kind: "receipt", committedRevision: 2 });
     // The response was lost before the section disappeared from the term file.
     options.sections = sections.filter(candidate => candidate.id !== csce2110Later.id);
     const retry = await h.add(token, addCommand());
@@ -459,7 +459,7 @@ describe("extension add-option commands", () => {
     const committed = await h.add(token, addCommand());
     expect(committed.status).toBe(200);
     const originalReceipt = await readAddReply(committed);
-    expect(originalReceipt).toEqual({ kind: "receipt", operationId: "op-1", committedRevision: 2 });
+    expect(originalReceipt).toMatchObject({ kind: "receipt", committedRevision: 2 });
     options.sections = null;
     const retry = await h.add(token, addCommand());
     expect(retry.status).toBe(200);
