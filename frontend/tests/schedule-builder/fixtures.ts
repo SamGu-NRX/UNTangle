@@ -8,6 +8,8 @@ type MeetingSpec = {
   building?: string | null;
   room?: string;
   dates?: { start: string; end: string };
+  /** Where the room resolves (lib/sections/buildings.ts); default "building", or "unknown" with no building. */
+  kind?: Meeting["kind"];
 };
 
 const minutes = (clock: string) => {
@@ -22,7 +24,7 @@ export function meeting(spec: MeetingSpec): Meeting {
     buildingCode: building ? building.toUpperCase() : null,
     buildingId: building,
     buildingName: building ? building.toUpperCase() : "Unknown building",
-    kind: building ? "building" : "unknown",
+    kind: spec.kind ?? (building ? "building" : "unknown"),
     offCampus: false,
     day: spec.day,
     startMinutes: minutes(spec.at),

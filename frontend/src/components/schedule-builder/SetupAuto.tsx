@@ -273,14 +273,14 @@ function ShapePane({ preferences: p, onChange, newId, touch, heading, headingId 
       <Ledger preferences={p} onChange={onChange} />
       <div className={styles.gaps}>
         <p className={styles.gapsLabel} aria-hidden="true">
-          Time between classes
+          {lean.title}
         </p>
         <div className={prefs.slideRow}>
           <span className={prefs.endPic} data-on={v === lean.min ? "" : undefined}>
             {LEAN_PIC.compact({ v: 0, w: 30, h: 30, tint: false })}
           </span>
           <Slider
-            label="Time between classes"
+            label={lean.title}
             min={lean.min}
             max={lean.max}
             ticks

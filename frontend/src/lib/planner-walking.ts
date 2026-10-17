@@ -84,6 +84,17 @@ export function isShuttleLeg(from: string | null | undefined, to: string | null 
 export const plannerTravelTime: WalkingTimeFn = (from, to) =>
   isShuttleLeg(from, to) ? { seconds: SHUTTLE_SECONDS, source: "straight-line" } : getWalkingSeconds(from, to);
 
+/**
+ * A trip between two buildings as Week times it, for Week and for Compare in
+ * Schedules alike: whole seconds, as the optimizer rounds them (walkSeconds
+ * in lib/optimizer/score.ts), so Week and Auto agree at the boundary. Null
+ * when a building has no walking time; Week then draws no walk there.
+ */
+export function weekTravel(from: string, to: string): { seconds: number; shuttle: boolean } | null {
+  const time = plannerTravelTime(from, to);
+  return time.seconds === null ? null : { seconds: Math.round(time.seconds), shuttle: isShuttleLeg(from, to) };
+}
+
 export type WalkingSummary = {
   /** Sum of every leg with an estimate, in seconds. */
   knownSeconds: number;

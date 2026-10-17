@@ -277,7 +277,8 @@ function PathPart({ row, model, dependents, inCore }: { row: CourseRowModel; mod
               "You have credit for it."
             ) : unparsed.length > 0 ? (
               <>
-                UNTangle can&apos;t read <q>{unparsed[0]}</q>, so check it with an advisor.
+                {/* The sentence supplies the punctuation: "… or better", so check it, not "… or better.", so. */}
+                UNTangle can&apos;t read <q>{unparsed[0].replace(/[\s.,;:]+$/, "")}</q>, so check it with an advisor.
               </>
             ) : (
               "You don't meet it yet."

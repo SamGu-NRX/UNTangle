@@ -5,7 +5,16 @@ import { useEffect, useEffectEvent, type RefObject } from "react";
 export const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-type Layer = { id: symbol; root: HTMLElement; opener: HTMLElement | null; restore: () => HTMLElement | null };
+/** A sheet rises from the bottom and leaves the page above it in view; a dialog (and the search palette) covers the middle or all of it. */
+export type LayerKind = "sheet" | "dialog";
+
+type Layer = {
+  id: symbol;
+  root: HTMLElement;
+  kind: LayerKind;
+  opener: HTMLElement | null;
+  restore: () => HTMLElement | null;
+};
 
 /**
  * Open modal layers, bottom to top. One stack owns everything layers share,
@@ -25,6 +34,33 @@ let savedOverflow: string | null = null;
  * as background and go inert under its own dialog.
  */
 const popoverOwners = new Map<Element, HTMLElement | null>();
+
+const stackListeners = new Set<() => void>();
+
+/** Calls `listener` whenever the stack changes; `topModal` reads it. The Toaster uses it to step out of a modal's way. */
+export function subscribeModalStack(listener: () => void): () => void {
+  stackListeners.add(listener);
+  return () => {
+    stackListeners.delete(listener);
+  };
+}
+
+/** The kind of the topmost modal layer, or null when none is open. */
+export const topModal = (): LayerKind | null => layers[layers.length - 1]?.kind ?? null;
+
+/** Each sheet's resting top edge, in px from the top of the viewport, by its portal root. */
+const sheetTops = new WeakMap<HTMLElement, number>();
+
+/**
+ * Records where a modal sheet's top edge rests (BottomSheet calls it as the
+ * detent changes). While that sheet is on top, the edge is published as
+ * `--sheet-top` on <html>, so the toast can sit in the space above it.
+ */
+export function setSheetTop(root: HTMLElement, top: number) {
+  if (sheetTops.get(root) === top) return;
+  sheetTops.set(root, top);
+  syncStack();
+}
 
 /** Brings inert state and the scroll lock in line with the current stack. */
 function syncStack() {
@@ -61,6 +97,10 @@ function syncStack() {
       managedInert.add(el);
     }
   }
+  const sheetTop = top?.kind === "sheet" ? sheetTops.get(top.root) : undefined;
+  if (sheetTop !== undefined) html.style.setProperty("--sheet-top", `${sheetTop}px`);
+  else html.style.removeProperty("--sheet-top");
+  stackListeners.forEach((listener) => listener());
 }
 
 /**
@@ -95,6 +135,8 @@ function removeLayer(id: symbol) {
   const at = layers.findIndex((layer) => layer.id === id);
   if (at < 0) return;
   const [layer] = layers.splice(at, 1);
+  // Reopened, a sheet reports its edge again; until then it has none, so no stale edge is published for a frame.
+  sheetTops.delete(layer.root);
   const wasTop = at === layers.length;
   if (!wasTop) {
     // A lower layer closed first. The layer above may have been opened from
@@ -139,10 +181,12 @@ export function useModalLayer(
   open: boolean,
   rootRef: RefObject<HTMLElement | null>,
   {
+    kind = "dialog",
     onEscape,
     initialFocus,
     returnFocus,
   }: {
+    kind?: LayerKind;
     onEscape?: () => void;
     initialFocus?: RefObject<HTMLElement | null>;
     /** Where focus goes on close, when it should not be the opener (a selection that moved). */
@@ -162,7 +206,7 @@ export function useModalLayer(
     if (!root) return;
     const id = Symbol("modal-layer");
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    pushLayer({ id, root, opener, restore: restoreTarget });
+    pushLayer({ id, root, kind, opener, restore: restoreTarget });
 
     const target = focusTarget() ?? root.querySelector<HTMLElement>(FOCUSABLE) ?? root;
     target.focus({ preventScroll: true });
@@ -203,5 +247,5 @@ export function useModalLayer(
       document.removeEventListener("keydown", onKey);
       removeLayer(id);
     };
-  }, [open, rootRef, canEscape]);
+  }, [open, rootRef, canEscape, kind]);
 }
