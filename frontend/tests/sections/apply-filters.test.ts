@@ -148,3 +148,16 @@ describe("applySectionFilters", () => {
     expect(kept.sections.map((s) => s.id)).toEqual(["csce-1045-001"]);
   });
 });
+
+describe("repeated filter parameters", () => {
+  test("a repeated filters parameter is an error, not first-value-wins", () => {
+    const one = encodeURIComponent(JSON.stringify([{ kind: "open-seats", minimum: 1 }]));
+    const result = params(`?filters=${one}&filters=${one}`);
+    expect(result).toEqual({ error: expect.stringContaining("at most once") });
+  });
+
+  test("a repeated minInstructorGpa parameter is an error", () => {
+    const result = params("?minInstructorGpa=3&minInstructorGpa=3.5");
+    expect(result).toEqual({ error: expect.stringContaining("at most once") });
+  });
+});

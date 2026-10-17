@@ -47,6 +47,10 @@ function parseFilters(raw: unknown): { ok: true; filters: SectionFilter[] } | { 
  * number from 0 to 4, at most two decimals (whole hundredths, exact).
  */
 export function parseSectionFilterParams(params: URLSearchParams): ParsedFilterParams | { error: string } {
+  // The route contract makes duplicate parameters errors, not first-value-wins:
+  // get() below would silently read only the first value of a repeated key.
+  if (params.getAll("filters").length > 1) return { error: "filters must appear at most once" };
+  if (params.getAll("minInstructorGpa").length > 1) return { error: "minInstructorGpa must appear at most once" };
   let filters: SectionFilter[] = [];
   const raw = params.get("filters");
   if (raw !== null && raw.trim() !== "") {
