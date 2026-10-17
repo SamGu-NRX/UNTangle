@@ -6,7 +6,7 @@ import type { DegreeData } from "@untangle/core/degree/types";
 export const DEGREE_DATA: DegreeData = {
   "catalogId": "unt-2026-27",
   "catalogYear": "2026-2027",
-  "builtAt": "2026-10-16T12:35:37.428Z",
+  "builtAt": "2026-10-17T16:03:24.070Z",
   "pages": [
     {
       "file": "cs-bs.html",
@@ -602,7 +602,7 @@ export const DEGREE_DATA: DegreeData = {
               "TECM"
             ],
             "minLevel": 4000,
-            "maxLevel": null
+            "maxLevel": 4999
           },
           "note": "The catalog names no list, only \"any 4000-level TECM course\"; the audit cannot tell which TECM course numbers exist.",
           "citation": {
