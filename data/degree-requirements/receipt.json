@@ -1,0 +1,53 @@
+{
+  "tool": "tools/degree-requirements/fetch-pages.mjs",
+  "userAgent": "UNTangleDegreePlanBot/1.0 (student degree-planning tool; fetches published catalog pages only; respects robots.txt and its crawl-delay; contact: focus.sgu@gmail.com; source: https://github.com/SamGu-NRX/UNTangle tools/degree-requirements)",
+  "minRequestIntervalMs": 1000,
+  "robots": {
+    "url": "https://catalog.unt.edu/robots.txt",
+    "fetchedAt": "2026-10-11T14:56:46.667Z",
+    "sha256": "1dfe956a6b5e20dc3c081043faf71e746170ae4dfefa0f00c2bacc8dc8c8a0c3",
+    "disallowedPaths": [
+      "/portfolio.php",
+      "/portfolio_nopop.php",
+      "/ajax/",
+      "/search_advanced.php"
+    ],
+    "crawlDelaySeconds": 120
+  },
+  "entries": [
+    {
+      "url": "https://catalog.unt.edu/",
+      "purpose": "discovery:home",
+      "cacheHit": false,
+      "cacheFile": "data/degree-requirements/cache/catalog.unt.edu_.html",
+      "sha256": "231e349fae082a44dcf811829aa35e356b297de39b544f04d5726ef8710af22b",
+      "bytes": 50068,
+      "fetchedAt": "2026-10-11T14:58:46.895Z",
+      "status": 200,
+      "finalUrl": "https://catalog.unt.edu/"
+    },
+    {
+      "url": "https://catalog.unt.edu/",
+      "purpose": "discovery:home",
+      "cacheHit": true,
+      "cacheFile": "data/degree-requirements/cache/catalog.unt.edu_.html",
+      "sha256": "231e349fae082a44dcf811829aa35e356b297de39b544f04d5726ef8710af22b",
+      "bytes": 50068,
+      "fetchedAt": null,
+      "status": null
+    }
+  ],
+  "requestCount": 4,
+  "crawlDelaySeconds": 120,
+  "cacheHits": 1,
+  "corrections": [
+    {
+      "at": "2026-10-11T15:02:41.901Z",
+      "note": "purged 2 WAF challenge entries (navoid=4657, navoid=4658) recorded as fetched content; challenge pages are not content",
+      "purged": [
+        "https://catalog.unt.edu/content.php?catoid=40&navoid=4658",
+        "https://catalog.unt.edu/content.php?catoid=40&navoid=4657"
+      ]
+    }
+  ]
+}
