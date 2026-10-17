@@ -77,30 +77,42 @@ pin — the solver imports the app's TypeScript). Playwright and axe-core are
 loaded from wherever they are installed:
 
 ```sh
-export PLAYWRIGHT_MODULE=/path/to/node_modules/playwright  # or a dir containing playwright
+export PLAYWRIGHT_MODULE=/path/to/node_modules/playwright/index.mjs  # or its install directory
 export AXE_PATH=/path/to/node_modules/axe-core/axe.min.js
 export UNTANGLE_BUN="$(command -v bun)"                    # default: bun / journey-bun
 node output/playwright/student-auto/journey.mjs http://127.0.0.1:3000 /tmp/student-auto
 ```
 
-In CI (`journeys.yml`), the journey runs under its own user with outbound
-traffic blocked; the lead adds the step, the same way the other journeys are
-run (see the pull request description for the exact step).
+Both module-path forms work: the module's own file (the form `journeys.yml`
+uses for the other journeys) and its install directory. A self-check for the
+two forms:
+
+```sh
+node output/playwright/student-auto/probe-playwright-module.mjs /path/to/node_modules/playwright
+```
+
+The journey is **not yet registered in `.github/workflows/journeys.yml`** —
+that workflow's matrix, path triggers, and dispatch cases have no
+`student-auto` entry, so nothing runs it in CI today. Until the lead wires it
+up (planned after this merges), run it by hand with the command above.
 
 
-## Known findings (2026-10-15 run)
+## Known findings (2026-10-17 run)
 
 The axe audit blocks on serious/critical violations, the same rule the other
-journeys use. On the recorded run it found real ones on the app itself —
-49/50 checks pass, and the one failing check is that audit:
+journeys use. The journey now runs the audit only after the page settles — the
+heading or options strip visible and every animation finished — because the
+earlier `/connect` and options-strip `color-contrast` hits were mid-fade
+artifacts: PR #162 measured the settled contrast at 5.0–6.2:1 on those exact
+elements.
 
-- `/connect`: `color-contrast` (serious) on 3 caption/meta nodes.
-- Preferences dialog: `color-contrast` (serious) on the "Fridays off" toggle
-  label, and `label-content-name-mismatch` (serious) on all five day-toggle
-  buttons (`aria-label="Mondays off"` does not contain the button's visible
-  text).
-- Options strip (options 2 and 3): `color-contrast` (serious) on the count
-  pill and the strip sentence.
+Two groups of findings still block, and both depend on PR #162 (accessibility
+fixes) merging:
+
+- Preferences day toggles: `label-content-name-mismatch` — `aria-label="Mondays off"`
+  does not contain the button's visible text. #162 fixes the day-toggle names.
+- Option pages: `label-content-name-mismatch` on the builder pills. #162
+  fixes the finals-pill name.
 
 Full node targets are in `output/journey-report.json` (`axe`) and `report.md`.
 Fixing them is app work, separate from this journey.

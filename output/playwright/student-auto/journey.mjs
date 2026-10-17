@@ -46,6 +46,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadModule } from "./playwright-entry.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, "..", "..", "..");
@@ -55,16 +56,10 @@ mkdirSync(out, { recursive: true });
 
 /* ───────── module loading (mirrors the courses-v2 journey) ───────── */
 
-function loadModule(name, envPath) {
-  const parent = createRequire(import.meta.url);
-  try {
-    return parent(name);
-  } catch {
-    if (envPath) return createRequire(join(envPath, "package.json"))(name);
-    throw new Error(`${name} not found; set PLAYWRIGHT_MODULE / AXE_PATH to its install dir`);
-  }
-}
-const { chromium } = loadModule("playwright", process.env.PLAYWRIGHT_MODULE);
+// playwright-entry.mjs accepts both module-path forms: journeys.yml sets
+// PLAYWRIGHT_MODULE to the module's own file (.../node_modules/playwright/index.mjs),
+// the README documents the install directory. Self-check: probe-playwright-module.mjs.
+const { chromium } = loadModule("playwright", process.env.PLAYWRIGHT_MODULE, import.meta.url);
 const axePath =
   process.env.AXE_PATH ??
   (() => {
@@ -103,6 +98,19 @@ const axeFindings = [];
 /* ───────── shared UI helpers (adapted from scheduler-v2, which drives this same app in CI) ───────── */
 
 async function axe(page, context) {
+  // Fade-ins ran mid-animation under the audit: axe read unsettled colors that
+  // are not the shipped UI (PR #162 measured settled contrast at 5.0-6.2:1
+  // where mid-fade runs reported color-contrast on /connect and the options
+  // strip). Wait for the heading or the options strip to render, then let
+  // every animation finish. `finished` never settles for looping animations
+  // and rejects on cancellation, so bound the wait and swallow cancellations.
+  await page.waitForSelector("main h1, main h2, main h3, [data-part='count']", { state: "visible", timeout: 15000 }).catch(() => {});
+  await page.evaluate(() =>
+    Promise.race([
+      Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => {}))),
+      new Promise((resolve) => setTimeout(resolve, 5000)),
+    ]),
+  );
   // Inline scripts execute synchronously and never fire load/error events, so
   // inject, then run axe in the same evaluate — no event to wait for.
   const found = await page.evaluate((source) => {
@@ -442,8 +450,11 @@ async function runViewport(context, name) {
     }
   });
   await strip.getByRole("button", { name: "Use this" }).click();
-  await page
-    .waitForFunction(
+  // the timeout must fail the journey: with no save, the stored state is still
+  // tray-Auto's, and if its section ids equal option 1's the applied-plan
+  // checks would pass without a save ever landing (CodeRabbit round 6)
+  try {
+    await page.waitForFunction(
       (base) =>
         Object.entries(localStorage)
           .filter(([key]) => key.startsWith("untangle.planner-state.v1"))
@@ -457,8 +468,12 @@ async function runViewport(context, name) {
           }),
       baseRevision,
       { timeout: 10000 },
-    )
-    .catch(() => {});
+    );
+  } catch (error) {
+    throw new Error(
+      `${name}: the planner store never advanced past revision ${baseRevision} after "Use this" - the applied option was not saved, so the journey stops instead of auditing the old state (${String(error?.message ?? error).split("\n")[0]})`,
+    );
+  }
   await shot("08-used.png");
 
   // 5. capture the student's own storage: what Auto's request was built from
