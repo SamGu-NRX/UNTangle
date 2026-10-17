@@ -424,8 +424,41 @@ async function runViewport(context, name) {
   check(`${name}: details explain days on campus`, daysOnCampus > 0, `${daysOnCampus} mentions`);
   await page.getByRole("banner").getByRole("button", { name: "Close" }).click({ force: true }).catch(() => {});
   await page.keyboard.press("Escape").catch(() => {});
+  // the planner store persists as { state, revision, savedAt } and every write
+  // bumps the monotonic revision (planner-store.ts always saves
+  // currentRevision + 1), so the applied option's save is observable as a
+  // revision change. Read the base revision before the click, then poll for the
+  // bump instead of sleeping a fixed 800 ms - a late or debounced save would
+  // otherwise leave the capture reading tray-Auto's selectedSections, failing
+  // appliedMatches and rebuilding the solver request from the old state.
+  const baseRevision = await page.evaluate(() => {
+    const raw = Object.entries(localStorage)
+      .filter(([key]) => key.startsWith("untangle.planner-state.v1"))
+      .map(([, value]) => value)[0];
+    try {
+      return JSON.parse(raw)?.revision ?? null;
+    } catch {
+      return null;
+    }
+  });
   await strip.getByRole("button", { name: "Use this" }).click();
-  await page.waitForTimeout(800);
+  await page
+    .waitForFunction(
+      (base) =>
+        Object.entries(localStorage)
+          .filter(([key]) => key.startsWith("untangle.planner-state.v1"))
+          .some(([, raw]) => {
+            try {
+              const doc = JSON.parse(raw);
+              return typeof doc?.revision === "number" && doc.revision > base && Boolean(doc?.state?.selectedSections);
+            } catch {
+              return false;
+            }
+          }),
+      baseRevision,
+      { timeout: 10000 },
+    )
+    .catch(() => {});
   await shot("08-used.png");
 
   // 5. capture the student's own storage: what Auto's request was built from
