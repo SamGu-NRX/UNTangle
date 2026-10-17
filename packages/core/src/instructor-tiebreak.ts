@@ -45,58 +45,88 @@ export type SchedulePicks = Readonly<Record<string, string>>;
 export type ScheduleComparator = (a: SchedulePicks, b: SchedulePicks) => number;
 
 /**
- * Builds the comparator for one optimizer request from every option of every
- * course in it.
- *
- * A course counts only when every one of its options has known evidence.
- * The schedule with the larger sum of its picks' evidence over the counted
- * courses ranks first. With no counted course, every pair ties.
- *
- * The comparator is a strict weak order on the schedules of the request
- * (irreflexive, antisymmetric, transitive, with transitive ties), and its
- * answers don't depend on the order courses or options are listed.
+ * Per course, after the omit rule: whether the course's evidence counts at
+ * all, and each option's contribution to the tie-break.
+ */
+export type EvidenceContributions = Readonly<
+  Record<
+    string,
+    {
+      /** True when every option the course lists carries accepted evidence. */
+      readonly counted: boolean;
+      /** Option id -> contribution in whole hundredths: the option's own evidence when the course counts, else 0 for every option. */
+      readonly options: Readonly<Record<string, number>>;
+    }
+  >
+>;
+
+/**
+ * Every option's evidence contribution, applying the omit rule once: a
+ * course whose options all carry accepted evidence contributes each option's
+ * own hundredths; a course with any option without evidence contributes 0
+ * for every option, so its sections can never decide a tie
+ * (docs/architecture/README.md). The engine prepares its per-option values
+ * here, and reasons quotes them, so the rule is implemented once.
  *
  * Throws on a course listed twice, a course with no options, or evidence
- * that isn't a whole number from 0 to 400. The comparator throws on a
- * schedule that misses a course, adds one, or picks an option the course
- * doesn't list. It never compares schedules it can't account for.
+ * that isn't a whole number from 0 to 400.
  */
-export function instructorTiebreak(courses: readonly CourseEvidence[]): ScheduleComparator {
+export function instructorEvidenceContributions(courses: readonly CourseEvidence[]): EvidenceContributions {
   const courseCodes = new Set<string>();
-  const request = courses.map(({ courseCode, options }) => {
+  const out: Record<string, { counted: boolean; options: Record<string, number> }> = {};
+  for (const { courseCode, options } of courses) {
     if (courseCodes.has(courseCode)) throw new Error(`Duplicate course: ${courseCode}`);
     courseCodes.add(courseCode);
     const entries = Object.entries(options);
     if (entries.length === 0) throw new Error(`Course ${courseCode} has no options`);
-
-    const evidenceByOption = new Map<string, number | null>();
-    let counted = true;
+    const counted = entries.every(([, evidence]) => evidence.kind === "known");
+    const values: Record<string, number> = {};
     for (const [optionId, evidence] of entries) {
       if (evidence.kind === "unknown") {
-        counted = false;
-        evidenceByOption.set(optionId, null);
+        values[optionId] = 0;
         continue;
       }
       const value = evidence.meanGradePointsHundredths;
       if (!Number.isInteger(value) || value < 0 || value > 400) {
         throw new Error(`Course ${courseCode}, option ${optionId}: evidence must be whole hundredths from 0 to 400`);
       }
-      evidenceByOption.set(optionId, value);
+      values[optionId] = counted ? value : 0;
     }
-    return { courseCode, evidenceByOption, counted };
-  });
+    out[courseCode] = { counted, options: values };
+  }
+  return out;
+}
+
+/**
+ * Builds the comparator for one optimizer request from every option of every
+ * course in it: the schedule with the larger sum of its picks'
+ * `instructorEvidenceContributions` ranks first. With no counted course,
+ * every pair ties.
+ *
+ * The comparator is a strict weak order on the schedules of the request
+ * (irreflexive, antisymmetric, transitive, with transitive ties), and its
+ * answers don't depend on the order courses or options are listed.
+ *
+ * Throws like `instructorEvidenceContributions`. The comparator throws on a
+ * schedule that misses a course, adds one, or picks an option the course
+ * doesn't list. It never compares schedules it can't account for.
+ */
+export function instructorTiebreak(courses: readonly CourseEvidence[]): ScheduleComparator {
+  const contributions = instructorEvidenceContributions(courses);
+  const courseCodes = new Set(Object.keys(contributions));
+  const byCourse = courses.map(({ courseCode }) => ({ courseCode, options: contributions[courseCode].options }));
 
   function score(picks: SchedulePicks): number {
     for (const courseCode of Object.keys(picks)) {
       if (!courseCodes.has(courseCode)) throw new Error(`Schedule adds course: ${courseCode}`);
     }
     let total = 0;
-    for (const { courseCode, evidenceByOption, counted } of request) {
+    for (const { courseCode, options } of byCourse) {
       if (!Object.hasOwn(picks, courseCode)) throw new Error(`Schedule misses course: ${courseCode}`);
       const optionId = picks[courseCode];
-      const evidence = evidenceByOption.get(optionId);
-      if (evidence === undefined) throw new Error(`Course ${courseCode}: unknown option ${optionId}`);
-      if (counted && evidence !== null) total += evidence;
+      const contribution = options[optionId];
+      if (contribution === undefined) throw new Error(`Course ${courseCode}: unknown option ${optionId}`);
+      total += contribution;
     }
     return total;
   }

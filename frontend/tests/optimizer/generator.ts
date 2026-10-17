@@ -119,6 +119,21 @@ export type InstanceShape = {
    * other instance is unchanged.
    */
   terms?: boolean;
+  /**
+   * Instructor evidence on the sections, drawn per course: about half the
+   * courses fully evidenced (whole hundredths 0 to 400, with repeats so
+   * evidence ties occur), a quarter partially evidenced (which the omit rule
+   * leaves out for every option), a quarter with none. Off by default; the
+   * extra random draws happen only when it is on, so every other instance is
+   * unchanged.
+   */
+  evidence?: boolean;
+  /**
+   * Chance that a section twins the previous one (same meetings and rooms,
+   * another instructor). Twins cost the same, so with evidence on they are
+   * where the evidence tier decides. Default 0.08.
+   */
+  twinChance?: number;
 };
 
 export const FULL_TERM = { start: "2027-01-11", end: "2027-05-07" } as const;
@@ -137,6 +152,23 @@ export function generateInstance(seed: number, shape: InstanceShape): OptimizeRe
   const building = () => (chance(rng, 0.1) ? pick(rng, UNKNOWN_BUILDINGS) : pick(rng, KNOWN_BUILDINGS));
   const courses: OptCourse[] = [];
   for (let c = 0; c < shape.courses; c += 1) {
+    // Instructor evidence, in whole hundredths 0 to 400; null marks a section
+    // with no accepted evidence, and the omit rule then leaves the whole
+    // course out of the tie-break tier. The tier roll happens per course as
+    // the shape doc says: about half the courses fully evidenced, a quarter
+    // partial, a quarter with none. Off shapes draw nothing, so their
+    // instances stay byte-identical to the no-evidence generator.
+    const evidenceRoll = shape.evidence ? rng() : -1;
+    const gpa = (): number | null | undefined =>
+      evidenceRoll < 0
+        ? undefined
+        : evidenceRoll < 0.5
+          ? int(rng, 0, 400)
+          : evidenceRoll < 0.75
+            ? chance(rng, 0.5)
+              ? null
+              : int(rng, 0, 400)
+            : null;
     const code = `GEN ${1000 + c * 10 + int(rng, 0, 9)}`;
     const count = Array.isArray(shape.sectionsPerCourse)
       ? int(rng, shape.sectionsPerCourse[0], shape.sectionsPerCourse[1])
@@ -146,7 +178,7 @@ export function generateInstance(seed: number, shape: InstanceShape): OptimizeRe
       const id = `${code.replace(" ", "-").toLowerCase()}-${String(s + 1).padStart(3, "0")}`;
       const rating = chance(rng, 0.15) ? null : Math.round((1 + rng() * 4) * 10) / 10;
       const previous = sections[sections.length - 1];
-      if (previous && chance(rng, 0.08)) {
+      if (previous && chance(rng, shape.twinChance ?? 0.08)) {
         // A twin: same meetings and rooms, another instructor.
         const meetings = previous.meetings.map((m) => ({ ...m }));
         if (shape.terms && chance(rng, 0.6)) {
@@ -154,7 +186,8 @@ export function generateInstance(seed: number, shape: InstanceShape): OptimizeRe
           const dates = termDates(rng);
           for (const meeting of meetings) meeting.dates = dates;
         }
-        sections.push({ id, courseCode: code, rating, label: id.slice(-3), meetings });
+        const twinValue = gpa();
+        sections.push({ id, courseCode: code, rating, label: id.slice(-3), meetings, ...(typeof twinValue === "number" ? { instructorGpaHundredths: twinValue } : {}) });
         continue;
       }
       const pattern = shape.style === "realistic" ? realisticPattern(rng) : irregularPattern(rng);
@@ -188,7 +221,8 @@ export function generateInstance(seed: number, shape: InstanceShape): OptimizeRe
           meeting.dates = index > 0 && chance(rng, 0.1) ? termDates(rng) : dates;
         });
       }
-      sections.push({ id, courseCode: code, rating, label: id.slice(-3), meetings });
+      const value = gpa();
+      sections.push({ id, courseCode: code, rating, label: id.slice(-3), meetings, ...(typeof value === "number" ? { instructorGpaHundredths: value } : {}) });
     }
     courses.push({ code, credits: pick(rng, [3, 3, 3, 4, 4, 1]), sections });
   }

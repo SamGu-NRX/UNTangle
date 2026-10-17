@@ -13,6 +13,7 @@
  * or bitmasks. Dates with identical active meetings need only one pair check.
  */
 
+import { instructorTiebreak } from "@untangle/core/instructor-tiebreak";
 import type { ExplainMember, Relaxation, OptCourse, OptDay, OptimizeRequest, OptMeeting, OptSection, OptWeights } from "@/lib/optimizer/types";
 
 const DAYS: OptDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -248,6 +249,23 @@ export function enumerateValid(request: OptimizeRequest): RefSchedule[] {
   const courses = [...request.courses].sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
   const out: RefSchedule[] = [];
   const current: OptSection[] = [];
+  // The evidence tier is core's rule, read off the request exactly as the
+  // engine prepares it: per option, the accepted hundredths; the comparator
+  // applies the omit rule (a course with any option without evidence
+  // contributes 0 for every schedule).
+  const compareEvidence = instructorTiebreak(
+    request.courses.map((course) => ({
+      courseCode: course.code,
+      options: Object.fromEntries(
+        course.sections.map((section) => [
+          section.id,
+          typeof section.instructorGpaHundredths === "number"
+            ? { kind: "known" as const, meanGradePointsHundredths: section.instructorGpaHundredths }
+            : { kind: "unknown" as const },
+        ]),
+      ),
+    })),
+  );
   const walk = (index: number) => {
     if (index === courses.length) {
       if (violations(request, current).length > 0) return;
@@ -268,7 +286,9 @@ export function enumerateValid(request: OptimizeRequest): RefSchedule[] {
     }
   };
   walk(0);
-  return out.sort((a, b) => a.cost - b.cost || compareKey(a.key, b.key));
+  // Same order the engine must return: ascending cost, then core's
+  // instructor-evidence order, then the section ids in course-code order.
+  return out.sort((a, b) => a.cost - b.cost || compareEvidence(a.byCourse, b.byCourse) || compareKey(a.key, b.key));
 }
 
 /** Top k under the contract: best first, each next the best that differs enough from all picked. */
