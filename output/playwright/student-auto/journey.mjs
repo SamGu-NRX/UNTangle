@@ -224,7 +224,13 @@ async function runViewport(context, name) {
   // 2. Courses: choose the major, then tray Auto (Auto refuses to run without a major)
   await page.goto(`${base}/courses`, { waitUntil: "load" });
   await page.waitForLoadState("networkidle").catch(() => {});
-  await page.getByRole("button", { name: "Choose your major" }).click();
+  // Alpha (round five): before a major is chosen, Courses shows a pre-major
+  // section beside the header degree button; both open the same dialog, and
+  // the section unmounts once a major is picked. Use its button and assert
+  // both halves of that behavior.
+  const preMajor = page.getByRole("region", { name: "See your degree's courses" });
+  await preMajor.waitFor({ state: "visible", timeout: 30000 });
+  await preMajor.getByRole("button", { name: "Choose your major" }).click();
   const degree = page.getByRole("dialog", { name: "Your degree" });
   await degree.waitFor({ state: "visible", timeout: 30000 });
   await degree.getByRole("button", { name: "Computer Science" }).click();
@@ -233,6 +239,12 @@ async function runViewport(context, name) {
     await degree.getByRole("button", { name: "Close" }).click({ timeout: 5000 }).catch(() => {});
     await degree.waitFor({ state: "hidden", timeout: 10000 }).catch(() => {});
   }
+  const preMajorGone = !(await preMajor.isVisible().catch(() => false));
+  check(
+    `${name}: Courses drops the pre-major choose-a-major section once Computer Science is picked`,
+    preMajorGone,
+    preMajorGone ? "section hidden after choosing" : "section still visible after choosing",
+  );
   await axe(page, `${name}/courses`);
   await shot("03-courses.png");
   const autoTray = page.getByRole("button", { name: "Auto", exact: true });
@@ -257,6 +269,48 @@ async function runViewport(context, name) {
   await page.locator('[data-event]').first().waitFor({ state: "visible", timeout: 30000 }).catch(() => {});
   await axe(page, `${name}/schedule-before`);
   await shot("05-week-before.png");
+
+  // Alpha (round five): the first visit to Week opens the "Set up Auto" wizard
+  // over the grid. Answer every question (answers save as they are given),
+  // reach Ready, and close from there with Skip setup: finishing via Build my
+  // week would run Auto itself and race this journey's own Auto proof. The
+  // wizard must close and must not reopen on a return visit.
+  const setup = page.getByRole("dialog", { name: "Set up Auto" });
+  const setupOpen = await setup.isVisible().catch(() => false);
+  check(`${name}: Week opens the Set up Auto wizard on first visit`, setupOpen, setupOpen ? "wizard visible over the grid" : "no wizard on first visit");
+  if (setupOpen) {
+    // Six steps: four questions, a Shape pane, then Ready. Advance while the
+    // footer says Continue; on question steps pick the first answer first
+    // (Continue stays disabled until an answer is picked). Stop at Ready
+    // WITHOUT finishing: finishing via Build my week runs Auto itself and
+    // would race this journey's own Auto proof.
+    for (let step = 0; step < 8; step += 1) {
+      const group = setup.getByRole("radiogroup");
+      if (await group.isVisible().catch(() => false)) {
+        await group.getByRole("radio").first().click();
+      }
+      const nextLabel = ((await setup.getByRole("button", { name: /^(Continue|Build my week|Done)$/ }).first().textContent()) ?? "").trim();
+      if (/Build my week|Done/.test(nextLabel)) break;
+      await setup.getByRole("button", { name: "Continue" }).click();
+      await page.waitForTimeout(300);
+    }
+    await setup.getByText("What Auto will follow").waitFor({ state: "visible", timeout: 30000 });
+    // Phone: the sheet header's Skip setup icon button. Desktop: the dialog's
+    // own Close control (SetupAuto renders no Skip setup button there) - both
+    // call dismiss(), which marks the setup seen without running Auto.
+    await setup.getByRole("button", { name: name === "phone" ? "Skip setup" : "Close" }).click();
+    await setup.waitFor({ state: "hidden", timeout: 10000 }).catch(() => {});
+  }
+  const setupClosed = !(await setup.isVisible().catch(() => false));
+  await page.reload({ waitUntil: "load" });
+  await main(page).waitFor({ state: "visible" });
+  await page.locator("[data-event]").first().waitFor({ state: "visible", timeout: 30000 }).catch(() => {});
+  const setupStaysClosed = !(await setup.isVisible().catch(() => false));
+  check(
+    `${name}: Set up Auto closes and does not reopen on return`,
+    setupClosed && setupStaysClosed,
+    setupClosed && setupStaysClosed ? "closed from Ready and still closed after a reload" : setupClosed ? "reopened after reload" : "never closed",
+  );
 
   const prefs = await openPrefs(page);
   const sliderValue = await setEarliestStart(prefs, "10 AM");
