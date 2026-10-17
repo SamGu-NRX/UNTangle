@@ -1,0 +1,266 @@
+[
+  {
+    "direction": "a",
+    "viewport": "desktop",
+    "measuredDay": "Tue",
+    "seeded": true,
+    "seedWaitMs": 12,
+    "tuesdayContentRendered": true,
+    "loadMs": 1531,
+    "routeApiCallsOnDaySwitch": 2,
+    "longestWalkInDom": 1,
+    "axeViolations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "count": 5,
+        "sample": [
+          ".conflict-banner > span:nth-child(2)",
+          ".course-pill:nth-child(2)"
+        ]
+      },
+      {
+        "id": "landmark-main-is-top-level",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          ".lab-split__schedule > div > main"
+        ]
+      },
+      {
+        "id": "landmark-no-duplicate-main",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          ".lab-root > div > main"
+        ]
+      },
+      {
+        "id": "landmark-unique",
+        "impact": "moderate",
+        "count": 2,
+        "sample": [
+          ".lab-root > div > header > div > nav",
+          ".lab-root > div > main"
+        ]
+      }
+    ]
+  },
+  {
+    "direction": "b",
+    "viewport": "desktop",
+    "measuredDay": "Tue",
+    "seeded": true,
+    "seedWaitMs": 839,
+    "tuesdayContentRendered": true,
+    "loadMs": 1415,
+    "routeApiCallsOnDaySwitch": 0,
+    "longestWalkInDom": 1,
+    "axeViolations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "count": 1,
+        "sample": [
+          ".lab-days__tab--active"
+        ]
+      },
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          "article[aria-label=\"ANTH 3200 at 09:00\"] > .lab-itin__cardhead > h3"
+        ]
+      }
+    ]
+  },
+  {
+    "direction": "c",
+    "viewport": "desktop",
+    "measuredDay": "Tue",
+    "seeded": true,
+    "seedWaitMs": 259,
+    "tuesdayContentRendered": true,
+    "loadMs": 1406,
+    "routeApiCallsOnDaySwitch": 0,
+    "longestWalkInDom": 1,
+    "axeViolations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "count": 1,
+        "sample": [
+          ".lab-days__tab--active"
+        ]
+      },
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          "article[aria-label=\"ANTH 3200 at 09:00\"] > .lab-itin__cardhead > h3"
+        ]
+      }
+    ]
+  },
+  {
+    "direction": "a",
+    "viewport": "mobile",
+    "measuredDay": "Tue",
+    "seeded": true,
+    "seedWaitMs": 8,
+    "tuesdayContentRendered": true,
+    "loadMs": 1354,
+    "routeApiCallsOnDaySwitch": 0,
+    "longestWalkInDom": 1,
+    "axeViolations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "count": 3,
+        "sample": [
+          ".conflict-banner > span:nth-child(2)",
+          ".course-pill:nth-child(2)"
+        ]
+      },
+      {
+        "id": "landmark-main-is-top-level",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          ".lab-split__schedule > div > main"
+        ]
+      },
+      {
+        "id": "landmark-no-duplicate-main",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          ".lab-root > div > main"
+        ]
+      },
+      {
+        "id": "landmark-unique",
+        "impact": "moderate",
+        "count": 2,
+        "sample": [
+          ".lab-root > div > header > div > nav",
+          ".lab-root > div > main"
+        ]
+      }
+    ]
+  },
+  {
+    "direction": "b",
+    "viewport": "mobile",
+    "measuredDay": "Tue",
+    "seeded": true,
+    "seedWaitMs": 503,
+    "tuesdayContentRendered": true,
+    "loadMs": 1490,
+    "routeApiCallsOnDaySwitch": 0,
+    "longestWalkInDom": 1,
+    "axeViolations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "count": 1,
+        "sample": [
+          ".lab-days__tab--active"
+        ]
+      },
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          "article[aria-label=\"ANTH 3200 at 09:00\"] > .lab-itin__cardhead > h3"
+        ]
+      }
+    ]
+  },
+  {
+    "direction": "c",
+    "viewport": "mobile",
+    "measuredDay": "Tue",
+    "seeded": true,
+    "seedWaitMs": 439,
+    "tuesdayContentRendered": true,
+    "loadMs": 1402,
+    "routeApiCallsOnDaySwitch": 0,
+    "longestWalkInDom": 1,
+    "axeViolations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "count": 1,
+        "sample": [
+          ".lab-days__tab--active"
+        ]
+      },
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          "article[aria-label=\"ANTH 3200 at 09:00\"] > .lab-itin__cardhead > h3"
+        ]
+      }
+    ]
+  },
+  {
+    "task": "b-tuesday-conflict-fix",
+    "direction": "b",
+    "viewport": "desktop",
+    "badgesBefore": 2,
+    "options": 2,
+    "picked": "anth-3200-002 · Tue 14:30-15:50 · Thu 14:30-15:50no conflicts",
+    "ms": 1186,
+    "badgesAfter": 0,
+    "ok": true
+  },
+  {
+    "task": "c-tuesday-conflict-fix",
+    "direction": "c",
+    "viewport": "desktop",
+    "badgesBefore": 2,
+    "options": 2,
+    "picked": "anth-3200-002 · Tue 14:30-15:50 · Thu 14:30-15:50no conflicts",
+    "ms": 1141,
+    "badgesAfter": 0,
+    "ok": true
+  },
+  {
+    "task": "b-friday-free",
+    "direction": "b",
+    "viewport": "desktop",
+    "cardsBefore": 1,
+    "picked": "anth-1150-001 · Mon 14:30-15:50 · Wed 14:30-15:501 conflict",
+    "cardsAfter": 0,
+    "tuesdayConflictBadgesAfter": 2,
+    "ok": true
+  },
+  {
+    "task": "c-sheet-states",
+    "direction": "c",
+    "viewport": "desktop",
+    "initial": {
+      "cls": "lab-sheet lab-sheet--peek",
+      "expanded": "false"
+    },
+    "afterFirstClick": {
+      "cls": "lab-sheet lab-sheet--half",
+      "expanded": "true"
+    },
+    "afterSecondClick": {
+      "cls": "lab-sheet lab-sheet--full",
+      "expanded": "true"
+    },
+    "afterEscape": {
+      "cls": "lab-sheet lab-sheet--peek",
+      "expanded": "false"
+    },
+    "ok": true
+  }
+]
