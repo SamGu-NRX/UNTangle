@@ -4,12 +4,14 @@
  * the planner's current state, so Auto ownership and Undo cannot drift
  * between what is shown and what is tested.
  */
-import { getPlanningTermCourseCodes, normalizePlannerState, takeFromAutoRun } from "@/lib/planner";
+import { getMajorById, getPlanningTermCourseCodes, normalizePlannerState, takeFromAutoRun } from "@/lib/planner";
+import { suggestNext } from "@/lib/prereq";
 import type { PlanTransaction } from "@/lib/planner-transaction";
 import type { AutoTransaction, CoursePlan, CourseStatus, Major, MajorId, PlannerState } from "@/lib/types";
 import type { SchoolProfile } from "../school";
-import { computeAuto, describeAuto, undoBlocker, undoStatuses, type AutoOutcome } from "./auto";
-import { buildCourseModel, type PlanSnapshot } from "./course-model";
+import { computeAuto, describeAuto, undoBlocker, undoStatuses, type AutoOutcome, type AutoSource } from "./auto";
+import { buildCourseModel, type CourseModel, type PlanSnapshot } from "./course-model";
+import { checkDegree, stillNeeded, withDegree, type DegreeCheck } from "./degree";
 
 export type PlanParts = { courseStatuses: Record<string, CourseStatus>; coursePlan: CoursePlan };
 export type PlanUpdate = (current: PlanParts) => Partial<PlanParts>;
@@ -81,6 +83,50 @@ export function withPlanUpdate(plan: PlannerState, update: PlanUpdate): PlannerS
 }
 
 /**
+ * The course model with the degree's verdict on covered courses, and the
+ * degree check, for one plan and major: what Courses, Auto and Week's
+ * course search read, so a course reads the same in each.
+ */
+export function degreeModel(profile: SchoolProfile, plan: PlannerState, major: Pick<Major, "id"> | null): { model: CourseModel; degree: DegreeCheck } {
+  const snapshot = snapshotOf(plan);
+  const base = buildCourseModel(profile, snapshot);
+  const degree = checkDegree(profile, snapshot, base, major);
+  return { model: withDegree(base, degree), degree };
+}
+
+/**
+ * Courses to suggest for the planning term, best first: the ones the
+ * degree audit still needs that the student can take now, in Auto's order
+ * (most unfinished courses downstream). A major the audit doesn't cover
+ * suggests its sample core list. Nothing without a major.
+ */
+export function nextTermSuggestions(profile: SchoolProfile, plan: PlannerState): string[] {
+  const major = getMajorById(plan.selectedMajor) ?? null;
+  if (!major) return [];
+  const { model, degree } = degreeModel(profile, plan, major);
+  if (degree.kind !== "audited") return [...major.coreCourseCodes];
+  return suggestNext({ coreCourseCodes: [...degree.needed] }, model.inference, { maxCredits: Number.MAX_SAFE_INTEGER })
+    .map((suggestion) => suggestion.courseId)
+    .filter((id) => model.rows.get(id)?.status === "available");
+}
+
+/**
+ * What Auto would do to a plan. The view's preview and the committing
+ * transaction both call this, so they plan from the same candidates: what
+ * the degree audit still needs for a major it covers, else the major's
+ * sample core list.
+ */
+export function planAuto(profile: SchoolProfile, plan: PlannerState, major: Major): { model: CourseModel; outcome: AutoOutcome } {
+  const snapshot = snapshotOf(plan);
+  const { model, degree } = degreeModel(profile, plan, major);
+  const source: AutoSource =
+    degree.kind === "audited"
+      ? { kind: "audit", waivers: degree.waivers, stillNeeded: (planned) => stillNeeded(profile, snapshot, major, planned) }
+      : { kind: "sample", coreIds: major.coreCourseCodes };
+  return { model, outcome: computeAuto(model, plan.courseStatuses, source, profile.autoCreditBudget) };
+}
+
+/**
  * Auto as one transaction (planner-provider's `transact`): it decides on the
  * plan as it is when it commits, not as the last render saw it, and changes
  * nothing when there is nothing to change.
@@ -89,8 +135,7 @@ export function autoTransaction(profile: SchoolProfile, major: Major, run: { id:
   return (plan: PlannerState): PlanTransaction<AutoOutcome | "major-changed"> => {
     // The student changed the major while Auto waited: its picks were for the old one.
     if (plan.selectedMajor !== major.id) return { result: "major-changed" };
-    const model = buildCourseModel(profile, snapshotOf(plan));
-    const outcome = computeAuto(model, plan.courseStatuses, major.coreCourseCodes, profile.autoCreditBudget);
+    const { model, outcome } = planAuto(profile, plan, major);
     if (outcome.changes.length === 0) return { result: outcome };
     const summary = describeAuto(outcome, model.hasTranscript, profile.planningTerm);
     const update = applyAuto(outcome, { ...run, major: major.id, changes: outcome.changes, summary, needsCheck: outcome.needsCheck });

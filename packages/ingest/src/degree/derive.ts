@@ -208,8 +208,11 @@ function deriveEngineering(page: CatalogPage, program: "cs" | "ce"): Requirement
       kind: "pool",
       name: `CSCE advanced electives, ${electiveHours} hours`,
       hours: electiveHours,
-      match: { subjects: ["CSCE"], minLevel: 4000, maxLevel: null },
-      note: "The authoritative list is the CSCE Advanced Elective Courses list, linked from the catalog page and not captured here; the audit applies the 4000-level CSCE rule and flags this node as advisory.",
+      // Advanced is 3000-4999, as the catalog's "advanced hours" use it.
+      // A 5000-level graduate course is left out, so it reads as an
+      // advisor's call instead of counting.
+      match: { subjects: ["CSCE"], minLevel: 3000, maxLevel: 4999 },
+      note: "UNT's CSCE Advanced Elective Courses list is not captured here, so the audit lists any 3000- or 4000-level CSCE course on your record as a possible elective. A 5000-level graduate course is not counted; ask an advisor whether it can be.",
       citation: majorCite,
     } satisfies PoolNode);
   }
@@ -231,7 +234,9 @@ function deriveEngineering(page: CatalogPage, program: "cs" | "ce"): Requirement
       kind: "pool",
       name: "Technical writing, 3 hours",
       hours: 3,
-      match: { subjects: ["TECM"], minLevel: 4000, maxLevel: null },
+      // "4000-level" is 4000-4999. With no upper bound, a 5000-level
+      // graduate TECM course matched the pool as a candidate.
+      match: { subjects: ["TECM"], minLevel: 4000, maxLevel: 4999 },
       note: "The catalog names no list, only \"any 4000-level TECM course\"; the audit cannot tell which TECM course numbers exist.",
       citation: citation(techWriting, page),
     } satisfies PoolNode);

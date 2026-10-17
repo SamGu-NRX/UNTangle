@@ -11,7 +11,8 @@
  *      a made-up first-year CS student: MATH 1710, ENGL 1310, CSCE 1040),
  *      review the matched rows, click "Looks right".
  *   2. /courses - pick the Computer Science major, then press the tray's
- *      Auto and let it plan the next term's courses.
+ *      Auto and let it plan the next term's courses from what the degree
+ *      audit still needs.
  *   3. /schedule (Week) - open Preferences: nothing before 10 AM, Fridays
  *      off, and two "Work" busy blocks painted onto the grid (Tuesday and
  *      Thursday, 5-9 PM). Then press Auto and wait for the other options.
@@ -253,6 +254,9 @@ async function runViewport(context, name) {
     preMajorGone,
     preMajorGone ? "section hidden after choosing" : "section still visible after choosing",
   );
+  // The degree audit reads the three imported rows: 9 of CS BS's 120 credits.
+  const leftTitle = (await page.locator("#left-title").textContent({ timeout: 30000 }).catch(() => null))?.trim() ?? "";
+  check(`${name}: Courses opens with the credits left from the transcript`, leftTitle === "111 credits left", leftTitle || "no What's left heading");
   await axe(page, `${name}/courses`);
   await shot("03-courses.png");
   const autoTray = page.getByRole("button", { name: "Auto", exact: true });
@@ -264,10 +268,15 @@ async function runViewport(context, name) {
   const trayRows = await page.locator('[data-flip^="tray:"]').allTextContents();
   await shot("04-tray-auto.png");
   const trayJoined = trayRows.map((row) => row.replace(/\s+/g, " ").trim()).join(" | ");
+  // Auto plans only what the degree audit still needs, ranked by what each unlocks
+  // (frontend/tests/courses/degree.test.ts): three required CSCE courses, MATH 1720 for the
+  // Component Area Option and PHYS 1410 for Laboratory science. Alpha plans PSYC 1630 here; edge's catalog adds
+  // PHYS 1430, 1440 and 2240 (582fc9d9), which puts PHYS 1410 ahead (frontend/tests/courses/plan-edits.test.ts).
+  const planned = ["CSCE 1010", "CSCE 2100", "CSCE 2110", "MATH 1720", "PHYS 1410"];
   check(
-    `${name}: tray Auto planned CSCE 2100 and MATH 1720`,
-    trayRows.length === 2 && trayJoined.includes("CSCE 2100") && trayJoined.includes("MATH 1720") && /Planned/.test(trayText),
-    `${trayText.trim().slice(0, 40)} | ${trayJoined.slice(0, 100)}`,
+    `${name}: tray Auto planned what the degree still needs`,
+    trayRows.length === planned.length && planned.every((code) => trayJoined.includes(code)) && /Planned/.test(trayText),
+    `${trayText.trim().slice(0, 40)} | ${trayJoined.slice(0, 160)}`,
   );
   soft(`${name}: tray result "${trayText.trim()}"; rows: ${trayRows.map((row) => row.trim().slice(0, 40)).join(" | ")}`);
 
@@ -323,7 +332,7 @@ async function runViewport(context, name) {
   const prefs = await openPrefs(page);
   const sliderValue = await setEarliestStart(prefs, "10 AM");
   check(`${name}: nothing before 10 AM set`, sliderValue === "10 AM", sliderValue);
-  await prefs.getByRole("button", { name: "Fridays off" }).click();
+  await prefs.getByRole("button", { name: "Fri off", exact: true }).click();
   await paintWorkBlock(prefs, 1, "Tue, 5–9 PM");
   await paintWorkBlock(prefs, 3, "Thu, 5–9 PM");
   await shot("06-prefs.png");

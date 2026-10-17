@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { buildCourseModel, type CourseRowModel } from "@/components/courses/model/course-model";
-import { snapshotOf } from "@/components/courses/model/plan-edits";
+import type { CourseRowModel } from "@/components/courses/model/course-model";
+import { degreeModel, nextTermSuggestions } from "@/components/courses/model/plan-edits";
 import { untProfile } from "@/components/courses/school";
 import { usePlanner } from "@/components/planner-provider";
 import type { BrowseFeed, BuilderEdits, BuilderFinals, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
@@ -21,7 +21,7 @@ import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
 import {
   buildOptimizeRequest,
   defaultSchedulePreferences,
-  getCoreCoursesForMajor,
+  getMajorById,
   getCourseByCode,
   getPlanningTermCourseCodes,
   takeFromAutoRun,
@@ -505,10 +505,10 @@ export function useUntangleHost(brand: Brand): BuilderHost {
   const courseRows = useMemo(
     () => {
       let rows: ReadonlyMap<string, CourseRowModel> | null = null;
-      return () => (rows ??= buildCourseModel(untProfile(), snapshotOf(plannerState)).rows);
+      return () => (rows ??= degreeModel(untProfile(), plannerState, getMajorById(plannerState.selectedMajor) ?? null).model.rows);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [plannerState.courseStatuses, plannerState.transcriptRecords, plannerState.coursePlan],
+    [plannerState.courseStatuses, plannerState.transcriptRecords, plannerState.coursePlan, plannerState.selectedMajor],
   );
   const hitFor = useCallback(
     (code: string, title: string): SearchHit => {
@@ -533,9 +533,13 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     () => ({
       find: (query) => searchCourses(catalog, query, 20).map((item) => hitFor(item.code!, item.title ?? item.code!)),
       suggestions: () =>
+        // The same candidates Courses' Auto draws from: what the degree still needs, when the audit covers the major.
         brand.suggestions
-          ? getCoreCoursesForMajor(plannerState.selectedMajor)
-              .map((course) => hitFor(course.code, course.title))
+          ? nextTermSuggestions(untProfile(), plannerState)
+              .flatMap((code) => {
+                const course = catalog.find((entry) => entry.code === code);
+                return course ? [hitFor(course.code, course.title)] : [];
+              })
               .filter((hit) => hit.status === "available")
               .slice(0, SUGGESTIONS)
           : [],

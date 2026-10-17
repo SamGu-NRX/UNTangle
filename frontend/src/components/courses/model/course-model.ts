@@ -39,6 +39,12 @@ export type CourseRowModel = CatalogEntry & {
   /** What still blocks it (locked and check rows). */
   unmet: RuleNode | null;
   coveredBy: string | null;
+  /**
+   * The course that covers this one, when the degree audit still lists this
+   * one as needed (CSCE 1030 once CSCE 1040 is passed). Only an advisor can
+   * waive it, so the row reads "check", never done. Set by withDegree.
+   */
+  waiver: string | null;
   /** On the student's transcript, as any record (passed, in progress or waiting for review). */
   onTranscript: boolean;
 };
@@ -74,15 +80,20 @@ export const statusLabels: Record<RowStatus, string> = {
   check: "Check",
 };
 
-export function buildEvidence(profile: SchoolProfile, plan: PlanSnapshot): { evidence: Evidence; manualDone: Set<string> } {
-  const base = profile.evidenceFromTranscript(plan.transcript);
+/** Courses the student marked done by hand: manual credit, and "completed" with no transcript row (v1 data). */
+export function manualDoneIds(profile: SchoolProfile, plan: Pick<PlanSnapshot, "statuses" | "transcript" | "manualCredit">): Set<string> {
   const withRows = transcriptCodes(profile, plan.transcript);
-  const manualDone = new Set([
+  return new Set([
     ...plan.manualCredit,
     ...Object.entries(plan.statuses)
       .filter(([id, status]) => status === "completed" && !withRows.has(id))
       .map(([id]) => id),
   ]);
+}
+
+export function buildEvidence(profile: SchoolProfile, plan: PlanSnapshot): { evidence: Evidence; manualDone: Set<string> } {
+  const base = profile.evidenceFromTranscript(plan.transcript);
+  const manualDone = manualDoneIds(profile, plan);
   const overrides = new Map(
     [...manualDone].map((id) => [id, { status: "done" as const, reason: "You marked this done." }]),
   );
@@ -167,6 +178,7 @@ export function buildCourseModel(profile: SchoolProfile, plan: PlanSnapshot): Co
       rule,
       unmet,
       coveredBy,
+      waiver: null,
       onTranscript: onTranscript.has(entry.id),
     });
   }
