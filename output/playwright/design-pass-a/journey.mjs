@@ -46,6 +46,27 @@ async function axe(page, size, label) {
   const serious = violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   check(size, `axe: ${label} has no serious or critical findings`, serious.length === 0, JSON.stringify(serious));
 }
+/**
+ * Buttons whose aria-label doesn't start with their visible text as whole words (WCAG 2.5.3), as
+ * "text (name)". Visible text is the text nodes a sighted user sees, aria-hidden or not, joined as
+ * the DOM has them, so "Fri" then "Off" with no space between is "FriOff". axe 4.10, the version
+ * CI pins, accepts a substring ("Mon" in "Mondays off"); axe 4.14 and voice control want words.
+ */
+const nameMismatches = (locator) =>
+  locator.evaluateAll((buttons) =>
+    buttons.flatMap((b) => {
+      const walker = document.createTreeWalker(b, NodeFilter.SHOW_TEXT);
+      let shown = "";
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const el = node.parentElement;
+        const box = el.getBoundingClientRect();
+        if (el === b || (box.width > 0 && box.height > 0 && el.checkVisibility({ opacityProperty: true, visibilityProperty: true }))) shown += node.textContent;
+      }
+      shown = shown.replace(/\s+/g, " ").trim().toLowerCase();
+      const name = (b.getAttribute("aria-label") ?? "").toLowerCase();
+      return shown && name.startsWith(shown) && !/[a-z0-9]/.test(name.charAt(shown.length)) ? [] : [`${shown} (${name})`];
+    }),
+  );
 const shot = (page, size, name) => page.screenshot({ path: join(out, `${size}-${name}.png`) });
 
 // The mock's PDF matches every row to the catalog. Swap one course code for
@@ -555,7 +576,8 @@ async function weekViews(browser, vp) {
       await settle();
     }
     const finals = page.locator("[data-finals] button[data-hue]");
-    check(size, "week: each final's name starts with what its pill shows", (await finals.count()) > 0 && (await finals.evaluateAll((pills) => pills.every((b) => /^[A-Z]{4} \d{4} \S/.test(b.textContent ?? "") && (b.getAttribute("aria-label") ?? "").startsWith(b.textContent ?? "")))));
+    const pillMismatches = await nameMismatches(finals);
+    check(size, "week: each final's name starts with what its pill shows", (await finals.count()) > 0 && pillMismatches.length === 0, pillMismatches.join("; "));
     await axe(page, size, "Week with four courses and their finals");
 
     await main.getByRole("button", { name: /^Preferences/ }).click();
@@ -563,9 +585,14 @@ async function weekViews(browser, vp) {
     await prefs.waitFor();
     await settle();
     // The paint grid's day toggle; a leaning card can carry the same name.
-    const friday = prefs.locator("[class*=paintDays]").getByRole("button", { name: "Fridays off" });
+    const dayToggles = prefs.locator("[class*=paintDays] button");
+    const dayMismatches = await nameMismatches(dayToggles);
+    check(size, "week: each day toggle's name starts with the day it shows", (await dayToggles.count()) === 5 && dayMismatches.length === 0, dayMismatches.join("; "));
+    const friday = dayToggles.and(page.getByRole("button", { name: "Fri off" }));
     await friday.click();
     await settle();
+    const pressedMismatches = await nameMismatches(dayToggles);
+    check(size, "week: with Friday off, its toggle shows 'Fri Off' and is named so", pressedMismatches.length === 0 && (await friday.getAttribute("aria-pressed")) === "true", pressedMismatches.join("; "));
     await axe(page, size, "Week Preferences with Fridays off");
     await friday.click();
     for (let i = 0; i < 3 && (await prefs.isVisible().catch(() => false)); i += 1) {
