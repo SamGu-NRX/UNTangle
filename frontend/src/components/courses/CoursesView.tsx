@@ -708,7 +708,9 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
             </span>
           ) : leftItem ? (
             // The area sits where a course's code does; the body names the requirement, as it names a course.
+            // The heading names the panel, so it carries the requirement's name for assistive tech.
             <span className={styles.panelHeading}>
+              <span className={styles.srOnly}>{leftItem.kind === "requirement" ? leftItem.requirement.name : leftItem.item.name}, </span>
               <span className={styles.panelArea}>{leftItem.areaTitle}</span>
             </span>
           ) : undefined

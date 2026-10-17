@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { NodeOutcome } from "@untangle/core/degree/audit";
 import type { Citation } from "@untangle/core/degree/types";
 import { ExternalGlyph } from "@/components/ui/icons";
@@ -186,14 +186,23 @@ function OptionList({ options, model }: { options: readonly string[][]; model: C
     .map((entry) => entry.option);
   const [all, setAll] = useState(false);
   const shown = all ? sorted : sorted.slice(0, OPTIONS_BEFORE_MORE);
+  const list = useRef<HTMLUListElement>(null);
+  const focusRevealed = useRef(false);
+  // "Show all" leaves with the press, so focus goes to the first option it revealed.
+  useLayoutEffect(() => {
+    if (!focusRevealed.current) return;
+    focusRevealed.current = false;
+    const first = list.current?.children[OPTIONS_BEFORE_MORE] as HTMLElement | undefined;
+    (first?.querySelector<HTMLElement>("a") ?? first)?.focus();
+  }, [all]);
   return (
     <>
-      <ul className={styles.reqCourses}>
+      <ul className={styles.reqCourses} ref={list}>
         {shown.map((option) =>
           option.length === 1 ? (
             <CourseItem key={option[0]} id={option[0]!} model={model} />
           ) : (
-            <li key={option.join("+")} className={styles.reqSet}>
+            <li key={option.join("+")} className={styles.reqSet} tabIndex={-1}>
               <span className={styles.lead} aria-hidden="true" />
               <span>
                 {option.map((id, index) => (
@@ -208,7 +217,14 @@ function OptionList({ options, model }: { options: readonly string[][]; model: C
         )}
       </ul>
       {sorted.length > shown.length ? (
-        <button type="button" className={styles.textButton} onClick={() => setAll(true)}>
+        <button
+          type="button"
+          className={styles.textButton}
+          onClick={() => {
+            focusRevealed.current = true;
+            setAll(true);
+          }}
+        >
           Show all {sorted.length}
         </button>
       ) : null}
@@ -225,7 +241,7 @@ function CourseItem({ id, model }: { id: string; model: CourseModel }) {
   const row = model.rows.get(id);
   const fact = row ? (rowFact(row)?.text ?? (row.status === "planned" ? "Planned" : row.status === "taking" ? "Taking now" : null)) : "Not in UNTangle's catalog yet";
   return (
-    <li className={styles.reqCourse} data-status={row?.status}>
+    <li className={styles.reqCourse} data-status={row?.status} tabIndex={-1}>
       <span className={styles.lead} aria-hidden="true">
         {row ? <StatusGlyph status={row.status} /> : null}
       </span>

@@ -228,7 +228,8 @@ function collect(outcomes: readonly NodeOutcome[], area: Area, prefix: string, r
     const remaining = outcome.remaining;
     if (remaining.kind === "advisor") {
       const quote = outcome.kind === "note" || outcome.kind === "policy";
-      advisor.push({ key, area, name: outcome.name, text: quote ? outcome.detail : remaining.reason, quote, candidates: remaining.candidates, citation: outcome.citation });
+      // The catalog counts hours; the app says credits (docs/design/copy.md). The quote below keeps the catalog's words.
+      advisor.push({ key, area, name: outcome.name.replace(/\b(\d+(?:-\d+)?) hours\b/, "$1 credits"), text: quote ? outcome.detail : remaining.reason, quote, candidates: remaining.candidates, citation: outcome.citation });
       return;
     }
     if (outcome.kind === "group" && outcome.status !== "satisfied") {

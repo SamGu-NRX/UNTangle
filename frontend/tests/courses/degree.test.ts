@@ -66,7 +66,7 @@ describe("the journey transcript: MATH 1710 B, ENGL 1310 A, CSCE 1040 A", () => 
   });
 
   test("advisor items carry the audit's reason, and the catalog's own words for a rule it does not check", () => {
-    const electives = degree.advisor.find((item) => item.name === "CSCE advanced electives, 6 hours")!;
+    const electives = degree.advisor.find((item) => item.name === "CSCE advanced electives, 6 credits")!;
     expect(electives).toMatchObject({ area: "major", quote: false });
     expect(electives.text).toContain("3000- or 4000-level CSCE course");
     expect(degree.advisor.find((item) => item.name === "Minor")).toMatchObject({ quote: true, text: "Optional." });

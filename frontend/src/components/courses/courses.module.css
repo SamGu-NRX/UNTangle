@@ -109,10 +109,15 @@
 .leftGroup[data-open="false"] .chev {
   transform: rotate(-90deg);
 }
-/* A requirement row has no action column: the name and its one fact fill it. */
+/*
+ * A requirement row has no action column: the name and its one fact fill it.
+ * Selection follows the arrow keys, and a keyboard action never animates, so
+ * its background changes at once.
+ */
 .row[data-kind="requirement"] {
   grid-template-columns: minmax(0, 1fr);
   padding-right: 12px;
+  transition: none;
 }
 .reqOpen {
   display: grid;
@@ -208,6 +213,19 @@
 }
 .reqCourses > li + li {
   border-top: 1px solid var(--line);
+}
+/* A course option opens its detail from anywhere on its row; options of two or more courses keep one target each. */
+.reqCourse {
+  position: relative;
+}
+.reqCourse .courseLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.reqCourses > li:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }
 .reqTitle {
   overflow: hidden;
@@ -584,6 +602,16 @@
   .weekLink,
   .more {
     min-height: 44px;
+  }
+  /* .extLink sets 24px later in this file; the pair outranks it. */
+  .reqCourse,
+  .extLink.catalogLink {
+    min-height: 44px;
+  }
+  /* Two or more course links on one line: each grows to 44px tall without overlapping its neighbor. */
+  .reqSet .courseLink {
+    display: inline-block;
+    padding: 12px 0;
   }
 }
 
