@@ -60,13 +60,15 @@ an `OptimizeRequest`. `worker/` runs it off the main thread for the Week view.
   evenings, walking, rating). The cost is an integer sum in human units, so
   ties are exact. The exchange rates in `score.ts` are a judgment, not a
   measurement.
-- Ties break in three tiers. First the cost: a preference is never traded for
-  instructor evidence. Among exactly equal costs, the plan with the higher sum
-  of its sections' `instructorGpaHundredths` wins, counting only courses where
-  every option has that evidence. When any option of a course lacks it, the
-  course is left out for every option (the omit-per-course rule in
-  `docs/tasks/instructor-tiebreak.md`), so missing data never acts as evidence. What
-  remains breaks by section ids in course-code order. With `maxNodes` the
+- Schedules rank in three steps (`leafBefore` in `search.ts`). The lower cost
+  ranks first, so a preference is never traded for instructor evidence. Among
+  exactly equal costs, the schedule with the higher sum of its sections'
+  `instructorGpaHundredths` ranks first, counting only courses where every
+  option has that evidence. When any option of a course lacks it, the course
+  is left out for every option (the omit-per-course rule in
+  `docs/tasks/instructor-tiebreak.md`), so missing data never acts as
+  evidence. If both still tie, the schedule whose section ids, compared course
+  by course in course-code order, are lower ranks first. With `maxNodes` the
   answer is the same on every machine. With `timeBudgetMs` it can stop at
   different points on different machines.
 - A malformed request (an unknown section, a duplicate exclusion or blocked-time
