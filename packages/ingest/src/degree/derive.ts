@@ -231,7 +231,9 @@ function deriveEngineering(page: CatalogPage, program: "cs" | "ce"): Requirement
       kind: "pool",
       name: "Technical writing, 3 hours",
       hours: 3,
-      match: { subjects: ["TECM"], minLevel: 4000, maxLevel: null },
+      // "4000-level" is 4000-4999. With no upper bound, a 5000-level
+      // graduate TECM course matched the pool as a candidate.
+      match: { subjects: ["TECM"], minLevel: 4000, maxLevel: 4999 },
       note: "The catalog names no list, only \"any 4000-level TECM course\"; the audit cannot tell which TECM course numbers exist.",
       citation: citation(techWriting, page),
     } satisfies PoolNode);
