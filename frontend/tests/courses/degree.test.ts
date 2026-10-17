@@ -9,7 +9,7 @@ import { buildCourseModel } from "@/components/courses/model/course-model";
 import { checkDegree, withDegree, type AuditedDegree } from "@/components/courses/model/degree";
 import { buildGroups } from "@/components/courses/model/groups";
 import { leftHeadline, leftNotes } from "@/components/courses/model/left-copy";
-import { autoTransaction, planAuto, snapshotOf } from "@/components/courses/model/plan-edits";
+import { autoTransaction, nextTermSuggestions, planAuto, snapshotOf } from "@/components/courses/model/plan-edits";
 import { untProfile } from "@/components/courses/school";
 import { getMajorById } from "@/lib/planner";
 import type { PlannerState } from "@/lib/types";
@@ -99,6 +99,12 @@ describe("the journey transcript: MATH 1710 B, ENGL 1310 A, CSCE 1040 A", () => 
     expect(result.planned).toEqual(preview.planned);
   });
 
+  test("Week's search suggests what Auto ranks first, only from what the degree still needs", () => {
+    const suggestions = nextTermSuggestions(profile, plan);
+    expect(suggestions.slice(0, 2)).toEqual(["MATH 1720", "CSCE 1010"]);
+    for (const id of suggestions) expect(degree.needed.has(id)).toBe(true);
+  });
+
   test("a pick that fills a requirement takes its other options out of Auto's set", () => {
     // A budget big enough for every eligible course: Social and Behavioral Sciences asks 3 credits, so one course.
     const wide = { ...profile, autoCreditBudget: 120 };
@@ -146,8 +152,9 @@ describe("the finished 2026-2027 four-year plan", () => {
     expect(autoTransaction(profile, cs, run)(plan).next).toBeUndefined();
   });
 
-  test("You can take is empty: nothing the degree needs is left to take", () => {
+  test("You can take is empty, and Week's search suggests nothing: nothing the degree needs is left to take", () => {
     expect(groupIds(plan, "can")).toEqual([]);
+    expect(nextTermSuggestions(profile, plan)).toEqual([]);
   });
 });
 
@@ -206,5 +213,6 @@ describe("a major the audit does not cover", () => {
     const snapshot = snapshotOf(plan);
     expect(checkDegree(profile, snapshot, buildCourseModel(profile, snapshot), getMajorById("math")!)).toEqual({ kind: "unaudited" });
     expect(planAuto(profile, plan, getMajorById("math")!).outcome.planned).toEqual(["MATH 1720"]);
+    expect(nextTermSuggestions(profile, plan)).toEqual(getMajorById("math")!.coreCourseCodes);
   });
 });

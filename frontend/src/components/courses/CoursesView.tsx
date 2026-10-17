@@ -23,10 +23,9 @@ import { CourseGroups } from "./CourseGroups";
 import type { RowActions } from "./CourseRow";
 import { DegreeDialog } from "./DegreeDialog";
 import { undoBlocker } from "./model/auto";
-import { buildCourseModel, type CourseModel, type CourseRowModel } from "./model/course-model";
-import { checkDegree, withDegree } from "./model/degree";
+import type { CourseModel, CourseRowModel } from "./model/course-model";
 import { buildGroups, OPEN_AT_START, ROWS_BEFORE_MORE, rowFact, type GroupKey } from "./model/groups";
-import { autoTransaction, courseEdit, manualEdit, planAuto, snapshotOf, undoAutoTransaction, undoCourseEdit } from "./model/plan-edits";
+import { autoTransaction, courseEdit, degreeModel, manualEdit, planAuto, undoAutoTransaction, undoCourseEdit } from "./model/plan-edits";
 import { creditProgress, creditsLabel, DEGREE_CREDITS } from "./model/progress";
 import { sampleTranscript } from "./model/sample-transcript";
 import { instructorIndex, searchCatalog } from "./model/search";
@@ -90,12 +89,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
   const major = getMajorById(plannerState.selectedMajor) ?? null;
   // The prerequisite model says what a student can take; the degree audit says what the degree still needs.
   const { model, degree } = useMemo(
-    () => {
-      const snapshot = snapshotOf(plannerState);
-      const base = buildCourseModel(profile, snapshot);
-      const check = checkDegree(profile, snapshot, base, major);
-      return { model: withDegree(base, check), degree: check };
-    },
+    () => degreeModel(profile, plannerState, major),
     // The model reads only these; the rest of the plan (sections, the map's day) changes often.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [profile, courseStatuses, transcriptRecords, storedPlan, major],
