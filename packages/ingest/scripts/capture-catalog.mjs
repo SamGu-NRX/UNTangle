@@ -1,0 +1,97 @@
+/**
+ * One polite headless-browser capture of the UNT 2026-2027 catalog pages the
+ * degree-audit parser reads. catalog.unt.edu refuses plain HTTP clients, so
+ * this drives a real Chromium through Playwright and saves each page's
+ * rendered HTML under packages/ingest/data/catalog/unt-2026-27/.
+ *
+ * Politeness rules (docs/architecture/README.md, "Reference data"):
+ * - one page at a time, at least one second between page loads;
+ * - an honest User-Agent naming the project and a contact address;
+ * - public catalog pages only, no forms, no real UNT account.
+ *
+ * Playwright is a one-off tool, not a repo dependency: install it where you
+ * like and point NODE_PATH at it, then run from the repository root:
+ *
+ *   NODE_PATH=/tmp/node_modules node packages/ingest/scripts/capture-catalog.mjs
+ *
+ * Every run rewrites the saved pages and the manifest, so a capture is
+ * re-runnable and reviewable as a unit.
+ */
+import { createRequire } from "node:module";
+import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const require = createRequire(import.meta.url);
+const { chromium } = require("playwright");
+
+const CONTACT = "sgu07966@gmail.com";
+const USER_AGENT = `UNTangle-ingest/0.1 (UNT educational course-planning project; contact ${CONTACT})`;
+// The live 2026-2027 Undergraduate Catalog. The catalog id rotates on refresh;
+// a capture that no longer serves 2026-2027 must fail, not silently re-save.
+const CATOID = 40;
+const BASE = "https://catalog.unt.edu";
+const OUT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/catalog/unt-2026-27");
+
+// Mathematics (poid 21333) and Biology (poid 21206) were captured in #132 and
+// left out of the served set; their capture comes back with their derivation.
+const PAGES = [
+  { file: "cs-bs.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21227`, expect: "Computer Science" },
+  { file: "ce-bs.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21225`, expect: "Computer Engineering" },
+  { file: "core-curriculum.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21275`, expect: "University Core" },
+  { file: "degree-requirements.html", url: `${BASE}/content.php?catoid=${CATOID}&navoid=4689`, expect: "Degree" },
+];
+
+const INTERVAL_MS = 1100;
+
+async function main() {
+  // An environment override keeps the capture working where Playwright's
+  // registry expects a browser revision that is not downloaded.
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined;
+  const browser = await chromium.launch(executablePath ? { executablePath } : {});
+  const context = await browser.newContext({ userAgent: USER_AGENT });
+  const page = await context.newPage();
+  await mkdir(OUT_DIR, { recursive: true });
+  const capturedAt = new Date().toISOString();
+  const entries = [];
+  for (const [index, target] of PAGES.entries()) {
+    if (index > 0) await page.waitForTimeout(INTERVAL_MS);
+    const response = await page.goto(target.url, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    if (!response || !response.ok()) throw new Error(`${target.url} returned ${response ? response.status() : "no response"}`);
+    // The site answers the first request with a short challenge that the real
+    // browser resolves and reloads; wait until the real page renders. The
+    // program pages only count as rendered once their acalog-core blocks are
+    // present — "2026-2027" also appears in the catalog-picker shell.
+    let html = "";
+    let title = "";
+    const rendered = (source) => source.includes("acalog-core") || source.includes("Degree Tools");
+    for (let attempt = 0; attempt < 20 && !rendered(html); attempt += 1) {
+      await page.waitForTimeout(1500);
+      html = await page.content();
+      title = (await page.title()).trim();
+    }
+    if (!html.includes("2026-2027")) throw new Error(`${target.url} never rendered the 2026-2027 catalog (title: "${title}"); the catalog id may have rotated.`);
+    if (!html.includes(target.expect)) throw new Error(`${target.url} does not mention "${target.expect}"; refusing to save a wrong page.`);
+    const sha256 = createHash("sha256").update(html).digest("hex");
+    entries.push({ file: target.file, url: target.url, title, httpStatus: response.status(), capturedAt, sha256 });
+    await writeFile(path.join(OUT_DIR, target.file), html);
+    console.log(`saved ${target.file} (${html.length} bytes) sha256=${sha256.slice(0, 12)}… "${title}"`);
+  }
+  await context.close();
+  await browser.close();
+  const manifest = {
+    source: "UNT Undergraduate Catalog 2026-2027 (catalog.unt.edu)",
+    capturedAt,
+    captureMethod: `headless Chromium via Playwright, one page per ${INTERVAL_MS} ms, honest User-Agent, public pages only`,
+    userAgent: USER_AGENT,
+    pages: entries,
+  };
+  await writeFile(path.join(OUT_DIR, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  console.log(`manifest written with ${entries.length} pages`);
+}
+
+main().catch((error) => {
+  console.error("capture failed:", error.message);
+  process.exit(1);
+});
