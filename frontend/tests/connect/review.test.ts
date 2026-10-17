@@ -134,6 +134,14 @@ describe("one fact per row", () => {
     expect(rowFact(records[0], "inProgress")).toBe("Taking");
   });
 
+  test("an in-progress row corrected to Done does not show its old grade", () => {
+    const taking = record("CSCE 2100", "2026 Fall", { grade: "IP", appliedStatus: "inProgress" });
+    expect(rowFact(taking, "completed")).toBe("Done");
+    expect(rowFact(taking, "inProgress")).toBe("Taking");
+    expect(rowFact(taking, "ignored")).toBe("Skipped");
+    expect(rowFact(records[0], "completed")).toBe("Grade A");
+  });
+
   test("a row's choice starts at the parser's reading, and none for a row to check", () => {
     expect(decisionOf(records[0], {})).toBe("completed");
     expect(decisionOf(records[5], {})).toBe("inProgress");
@@ -181,6 +189,24 @@ describe("after Looks right", () => {
   test("a kept record that lost the student's settled review flag still counts as dropped", () => {
     const settled = { ...records[2], reviewRequired: false };
     expect(missingApprovedRecords([settled], [{ ...settled, reviewRequired: true }]).map((r) => r.code)).toEqual(["MATH 1710"]);
+  });
+
+  test("a kept record with changed prerequisiteSatisfied counts as dropped", () => {
+    const current = [{ ...approved[0], prerequisiteSatisfied: false }, approved[1]];
+    expect(missingApprovedRecords(approved, current)).toEqual([approved[0]]);
+    expect(outcome("saved", current)).toBe("dropped");
+  });
+
+  test("a kept record with changed duplicateExcluded counts as dropped", () => {
+    const current = [{ ...approved[0], duplicateExcluded: true }, approved[1]];
+    expect(missingApprovedRecords(approved, current)).toEqual([approved[0]]);
+    expect(outcome("saved", current)).toBe("dropped");
+  });
+
+  test("a kept record with only changed rationale is not missing", () => {
+    const current = [{ ...approved[0], rationale: `${approved[0].rationale} Manually included during transcript review.` }, approved[1]];
+    expect(missingApprovedRecords(approved, current)).toEqual([]);
+    expect(outcome("saved", current)).toBe("saved");
   });
 
   test("any plan edit reports success only once stored", () => {
