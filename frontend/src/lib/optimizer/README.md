@@ -141,6 +141,10 @@ map v2, with a straight-line fallback where the graph has no route.
   `score.ts` is the only place they are normalized, by rounding to whole
   seconds, so the walking check, the cost and the breakdown agree.
 - The same building is 0 seconds.
+- Online meetings are not walks. Two classes with the same place are not a
+  walk either, including two rooms in the same unmapped building by building
+  code. An in-person meeting with no assigned place still has a null place, so
+  a pair to or from it is unknown.
 - An unknown walk (a building missing from the registry, or an off-campus one
   such as NTDP) is never 0. It counts as `UNKNOWN_WALK_SECONDS` (600 s) in the
   cost and in the walking check. Ten minutes is the standard break in the

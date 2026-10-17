@@ -5,7 +5,7 @@
  * classes, overlapping finals, or a walk that can never fit).
  *
  * Nothing here can drop a section that some valid schedule uses, with one
- * deliberate exception: a section whose meetings, buildings and final are identical
+ * deliberate exception: a section whose meetings, places and final are identical
  * to a cheaper one of the same course (a "twin") is dropped, because the
  * cheaper twin always ranks ahead of it (see `dropTwins`). The browse list
  * keeps twins (`keepTwins`), since it lists every section.
@@ -25,15 +25,17 @@ import {
   type OptSection,
   type OptWeights,
 } from "./types";
-import { neutralRatingTenths, selfCost, transferFits, UNKNOWN_WALK_SECONDS, walkSeconds } from "./score";
+import { neutralRatingTenths, noWalkBetween, placeOf, selfCost, transferFits, UNKNOWN_WALK_SECONDS, walkSeconds } from "./score";
 import { dayNumber, someBackToBack, weekSegments } from "./weeks";
 
 export type PreparedMeeting = {
   day: number;
   start: number;
   end: number;
-  /** Interned building index; -1 when the meeting has no building. */
+  /** Interned building index; -1 when the meeting has no mapped building. */
   building: number;
+  /** The place key used to decide whether a walk exists. */
+  place: string | null;
   /** Bit s set when the meeting has a weekday occurrence in activity segment s; undated uses the term. */
   weeks: number;
 };
@@ -300,7 +302,7 @@ export function timeSignatureOf(meetings: readonly OptMeeting[]): string {
 
 function fullSignatureOf(meetings: readonly OptMeeting[]): string {
   return meetings
-    .map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}~${datesKey(m)}@${m.buildingId ?? ""}`)
+    .map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}~${datesKey(m)}@${placeOf(m) ?? ""}`)
     .sort()
     .join(",");
 }
@@ -428,7 +430,7 @@ export function prepare(
    */
   const tightPair = (prev: PreparedMeeting, next: PreparedMeeting) =>
     bufferMinutes !== null &&
-    !(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0) &&
+    !noWalkBetween(prev, next) &&
     next.start - prev.end < globalMinDuration &&
     !transferFits(prev, next, walkOf(prev.building, next.building), bufferMinutes);
 
@@ -447,7 +449,7 @@ export function prepare(
     const kept: Candidate[] = [];
     for (const section of allowed) {
       const meetings: PreparedMeeting[] = section.meetings
-        .map((m) => ({ day: DAY_INDEX.get(m.day)!, start: m.start, end: m.end, building: intern(m.buildingId), weeks: segments.maskOf(m) }))
+        .map((m) => ({ day: DAY_INDEX.get(m.day)!, start: m.start, end: m.end, building: intern(m.buildingId), place: placeOf(m), weeks: segments.maskOf(m) }))
         .sort((a, b) => a.day - b.day || a.start - b.start);
       // Two meetings of one section are checked like any other pair: they
       // may not overlap, and the walk between them must fit.
@@ -640,14 +642,14 @@ function incompatible(a: Candidate, b: Candidate, tightPair: (prev: PreparedMeet
 }
 
 /**
- * Of sections with identical meetings in identical buildings and the same
- * final, keep the one with the lowest (self cost, id). Every other cost
- * term and every hard constraint depend only on meetings, buildings and the
- * final, and the diversity rule only on meeting times, so the kept twin is
- * at least as good in every schedule and wins the id tie-break: the dropped
- * twin can never be returned at any rank. When neither the walking weight
- * nor the walking check is on, buildings affect nothing, so sections with
- * the same times and final are twins regardless of room.
+ * Of sections with identical meetings in identical places and the same final,
+ * keep the one with the lowest (self cost, id). Every other cost term and every
+ * hard constraint depend only on meetings, places and the final, and the
+ * diversity rule only on meeting times, so the kept twin is at least as good in
+ * every schedule and wins the id tie-break: the dropped twin can never be
+ * returned at any rank. When neither the walking weight nor the walking check
+ * is on, places affect nothing, so sections with the same times and final are
+ * twins regardless of room.
  */
 function dropTwins(candidates: Candidate[], walkingMatters: boolean): Candidate[] {
   const best = new Map<string, Candidate>();
