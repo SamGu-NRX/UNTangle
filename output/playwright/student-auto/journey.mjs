@@ -253,6 +253,9 @@ async function runViewport(context, name) {
     preMajorGone,
     preMajorGone ? "section hidden after choosing" : "section still visible after choosing",
   );
+  // The degree audit reads the three imported rows: 9 of CS BS's 120 credits.
+  const leftTitle = (await page.locator("#left-title").textContent({ timeout: 30000 }).catch(() => null))?.trim() ?? "";
+  check(`${name}: Courses opens with the credits left from the transcript`, leftTitle === "111 credits left", leftTitle || "no What's left heading");
   await axe(page, `${name}/courses`);
   await shot("03-courses.png");
   const autoTray = page.getByRole("button", { name: "Auto", exact: true });
@@ -264,10 +267,14 @@ async function runViewport(context, name) {
   const trayRows = await page.locator('[data-flip^="tray:"]').allTextContents();
   await shot("04-tray-auto.png");
   const trayJoined = trayRows.map((row) => row.replace(/\s+/g, " ").trim()).join(" | ");
+  // Auto plans only what the degree audit still needs, ranked by what each unlocks
+  // (frontend/tests/courses/degree.test.ts): three required CSCE courses, MATH 1720 for the
+  // Component Area Option and PSYC 1630 for Social and Behavioral Sciences.
+  const planned = ["CSCE 1010", "CSCE 2100", "CSCE 2110", "MATH 1720", "PSYC 1630"];
   check(
-    `${name}: tray Auto planned CSCE 2100 and MATH 1720`,
-    trayRows.length === 2 && trayJoined.includes("CSCE 2100") && trayJoined.includes("MATH 1720") && /Planned/.test(trayText),
-    `${trayText.trim().slice(0, 40)} | ${trayJoined.slice(0, 100)}`,
+    `${name}: tray Auto planned what the degree still needs`,
+    trayRows.length === planned.length && planned.every((code) => trayJoined.includes(code)) && /Planned/.test(trayText),
+    `${trayText.trim().slice(0, 40)} | ${trayJoined.slice(0, 160)}`,
   );
   soft(`${name}: tray result "${trayText.trim()}"; rows: ${trayRows.map((row) => row.trim().slice(0, 40)).join(" | ")}`);
 

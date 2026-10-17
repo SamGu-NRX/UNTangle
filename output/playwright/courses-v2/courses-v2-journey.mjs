@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
  * Courses acceptance journey, updated for the v3 lens (docs/design/untangle-v3-opus
- * HANDOFF §5), at 1440x900 and 390x844 against a production build. Each
- * viewport runs in a fresh guest context:
- *   1. try the sample transcript, then pick a major in the degree dialog
+ * HANDOFF §5) and the degree audit as the source of what's left, at 1440x900
+ * and 390x844 against a production build. Each viewport runs in a fresh
+ * guest context:
+ *   1. try the sample transcript, then pick a major in the degree dialog; see
+ *      the credits left and what's left by area, and open one requirement
  *   2. press Auto, see the result line, the term tray and the groups' facts
- *      (one course covered through a prerequisite)
+ *      (CSCE 1030, covered through a prerequisite, asks an advisor)
  *   3. undo Auto
  *   4. open CSCE 1030, switch instructor, check link-out hrefs (never followed)
  *   5. add a course to the plan through search (⌘K on desktop, the search
@@ -162,7 +164,32 @@ async function journey(browser, viewport) {
   await axe(page, `${tag}: degree dialog open`);
   await pick();
   check(`${tag}: major chosen`, (await page.getByRole("button", { name: /^Computer Science/ }).first().innerText()).includes("Computer Science"));
-  check(`${tag}: the header says the credits in one line`, /\d+ of 120 credits/.test(await page.locator("[class*=progress]").innerText()));
+  // The degree audit answers first: transcript credits left (9 finished, ENGL 1320's 3 in progress), then what's left by area.
+  const left = page.getByRole("region", { name: /credits left$/ });
+  await left.waitFor();
+  const leftTitle = await left.getByRole("heading", { level: 2 }).innerText();
+  check(`${tag}: the credits left come from the transcript`, leftTitle === "108 credits left", leftTitle);
+  check(`${tag}: the degree line no longer counts catalog credits`, (await page.locator("[class*=progress]").count()) === 0);
+  const areas = await left.getByRole("heading", { level: 3 }).allInnerTexts();
+  check(`${tag}: what's left reads by area, then the advisor's list`, JSON.stringify(areas) === JSON.stringify(["Computer Science, BS", "University Core Curriculum", "Check with an advisor"]), JSON.stringify(areas));
+  const advisorHead = await left.getByRole("button", { name: "Check with an advisor" }).innerText();
+  check(`${tag}: advisor items are a list, never a count`, !/\d/.test(advisorHead) && (await left.locator('[data-requirement="advisor"]').count()) > 0, advisorHead);
+  const required = left.locator('[data-row-open^="req:"]', { hasText: "Required courses" });
+  check(`${tag}: a requirement row says what it needs`, (await required.innerText()).replace(/\s+/g, " ").includes("16 courses"), (await required.innerText()).replace(/\s+/g, " "));
+  await tap(required);
+  const reqPanel = phone ? page.getByRole("dialog", { name: "Required courses", exact: true }) : page.locator("aside.ui-context");
+  await reqPanel.getByText("Still needed", { exact: true }).waitFor();
+  check(
+    `${tag}: the requirement's detail cites the catalog heading it comes from`,
+    (await reqPanel.innerText()).includes("Computer Science, BS lists this under Major requirements") &&
+      (await reqPanel.getByRole("link", { name: /Open in the catalog/ }).getAttribute("href")) === "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227#MajorRequirements",
+  );
+  await page.waitForTimeout(phone ? 400 : 300);
+  await shoot(page, `${tag}-01b-requirement`);
+  await axe(page, `${tag}: requirement detail`);
+  if (phone) await tap(page.getByRole("button", { name: "Close Required courses" }));
+  else await page.keyboard.press("Escape");
+  await reqPanel.waitFor({ state: phone ? "detached" : "hidden" });
 
   // ---------- 2. Auto ----------
   await rowOf(page, "MATH 1720").waitFor();
@@ -170,20 +197,23 @@ async function journey(browser, viewport) {
   const result = page.locator('[data-flip="result"]');
   await result.waitFor();
   const resultText = await result.innerText();
-  const trayCount = await page.locator('[data-flip^="tray:"]').count();
-  check(`${tag}: the result line says what Auto did`, new RegExp(`Planned ${trayCount} course`).test(resultText) && trayCount > 0, resultText.replace(/\s+/g, " "));
-  check(`${tag}: MATH 1720 is in the term tray`, (await trayRow(page, "MATH 1720").count()) === 1 && (await rowOf(page, "MATH 1720").count()) === 0);
-  // 1461c03 clears CSCE 2100 for this transcript, so Auto plans it as the second course.
-  check(`${tag}: CSCE 2100 eligible and planned by Auto`, (await trayRow(page, "CSCE 2100").count()) === 1 && trayCount === 2, `${trayCount} in the tray`);
+  const trayIds = (await page.locator('[data-flip^="tray:"]').evaluateAll((els) => els.map((el) => el.dataset.flip.slice(5)))).sort();
+  check(`${tag}: the result line says what Auto did`, new RegExp(`Planned ${trayIds.length} course`).test(resultText) && trayIds.length > 0, resultText.replace(/\s+/g, " "));
+  // Only what the degree still needs, ranked by what each unlocks: three required CSCE courses, MATH 1720 for the
+  // Component Area Option, PSYC 1630 for Social and Behavioral Sciences (frontend/tests/courses/plan-edits.test.ts).
+  check(`${tag}: Auto planned what the degree still needs`, JSON.stringify(trayIds) === JSON.stringify(["CSCE 1010", "CSCE 2100", "CSCE 2110", "MATH 1720", "PSYC 1630"]), trayIds.join(", "));
+  check(`${tag}: MATH 1720 left its group for the tray`, (await trayRow(page, "MATH 1720").count()) === 1 && (await rowOf(page, "MATH 1720").count()) === 0);
   const toCheck = page.locator('[data-status=check][data-flip^="row:"]').first();
   // The fact starts with a visually hidden ", " for screen readers, so the text is matched after it.
   const reason = (await toCheck.locator("[data-tone=attention]").innerText()).replace(/^,\s*/, "");
-  check(`${tag}: a To check row says why, in attention`, /^(Needs|Take with|Catalog rule|Transcript)/.test(reason), reason);
+  check(`${tag}: a To check row says why, in attention`, /^(Needs|Take with|Catalog rule|Transcript|Ask an advisor)/.test(reason), reason);
   const doneHead = await page.getByRole("button", { name: /^Done/ }).innerText();
-  check(`${tag}: a closed group shows its count`, /Done\s*4/.test(doneHead), doneHead.replace(/\s+/g, " "));
+  check(`${tag}: a closed group shows its count`, /Done\s*3/.test(doneHead), doneHead.replace(/\s+/g, " "));
   check(`${tag}: an open group shows no count`, !/\d/.test(await page.getByRole("button", { name: /^To check/ }).innerText()));
+  // The degree still lists CSCE 1030, so covered for planning is a question for an advisor, not Done.
+  check(`${tag}: CSCE 1030 asks an advisor whether it is waived`, (await rowStatus(page, "CSCE 1030")) === "check" && (await rowFact(page, "CSCE 1030")).includes("Ask an advisor if it's waived"));
   await openGroup(page, "Done");
-  check(`${tag}: CSCE 1030 covered through CSCE 1040`, (await rowStatus(page, "CSCE 1030")) === "covered" && (await rowFact(page, "CSCE 1030")).includes("Covered by CSCE 1040"));
+  check(`${tag}: CSCE 1030 is not in Done`, (await page.locator('section[aria-labelledby="group-done"] [data-flip="row:CSCE 1030"]').count()) === 0);
   check(`${tag}: CSCE 1040 done from the transcript`, (await rowStatus(page, "CSCE 1040")) === "done" && (await rowFact(page, "CSCE 1040")).includes("Grade A"));
   const rowHeight = await rowOf(page, "CSCE 1030").evaluate((el) => el.getBoundingClientRect().height);
   check(`${tag}: row height`, phone ? rowHeight >= 52 : Math.round(rowHeight) === 48, `${rowHeight}px`);
@@ -216,7 +246,7 @@ async function journey(browser, viewport) {
   await page.waitForTimeout(400);
   check(`${tag}: Undo removes the auto plan`, (await rowStatus(page, "MATH 1720")) === "available" && (await trayRow(page, "MATH 1720").count()) === 0);
   await openGroup(page, "Done");
-  check(`${tag}: inferred statuses stay after Undo`, (await rowStatus(page, "CSCE 1030")) === "covered");
+  check(`${tag}: inferred statuses stay after Undo`, (await rowStatus(page, "CSCE 1030")) === "check");
   if (!phone) {
     // A second run, then a hand edit to a course it planned: Undo goes away rather than overwrite it.
     await page.getByRole("button", { name: "Auto", exact: true }).click();
@@ -293,6 +323,10 @@ async function journey(browser, viewport) {
   if (!phone) {
     // ↑/↓ retargets the open panel; it must not re-animate.
     await rowOf(page, "CSCE 1030").locator("[data-row-open]").focus();
+    const nextId = await page.evaluate(() => {
+      const buttons = [...document.querySelectorAll("[data-row-open]")];
+      return buttons[buttons.findIndex((button) => button.dataset.rowOpen === "CSCE 1030") + 1]?.dataset.rowOpen;
+    });
     const states = [];
     await page.keyboard.press("ArrowDown");
     for (let i = 0; i < 6; i++) {
@@ -300,7 +334,7 @@ async function journey(browser, viewport) {
       await page.waitForTimeout(30);
     }
     const heading = await panel.locator("h2").innerText();
-    check(`${tag}: ↓ moves the panel to the next course`, heading.includes("CSCE 1040"), heading.replace(/\s+/g, " "));
+    check(`${tag}: ↓ moves the panel to the next course`, Boolean(nextId) && heading.includes(nextId), `${heading.replace(/\s+/g, " ")} (next row ${nextId})`);
     check(`${tag}: the panel stays open while retargeting`, states.every((s) => s === "open"), states.join(","));
     await page.keyboard.press("Escape");
     await panel.waitFor({ state: "detached" });
@@ -330,9 +364,12 @@ async function journey(browser, viewport) {
     await page.keyboard.type("1720");
     const first = palette.getByRole("option").first();
     await first.waitFor();
-    check(`${tag}: the major's core course ranks first`, (await first.innerText()).includes("MATH 1720"), (await first.innerText()).replace(/\s+/g, " "));
+    // Both 1720s count toward the degree (Laboratory science, the Component Area Option); they outrank the rest by code.
+    check(`${tag}: a course the degree still needs ranks first`, /BIOL 1720|MATH 1720/.test(await first.innerText()), (await first.innerText()).replace(/\s+/g, " "));
     await shoot(page, `${tag}-04-palette`);
     await axe(page, `${tag}: search palette`);
+    await page.keyboard.type(" calculus");
+    await palette.getByRole("option").first().filter({ hasText: "MATH 1720" }).waitFor();
     await page.keyboard.press("Meta+Enter");
     await page.getByText("Added MATH 1720 to Spring 2027").first().waitFor();
     check(`${tag}: ⌘↵ adds the course and keeps the palette open`, await palette.isVisible());

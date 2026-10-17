@@ -518,8 +518,10 @@ async function studentViews(browser, vp) {
     await axe(page, size, "Courses before a major");
     const studying = page.locator('[role="dialog"]', { hasText: "What are you studying?" });
     let degree = studying;
+    let sampled = false;
     if (!(await studying.isVisible().catch(() => false))) {
       await page.getByRole("button", { name: /Try a sample transcript/ }).click();
+      sampled = true;
       degree = page.getByRole("dialog", { name: "Your degree" });
       if (!(await degree.isVisible().catch(() => false))) await page.getByRole("button", { name: /Choose your major|Undeclared/ }).filter({ has: page.locator("svg") }).first().click();
     }
@@ -531,6 +533,10 @@ async function studentViews(browser, vp) {
     if (await confirm.isVisible().catch(() => false)) await confirm.click();
     await degree.waitFor({ state: "detached" });
     await settle();
+    // CS BS's 120 credits less the sample transcript's 9 finished and 3 in progress: the degree audit's figure, before the term.
+    const leftTitle = (await page.locator("#left-title").textContent().catch(() => null))?.trim() ?? "";
+    const expected = sampled ? "108 credits left" : "120 credits left";
+    check(size, "student views: Courses leads with the credits the degree audit leaves", leftTitle === expected, `${leftTitle || "no What's left heading"} (expected ${expected})`);
     await axe(page, size, "Courses after a major");
   } catch (error) {
     check(size, "student views: Courses ran to the end", false, String(error).split("\n")[0]);
