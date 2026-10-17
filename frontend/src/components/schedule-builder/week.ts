@@ -17,6 +17,8 @@ export const DAY_NAME: Record<Day, string> = {
   Sun: "Sunday",
 };
 const dayIndex = (day: Day) => DAY_ORDER.indexOf(day);
+/** GridEvent.place for an online class. */
+export const ONLINE = "online";
 
 /** "9:00" for 540: times as people read them inside a day (DESIGN.md §9.7). */
 export function clock(minutes: number): string {
@@ -32,6 +34,11 @@ export function clockWithSuffix(minutes: number): string {
 }
 
 export const timeRange = (start: number, end: number) => `${clock(start)}–${clock(end)}`;
+
+/** "Feb 3": an ISO date as Week says it. */
+export function shortDate(date: string): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+}
 
 /** How Week names Auto's alternative at a rank, inside a sentence ("option 2"); the strip shows "2 of 3". */
 export const optionName = (index: number) => `option ${index + 1}`;
@@ -83,7 +90,16 @@ export type GridEvent = {
   day: Day;
   start: number;
   end: number;
+  /** The campus map's building id; null for an online class, a room not yet assigned, or a building not on the map. */
   building: string | null;
+  /**
+   * Where the class meets, as walks need it: "online" (the registrar's room
+   * "UNT Internet Course"), never a walk; a place key (the map's building id,
+   * else the room's building code, such as "FRLD" for a building not on the
+   * map); or null for an in-person room not yet assigned ("No Facility
+   * Assigned", "None", "TBA"). See lib/sections/buildings.ts resolveRoom.
+   */
+  place: string | null;
   dates: { start: string | null; end: string | null };
 };
 
@@ -101,6 +117,7 @@ export function eventsOf(sections: readonly Section[]): GridEvent[] {
         start: meeting.startMinutes,
         end: meeting.endMinutes,
         building: meeting.buildingId,
+        place: meeting.kind === "online" ? ONLINE : (meeting.buildingId ?? meeting.buildingCode),
         dates: meeting.dates,
       })),
   );
@@ -150,8 +167,8 @@ export function placeEvents(events: readonly GridEvent[]): Map<string, Placement
   return out;
 }
 
-/** Walking time between two buildings, or null when it isn't known. */
-export type WalkFn = (fromBuilding: string, toBuilding: string) => { minutes: number; shuttle: boolean } | null;
+/** Walking time between two buildings, in seconds as the optimizer counts it, or null when it isn't known. */
+export type WalkFn = (fromBuilding: string, toBuilding: string) => { seconds: number; shuttle: boolean } | null;
 
 /** Breaks longer than this get no walk chip: the walk can't be tight. */
 export const WALK_GAP_MAX = 30;
@@ -169,7 +186,9 @@ export type WalkLeg = {
   /** Where the line runs: the first class's end to the next class's start. */
   from: number;
   to: number;
+  /** Rounded, for the chip and its label; `seconds` decides late and tight, as Auto does. */
   minutes: number;
+  seconds: number;
   shuttle: boolean;
   kind: "ok" | "tight" | "late";
 };
@@ -190,7 +209,47 @@ const covers = (outer: Dates, inner: Dates) =>
  * two share.
  */
 export function walksOf(events: readonly GridEvent[], walk: WalkFn): WalkLeg[] {
-  const legs: WalkLeg[] = [];
+  return walkPairs(events).flatMap(({ before, next, from, to }): WalkLeg[] => {
+    const time = from && to ? walk(from, to) : null;
+    if (!time) return [];
+    const gapSeconds = (next.start - before.end) * 60;
+    return [
+      {
+        day: next.day,
+        fromKey: before.key,
+        toKey: next.key,
+        toCourse: next.courseCode,
+        from: before.end,
+        to: next.start,
+        minutes: Math.round(time.seconds / 60),
+        seconds: time.seconds,
+        shuttle: time.shuttle,
+        kind: time.seconds > gapSeconds ? "late" : time.seconds + TIGHT_BUFFER * 60 >= gapSeconds ? "tight" : "ok",
+      },
+    ];
+  });
+}
+
+/**
+ * The walks `walksOf` leaves out because no time can be given for them, so
+ * a total can say it is incomplete instead of counting them as no walking
+ * at all: a building with no walking time, one that isn't on the campus
+ * map, or an in-person room not yet assigned.
+ */
+export function unknownWalksOf(events: readonly GridEvent[], walk: WalkFn): number {
+  return walkPairs(events).filter(({ from, to }) => !from || !to || !walk(from, to)).length;
+}
+
+/** `from` and `to` are the map's building ids, null where the class has none. */
+type WalkPair = { before: GridEvent; next: GridEvent; from: string | null; to: string | null };
+
+/**
+ * Consecutive in-person classes that may be in different places: a walk,
+ * timed or not. A pair with an online class is no walk, and neither is one
+ * in the same known place.
+ */
+function walkPairs(events: readonly GridEvent[]): WalkPair[] {
+  const pairs: WalkPair[] = [];
   const ordered = [...events].sort((a, b) => dayIndex(a.day) - dayIndex(b.day) || a.start - b.start);
   for (const next of ordered) {
     const earlierClasses = ordered.filter((event) => event.day === next.day && event.end <= next.start && meetTogether(next.day, event.dates, next.dates));
@@ -200,24 +259,12 @@ export function walksOf(events: readonly GridEvent[], walk: WalkFn): WalkLeg[] {
         (other) => other !== before && (other.end > before.end || (other.end === before.end && other.key < before.key)) && covers(other.dates, shared),
       );
       if (hidden || next.start - before.end > WALK_GAP_MAX) continue;
-      if (!before.building || !next.building || before.building === next.building) continue;
-      const time = walk(before.building, next.building);
-      if (!time) continue;
-      const gap = next.start - before.end;
-      legs.push({
-        day: next.day,
-        fromKey: before.key,
-        toKey: next.key,
-        toCourse: next.courseCode,
-        from: before.end,
-        to: next.start,
-        minutes: time.minutes,
-        shuttle: time.shuttle,
-        kind: time.minutes > gap ? "late" : time.minutes + TIGHT_BUFFER >= gap ? "tight" : "ok",
-      });
+      if (before.place === ONLINE || next.place === ONLINE) continue;
+      if (before.place !== null && before.place === next.place) continue;
+      pairs.push({ before, next, from: before.building, to: next.building });
     }
   }
-  return legs;
+  return pairs;
 }
 
 /** Hours shown: 8 a.m. to at least 5 p.m., widened to whole hours around every class and busy time. */

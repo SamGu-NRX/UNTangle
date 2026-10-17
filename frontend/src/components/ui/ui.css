@@ -779,10 +779,19 @@
 }
 .ui-seg--full {
   display: grid;
+  grid-auto-columns: minmax(0, 1fr);
   width: 100%;
 }
 .ui-seg--full .ui-seg__item {
   min-width: 0;
+}
+/* A label longer than its share (a schedule's own name in Compare) ends in an ellipsis inside its segment; the button keeps the whole name. */
+.ui-seg__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* The item sets line-height 1; clipping at that box would cut descenders. */
+  line-height: 1.3;
 }
 @media (pointer: coarse) {
   .ui-seg__item {
@@ -1694,6 +1703,33 @@
   .ui-toaster {
     bottom: calc(var(--tabbar-h) + 12px + var(--safe-b) + var(--toast-lift, 0px));
   }
+  /*
+   * Over a modal sheet, in the dimmed strip above its top edge (--sheet-top, from modal-layer.ts), so the sheet's
+   * title, rows and buttons are never under it. The strip is a size container: too short for a one-line toast
+   * (a sheet at its top detent), the toast hides; the live region has said it, and Undo comes back on close.
+   */
+  .ui-toaster[data-covered="sheet"] {
+    top: calc(8px + var(--safe-t));
+    bottom: calc(100% - var(--sheet-top, 0px) + 8px);
+    align-items: flex-end;
+    container: toast-strip / size;
+  }
+  .ui-toaster[data-covered="sheet"] .ui-toast {
+    min-height: 36px;
+  }
+  @container toast-strip (max-height: 35.9px) {
+    .ui-toast {
+      visibility: hidden;
+    }
+  }
+}
+/* Over a modal the toast has no buttons; its message keeps to one line, and the live region holds the whole of it. */
+.ui-toaster[data-covered] .ui-toast__message {
+  min-width: 0;
+  overflow: hidden;
+  padding: 8px 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ui-toast {
   display: inline-flex;
@@ -1849,6 +1885,10 @@
   gap: 16px;
   padding: 20px 16px 0 24px;
 }
+/* Focused on open by script (Dialog focusTitle); not a control, so no ring. */
+.ui-dialog [data-dialog-start]:focus {
+  outline: none;
+}
 .ui-dialog__title {
   margin: 0;
   padding-top: 6px;
@@ -1868,8 +1908,14 @@
   overscroll-behavior: contain;
   padding: 16px 24px 24px;
 }
+/* A dialog with no body: its buttons keep their distance from the description. */
+.ui-dialog__description + .ui-dialog__foot {
+  padding-top: 20px;
+}
 .ui-dialog__foot {
   display: flex;
+  /* Two long labels don't fit a phone's width side by side; the last (primary) button wraps onto the top line. */
+  flex-wrap: wrap-reverse;
   justify-content: flex-end;
   gap: 8px;
   padding: 0 24px 20px;

@@ -1,0 +1,243 @@
+{
+  "term": "spring-2027",
+  "courseCode": "MATH 1710",
+  "status": "stale",
+  "availability": "sections",
+  "provenance": {
+    "kind": "real",
+    "source": "vsb.untgrades.app",
+    "updatedAt": "2026-10-04T19:02:54.758921+00:00",
+    "note": "Partial scrape: only MATH 1680 was collected from the live cloud browser. Run class_scraper.py to resume all remaining courses."
+  },
+  "checkedAt": "2026-10-16T06:39:34.309Z",
+  "diagnostic": null,
+  "sections": [
+    {
+      "id": "vsb:spring-2027:MATH 1710:6059",
+      "term": "spring-2027",
+      "courseCode": "MATH 1710",
+      "sectionCode": "720",
+      "classNumbers": [
+        "6059"
+      ],
+      "option": "6",
+      "instructor": {
+        "raw": "Iaia,Joseph A",
+        "display": "Joseph A Iaia"
+      },
+      "seats": {
+        "open": 48,
+        "total": 48
+      },
+      "status": "open",
+      "rawStatus": "Open",
+      "session": {
+        "label": "Regular Academic Session",
+        "dates": {
+          "raw": "01/11/2027 - 05/07/2027",
+          "start": "2027-01-11",
+          "end": "2027-05-07"
+        }
+      },
+      "components": [
+        {
+          "id": "vsb-component:spring-2027:MATH 1710:6059",
+          "classNumber": "6059",
+          "sectionCode": "720",
+          "role": "primary",
+          "instructor": {
+            "raw": "Iaia,Joseph A",
+            "display": "Joseph A Iaia"
+          },
+          "seats": {
+            "open": 48,
+            "total": 48
+          },
+          "meetings": [
+            {
+              "room": "Wh 317",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Iaia,Joseph A",
+                "display": "Joseph A Iaia"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 317",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Iaia,Joseph A",
+                "display": "Joseph A Iaia"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 317",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Iaia,Joseph A",
+                "display": "Joseph A Iaia"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 317",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Tue",
+              "startMinutes": 575,
+              "endMinutes": 655,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            }
+          ]
+        }
+      ],
+      "meetings": [
+        {
+          "room": "Wh 317",
+          "buildingCode": "WH",
+          "buildingId": "wh",
+          "buildingName": "Wooten Hall",
+          "kind": "building",
+          "offCampus": false,
+          "day": "Mon",
+          "startMinutes": 610,
+          "endMinutes": 660,
+          "dates": {
+            "raw": "01/11/2027 - 05/07/2027",
+            "start": "2027-01-11",
+            "end": "2027-05-07"
+          },
+          "instructor": {
+            "raw": "Iaia,Joseph A",
+            "display": "Joseph A Iaia"
+          },
+          "async": false,
+          "tba": false
+        },
+        {
+          "room": "Wh 317",
+          "buildingCode": "WH",
+          "buildingId": "wh",
+          "buildingName": "Wooten Hall",
+          "kind": "building",
+          "offCampus": false,
+          "day": "Wed",
+          "startMinutes": 610,
+          "endMinutes": 660,
+          "dates": {
+            "raw": "01/11/2027 - 05/07/2027",
+            "start": "2027-01-11",
+            "end": "2027-05-07"
+          },
+          "instructor": {
+            "raw": "Iaia,Joseph A",
+            "display": "Joseph A Iaia"
+          },
+          "async": false,
+          "tba": false
+        },
+        {
+          "room": "Wh 317",
+          "buildingCode": "WH",
+          "buildingId": "wh",
+          "buildingName": "Wooten Hall",
+          "kind": "building",
+          "offCampus": false,
+          "day": "Fri",
+          "startMinutes": 610,
+          "endMinutes": 660,
+          "dates": {
+            "raw": "01/11/2027 - 05/07/2027",
+            "start": "2027-01-11",
+            "end": "2027-05-07"
+          },
+          "instructor": {
+            "raw": "Iaia,Joseph A",
+            "display": "Joseph A Iaia"
+          },
+          "async": false,
+          "tba": false
+        },
+        {
+          "room": "Wh 317",
+          "buildingCode": "WH",
+          "buildingId": "wh",
+          "buildingName": "Wooten Hall",
+          "kind": "building",
+          "offCampus": false,
+          "day": "Tue",
+          "startMinutes": 575,
+          "endMinutes": 655,
+          "dates": {
+            "raw": "01/11/2027 - 05/07/2027",
+            "start": "2027-01-11",
+            "end": "2027-05-07"
+          },
+          "instructor": {
+            "raw": "None",
+            "display": null
+          },
+          "async": false,
+          "tba": false
+        }
+      ],
+      "online": false,
+      "async": false,
+      "tba": false
+    }
+  ]
+}

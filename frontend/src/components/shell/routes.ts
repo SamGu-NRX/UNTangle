@@ -19,6 +19,17 @@ export function isLens(value: unknown): value is Lens {
   return LENSES.some((lens) => lens.id === value);
 }
 
+/**
+ * Courses opened straight onto the major choice, for the landing's "Pick
+ * courses by hand": Courses' own start options would ask the same question
+ * again. CoursesView reads it once (`asksForMajor`) and drops it.
+ */
+export const CHOOSE_MAJOR_HREF = `${LENS_HREF.courses}?start=major`;
+
+export function asksForMajor(search: string): boolean {
+  return new URLSearchParams(search).get("start") === "major";
+}
+
 /** The schedules library, opened from the schedule pill. */
 export const SCHEDULES_HREF = "/schedules";
 

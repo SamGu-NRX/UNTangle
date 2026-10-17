@@ -7,8 +7,9 @@ import { ChevronDown } from "@/components/ui/icons";
 import { SearchField } from "@/components/ui/SearchField";
 import { StatusGlyph } from "@/components/ui/StatusGlyph";
 import type { Day, Section } from "@/lib/sections";
+import { hasOpenSeats } from "@/lib/sections/open-seats";
 import styles from "./builder.module.css";
-import { hasNoSetTime, isTimed } from "./conflicts";
+import { isTimed } from "./conflicts";
 import type { BuilderHost, SearchHit } from "./host";
 import { SectionRows } from "./SectionRows";
 
@@ -21,8 +22,12 @@ const STATUS_NAME: Record<NonNullable<SearchHit["status"]>, string> = {
   done: "done",
 };
 
-/** Five digits is a myUNT class number; four would collide with course numbers ("2110"). */
-export const CLASS_NUMBER = /^\d{5}$/;
+/**
+ * myUNT class numbers have four or five digits. Four digits can also be a
+ * course number ("2110"), so a four-digit query is looked up as a class
+ * number only when no course matches it.
+ */
+export const CLASS_NUMBER = /^\d{4,5}$/;
 
 const DAYS: readonly Day[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const LEVELS = ["1000", "2000", "3000", "4000"] as const;
@@ -32,10 +37,11 @@ type Filters = { openSeats: boolean; days: Day[]; formats: Format[]; levels: str
 const NO_FILTERS: Filters = { openSeats: false, days: [...DAYS], formats: ["in-person", "online"], levels: [] };
 
 function sectionPasses(section: Section, filters: Filters): boolean {
-  if (filters.openSeats && section.seats.open === 0) return false;
-  const online = hasNoSetTime(section) || section.online;
-  if (!filters.formats.includes(online ? "online" : "in-person")) return false;
-  return section.meetings.filter(isTimed).every((meeting) => filters.days.includes(meeting.day));
+  if (filters.openSeats && !hasOpenSeats(section)) return false;
+  // A section with no set time is online only when its meetings are; an in-person TBA section stays in person.
+  if (!filters.formats.includes(section.online ? "online" : "in-person")) return false;
+  // Weekends have no chip, so only the weekdays a chip turns off can hide a section.
+  return section.meetings.filter(isTimed).every((meeting) => !DAYS.includes(meeting.day) || filters.days.includes(meeting.day));
 }
 
 /** "1000" to "4000"; graduate numbers count as 4000+. */
@@ -67,7 +73,8 @@ export function SearchPanel({ host, query, onQuery, week, onPlace, onPreview, au
   const [lookup, setLookup] = useState<Lookup | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const trimmed = query.trim();
-  const number = CLASS_NUMBER.test(trimmed) ? trimmed : null;
+  const courseHits = trimmed ? host.search.find(trimmed) : null;
+  const number = CLASS_NUMBER.test(trimmed) && (trimmed.length === 5 || courseHits?.length === 0) ? trimmed : null;
 
   useEffect(() => {
     if (autoFocus) input.current?.focus({ preventScroll: true });
@@ -96,9 +103,7 @@ export function SearchPanel({ host, query, onQuery, week, onPlace, onPreview, au
     ? found.state === "found" && found.courseCode
       ? host.search.find(found.courseCode).filter((hit) => hit.code === found.courseCode).slice(0, 1)
       : []
-    : trimmed
-      ? host.search.find(trimmed)
-      : host.search.suggestions();
+    : (courseHits ?? host.search.suggestions());
   const shown = hits.filter((hit) => filters.levels.length === 0 || filters.levels.includes(levelOf(hit.code)));
   const onWeek = new Map(host.courses.map((course) => [course.code, course.section?.id ?? null]));
   const filtered = !isDefault(filters);
@@ -184,7 +189,7 @@ export function SearchPanel({ host, query, onQuery, week, onPlace, onPreview, au
           <p className={styles.hint}>Class {found.number} is {found.courseCode}, which isn&rsquo;t in this course list.</p>
         ) : null}
         {!found && trimmed && shown.length === 0 ? <p className={styles.hint}>No course matches &ldquo;{trimmed}&rdquo;. Try a department code like CSCE.</p> : null}
-        {!found && !trimmed && shown.length === 0 ? <p className={styles.hint}>Try a course code, a title or a five-digit class number.</p> : null}
+        {!found && !trimmed && shown.length === 0 ? <p className={styles.hint}>Try a course code, a title or a class number.</p> : null}
         {!found && !trimmed && shown.length > 0 ? <p className={`${styles.label} ${styles.group}`}>You can take</p> : null}
         <ul className={styles.courses}>
           {shown.map((hit) => {
@@ -221,16 +226,26 @@ export function SearchPanel({ host, query, onQuery, week, onPlace, onPreview, au
                         {filtered ? "No section matches these filters." : "No sections this term."}
                       </p>
                     ) : (
-                      <SectionRows
-                        courseCode={hit.code}
-                        sections={visible ?? []}
-                        week={week}
-                        currentId={onWeek.get(hit.code) ?? null}
-                        verb="add"
-                        highlightId={found?.state === "found" ? found.sectionId : null}
-                        onPlace={onPlace}
-                        onPreview={onPreview}
-                      />
+                      <>
+                        {/* Samples (term null) stand in when the term's sections can't be loaded; say so before one is picked. */}
+                        {options.some((section) => section.term === null) ? (
+                          <p className={styles.hint}>
+                            <strong>Sample sections.</strong> These times, rooms and instructors are made up for planning. Real {host.term.label}{" "}
+                            sections replace them when UNT&rsquo;s class schedule loads.
+                          </p>
+                        ) : null}
+                        <SectionRows
+                          courseCode={hit.code}
+                          sections={visible ?? []}
+                          week={week}
+                          currentId={onWeek.get(hit.code) ?? null}
+                          verb="add"
+                          highlightId={found?.state === "found" ? found.sectionId : null}
+                          onPlace={onPlace}
+                          onPreview={onPreview}
+                          finals={host.finals}
+                        />
+                      </>
                     )}
                   </div>
                 ) : null}

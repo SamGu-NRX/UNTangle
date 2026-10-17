@@ -1109,7 +1109,7 @@ function Desktop() {
   const bar = TopBar(false); dk.append(bar);
   const wk = h(`<div class="wk"></div>`); wk.append(WeekView({ courses: true, rowh: 23.5 })); dk.append(wk);
   const pop = h(`<section class="pop closed" role="dialog" aria-label="Preferences" inert><span class="nub" aria-hidden="true"></span></section>`);
-  const cpop = h(`<section class="pop small closed" role="dialog" aria-label="Courses" inert><span class="nub" aria-hidden="true"></span><h3>Courses</h3><p>Pick what to take this term, or let Auto pick, then build the week from it.</p><a href="./course-cart.html">Open the course cart mockup<i class="hgi hgi-stroke hgi-arrow-right-01" style="font-size:15px"></i></a>${coursesNote}</section>`);
+  const cpop = h(`<section class="pop small closed" role="dialog" aria-label="Courses" inert><span class="nub" aria-hidden="true"></span><h3>Courses</h3><p>Pick what to take this term, or let Auto pick, then build the week from it.</p><p>The course cart mockup that opened from here was lost (see README.md).</p>${coursesNote}</section>`);
   const panel = Panel({ sheet: false, onClose: () => close(true) });
   pop.append(panel); dk.append(pop, cpop);
   const btn = { prefs: bar.querySelector('[data-open="prefs"]'), courses: bar.querySelector('[data-open="courses"]') };
@@ -1155,7 +1155,7 @@ function Phone() {
   ph.append(h(`<nav class="tabbar" aria-label="Lenses"><span><i class="hgi hgi-stroke hgi-mortarboard-02"></i>Courses</span><span class="on" aria-current="page"><i class="hgi hgi-stroke hgi-calendar-03"></i>Week</span><span><i class="hgi hgi-stroke hgi-sun-03"></i>Day</span></nav>`));
   const scrim = h(`<div class="scrim off"></div>`);
   const sheet = h(`<section class="sheet closed" role="dialog" aria-modal="true" aria-label="Preferences" inert><button class="grab" aria-label="Close preferences"></button></section>`);
-  const csheet = h(`<section class="sheet small closed" role="dialog" aria-modal="true" aria-label="Courses" inert><button class="grab" aria-label="Close courses"></button><h3>Courses</h3><p>Pick what to take this term, or let Auto pick, then build the week from it.</p><a href="./course-cart.html">Open the course cart mockup<i class="hgi hgi-stroke hgi-arrow-right-01" style="font-size:15px"></i></a>${coursesNote}</section>`);
+  const csheet = h(`<section class="sheet small closed" role="dialog" aria-modal="true" aria-label="Courses" inert><button class="grab" aria-label="Close courses"></button><h3>Courses</h3><p>Pick what to take this term, or let Auto pick, then build the week from it.</p><p>The course cart mockup that opened from here was lost (see README.md).</p>${coursesNote}</section>`);
   const panel = Panel({ sheet: true, onClose: () => close(true) });
   sheet.append(panel);
   ph.append(scrim, sheet, csheet);

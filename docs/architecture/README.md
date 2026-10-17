@@ -102,10 +102,10 @@ The planner blob becomes separate documents. Each has its own revision:
 |---|---|---|
 | `academic-record` | user and institution | course statuses, approved transcript rows, manual credit, major, catalog year |
 | `schedule` | user, institution and term; many allowed | name, courses, selected options, locks, Auto's last transaction |
-| `preferences` | user and institution | hard limits, leanings, the 1 to 5 importance scale, presets, calendar busy-time selections |
+| `preferences` | user and institution | hard limits, leanings, the 1 to 5 importance scale, presets, connected calendars |
 | `version` | schedule; append-only | an immutable snapshot ("Before Auto", restore points, imports) |
 
-Roadmaps and calendar or notification subscriptions get documents when their features are built, not before.
+Roadmaps and notification subscriptions get documents when their features are built, not before. Connected calendars were built into `preferences`: each holds its name, its title-free busy slots for one term and its feed address sealed by the server (`frontend/src/lib/calendar-feeds/README.md`), merged per calendar on a conflict. A separate document would have split one setting the student changes in one place across two writes.
 
 Each fact lives in exactly one document. Planned courses for a term belong to that term's schedule. The academic record holds only facts about the student's history: completed courses, courses in progress now, transfer and exam credit. Today `PlannerState` marks a planned course `inProgress`, and the migration moves those courses into the schedule. Auto plans and unplans courses for a term, so in this model it writes only that term's schedule, and its Undo record (`lastAuto`) commits in the same write as its effect. It never changes the academic record. A write carries its document's `kind`, so the server can check the body of a document's first write; on later writes the kind must match the stored document.
 
@@ -193,7 +193,7 @@ Surface:
 
 Mobile and the extension don't use better-auth's `bearer()` plugin. In the installed 1.5.5, it rewrites a bearer token into an ordinary full session cookie, with no scopes and no rotation (`better-auth/dist/plugins/bearer/index.mjs:19-57`). Instead there's one small first-party device-grant service. It is built in step 3b, just before the mobile and extension betas; the lead owns it, and it gets an independent security review before release.
 
-1. The client creates a PKCE verifier and sends its S256 challenge and the grant kind (and, for the extension, the schedule) to `device/start`. The server stores only hashes and returns a device code for the client, an 8-character user code for the student, the approval page's address (`/device`), a 10-minute expiry and a 5-second polling interval.
+1. The client creates a PKCE verifier and sends its S256 challenge and the grant kind (and, for the extension, the schedule role `main`) to `device/start`. The server stores only hashes and returns a device code for the client, an 8-character user code for the student, the approval page's address (`/device`), a 10-minute expiry and a 5-second polling interval.
 2. The student opens `/device` in a browser and enters the user code (`/device?user_code=` fills it in). A magic link from email could open in a different browser, so the page signs the student in with a one-time code by email instead (better-auth's `email-otp` plugin, in 1.5.5), unless they're already signed in there. Meanwhile the client polls `device/token` with the device code and the verifier.
 3. The page shows the account, the device and what it can do. Approving is a same-origin POST, protected the way cookie writes are today: a required custom header, which forces a preflight, plus SameSite=Lax and an Origin check.
 4. The page returns a single-use code that expires in 60 seconds.
@@ -201,7 +201,7 @@ Mobile and the extension don't use better-auth's `bearer()` plugin. In the insta
 
 There are two fixed grant kinds, not free-form scopes:
 - **`mobile`:** reads and changes the student's documents.
-- **`extension`:** reads a projection of the chosen schedule and sends `add-option`, nothing else.
+- **`extension`:** reads a projection of the account's Main and sends `add-option`, nothing else. The grant names the Main role, `main`, not a document. Each preview and add names a term (an add's option id carries it). For a term the web planner plans (`plannedTerms` in `server/extension/main-schedule.ts`, today only `planningTerm`), the server picks that term's Main the way the web planner does (`pickPlannerDocument` in `lib/planner-documents.ts`), and a first add to a term with no Main creates it with the id and body the web planner's first write would use. Another term's preview says which term UNTangle plans, and its add is refused, so the extension never makes a Main that Week doesn't show. When the planner plans more terms, `plannedTerms` has to be widened by hand to match.
 
 Neither can delete the account or change credentials; those always need a fresh browser sign-in.
 
@@ -305,7 +305,7 @@ Fetching an unchanged file today doesn't mean its seat counts were true today. W
 | RateMyProfessors | a link only | nothing | no fetching or storing |
 | Syllabi | reviewed host list, robots-aware, conditional requests | hashes, short quotes, locators, extractor version | public by Texas Education Code 51.974; no bulk crawl until permissions are recorded |
 | Degree plans and policy | curated from official pages | reviewed releases in `data/` | every value cites its page and date |
-| Calendar feeds | the existing SSRF-safe fetcher; 30-minute starting interval for directory feeds | dated occurrences in Postgres | private feed URLs are encrypted and never logged |
+| Calendar feeds | the existing SSRF-safe fetcher; 30-minute starting interval for directory feeds; a student's connected calendar is read again when Week opens and it is over 6 hours old | dated busy slots in the `preferences` document (Postgres when signed in, the device for a guest) | private feed URLs are encrypted (AES-256-GCM under `CALENDAR_FEED_KEY`, sealed to the account, or for a guest to the browser's HttpOnly cookie, for at most 90 days) and never logged; only the sealed token is stored |
 | Campus map (OSM) | the existing geodata kit | versioned static graphs | keep ODbL attribution |
 
 Feature rules that follow from evidence:

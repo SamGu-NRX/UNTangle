@@ -95,6 +95,16 @@ export type RefSchedule = {
   };
 };
 
+function placeOf(meeting: Pick<OptMeeting, "buildingId" | "place">): string | null {
+  return meeting.place === undefined ? meeting.buildingId : meeting.place;
+}
+
+function noWalkBetween(a: Pick<OptMeeting, "buildingId" | "place">, b: Pick<OptMeeting, "buildingId" | "place">): boolean {
+  const from = placeOf(a);
+  const to = placeOf(b);
+  return from === "online" || to === "online" || (from !== null && from === to);
+}
+
 function walkBetween(request: OptimizeRequest, a: string | null, b: string | null): number | null {
   if (a === null || b === null) return null;
   const leg = request.walkingTime(a, b);
@@ -132,6 +142,14 @@ export function violations(request: OptimizeRequest, chosen: OptSection[]): stri
       if (a.day === b.day && a.start < b.end && b.start < a.end && shareAWeek(request, a, b)) problems.push(`overlap ${a.owner} ${b.owner}`);
     }
   }
+  // Contract (OptSection.exam): two known finals on one date that share a minute can't be in one schedule.
+  for (let i = 0; i < chosen.length; i += 1) {
+    for (let j = i + 1; j < chosen.length; j += 1) {
+      const a = chosen[i].exam;
+      const b = chosen[j].exam;
+      if (a && b && a.date === b.date && a.start < b.end && b.start < a.end) problems.push(`finals ${chosen[i].id} ${chosen[j].id}`);
+    }
+  }
   if (c.maxCredits !== null) {
     // Courses outside the request still count toward the limit (fixedCredits).
     const credits = chosen.reduce((sum, s) => sum + request.courses.find((course) => course.code === s.courseCode)!.credits, request.fixedCredits ?? 0);
@@ -139,7 +157,7 @@ export function violations(request: OptimizeRequest, chosen: OptSection[]): stri
   }
   if (c.walking !== null) {
     for (const [prev, next] of backToBackPairs(request, chosen)) {
-      if (prev.buildingId !== null && prev.buildingId === next.buildingId && walkBetween(request, prev.buildingId, next.buildingId) === 0) continue;
+      if (noWalkBetween(prev, next)) continue;
       const walk = walkBetween(request, prev.buildingId, next.buildingId) ?? UNKNOWN_WALK;
       if ((next.start - prev.end) * 60 < walk + c.walking.bufferMinutes * 60) problems.push(`walk ${prev.owner} -> ${next.owner}`);
     }
@@ -161,6 +179,7 @@ export function referenceCost(request: OptimizeRequest, chosen: OptSection[]): P
   const days = new Set(all.map((m) => m.day));
   for (const [prev, next] of backToBackPairs(request, chosen)) {
     gap += Math.max(0, next.start - prev.end);
+    if (noWalkBetween(prev, next)) continue;
     const seconds = walkBetween(request, prev.buildingId, next.buildingId);
     if (seconds === null) unknown += 1;
     else walk += seconds;
@@ -293,7 +312,10 @@ export function combinationCount(request: OptimizeRequest): number {
  */
 export function referenceRestrict(request: OptimizeRequest, members: ExplainMember[]): OptimizeRequest {
   const named = (predicate: (m: ExplainMember) => boolean) => members.some(predicate);
-  const courses = request.courses.filter((course) => named((m) => m.kind === "course" && m.courseCode === course.code));
+  // Without the finals rule named, no section has a final to clash on.
+  const courses = request.courses
+    .filter((course) => named((m) => m.kind === "course" && m.courseCode === course.code))
+    .map((course) => (named((m) => m.kind === "exams") ? course : { ...course, sections: course.sections.map((s) => (s.exam ? { ...s, exam: null } : s)) }));
   const ids = new Set(courses.flatMap((course) => course.sections.map((s) => s.id)));
   const c = request.constraints;
   return {

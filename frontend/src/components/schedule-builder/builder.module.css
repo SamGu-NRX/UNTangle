@@ -18,13 +18,13 @@
   }
 }
 
-/* Course colors (DESIGN.md §7): one hue per course, set where it's drawn. */
-:is(.page, .grid) [data-hue="1"] { --c: var(--c1); --ct: var(--c1t); }
-:is(.page, .grid) [data-hue="2"] { --c: var(--c2); --ct: var(--c2t); }
-:is(.page, .grid) [data-hue="3"] { --c: var(--c3); --ct: var(--c3t); }
-:is(.page, .grid) [data-hue="4"] { --c: var(--c4); --ct: var(--c4t); }
-:is(.page, .grid) [data-hue="5"] { --c: var(--c5); --ct: var(--c5t); }
-:is(.page, .grid) [data-hue="6"] { --c: var(--c6); --ct: var(--c6t); }
+/* Course colors (DESIGN.md §7): one hue per course, set where it's drawn. Browse all's list is portaled into the panel, outside .page. */
+:is(.page, .grid, .combos) [data-hue="1"] { --c: var(--c1); --ct: var(--c1t); }
+:is(.page, .grid, .combos) [data-hue="2"] { --c: var(--c2); --ct: var(--c2t); }
+:is(.page, .grid, .combos) [data-hue="3"] { --c: var(--c3); --ct: var(--c3t); }
+:is(.page, .grid, .combos) [data-hue="4"] { --c: var(--c4); --ct: var(--c4t); }
+:is(.page, .grid, .combos) [data-hue="5"] { --c: var(--c5); --ct: var(--c5t); }
+:is(.page, .grid, .combos) [data-hue="6"] { --c: var(--c6); --ct: var(--c6t); }
 
 .label {
   margin: 0;
@@ -145,6 +145,50 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+/*
+ * After Set up Auto finishes with no course to build, one ring leaves the
+ * Preferences button twice, so the student sees where the answers now live.
+ * (With courses, Auto's reveal runs instead and nothing else moves, MOTION.md
+ * §8.) It waits for the dialog's exit (--t-exit), then grows and fades
+ * (--t-reveal, the rare-moment duration); r3's onboarding mockup draws the
+ * same ring. Reduced motion keeps only the fade.
+ */
+.topButton[data-ring] {
+  position: relative;
+}
+.topButton[data-ring]::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 2px solid var(--brand-2);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  animation: ring var(--t-reveal) var(--ease-out) var(--t-exit) 2;
+}
+@keyframes ring {
+  from {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+}
+@keyframes ring-fade {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topButton[data-ring]::after {
+    animation-name: ring-fade;
+  }
+}
 .count {
   min-width: 18px;
   padding: 1px 6px;
@@ -182,7 +226,8 @@
     min-height: 48px;
   }
   .chips,
-  .filterRow {
+  .filterRow,
+  .finalsLine {
     row-gap: 16px;
   }
 }
@@ -301,6 +346,201 @@
   flex: none;
   align-items: center;
   gap: 6px;
+}
+
+.stripBrowse {
+  flex: none;
+}
+
+/* ───────── Browse all (CombinationsList.tsx) ───────── */
+
+.comboSummary {
+  margin: 0 0 8px;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--ink-2);
+}
+.comboNote {
+  margin: 0 0 12px;
+  padding: 4px 0 0;
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  color: var(--ink-2);
+}
+.comboNote[data-tone="danger"] {
+  color: var(--danger);
+}
+/* Most lists arrive within a frame or two; the waiting line only shows when one doesn't.
+   data-ui keeps the delay under reduced motion (globals.css zeroes delays elsewhere); it only fades. */
+.comboNote[data-loading] {
+  opacity: 0;
+  animation: comboLate var(--t-swap) var(--ease-out) 240ms forwards;
+}
+@keyframes comboLate {
+  to {
+    opacity: 1;
+  }
+}
+.comboActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Rows sit at fixed offsets (virtual-rows.ts); the list is as tall as all of them. */
+.combos {
+  position: relative;
+  margin: 0 -12px;
+  border-radius: var(--r-md);
+  outline: none;
+}
+.combo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--row-h);
+  display: grid;
+  grid-template-columns: 20px 76px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  /* A tap uses the whole week: no text selection or callout on a long press. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  /* The highlight follows the previewed row, tens of times a minute, so it changes at once; only staleness fades. */
+  transition: opacity var(--t-swap) var(--ease-out);
+}
+/* A hairline between rows, inside the row so it moves with it. */
+.combo::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 1px;
+  background: var(--line);
+}
+.combo[data-active] {
+  background: var(--brand-soft);
+}
+.combo[data-active]::after {
+  opacity: 0;
+}
+.combos:not([aria-disabled="true"]) .combo:not([data-active]):active {
+  background: var(--paper-2);
+}
+/* The row the keyboard is on: an inset accent ring, as in menus (ui.css), whatever the pointer previews. */
+.combos:focus-visible .combo[aria-selected="true"] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+@media (forced-colors: active) {
+  .combos:focus-visible .combo[aria-selected="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+/* Settings changed under the list: it stays for reference, and nothing in it can be used. */
+.combos[aria-disabled="true"] .combo {
+  opacity: 0.5;
+  cursor: default;
+}
+.comboRank {
+  font: 600 12px/20px var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink-2);
+}
+/* Every row's week is drawn on one time scale, so rows compare at a glance. */
+.comboWeek {
+  display: grid;
+  grid-template-columns: repeat(var(--days, 5), 1fr);
+  gap: 2px;
+  height: 56px;
+  padding: 4px;
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.comboWeek > span {
+  position: relative;
+}
+.comboWeek i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  min-height: 2px;
+  border-radius: 2px;
+  background: var(--c);
+}
+/* The row's classes that stay where your week has them are drawn faint: the strong ones are what it moves. */
+.comboWeek i[data-same] {
+  background: color-mix(in oklab, var(--c) 30%, var(--paper));
+}
+.comboText {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.comboHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 var(--text-body) / var(--lh-body) var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.comboYours {
+  padding: 0 7px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  font: 650 11px/18px var(--font-ui);
+  color: var(--brand);
+}
+.comboNames {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 12px;
+  font-size: var(--text-meta);
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.comboNames[data-columns="1"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+/* Block, not flex, so a name that still doesn't fit ends in an ellipsis. */
+.comboNames > span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.comboNames > span::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--c);
+}
+.comboNames b {
+  font-weight: 600;
+}
+.comboNames > span[data-same] {
+  color: var(--ink-2);
+}
+.comboNames > span[data-same] b {
+  font-weight: 500;
+}
+.comboNames > span[data-same]::before {
+  background: color-mix(in oklab, var(--c) 30%, var(--paper));
 }
 
 /* ───────── The grid ───────── */
@@ -462,8 +702,21 @@
   background: var(--danger-soft);
   box-shadow: 0 0 0 1.5px var(--danger);
 }
+/* Selected in a clash: the selection ring outside the danger ring, so it differs from the event it clashes with. */
+.event[data-conflict][aria-pressed="true"] {
+  box-shadow: 0 0 0 1.5px var(--danger), 0 0 0 3.5px var(--c), var(--shadow-2);
+}
 .event[data-conflict]::before {
   background: var(--danger);
+}
+/* The dated busy time a class meets during, and when: "Work, Feb 16". */
+.eventBusy {
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--danger);
 }
 .event[data-dragging] {
   z-index: 6;
@@ -563,6 +816,61 @@
 .limit[data-edge="end"] {
   border-top: 1.5px solid color-mix(in oklab, var(--brand-2) 70%, transparent);
 }
+.busy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  row-gap: 1px;
+  overflow: hidden;
+}
+.busyLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.busyNote {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* One calendar event, kept free on its date only: the student's own stripes, with the date under the name. */
+.busy[data-kind="dated"] .busyNote {
+  color: var(--ink-2);
+}
+/*
+ * A connected calendar's busy time: dotted rather than striped, with a rule
+ * down its edge and the calendar glyph, so it never reads as a class or as
+ * time the student painted by hand.
+ */
+.busy[data-kind="calendar"] {
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 4px;
+  padding-left: 7px;
+  border-left: 2px solid color-mix(in oklab, var(--ink-2) 50%, transparent);
+  background-color: color-mix(in oklab, var(--paper-2) 60%, transparent);
+  background-image: radial-gradient(color-mix(in oklab, var(--ink-2) 35%, transparent) 1px, transparent 1.5px);
+  background-size: 6px 6px;
+  color: var(--ink);
+}
+.busy[data-kind="calendar"] .busyNote {
+  grid-column: 2;
+  color: var(--ink-2);
+}
+/* The words sit on a wash of the page so the dots never run through them. */
+.busy[data-kind="calendar"] .busyLabel,
+.busy[data-kind="calendar"] .busyNote {
+  justify-self: start;
+  max-width: 100%;
+  padding: 0 3px;
+  margin-left: -3px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--paper) 85%, transparent);
+}
+.busyGlyph {
+  margin-top: 1px;
+  color: var(--ink-2);
+}
 .busy[data-draft] {
   box-shadow: inset 0 0 0 1.5px var(--brand-2);
   color: var(--brand);
@@ -635,11 +943,49 @@
   font-size: 13px;
   color: var(--ink-2);
 }
+.pill {
+  /* A control, not text: a long press opens nothing and selects nothing. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.pill:disabled {
+  /* Week is previewing another week: the pills describe it but can't open a panel. */
+  opacity: 0.6;
+  cursor: default;
+}
 .pill .code {
   font-size: 12px;
 }
+.pillTime {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+/* A final that overlaps another, outlined around the course's tint: attention while the time is
+   projected and can still move (a check), danger once UNT has published it (a conflict). */
+.pill[data-clash="check"] {
+  box-shadow: inset 3px 0 0 var(--c), inset 0 0 0 1.5px var(--attention);
+  color: var(--attention);
+}
+.pill[data-clash="conflict"] {
+  box-shadow: inset 3px 0 0 var(--c), inset 0 0 0 1.5px var(--danger);
+  color: var(--danger);
+}
 .tag {
   margin-left: auto;
+}
+/* On a phone a one-line finals pill is about 170px, so only one fit in a 330px row; code over time fits three. */
+@media (max-width: 480px) {
+  .finalsLine .pill {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 1px;
+    height: auto;
+    padding: 5px 10px;
+    line-height: 1.2;
+  }
 }
 
 /* An empty week: the grid fades toward a card in its middle, rather than being cut by a box. */
@@ -842,6 +1188,29 @@
   font-size: 13px;
   color: var(--danger);
 }
+/* An overlap of projected finals: a check, not yet a conflict. */
+.check {
+  font-size: 13px;
+  color: var(--attention);
+}
+
+/* The selected course's final, in its panel. */
+.final {
+  display: grid;
+  gap: 4px;
+}
+.final .clash,
+.final .check {
+  margin: 0;
+  font-size: 14px;
+}
+.finalWhen {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
 
 .reasons {
   display: grid;
@@ -928,6 +1297,41 @@
   margin: 0;
   font-size: 15px;
   font-weight: 650;
+}
+/* What the last action in this part did (ExportSheet.tsx); a failure in the danger color, with its words. */
+.exportNote {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+.exportNote[data-failed] {
+  color: var(--danger);
+}
+/* The share link, to select and copy by hand when the browser refuses. */
+.exportSelect {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+  color: var(--ink);
+  font: 400 14px/1 var(--font-ui);
+}
+.exportSelect:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+@media (pointer: coarse) {
+  .exportSelect {
+    min-height: 44px;
+    font-size: 16px;
+  }
+}
+/* Kept in the page so it announces when filled; empty, it takes back the section's grid gap. */
+.exportNote:empty {
+  margin-top: -10px;
 }
 .exportHead > :first-child {
   width: 18px;
@@ -1053,6 +1457,18 @@
   }
   .stripActions {
     width: 100%;
+    order: 3;
+  }
+  /* Browse all shares the count's line, so the actions keep their width. */
+  .stripCount {
+    order: 0;
+  }
+  .stripBrowse {
+    order: 1;
+    margin-left: auto;
+  }
+  .stripSentence {
+    order: 2;
   }
   .stripActions > :not(:global(.ui-btn--icon)) {
     flex: 1;
@@ -1107,4 +1523,40 @@
     flex: 1;
     height: 44px;
   }
+}
+/*
+ * Phone columns are narrow: the calendar glyph goes (the edge rule and dots
+ * still say where the time came from), and the name and its weeks wrap
+ * rather than cut to a letter or two, since the weeks are the band's one fact.
+ */
+.grid[data-phone] .busy {
+  padding: 3px 5px;
+}
+.grid[data-phone] .busy[data-kind="calendar"] {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 3px 4px 3px 5px;
+}
+.grid[data-phone] .busy[data-kind="calendar"] .busyGlyph {
+  display: none;
+}
+.grid[data-phone] .busy[data-kind="calendar"] .busyNote {
+  grid-column: 1;
+}
+.grid[data-phone] .busyLabel,
+.grid[data-phone] .busyNote {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.25;
+}
+/* Beside a class, the band has a narrow strip: its name and weeks wrap rather than cut off. */
+.busy[data-beside] .busyLabel,
+.busy[data-beside] .busyNote {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.25;
+}
+.grid[data-phone] .eventBusy {
+  font-size: 11px;
 }

@@ -195,6 +195,14 @@ describe("scheduleReasons", () => {
     expect(first.map((reason) => reason.kind)).toEqual(["comparison", "trade-off"]);
   });
 
+  test("without the next option, the same schedule gets facts about itself on each stated preference, strongest first", () => {
+    // Week's Details: the student sees option 1 beside their own week, maybe never option 2.
+    const [first] = reasonsFor(rankedFirstRequest({ fewerDays: 3, compact: 1 }), { compareWithNext: false });
+    expect(sentences(first)).toEqual(["Your classes fall on Monday.", "Time between classes adds up to 120 minutes."]);
+    expect(first.some((reason) => reason.kind === "comparison" || reason.kind === "trade-off")).toBe(false);
+    expect(sentences(first).join(" ")).not.toContain("option");
+  });
+
   test("reasons rank by weight times the optimizer's cost per unit times the difference", () => {
     // 3 x 3600 for a day beats 1 x 60 x 120 for the gap; flipped weights flip the order.
     expect(reasonsFor(rankedFirstRequest({ fewerDays: 3, compact: 1 }))[0].map((reason) => reason.preference)).toEqual(["fewerDays", "compact"]);
@@ -259,17 +267,13 @@ describe("scheduleReasons", () => {
   });
 
   describe("unknown travel", () => {
-    test("an unroutable same-building transfer remains unknown in both cost and reasons", () => {
+    test("a same-place transfer has no travel even when the provider cannot route it", () => {
       const req = request([
         course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 540, 600, "ntdp")])]),
         course("CHEM 2370", [section("c0", "CHEM 2370", [at("Mon", 600, 660, "ntdp")])]),
       ], { walking: 1 }, { walkingTime: legs({}) });
-      expect(optimal(req)[0]).toMatchObject({ cost: 600, breakdown: { unknownWalks: 1, walkSeconds: 0 } });
-      expect(sentences(reasonsFor(req)[0])).toEqual(["1 walk between back-to-back classes has no known time."]);
-
-      const routable = { ...req, walkingTime: legs({ "ntdp>ntdp": 0 }) };
-      expect(optimal(routable)[0]).toMatchObject({ cost: 0, breakdown: { unknownWalks: 0, walkSeconds: 0 } });
-      expect(sentences(reasonsFor(routable)[0])).toEqual(["There is no travel between back-to-back classes."]);
+      expect(optimal(req)[0]).toMatchObject({ cost: 0, breakdown: { unknownWalks: 0, walkSeconds: 0 } });
+      expect(sentences(reasonsFor(req)[0])).toEqual(["There is no travel between back-to-back classes."]);
     });
 
     // MATH meets Mon to Wed in LANG; CHEM's c0 follows it in SCI (300 s),

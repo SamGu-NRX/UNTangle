@@ -1,8 +1,6 @@
 import { assignColors, type Hue } from "@/lib/course-colors";
-import { transferFit } from "@/lib/map-itinerary";
-import { buildScheduleEvents, normalizePlannerState, resolveSectionPlan } from "@/lib/planner";
-import { backToBackPairs, scheduleEventsOf, type SectionCatalog } from "@/lib/planner-sections";
-import { isShuttleLeg, plannerTravelTime, type WalkingTimeFn } from "@/lib/planner-walking";
+import { buildScheduleEvents, normalizePlannerState, resolveSectionPlan, summarizeCredits } from "@/lib/planner";
+import { scheduleEventsOf, type SectionCatalog } from "@/lib/planner-sections";
 import type { ClassDay, PlannerState, ScheduleEvent } from "@/lib/types";
 
 /**
@@ -87,9 +85,14 @@ export function usesSampleSections(events: readonly ScheduleEvent[]): boolean {
   return events.some((event) => event.provenance === "sample");
 }
 
-/** Hues for the courses on one or more weeks, clustered by department (lib/course-colors.ts). */
-export function weekColors(...weeks: ReadonlyArray<readonly WeekBlock[]>): Map<string, Hue> {
-  const codes = [...new Set(weeks.flat().map((block) => block.code))];
+/**
+ * Hues for the courses of one or more schedules, clustered by department
+ * (lib/course-colors.ts). Courses are colored in the order given, so
+ * passing Main's planned courses first, in the planner's order, gives them
+ * the hues Week's own assignment gives them on a fresh visit.
+ */
+export function weekColors(...schedules: ReadonlyArray<readonly string[]>): Map<string, Hue> {
+  const codes = [...new Set(schedules.flat())];
   return assignColors(codes.map((code) => ({ id: code, department: code.split(" ")[0] })));
 }
 
@@ -98,67 +101,69 @@ export type WeekStats = {
   /** Earliest start and latest end, in minutes; null for a week with no timed class. */
   first: number | null;
   last: number | null;
-  /** Minutes walking between back-to-back classes in a week; null when a building has no walking time. */
-  walkMinutes: number | null;
-  /** Back-to-back walks that are tight or late: under two minutes to spare (lib/map-itinerary.ts). */
-  tightWalks: number | null;
 };
 
-/**
- * The figures in the compare table. Walks are counted the way the
- * optimizer counts them (backToBackPairs), with the campus walkway times
- * Week uses. A shuttle ride to Discovery Park is not walking, but it can
- * still be tight. Walk minutes round up, so a total never promises time
- * that isn't there.
- */
-export function weekStats(events: readonly ScheduleEvent[], travel: WalkingTimeFn = plannerTravelTime): WeekStats {
-  if (!events.length) return { days: 0, first: null, last: null, walkMinutes: 0, tightWalks: 0 };
-  const timed = events.map((event) => ({ ...event, start: toMinutes(event.start), endMin: toMinutes(event.end) }));
-  let walkMinutes: number | null = 0;
-  let tightWalks: number | null = 0;
-  for (const [from, to] of backToBackPairs(timed)) {
-    const leg = travel(from.buildingId ?? "", to.buildingId ?? "");
-    if (leg.seconds === null) {
-      walkMinutes = null;
-      tightWalks = null;
-      break;
-    }
-    const minutes = Math.ceil(leg.seconds / 60);
-    if (!isShuttleLeg(from.buildingId, to.buildingId)) walkMinutes += minutes;
-    const fit = transferFit(minutes, to.start - from.endMin);
-    if (fit === "tight" || fit === "late") tightWalks += 1;
-  }
+/** Days on campus, the first class and the last class's end: the compare table's day figures. */
+export function weekStats(events: readonly ScheduleEvent[]): WeekStats {
+  if (!events.length) return { days: 0, first: null, last: null };
   return {
-    days: new Set(timed.map((event) => event.day)).size,
-    first: Math.min(...timed.map((event) => event.start)),
-    last: Math.max(...timed.map((event) => event.endMin)),
-    walkMinutes,
-    tightWalks,
+    days: new Set(events.map((event) => event.day)).size,
+    first: Math.min(...events.map((event) => toMinutes(event.start))),
+    last: Math.max(...events.map((event) => toMinutes(event.end))),
   };
 }
 
-export type Verdict = "better" | "worse" | "same";
+/**
+ * A plan's figures for the compare table: its days, its walking as Week's
+ * Details counts it (components/schedules-library/view-model.ts,
+ * weekWalking), and the credits it plans.
+ */
+export type PlanFigures = WeekStats & {
+  walkMinutes: number;
+  tightWalks: number;
+  /** Walks with no known time, left out of the two totals above: more than 0 makes them lower bounds. */
+  unknownWalks: number;
+  credits: number;
+};
+
+/**
+ * Credits a saved plan schedules this term: its planned courses, as Courses
+ * counts them (summarizeCredits), whether or not a section is placed yet.
+ */
+export function plannedCredits(state: PlannerState): number {
+  return summarizeCredits(normalizePlannerState(state));
+}
+
+/** "unjudged": a figure that is shown but has no better direction, such as credits. */
+export type Verdict = "better" | "worse" | "same" | "unjudged";
 export type CompareRow = { label: string; a: string; b: string; verdict: Verdict };
 
 /**
  * B against A, row by row. Which way is better is a starting value with no
  * data behind it: fewer days, a later first class, an earlier last class,
- * less walking and fewer tight walks. A row with an unknown side says so
- * and judges nothing.
+ * less walking and fewer tight or late walks. A week with no timed class
+ * has no first or last class and judges nothing there. A walk with no known
+ * time makes that week's walking figures "At least" figures, and the two
+ * walking rows are then shown without a verdict. Credits come first and
+ * are never judged: more is not better or worse, only different.
  */
-export function compareRows(a: WeekStats, b: WeekStats): CompareRow[] {
+export function compareRows(a: PlanFigures, b: PlanFigures): CompareRow[] {
   const judge = (x: number | null, y: number | null, lowerIsBetter: boolean): Verdict => {
     if (x === null || y === null || x === y) return "same";
     return (y < x) === lowerIsBetter ? "better" : "worse";
   };
   const clock = (n: number | null) => (n === null ? "None" : clockText(n));
-  const known = (n: number | null, unit = "") => (n === null ? "Unknown" : `${n}${unit}`);
+  const partial = a.unknownWalks > 0 || b.unknownWalks > 0;
+  const walking = (x: number, y: number): Verdict => (partial ? "unjudged" : judge(x, y, true));
+  const atLeast = (side: PlanFigures, text: string) => (side.unknownWalks > 0 ? `At least ${text}` : text);
   return [
+    { label: "Credits", a: String(a.credits), b: String(b.credits), verdict: a.credits === b.credits ? "same" : "unjudged" },
     { label: "Days on campus", a: String(a.days), b: String(b.days), verdict: judge(a.days, b.days, true) },
     { label: "First class", a: clock(a.first), b: clock(b.first), verdict: judge(a.first, b.first, false) },
     { label: "Last class ends", a: clock(a.last), b: clock(b.last), verdict: judge(a.last, b.last, true) },
-    { label: "Walking a week", a: known(a.walkMinutes, " min"), b: known(b.walkMinutes, " min"), verdict: judge(a.walkMinutes, b.walkMinutes, true) },
-    { label: "Tight walks", a: known(a.tightWalks), b: known(b.tightWalks), verdict: judge(a.tightWalks, b.tightWalks, true) },
+    { label: "Walking a week", a: atLeast(a, `${a.walkMinutes} min`), b: atLeast(b, `${b.walkMinutes} min`), verdict: walking(a.walkMinutes, b.walkMinutes) },
+    // Week's Details names the same count the same way.
+    { label: "Tight or late walks", a: atLeast(a, String(a.tightWalks)), b: atLeast(b, String(b.tightWalks)), verdict: walking(a.tightWalks, b.tightWalks) },
   ];
 }
 
@@ -202,23 +207,38 @@ function sectionText(section: PlannedSection): string {
   return section.blocks.length ? meetsText(section.blocks) : "No set time";
 }
 
+/**
+ * Sections across several plans, the first being the one the others are
+ * read against: a row for each course whose section is not the same in
+ * all of them (a cell is null where that plan doesn't have the course), and
+ * the courses every plan shares exactly. With two plans it says what
+ * `sectionChanges` says, as cells.
+ */
+export function sectionGrid(plans: ReadonlyArray<readonly PlannedSection[]>): {
+  /** `ids` says which plans' sections differ even when their `cells` read the same (two sections at the same times). */
+  rows: Array<{ code: string; cells: Array<string | null>; ids: Array<string | null> }>;
+  same: string[];
+} {
+  const maps = plans.map((plan) => new Map(plan.map((section) => [section.code, section])));
+  const codes = [...new Set(maps.flatMap((map) => [...map.keys()]))].sort((x, y) => x.localeCompare(y));
+  const rows: Array<{ code: string; cells: Array<string | null>; ids: Array<string | null> }> = [];
+  const same: string[] = [];
+  for (const code of codes) {
+    const sections = maps.map((map) => map.get(code));
+    const first = sections[0];
+    if (first && sections.every((section) => section?.sectionId === first.sectionId)) same.push(code);
+    else rows.push({ code, cells: sections.map((section) => (section ? sectionText(section) : null)), ids: sections.map((section) => section?.sectionId ?? null) });
+  }
+  return { rows, same };
+}
+
 /** Courses whose section differs, or that only one schedule has; and the courses both share exactly. */
 export function sectionChanges(
   a: readonly PlannedSection[],
   b: readonly PlannedSection[],
 ): { changes: SectionChange[]; same: string[] } {
-  const left = new Map(a.map((section) => [section.code, section]));
-  const right = new Map(b.map((section) => [section.code, section]));
-  const codes = [...new Set([...left.keys(), ...right.keys()])].sort((x, y) => x.localeCompare(y));
-  const changes: SectionChange[] = [];
-  const same: string[] = [];
-  for (const code of codes) {
-    const x = left.get(code);
-    const y = right.get(code);
-    if (x && y && x.sectionId === y.sectionId) same.push(code);
-    else changes.push({ code, from: x ? sectionText(x) : null, to: y ? sectionText(y) : null });
-  }
-  return { changes, same };
+  const { rows, same } = sectionGrid([a, b]);
+  return { changes: rows.map(({ code, cells: [from, to] }) => ({ code, from, to })), same };
 }
 
 const WEEKDAYS: readonly ClassDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];

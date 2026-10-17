@@ -9,8 +9,12 @@ import { courses as catalogCourses, sections as seedSections } from "@/lib/seed-
 import type { CourseSections, Day, Meeting, SampleCourseSections, Section } from "@/lib/sections";
 import { sampleResult } from "@/lib/sections/sample";
 import type { DateRange } from "@/lib/sections/model";
+import { hasOpenSeats } from "@/lib/sections/open-seats";
 import { fullSession } from "@/lib/terms";
 import type { ScheduleEvent } from "@/lib/types";
+
+// Callers across the app import it from here.
+export { hasOpenSeats };
 
 /**
  * The term the planner schedules. Spring 2027 is the next registration term
@@ -244,12 +248,6 @@ export function otherSiteOf(section: Section): string | null {
   return null;
 }
 
-/** Open per INTEGRATION.md: not closed or wait-listed, and every component with known seats has one open. */
-export function hasOpenSeats(section: Pick<Section, "status" | "components">): boolean {
-  if (section.status === "closed" || section.status === "waitlist" || section.status === "cancelled") return false;
-  return section.components.every((component) => component.seats.open === null || component.seats.open > 0);
-}
-
 /** Whether the optimizer may suggest this option. */
 export function isCandidate(section: Section, filter: CandidateFilter): boolean {
   return (filter.otherSites || otherSiteOf(section) === null) && (!filter.openSeatsOnly || hasOpenSeats(section));
@@ -260,8 +258,8 @@ const sampleRatings = new Map(seedSections.map((section) => [section.id, section
 
 /**
  * The one adapter from an enrollment option to the optimizer's section: every
- * component's timed meetings, with their date ranges and building ids (null
- * stays null, an unknown walk). Returns null for an option with no timed
+ * component's timed meetings, with their date ranges, mapped building ids and
+ * walking places. An absent place stays null for an unassigned room. Returns null for an option with no timed
  * meeting, which has nothing to place on the week.
  */
 export function toOptSection(section: Section): OptSection | null {
@@ -271,6 +269,7 @@ export function toOptSection(section: Section): OptSection | null {
       start: meeting.startMinutes,
       end: meeting.endMinutes,
       buildingId: meeting.buildingId,
+      place: meeting.kind === "online" ? "online" : (meeting.buildingId ?? meeting.buildingCode),
       dates: knownRange(meeting.dates),
     }),
   );

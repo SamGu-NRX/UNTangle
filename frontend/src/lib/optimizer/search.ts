@@ -34,7 +34,7 @@
  * bound remains independent of dates.
  */
 
-import { COST_PER_DAY, COST_PER_GAP_MINUTE, COST_PER_WALK_SECOND, UNKNOWN_WALK_SECONDS } from "./score";
+import { COST_PER_DAY, COST_PER_GAP_MINUTE, COST_PER_WALK_SECOND, noWalkBetween, UNKNOWN_WALK_SECONDS } from "./score";
 import { OPT_DAYS } from "./types";
 import type { Candidate, Prepared, PreparedMeeting } from "./prepare";
 
@@ -86,6 +86,16 @@ type Options = {
   /** Start from this schedule as the one to beat (must satisfy the same rules). */
   incumbent: Leaf | null;
   onLeaf?: (leaf: Leaf) => void;
+  /**
+   * Keep the best several schedules instead of the best one (the browse
+   * list, enumerate.ts). Called with each complete schedule; returns the
+   * schedule to beat from then on, which is the worst one kept once the
+   * caller has as many as it wants, and null before. Pruning against it is
+   * the same rule as pruning against the best, so the caller ends up with
+   * exactly the best ones. Returning null every time prunes nothing, and
+   * every valid schedule reaches this callback once.
+   */
+  collect?: (leaf: Leaf) => Leaf | null;
 };
 
 export type SearchOutcome = { best: Leaf | null; complete: boolean };
@@ -165,13 +175,13 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
           if (filled > 0) {
             if (oneSegment) {
               if (filled < window) gap += window - filled;
-              if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
-                walkCost += walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
-              }
+              // A remaining meeting can occupy this gap, including online, and
+              // remove the endpoint pair. Charging any walk here would not be
+              // a lower bound, so leave it at zero when fill is possible.
             }
           } else {
             gap += window;
-            if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
+            if (!noWalkBetween(prev, next)) {
               const seconds = walkOf(prev.building, next.building);
               walkCost += seconds ?? UNKNOWN_WALK_SECONDS;
               if (bufferSeconds !== null && window * 60 < (seconds ?? UNKNOWN_WALK_SECONDS) + bufferSeconds) return -1;
@@ -212,16 +222,14 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
         // this bound, so there is no per-segment table to build or retain.
         if (fill !== null) for (let r = 0; r < count && filled < window; r += 1) filled += fill[remaining[r]][day][cell];
         cost += weights.compact * COST_PER_GAP_MINUTE * Math.max(0, window - filled);
-        if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
-          let walking: number;
-          if (filled === 0) {
-            walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;
-            if (bufferSeconds !== null && window * 60 < walking + bufferSeconds) return -1;
-          } else {
-            walking = walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
-          }
+        if (!noWalkBetween(prev, next) && filled === 0) {
+          const walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;
+          if (bufferSeconds !== null && window * 60 < walking + bufferSeconds) return -1;
           cost += weights.walking * COST_PER_WALK_SECOND * walking;
         }
+        // When fill is possible, a remaining meeting can occupy this gap,
+        // including online, and remove the endpoint pair. Charging any walk
+        // there would not be a lower bound, so the bound charges none.
       }
       prev = next;
     }
@@ -408,6 +416,10 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     if (options.stopAtFirst) {
       best = leaf;
       throw new FoundOne();
+    }
+    if (options.collect) {
+      best = options.collect(leaf);
+      return;
     }
     if (best === null || leafBefore(leaf, best)) best = leaf;
   }

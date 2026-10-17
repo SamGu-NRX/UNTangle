@@ -108,6 +108,11 @@ describe("parseCatalogCoursePage", () => {
     expect(record?.prerequisiteText).toBeNull();
   });
 
+  test("reads fractional lecture and lab hours", () => {
+    expect(phy.records.find((entry) => entry.code === "PHY 338K")?.lectureHours).toBe(1.5);
+    expect(phy.records.find((entry) => entry.code === "PHY 353L")?.labHours).toBe(4.5);
+  });
+
   test("keeps hours as text and null for variable-hour courses", () => {
     const record = math.records.find((entry) => entry.code === "M 175T");
     expect(record?.hoursText).toBe("1-4 Hours");

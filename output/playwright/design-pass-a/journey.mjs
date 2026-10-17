@@ -365,10 +365,13 @@ async function plansCompareRestore(page, size) {
   await page.getByRole("button", { name: "Compare", exact: true }).click();
   await page.getByRole("button", { name: /^Compare Before import/ }).click();
   await page.getByRole("button", { name: /^Compare Main/ }).click();
-  const table = page.getByRole("table");
+  // On a phone, picking stays on the list (room for a third plan) until Compare 2 is pressed.
+  const showCompare = page.getByRole("button", { name: "Compare 2", exact: true });
+  if ((await showCompare.count()) > 0) await showCompare.click();
+  const table = page.getByRole("table").first();
   await table.waitFor();
   const labels = await table.locator("tbody th").allInnerTexts();
-  check(size, "library: the comparison has the five figures", JSON.stringify(labels) === JSON.stringify(["Days on campus", "First class", "Last class ends", "Walking a week", "Tight walks"]), JSON.stringify(labels));
+  check(size, "library: the comparison has each plan's credits and the five figures", JSON.stringify(labels) === JSON.stringify(["Credits", "Days on campus", "First class", "Last class ends", "Walking a week", "Tight or late walks"]), JSON.stringify(labels));
   check(size, "library: A, Both and B are one segmented control", (await page.getByRole("radiogroup", { name: "Show" }).getByRole("radio").count()) === 3);
   // The import and the claimed credit differ: #37's field-level comparison sits one step away.
   await page.getByRole("button", { name: /^More differences/ }).click();

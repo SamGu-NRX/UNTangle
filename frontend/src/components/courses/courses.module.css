@@ -536,6 +536,21 @@
   font-size: 13px;
   color: var(--ink-2);
 }
+/* The status line's place while the plan loads: one line tall, shown only after 400ms (copy.md, "Loading"). */
+.detailLoading {
+  width: 140px;
+  height: 18px;
+  margin: 0;
+  border-radius: 6px;
+  background: var(--paper-2);
+  opacity: 0;
+  animation: detail-loading-in 150ms ease-out 400ms forwards;
+}
+@keyframes detail-loading-in {
+  to {
+    opacity: 1;
+  }
+}
 .detailStatus > span {
   display: inline-flex;
 }
@@ -971,6 +986,25 @@
 
 .empty {
   padding: 8px 0;
+}
+/* Before a major: under the term tray, inset like the group headings. */
+.noMajor {
+  margin-top: 24px;
+  padding: 20px 12px 4px;
+  border-top: 1px solid var(--line);
+}
+.noMajorTitle {
+  margin: 0 0 4px;
+  font: 650 15px/20px var(--font-ui);
+  color: var(--ink);
+}
+.noMajorText {
+  max-width: 52ch;
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ink-2);
+  text-wrap: pretty;
 }
 .emptyTitle {
   margin: 0 0 12px;
