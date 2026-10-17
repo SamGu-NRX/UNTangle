@@ -29,7 +29,10 @@ import {
 } from "./types";
 import { neutralRatingTenths, selfCost, transferFits, UNKNOWN_WALK_SECONDS, walkSeconds } from "./score";
 import { dayNumber, someBackToBack, weekSegments } from "./weeks";
-import { instructorEvidenceContributions } from "@untangle/core/instructor-tiebreak";
+import {
+  type EvidenceContributions,
+  instructorEvidenceContributions,
+} from "@untangle/core/instructor-tiebreak";
 
 export type PreparedMeeting = {
   day: number;
@@ -397,19 +400,33 @@ export function prepare(
   // course out for every option, so a schedule can never gain the tier by
   // dropping that option. `validateRequest` above has already thrown the
   // louder `OptimizerInputError` on any evidence core would reject.
-  const evidenceHundredths = instructorEvidenceContributions(
-    sortedCourses.map((course) => ({
-      courseCode: course.code,
-      options: Object.fromEntries(
-        course.sections.map((section) => [
-          section.id,
-          typeof section.instructorGpaHundredths === "number"
-            ? { kind: "known" as const, meanGradePointsHundredths: section.instructorGpaHundredths }
-            : { kind: "unknown" as const },
-        ]),
-      ),
-    })),
-  );
+  // A course with zero options is an unsatisfiable request, not an error: it
+  // contributes no options, never counts, and the search below finds nothing
+  // for it — but every course in the request keeps an entry in the evidence
+  // map, because the prepared course below reads its counted flag.
+  const evidenceHundredths: Record<string, { counted: boolean; options: Record<string, number> }> = {};
+  for (const course of sortedCourses) {
+    if (course.sections.length === 0) {
+      evidenceHundredths[course.code] = { counted: false, options: {} };
+      continue;
+    }
+    Object.assign(
+      evidenceHundredths,
+      instructorEvidenceContributions([
+        {
+          courseCode: course.code,
+          options: Object.fromEntries(
+            course.sections.map((section) => [
+              section.id,
+              typeof section.instructorGpaHundredths === "number"
+                ? { kind: "known" as const, meanGradePointsHundredths: section.instructorGpaHundredths }
+                : { kind: "unknown" as const },
+            ]),
+          ),
+        },
+      ]),
+    );
+  }
   // Buildings matter only to walking. With walking unweighted and unchecked,
   // every meeting is treated as "no building" and no walking time is fetched.
   const walkingMatters = weights.walking > 0 || constraints.walking !== null;

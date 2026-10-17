@@ -433,3 +433,21 @@ test("unroutable same-ID meetings fail a hard walking constraint in direct and w
   expect(referenceTopK(scored).schedules[0]).toMatchObject({ cost: 600, breakdown: { unknownWalks: 1, walkSeconds: 0 } });
   expect(optimize({ ...request, walkingTime: () => ({ seconds: 0, source: "campus-network" }) }).status).toBe("optimal");
 });
+
+describe("a course with zero options", () => {
+  const zero = { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 };
+  const none = { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: null };
+
+  test("stays an unsatisfiable request instead of throwing", () => {
+    const result = optimize({
+      term: FULL_TERM,
+      courses: [{ code: "MATH 2700", credits: 3, sections: [] }],
+      locks: {},
+      excluded: [],
+      constraints: none,
+      weights: zero,
+      walkingTime: () => ({ seconds: 60, source: "campus-network" }),
+    });
+    expect(result.schedules).toEqual([]);
+  });
+});
