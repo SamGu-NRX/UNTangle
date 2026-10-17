@@ -14,7 +14,9 @@
 //            sign-in by emailed link and by password at /auth, errors under
 //            each field; reset; the emailed link's landing page (no token
 //            use until its button is pressed).
-// axe (WCAG 2.0-2.2 A/AA) on every state. Writes screenshots and report.json.
+//   Student: a new guest's Courses (before and after a major), Week (Finals line,
+//            Preferences, Auto's options, Browse all, Export) and Day.
+// axe (WCAG 2.0-2.2 A/AA, plus 2.5.3's label-content-name-mismatch) on every state. Writes screenshots and report.json.
 //   node journey.mjs <baseUrl> <mockUrl> <outDir>
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -35,6 +37,9 @@ async function axe(page, size, label) {
   const violations = await page.evaluate(async () => {
     const r = await window.axe.run(document, {
       runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
+      // WCAG 2.5.3 (the name contains the visible label). axe tags the rule experimental, so the tags
+      // above leave it off; it is what caught Week's finals pills, whose aria-label ran the spans together.
+      rules: { "label-content-name-mismatch": { enabled: true } },
     });
     return r.violations.map((v) => ({ id: v.id, impact: v.impact, target: v.nodes[0]?.target }));
   });
@@ -475,6 +480,134 @@ async function signInDialog(page, size, phone) {
   check(size, "sign-in: the closed dialog isn't tabbable", (await page.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]')))) === false && (await page.getByRole("dialog").count()) === 0);
 }
 
+/**
+ * axe on the rest of the student path, each part as a new guest on the sample sections: Courses
+ * before and after a major here, then weekViews. Each view waits for its entrance to settle: axe
+ * reads text mid-fade as low contrast.
+ */
+async function studentViews(browser, vp) {
+  const { size, phone } = vp;
+  const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: phone, hasTouch: phone, deviceScaleFactor: 2 });
+  const page = await ctx.newPage();
+  const main = page.locator("main");
+  const settle = () => page.waitForTimeout(phone ? 600 : 400);
+  try {
+    await page.goto(`${base}/courses`, { waitUntil: "networkidle" });
+    await settle();
+    await axe(page, size, "Courses before a major");
+    const studying = page.locator('[role="dialog"]', { hasText: "What are you studying?" });
+    let degree = studying;
+    if (!(await studying.isVisible().catch(() => false))) {
+      await page.getByRole("button", { name: /Try a sample transcript/ }).click();
+      degree = page.getByRole("dialog", { name: "Your degree" });
+      if (!(await degree.isVisible().catch(() => false))) await page.getByRole("button", { name: /Choose your major|Undeclared/ }).filter({ has: page.locator("svg") }).first().click();
+    }
+    await degree.waitFor();
+    await settle();
+    await axe(page, size, "Courses choosing a major");
+    await degree.getByRole("button", { name: /^Computer Science/ }).first().click();
+    const confirm = degree.getByRole("button", { name: "Confirm" });
+    if (await confirm.isVisible().catch(() => false)) await confirm.click();
+    await degree.waitFor({ state: "detached" });
+    await settle();
+    await axe(page, size, "Courses after a major");
+  } catch (error) {
+    check(size, "student views: Courses ran to the end", false, String(error).split("\n")[0]);
+    await page.screenshot({ path: join(out, `${size}-student-courses-failure.png`) }).catch(() => {});
+  }
+  await ctx.close();
+  await weekViews(browser, vp);
+}
+
+/**
+ * Week with four courses (its Finals line), Preferences with a day off, Auto's options, Browse all
+ * and Export, then Day. Its own context, so a guest with no transcript, who adds four courses from
+ * Week's search. (Sharing studentViews' guest fails: its sample transcript marks ENGL 1310 done.)
+ */
+async function weekViews(browser, vp) {
+  const { size, phone } = vp;
+  const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: phone, hasTouch: phone, deviceScaleFactor: 2 });
+  const page = await ctx.newPage();
+  const main = page.locator("main");
+  const settle = () => page.waitForTimeout(phone ? 600 : 400);
+  try {
+    await page.goto(`${base}/schedule`, { waitUntil: "networkidle" });
+    const setup = page.getByRole("dialog", { name: "Set up Auto" });
+    if (await setup.waitFor({ timeout: 8000 }).then(() => true, () => false)) {
+      await page.keyboard.press("Escape");
+      await setup.waitFor({ state: "hidden" });
+      await page.locator(".ui-toast").getByRole("button", { name: "Dismiss" }).click().catch(() => {});
+    }
+    const panel = (name) => (phone ? page.getByRole("dialog", { name }) : page.locator("aside", { has: page.getByRole("heading", { name, exact: true }) }));
+    for (const code of ["ANTH 1010", "ENGL 1310", "PSYC 1630", "BIOL 1710"]) {
+      if (phone) await main.getByRole("button", { name: "Add", exact: true }).click();
+      else await page.getByRole("button", { name: "Search courses or class numbers" }).click();
+      const find = panel("Find courses");
+      await find.waitFor();
+      await settle();
+      await find.getByRole("searchbox", { name: "Search courses" }).fill(code);
+      await find.getByRole("button", { name: new RegExp(`^${code}`) }).first().click();
+      const add = find.getByRole("button", { name: /^Add section [^,]+$/ }).first();
+      await add.waitFor({ timeout: 15000 });
+      await add.click();
+      await toastText(page, `Added ${code}`).waitFor({ timeout: 5000 });
+      await page.keyboard.press("Escape");
+      await settle();
+    }
+    const finals = page.locator("[data-finals] button[data-hue]");
+    check(size, "week: each final's name starts with what its pill shows", (await finals.count()) > 0 && (await finals.evaluateAll((pills) => pills.every((b) => /^[A-Z]{4} \d{4} \S/.test(b.textContent ?? "") && (b.getAttribute("aria-label") ?? "").startsWith(b.textContent ?? "")))));
+    await axe(page, size, "Week with four courses and their finals");
+
+    await main.getByRole("button", { name: /^Preferences/ }).click();
+    const prefs = page.getByRole("dialog", { name: "Preferences" });
+    await prefs.waitFor();
+    await settle();
+    // The paint grid's day toggle; a leaning card can carry the same name.
+    const friday = prefs.locator("[class*=paintDays]").getByRole("button", { name: "Fridays off" });
+    await friday.click();
+    await settle();
+    await axe(page, size, "Week Preferences with Fridays off");
+    await friday.click();
+    for (let i = 0; i < 3 && (await prefs.isVisible().catch(() => false)); i += 1) {
+      await page.keyboard.press("Escape");
+      await settle();
+    }
+
+    await main.getByRole("button", { name: /^(Auto|Build)/ }).first().click();
+    const strip = page.getByRole("region", { name: "Other weeks Auto found" });
+    await strip.waitFor({ timeout: 15000 });
+    await settle();
+    await axe(page, size, "Week with Auto's options");
+    const next = strip.getByRole("button", { name: "Next" });
+    if (await next.isVisible().catch(() => false)) {
+      await next.click();
+      await page.waitForTimeout(700); // the count and sentence crossfade
+      await axe(page, size, "Week on Auto's second option");
+    }
+    await strip.getByRole("button", { name: "Browse all" }).click();
+    const list = page.getByRole("listbox", { name: "Combinations, best first" });
+    await list.waitFor({ timeout: 10000 });
+    await settle();
+    await axe(page, size, "Week Browse all");
+    for (let i = 0; i < 2 && (await list.isVisible().catch(() => false)); i += 1) {
+      await page.keyboard.press("Escape");
+      await settle();
+    }
+    await page.getByRole("button", { name: "Export" }).first().click();
+    await settle();
+    await axe(page, size, "Week Export");
+    await page.keyboard.press("Escape");
+
+    await page.goto(`${base}/day`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(1500);
+    await axe(page, size, "Day");
+  } catch (error) {
+    check(size, "student views: Week and Day ran to the end", false, String(error).split("\n")[0]);
+    await page.screenshot({ path: join(out, `${size}-student-week-failure.png`) }).catch(() => {});
+  }
+  await ctx.close();
+}
+
 async function auth(page, size) {
   await page.goto(`${base}/auth`, { waitUntil: "networkidle" });
   const send = page.getByRole("button", { name: "Email me a sign-in link" });
@@ -552,6 +685,7 @@ try {
       await page.screenshot({ path: join(out, `${vp.size}-failure.png`) }).catch(() => {});
     }
     await ctx.close();
+    await studentViews(browser, vp);
   }
   await connectBlocked(browser, "desktop");
 } finally {
