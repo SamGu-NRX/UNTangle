@@ -262,6 +262,24 @@ describe("a 5000-level CSCE course on the record", () => {
   });
 });
 
+describe("rules and claims shared or overruled", () => {
+  test("a rule both the major and the core print shows once", () => {
+    const withD = journeyTranscript.map((record) => (record.code === "ENGL 1310" ? { ...record, grade: "D" } : record));
+    const { degree } = degreeOf(plannerWith(withD, "cs"));
+    const named = [...degree.areas.flatMap((area) => area.requirements), ...degree.advisor].filter((entry) => entry.name === "Communication core grade");
+    expect(named).toHaveLength(1);
+  });
+
+  test("a failed 5000-level attempt marked done by hand is the transcript's: the advisor isn't asked about it", () => {
+    const failed = row("CSCE 5200", "Spring 2026", "F", 0);
+    // The planner's own normalizing keeps marks to catalog courses, which CSCE 5200 is not, so the mark is set after it.
+    const plan = plannerWith([...journeyTranscript, { ...failed, appliedStatus: "ignored" }], "cs");
+    const { degree } = degreeOf({ ...plan, coursePlan: { ...plan.coursePlan!, manualCredit: ["CSCE 5200"] } });
+    expect(degree.ignoredClaims).toEqual(["CSCE 5200"]);
+    expect(degree.askAbout.has("CSCE 5200")).toBe(false);
+  });
+});
+
 describe("a major the audit does not cover", () => {
   test("keeps the sample core list: Auto plans from it, and the check says it covers CS and CE only", () => {
     const plan = plannerWith(journeyTranscript, "math");

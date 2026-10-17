@@ -141,8 +141,13 @@ function runAudits(profile: SchoolProfile, record: AuditRecord, programId: strin
   ];
   // The planner keeps only the rows the student confirmed, so it cannot show every graded attempt (as in the audit route).
   const options = { gradeHistoryComplete: false };
-  // Courses that count on the record: credit earned, in progress, or marked done.
-  const recordCodes = new Set(attempts.filter((attempt) => attempt.sourceKind === "claimed" || attempt.grade === null || !NO_CREDIT.has(attempt.grade)).map((attempt) => attempt.code));
+  // Courses that count on the record: credit earned, in progress, or marked done. Any transcript attempt
+  // decides its code, so a mark on a code the transcript holds counts for nothing (the audit's ignoredClaims).
+  const onTranscript = new Set(input.attempts.map((attempt) => attempt.code));
+  const recordCodes = new Set([
+    ...input.attempts.filter((attempt) => attempt.grade === null || !NO_CREDIT.has(attempt.grade)).map((attempt) => attempt.code),
+    ...input.claims.filter((claim) => !onTranscript.has(claim.code)).map((claim) => claim.code),
+  ]);
   return {
     major: auditProgram(programById(programId), attempts, options),
     core: auditProgram(programById(CORE_ID), attempts, options),
@@ -234,8 +239,8 @@ const displayName = (outcome: NodeOutcome) => (outcome.kind === "choice" ? outco
 /** The catalog counts hours; the app says credits (docs/design/copy.md). Quotes keep the catalog's words. */
 const inCredits = (text: string) => text.replace(/\bhours\b/g, "credits");
 
-/** What one program's walk reads besides its outcomes. */
-type Walk = { area: Area; program: ProgramData; recordCodes: ReadonlySet<string>; rows: Requirement[]; advisor: AdvisorItem[] };
+/** What one program's walk reads besides its outcomes. `policiesSeen` is shared, so a rule both programs print shows once. */
+type Walk = { area: Area; program: ProgramData; recordCodes: ReadonlySet<string>; rows: Requirement[]; advisor: AdvisorItem[]; policiesSeen: Set<string> };
 
 function poolNamed(nodes: readonly RequirementNode[], name: string): PoolNode | null {
   for (const node of nodes) {
@@ -259,14 +264,23 @@ function aboveThePool(pool: PoolNode | null, recordCodes: ReadonlySet<string>): 
   return [...recordCodes].filter((code) => subjects.includes(code.split(" ")[0] ?? "") && levelOf(code) > maxLevel).sort();
 }
 
-/** The first advisor's reason under an undecided node: the branch or part that made it undecided. */
-function advisorReason(outcome: NodeOutcome): { reason: string; candidates: string[] } | null {
-  if (outcome.remaining.kind === "advisor") return outcome.remaining;
-  for (const child of outcome.children ?? []) {
-    const found = advisorReason(child);
-    if (found) return found;
-  }
-  return null;
+/**
+ * Why an undecided node is undecided: the advisor's reason of each part or
+ * branch that is, named when there are several, and the record courses
+ * that may count in any of them.
+ */
+function advisorReasons(outcome: NodeOutcome): { reason: string; candidates: string[] } | null {
+  const found: { name: string; reason: string; candidates: string[] }[] = [];
+  const walk = (node: NodeOutcome) => {
+    if (node.remaining.kind === "advisor") found.push({ name: node.name, ...node.remaining });
+    else (node.children ?? []).forEach(walk);
+  };
+  (outcome.children ?? []).forEach(walk);
+  if (found.length === 0) return null;
+  return {
+    reason: found.length === 1 ? found[0]!.reason : found.map((entry) => `${entry.name}: ${entry.reason}`).join(" "),
+    candidates: [...new Set(found.flatMap((entry) => entry.candidates))].sort(),
+  };
 }
 
 /**
@@ -288,7 +302,7 @@ function collect(outcomes: readonly NodeOutcome[], prefix: string, walk: Walk): 
       return;
     }
     if (outcome.kind === "choice" && outcome.status === "advisory") {
-      const why = advisorReason(outcome);
+      const why = advisorReasons(outcome);
       walk.advisor.push({ key, area, name: inCredits(displayName(outcome)), text: why?.reason ?? outcome.detail, quote: false, candidates: why?.candidates ?? [], askAbout: [], citation: outcome.citation });
       return;
     }
@@ -321,7 +335,9 @@ function policyTypes(nodes: readonly RequirementNode[], into = new Map<string, P
 function collectPolicies(result: AuditResult, walk: Walk): void {
   const types = policyTypes(walk.program.requirements);
   result.policies.forEach((policy, index) => {
-    if (types.get(policy.name) === "totalHours" || policy.status === "satisfied") return;
+    if (types.get(policy.name) === "totalHours" || walk.policiesSeen.has(policy.name)) return;
+    walk.policiesSeen.add(policy.name);
+    if (policy.status === "satisfied") return;
     const key = `${result.programId}.policy.${index}`;
     if (policy.status === "unsatisfied") {
       walk.rows.push({ key, area: walk.area, name: inCredits(policy.name), status: "needed", fact: "Not met yet", citation: policy.citation, source: { kind: "policy", detail: inCredits(policy.detail) } });
@@ -362,7 +378,8 @@ export function checkDegree(profile: SchoolProfile, plan: AuditRecord, model: Pi
   if (!programId) return { kind: "unaudited" };
   const audits = runAudits(profile, plan, programId);
   const advisor: AdvisorItem[] = [];
-  const walk = (area: Area, program: ProgramData): Walk => ({ area, program, recordCodes: audits.recordCodes, rows: [], advisor });
+  const policiesSeen = new Set<string>();
+  const walk = (area: Area, program: ProgramData): Walk => ({ area, program, recordCodes: audits.recordCodes, rows: [], advisor, policiesSeen });
   const majorRows = rowsOf(audits.major, walk("major", programById(programId)));
   const coreRows = rowsOf(audits.core, walk("core", programById(CORE_ID)));
   // A rule both programs print (the communication grade) is asked about once.

@@ -65,7 +65,9 @@ export const finalTerm = PLAN.flatMap((semester, index) =>
 export function plannerWith(transcript: readonly TranscriptCourseRecord[], major: PlannerState["selectedMajor"], extra: { manualCredit?: string[]; statuses?: Record<string, CourseStatus> } = {}): PlannerState {
   const base = getInitialPlannerState();
   const statuses: Record<string, CourseStatus> = { ...base.courseStatuses };
-  for (const record of transcript) statuses[record.code] = record.appliedStatus === "completed" ? "completed" : "inProgress";
+  for (const record of transcript) {
+    if (record.appliedStatus === "completed" || record.appliedStatus === "inProgress") statuses[record.code] = record.appliedStatus === "completed" ? "completed" : "inProgress";
+  }
   return normalizePlannerState({
     ...base,
     selectedMajor: major,
