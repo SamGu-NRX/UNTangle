@@ -1,6 +1,6 @@
 import { assignColors, type Hue } from "@/lib/course-colors";
 import { buildScheduleEvents, normalizePlannerState, resolveSectionPlan, summarizeCredits } from "@/lib/planner";
-import { scheduleEventsOf, type SectionCatalog } from "@/lib/planner-sections";
+import { optionIdLabel, optionLabel, scheduleEventsOf, type SectionCatalog } from "@/lib/planner-sections";
 import type { ClassDay, PlannerState, ScheduleEvent } from "@/lib/types";
 
 /**
@@ -169,10 +169,16 @@ export function compareRows(a: PlanFigures, b: PlanFigures): CompareRow[] {
 
 const LETTER: Record<ClassDay, string> = { Mon: "M", Tue: "T", Wed: "W", Thu: "R", Fri: "F", Sat: "S", Sun: "U" };
 
-/** "MWF 9:00": the days a section meets and when it starts, the way a registration list says it. */
+/** Days grouped by start time, in first-day order: "MWF 9:00" or "M 8:00, TR 9:35". */
 function meetsText(blocks: readonly WeekBlock[]): string {
-  const days = [...new Set(blocks.map((block) => block.day))].sort((x, y) => DAY_ORDER[x] - DAY_ORDER[y]);
-  return `${days.map((day) => LETTER[day]).join("")} ${clockText(Math.min(...blocks.map((block) => block.start)))}`;
+  const groups = new Map<number, Set<ClassDay>>();
+  const ordered = [...blocks].sort((a, b) => DAY_ORDER[a.day] - DAY_ORDER[b.day] || a.start - b.start);
+  for (const block of ordered) {
+    const days = groups.get(block.start) ?? new Set<ClassDay>();
+    days.add(block.day);
+    groups.set(block.start, days);
+  }
+  return [...groups].map(([start, days]) => `${[...days].map((day) => LETTER[day]).join("")} ${clockText(start)}`).join(", ");
 }
 
 export type SectionChange = { code: string; from: string | null; to: string | null };
@@ -181,6 +187,7 @@ export type SectionChange = { code: string; from: string | null; to: string | nu
 export type PlannedSection = {
   code: string;
   sectionId: string;
+  label: string;
   blocks: WeekBlock[];
   /** A saved pick with no section to draw: its options are still loading, or the catalog no longer has it. */
   unresolved?: "loading" | "gone";
@@ -193,9 +200,9 @@ export type PlannedSection = {
  */
 export function plannedSections(state: PlannerState, catalog: SectionCatalog): PlannedSection[] {
   return resolveSectionPlan(normalizePlannerState(state), catalog).courses.flatMap((course): PlannedSection[] => {
-    if (course.section) return [{ code: course.code, sectionId: course.section.id, blocks: weekBlocks(scheduleEventsOf(course.section)) }];
+    if (course.section) return [{ code: course.code, sectionId: course.section.id, label: optionLabel(course.section), blocks: weekBlocks(scheduleEventsOf(course.section)) }];
     // A saved pick the loaded catalog can't place still differs from another pick.
-    if (course.savedId) return [{ code: course.code, sectionId: course.savedId, blocks: [], unresolved: course.state === "loading" ? "loading" : "gone" }];
+    if (course.savedId) return [{ code: course.code, sectionId: course.savedId, label: optionIdLabel(course.savedId), blocks: [], unresolved: course.state === "loading" ? "loading" : "gone" }];
     return [];
   });
 }
@@ -211,11 +218,13 @@ function sectionText(section: PlannedSection): string {
  * Sections across several plans, the first being the one the others are
  * read against: a row for each course whose section is not the same in
  * all of them (a cell is null where that plan doesn't have the course), and
- * the courses every plan shares exactly. With two plans it says what
- * `sectionChanges` says, as cells.
+ * the courses every plan shares exactly. When two different sections in a
+ * row would read the same ("MWF 9:00" for both), every cell in that row
+ * names its section too, so the student can see what changes. With two
+ * plans it says what `sectionChanges` says, as cells.
  */
 export function sectionGrid(plans: ReadonlyArray<readonly PlannedSection[]>): {
-  /** `ids` says which plans' sections differ even when their `cells` read the same (two sections at the same times). */
+  /** `ids` says which plans' sections differ, whatever their `cells` say. */
   rows: Array<{ code: string; cells: Array<string | null>; ids: Array<string | null> }>;
   same: string[];
 } {
@@ -227,7 +236,17 @@ export function sectionGrid(plans: ReadonlyArray<readonly PlannedSection[]>): {
     const sections = maps.map((map) => map.get(code));
     const first = sections[0];
     if (first && sections.every((section) => section?.sectionId === first.sectionId)) same.push(code);
-    else rows.push({ code, cells: sections.map((section) => (section ? sectionText(section) : null)), ids: sections.map((section) => section?.sectionId ?? null) });
+    else {
+      const texts = sections.map((section) => (section ? sectionText(section) : null));
+      const needsLabels = sections.some((section, i) => section && sections.some((other, j) =>
+        other && section.sectionId !== other.sectionId && texts[i] === texts[j],
+      ));
+      rows.push({
+        code,
+        cells: sections.map((section, i) => (section && needsLabels ? `${texts[i]}, section ${section.label}` : texts[i])),
+        ids: sections.map((section) => section?.sectionId ?? null),
+      });
+    }
   }
   return { rows, same };
 }
