@@ -40,8 +40,14 @@ export type OptMeeting = {
   day: OptDay;
   start: number;
   end: number;
-  /** null when the catalog has no building: every walk to or from it is unknown. */
+  /** null when the catalog has no mapped building. */
   buildingId: string | null;
+  /**
+   * Place used to decide whether a walk exists. `"online"` is never a walk;
+   * an unmapped room uses its building code; null means an unassigned room.
+   * Older synthetic requests may omit it, which falls back to buildingId.
+   */
+  place?: string | null;
   /**
    * Inclusive activity range; absent or null uses the request's term.
    * Meetings share activity only on actual occurrences of their weekday

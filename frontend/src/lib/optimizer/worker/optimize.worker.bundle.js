@@ -163,6 +163,15 @@ function selfCost(section, weights, neutralTenths) {
   const lean = weights.mornings * own.morning + weights.evenings * own.evening;
   return lean * COST_PER_LEAN_MINUTE + weights.rating * own.shortfall * COST_PER_RATING_TENTH;
 }
+var ONLINE_PLACE = "online";
+function placeOf(meeting) {
+  return meeting.place === undefined ? meeting.buildingId ?? null : meeting.place;
+}
+function noWalkBetween(from, to) {
+  const fromPlace = placeOf(from);
+  const toPlace = placeOf(to);
+  return fromPlace === ONLINE_PLACE || toPlace === ONLINE_PLACE || fromPlace !== null && fromPlace === toPlace;
+}
 function walkSeconds(walkingTime, from, to) {
   if (from === null || to === null)
     return null;
@@ -213,6 +222,8 @@ function costTerms(input) {
       continue;
     someBackToBack(list, (prev, next) => {
       terms.gapMinutes += Math.max(0, next.start - prev.end);
+      if (noWalkBetween(prev, next))
+        return false;
       const walk = walkSeconds(walkingTime, prev.buildingId, next.buildingId);
       if (walk === null)
         terms.unknownWalks += 1;
@@ -436,7 +447,7 @@ function timeSignatureOf(meetings) {
   return meetings.map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}~${datesKey(m)}`).sort().join(",");
 }
 function fullSignatureOf(meetings) {
-  return meetings.map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}~${datesKey(m)}@${m.buildingId ?? ""}`).sort().join(",");
+  return meetings.map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}~${datesKey(m)}@${placeOf(m) ?? ""}`).sort().join(",");
 }
 function allowedSections(course, request) {
   const excluded = new Set(request.excluded);
@@ -511,7 +522,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     const seconds = walk[from * buildingCount + to];
     return seconds < 0 ? null : seconds;
   };
-  const tightPair = (prev, next) => bufferMinutes !== null && !(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0) && next.start - prev.end < globalMinDuration && !transferFits(prev, next, walkOf(prev.building, next.building), bufferMinutes);
+  const tightPair = (prev, next) => bufferMinutes !== null && !noWalkBetween(prev, next) && next.start - prev.end < globalMinDuration && !transferFits(prev, next, walkOf(prev.building, next.building), bufferMinutes);
   const neutralRatingByCourse = {};
   const creditsByCourse = {};
   const courses = [];
@@ -525,7 +536,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     const allowed = allowedByCourse[courseIndex];
     const kept = [];
     for (const section of allowed) {
-      const meetings = section.meetings.map((m) => ({ day: DAY_INDEX.get(m.day), start: m.start, end: m.end, building: intern(m.buildingId), weeks: segments.maskOf(m) })).sort((a, b) => a.day - b.day || a.start - b.start);
+      const meetings = section.meetings.map((m) => ({ day: DAY_INDEX.get(m.day), start: m.start, end: m.end, building: intern(m.buildingId), place: placeOf(m), weeks: segments.maskOf(m) })).sort((a, b) => a.day - b.day || a.start - b.start);
       let selfBroken = false;
       for (let i = 0;i < meetings.length && !selfBroken; i += 1) {
         for (let j = i + 1;j < meetings.length; j += 1) {
@@ -799,13 +810,10 @@ function search(prepared, budget, options) {
             if (oneSegment) {
               if (filled < window)
                 gap += window - filled;
-              if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
-                walkCost += walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
-              }
             }
           } else {
             gap += window;
-            if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
+            if (!noWalkBetween(prev, next)) {
               const seconds = walkOf(prev.building, next.building);
               walkCost += seconds ?? UNKNOWN_WALK_SECONDS;
               if (bufferSeconds !== null && window * 60 < (seconds ?? UNKNOWN_WALK_SECONDS) + bufferSeconds)
@@ -846,15 +854,10 @@ function search(prepared, budget, options) {
           for (let r = 0;r < count && filled < window; r += 1)
             filled += fill[remaining[r]][day][cell];
         cost += weights.compact * COST_PER_GAP_MINUTE * Math.max(0, window - filled);
-        if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
-          let walking;
-          if (filled === 0) {
-            walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;
-            if (bufferSeconds !== null && window * 60 < walking + bufferSeconds)
-              return -1;
-          } else {
-            walking = walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
-          }
+        if (!noWalkBetween(prev, next) && filled === 0) {
+          const walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;
+          if (bufferSeconds !== null && window * 60 < walking + bufferSeconds)
+            return -1;
           cost += weights.walking * COST_PER_WALK_SECOND * walking;
         }
       }
