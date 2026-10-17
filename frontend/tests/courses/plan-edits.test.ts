@@ -28,8 +28,9 @@ describe("autoTransaction", () => {
     const plan = samplePlan();
     const picks = planAuto(profile, plan, cs).outcome;
     // The degree audit's candidates in rank order (most unfinished courses downstream first): the sample student
-    // needs these for the major, and MATH 1720 and PSYC 1630 for core areas.
-    expect(picks.planned).toEqual(["MATH 1720", "CSCE 1010", "CSCE 2110", "CSCE 2100", "PSYC 1630"]);
+    // needs these for the major, and MATH 1720 and PHYS 1410 for core areas. On edge PHYS 1410 outranks alpha's
+    // PSYC 1630 (20 downstream courses to 19), because edge's catalog adds PHYS 1430, 1440 and 2240 (582fc9d9).
+    expect(picks.planned).toEqual(["MATH 1720", "CSCE 1010", "CSCE 2110", "CSCE 2100", "PHYS 1410"]);
     const { next, result } = autoTransaction(profile, cs, run)(plan);
     if (result === "major-changed") throw new Error("refused");
     expect(result.planned).toEqual(picks.planned);

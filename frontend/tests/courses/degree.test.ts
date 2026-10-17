@@ -184,12 +184,13 @@ describe("the final term: 105 credits finished, 15 in progress that print 0.000 
   const { degree } = degreeOf(plan);
 
   test("in-progress courses count at catalog credits, and ones the catalog lacks stay unknown", () => {
-    expect(degree.hours).toMatchObject({ required: 120, left: null, atMost: 6, fromCatalog: ["CSCE 4240", "CSCE 4902", "PSCI 2305"], unknown: ["AGER 2250", "CSCE 4230"] });
-    expect(leftHeadline(degree)).toBe("Up to about 6 credits left");
+    // Edge's catalog has CSCE 4230 (582fc9d9), so only AGER 2250 is unknown here; on alpha both are.
+    expect(degree.hours).toMatchObject({ required: 120, left: null, atMost: 3, fromCatalog: ["CSCE 4230", "CSCE 4240", "CSCE 4902", "PSCI 2305"], unknown: ["AGER 2250"] });
+    expect(leftHeadline(degree)).toBe("Up to about 3 credits left");
     expect(leftNotes(degree)).toEqual([
       "The 2026-2027 catalog asks 120 credits for Computer Science, BS.",
-      "CSCE 4240, CSCE 4902 and PSCI 2305 count at catalog credits until grades post.",
-      "UNTangle doesn't know the credits for AGER 2250 and CSCE 4230, so fewer may be left.",
+      "CSCE 4230, CSCE 4240, CSCE 4902 and PSCI 2305 count at catalog credits until grades post.",
+      "UNTangle doesn't know the credits for AGER 2250, so fewer may be left.",
     ]);
   });
 

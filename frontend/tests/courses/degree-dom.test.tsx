@@ -104,10 +104,10 @@ test("the journey transcript: credits left, the term, then what's left by area w
     expect(rule).not.toContain("Still needs Not met yet");
     expect(rule).toContain("0 advanced credits of 42");
 
-    // Auto plans only what the audit still needs.
+    // Auto plans only what the audit still needs. PHYS 1410 rather than alpha's PSYC 1630: see plan-edits.test.ts.
     view.page.querySelector<HTMLButtonElement>("[data-auto]")!.click();
     await waitFor(() => view.trayIds().length > 0, "Auto's picks in the tray");
-    expect(view.trayIds().sort()).toEqual(["CSCE 1010", "CSCE 2100", "CSCE 2110", "MATH 1720", "PSYC 1630"]);
+    expect(view.trayIds().sort()).toEqual(["CSCE 1010", "CSCE 2100", "CSCE 2110", "MATH 1720", "PHYS 1410"]);
   } finally {
     await view.planner.unmount();
   }
@@ -155,9 +155,10 @@ test("the final term: in-progress rows that print 0.000 count at catalog credits
   try {
     await waitFor(() => view.left() !== null, "What's left");
     const left = view.left()!;
-    expect(text(left.querySelector("h2"))).toBe("Up to about 6 credits left");
-    expect(text(left)).toContain("CSCE 4240, CSCE 4902 and PSCI 2305 count at catalog credits until grades post.");
-    expect(text(left)).toContain("UNTangle doesn't know the credits for AGER 2250 and CSCE 4230, so fewer may be left.");
+    // Edge's catalog has CSCE 4230 (582fc9d9), so only AGER 2250 is unknown here; on alpha both are.
+    expect(text(left.querySelector("h2"))).toBe("Up to about 3 credits left");
+    expect(text(left)).toContain("CSCE 4230, CSCE 4240, CSCE 4902 and PSCI 2305 count at catalog credits until grades post.");
+    expect(text(left)).toContain("UNTangle doesn't know the credits for AGER 2250, so fewer may be left.");
     expect(text(view.page)).toContain("Required courses, Taking now");
   } finally {
     await view.planner.unmount();
