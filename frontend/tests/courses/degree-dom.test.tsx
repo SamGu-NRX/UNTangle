@@ -89,6 +89,14 @@ test("the journey transcript: credits left, what's left by area with reasons one
     expect(detail).toContain("Computer Science, BS lists this under Major requirements in UNT's catalog.");
     expect(document.querySelector('a[href="https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227#MajorRequirements"]')).not.toBeNull();
 
+    // A degree rule the audit finds unmet opens what the audit found.
+    view.page.querySelector<HTMLButtonElement>('[data-row-open^="req:cs-bs.policy."]')!.click();
+    await waitFor(() => document.body.textContent?.includes("What the audit found") ?? false, "the rule's detail");
+    const rule = text(document.querySelector("aside.ui-context"));
+    expect(rule).toContain("Not met yet");
+    expect(rule).not.toContain("Still needs Not met yet");
+    expect(rule).toContain("0 advanced credits of 42");
+
     // Auto plans only what the audit still needs.
     view.page.querySelector<HTMLButtonElement>("[data-auto]")!.click();
     await waitFor(() => view.trayIds().length > 0, "Auto's picks in the tray");

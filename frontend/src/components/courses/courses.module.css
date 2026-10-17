@@ -209,7 +209,10 @@
   font-size: 14px;
 }
 .reqSet {
-  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+}
+.reqSet[data-status="check"] .reqFact {
+  color: var(--attention);
 }
 .reqCourses > li + li {
   border-top: 1px solid var(--line);
@@ -1401,6 +1404,10 @@
     font-size: 15px;
     white-space: normal;
     text-wrap: pretty;
+  }
+  /* A requirement row is one line of name and fact, so its glyph centers on that line (course rows span two). */
+  .reqOpen > .lead {
+    grid-row: auto;
   }
   .reqOpen > .fact {
     align-self: center;

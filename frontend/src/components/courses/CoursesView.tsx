@@ -24,6 +24,7 @@ import type { RowActions } from "./CourseRow";
 import { DegreeDialog } from "./DegreeDialog";
 import { undoBlocker } from "./model/auto";
 import type { CourseModel, CourseRowModel } from "./model/course-model";
+import type { AuditedDegree } from "./model/degree";
 import { buildGroups, OPEN_AT_START, ROWS_BEFORE_MORE, rowFact, type GroupKey } from "./model/groups";
 import { autoTransaction, courseEdit, degreeModel, manualEdit, planAuto, undoAutoTransaction, undoCourseEdit } from "./model/plan-edits";
 import { creditProgress, creditsLabel, DEGREE_CREDITS } from "./model/progress";
@@ -732,7 +733,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
             placed={placed}
             chosenSectionId={plannerState.selectedSections[detailRow.id]}
             initialInstructor={instructorForDetail}
-            degreeNote={degreeNote(detailRow, audited !== null, coreSet)}
+            degreeNote={degreeNote(detailRow, audited, coreSet)}
             actions={detailActions}
             planLoaded={hydrated}
           />
@@ -773,8 +774,10 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
 }
 
 /** One line in the course detail on how the degree treats the course, or null. */
-function degreeNote(row: CourseRowModel, audited: boolean, degreeCourses: ReadonlySet<string>): string | null {
+function degreeNote(row: CourseRowModel, audited: AuditedDegree | null, degreeCourses: ReadonlySet<string>): string | null {
   if (row.waiver) return `${row.waiver} covers it as a prerequisite, but your degree still lists ${row.id}. Only an advisor can waive it.`;
+  const askedBy = audited?.askAbout.get(row.id);
+  if (askedBy) return `The degree check doesn't count ${row.id} toward ${askedBy}. Ask an advisor whether it can.`;
   if (!degreeCourses.has(row.id)) return null;
   return audited ? "Your degree still needs this course." : "On your major's core list.";
 }

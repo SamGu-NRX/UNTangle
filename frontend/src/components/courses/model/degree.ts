@@ -11,7 +11,7 @@
  * `{ kind: "unaudited" }`, and Courses keeps its sample core lists for them.
  */
 import { auditProgram, type AuditCourse, type AuditResult, type ClaimedCourse, type NodeOutcome } from "@untangle/core/degree/audit";
-import type { Citation, ProgramData } from "@untangle/core/degree/types";
+import type { Citation, Policy, PoolNode, ProgramData, RequirementNode } from "@untangle/core/degree/types";
 import { auditInput } from "@/lib/degree/audit-input";
 import { DEGREE_DATA } from "@/lib/degree/programs.generated";
 import type { Major, MajorId } from "@/lib/types";
@@ -28,7 +28,8 @@ export type Area = "major" | "core";
 
 /**
  * One requirement that is not finished: still needed, met only once this
- * term's courses pass, or met only by courses the student marked done.
+ * term's courses pass, or met only by courses the student marked done. A
+ * failed degree rule (a grade floor, advanced hours) is a needed row too.
  */
 export type Requirement = {
   /** Stable within one catalog: the program and the requirement's place in its tree. */
@@ -39,8 +40,8 @@ export type Requirement = {
   /** What the row says it needs, in one short phrase. */
   fact: string;
   citation: Citation;
-  /** The audit's outcome, for the detail. */
-  outcome: NodeOutcome;
+  /** For the detail: the audit's outcome for a requirement node, or what it found for a rule. */
+  source: { kind: "node"; outcome: NodeOutcome } | { kind: "policy"; detail: string };
 };
 
 /** A requirement only an advisor can settle, with the audit's reason. */
@@ -54,6 +55,8 @@ export type AdvisorItem = {
   quote: boolean;
   /** Courses on the record that may count here. */
   candidates: string[];
+  /** Courses on the record the audit left out of this pool (a 5000-level CSCE course): an advisor decides whether they count. */
+  askAbout: string[];
   citation: Citation;
 };
 
@@ -95,6 +98,8 @@ export type AuditedDegree = {
   waivers: ReadonlyMap<string, string>;
   /** Marked-done courses the transcript decides instead. */
   ignoredClaims: string[];
+  /** Record courses an advisor item asks about, with that item's name. */
+  askAbout: ReadonlyMap<string, string>;
 };
 
 export type DegreeCheck = { kind: "none" } | { kind: "unaudited" } | AuditedDegree;
@@ -136,12 +141,18 @@ function runAudits(profile: SchoolProfile, record: AuditRecord, programId: strin
   ];
   // The planner keeps only the rows the student confirmed, so it cannot show every graded attempt (as in the audit route).
   const options = { gradeHistoryComplete: false };
+  // Courses that count on the record: credit earned, in progress, or marked done.
+  const recordCodes = new Set(attempts.filter((attempt) => attempt.sourceKind === "claimed" || attempt.grade === null || !NO_CREDIT.has(attempt.grade)).map((attempt) => attempt.code));
   return {
     major: auditProgram(programById(programId), attempts, options),
     core: auditProgram(programById(CORE_ID), attempts, options),
     fromCatalog: input.catalogHours,
+    recordCodes,
   };
 }
+
+/** Grades that earn no credit, as the audit reads them. */
+const NO_CREDIT = new Set(["F", "W", "I", "NP", "Z"]);
 
 /** Every course a requirement's remaining work names, in any of its options. */
 function neededCodes(outcomes: readonly NodeOutcome[], into = new Set<string>()): Set<string> {
@@ -159,8 +170,11 @@ function neededCodes(outcomes: readonly NodeOutcome[], into = new Set<string>())
         remaining.eligible.flat().forEach((code) => into.add(code));
         break;
       case "parts":
-      case "branch":
         neededCodes(outcome.children ?? [], into);
+        break;
+      case "branch":
+        // An undecided choice is an advisor's call: none of its branches is needed until it is settled.
+        if (outcome.status !== "advisory") neededCodes(outcome.children ?? [], into);
         break;
       case "none":
       case "advisor":
@@ -217,42 +231,112 @@ const TOTAL_IN_NAME = /,\s*\d+(?:-\d+)?\s+hours(?:\s*\(choose \d+\))?$/;
  */
 const displayName = (outcome: NodeOutcome) => (outcome.kind === "choice" ? outcome.citation.heading : outcome.name).replace(TOTAL_IN_NAME, "");
 
+/** The catalog counts hours; the app says credits (docs/design/copy.md). Quotes keep the catalog's words. */
+const inCredits = (text: string) => text.replace(/\bhours\b/g, "credits");
+
+/** What one program's walk reads besides its outcomes. */
+type Walk = { area: Area; program: ProgramData; recordCodes: ReadonlySet<string>; rows: Requirement[]; advisor: AdvisorItem[] };
+
+function poolNamed(nodes: readonly RequirementNode[], name: string): PoolNode | null {
+  for (const node of nodes) {
+    if (node.kind === "pool" && node.name === name) return node;
+    const inner = node.kind === "group" ? poolNamed(node.children, name) : node.kind === "choice" ? poolNamed(node.branches.map((branch) => branch.node), name) : null;
+    if (inner) return inner;
+  }
+  return null;
+}
+
+const levelOf = (code: string) => Number(/\s(\d{4})$/.exec(code)?.[1] ?? 0);
+
+/**
+ * Record courses of a pool's subjects above its top level: the audit leaves
+ * them out (CSCE 5200 for the CSCE advanced electives), so an advisor
+ * decides whether they count.
+ */
+function aboveThePool(pool: PoolNode | null, recordCodes: ReadonlySet<string>): string[] {
+  if (!pool || pool.match.subjects === null || pool.match.maxLevel === null) return [];
+  const { subjects, maxLevel } = pool.match;
+  return [...recordCodes].filter((code) => subjects.includes(code.split(" ")[0] ?? "") && levelOf(code) > maxLevel).sort();
+}
+
+/** The first advisor's reason under an undecided node: the branch or part that made it undecided. */
+function advisorReason(outcome: NodeOutcome): { reason: string; candidates: string[] } | null {
+  if (outcome.remaining.kind === "advisor") return outcome.remaining;
+  for (const child of outcome.children ?? []) {
+    const found = advisorReason(child);
+    if (found) return found;
+  }
+  return null;
+}
+
 /**
  * Walks one program's outcomes into rows. Groups open into their parts, so
  * a row is always one requirement the student can act on; a choice stays one
- * row, because its branches are alternatives, not parts.
+ * row, because its branches are alternatives, not parts. A choice the audit
+ * cannot decide (CE's specialization when CSCE 3610 might count twice) is
+ * one advisor item, not a row per branch.
  */
-function collect(outcomes: readonly NodeOutcome[], area: Area, prefix: string, rows: Requirement[], advisor: AdvisorItem[]): void {
+function collect(outcomes: readonly NodeOutcome[], prefix: string, walk: Walk): void {
+  const { area } = walk;
   outcomes.forEach((outcome, index) => {
     const key = `${prefix}.${index}`;
     const remaining = outcome.remaining;
     if (remaining.kind === "advisor") {
       const quote = outcome.kind === "note" || outcome.kind === "policy";
-      // The catalog counts hours; the app says credits (docs/design/copy.md). The quote below keeps the catalog's words.
-      advisor.push({ key, area, name: outcome.name.replace(/\b(\d+(?:-\d+)?) hours\b/, "$1 credits"), text: quote ? outcome.detail : remaining.reason, quote, candidates: remaining.candidates, citation: outcome.citation });
+      const askAbout = outcome.kind === "pool" ? aboveThePool(poolNamed(walk.program.requirements, outcome.name), walk.recordCodes) : [];
+      walk.advisor.push({ key, area, name: inCredits(outcome.name), text: quote ? outcome.detail : remaining.reason, quote, candidates: remaining.candidates, askAbout, citation: outcome.citation });
+      return;
+    }
+    if (outcome.kind === "choice" && outcome.status === "advisory") {
+      const why = advisorReason(outcome);
+      walk.advisor.push({ key, area, name: inCredits(displayName(outcome)), text: why?.reason ?? outcome.detail, quote: false, candidates: why?.candidates ?? [], askAbout: [], citation: outcome.citation });
       return;
     }
     if (outcome.kind === "group" && outcome.status !== "satisfied") {
-      collect(outcome.children ?? [], area, key, rows, advisor);
+      collect(outcome.children ?? [], key, walk);
       return;
     }
-    if (outcome.status === "advisory" && outcome.children) {
-      // A choice the audit cannot decide: its undecided branch says why.
-      collect(outcome.children, area, key, rows, advisor);
-      return;
+    const base = { key, area, name: displayName(outcome), citation: outcome.citation, source: { kind: "node" as const, outcome } };
+    if (outcome.status === "unsatisfied" && remaining.kind !== "none") walk.rows.push({ ...base, status: "needed", fact: neededFact(outcome) });
+    else if (outcome.status === "inProgress") walk.rows.push({ ...base, status: "inProgress", fact: "Taking now" });
+    else if (outcome.status === "claimed") walk.rows.push({ ...base, status: "claimed", fact: "You marked this done" });
+  });
+}
+
+function policyTypes(nodes: readonly RequirementNode[], into = new Map<string, Policy["type"]>()): Map<string, Policy["type"]> {
+  for (const node of nodes) {
+    if (node.kind === "policy") into.set(node.name, node.policy.type);
+    if (node.kind === "group") policyTypes(node.children, into);
+    if (node.kind === "choice") policyTypes(node.branches.map((branch) => branch.node), into);
+  }
+  return into;
+}
+
+/**
+ * The program's rules beside its requirements. One the audit found unmet
+ * (a D in a major course, too few advanced hours) is still needed; one it
+ * cannot verify (the GPA, residency) goes to the advisor. Total hours are the
+ * page's headline, so they are not repeated here.
+ */
+function collectPolicies(result: AuditResult, walk: Walk): void {
+  const types = policyTypes(walk.program.requirements);
+  result.policies.forEach((policy, index) => {
+    if (types.get(policy.name) === "totalHours" || policy.status === "satisfied") return;
+    const key = `${result.programId}.policy.${index}`;
+    if (policy.status === "unsatisfied") {
+      walk.rows.push({ key, area: walk.area, name: inCredits(policy.name), status: "needed", fact: "Not met yet", citation: policy.citation, source: { kind: "policy", detail: inCredits(policy.detail) } });
+    } else {
+      walk.advisor.push({ key, area: walk.area, name: inCredits(policy.name), text: policy.detail, quote: false, candidates: [], askAbout: [], citation: policy.citation });
     }
-    const base = { key, area, name: displayName(outcome), citation: outcome.citation, outcome };
-    if (outcome.status === "unsatisfied" && remaining.kind !== "none") rows.push({ ...base, status: "needed", fact: neededFact(outcome) });
-    else if (outcome.status === "inProgress") rows.push({ ...base, status: "inProgress", fact: "Taking now" });
-    else if (outcome.status === "claimed") rows.push({ ...base, status: "claimed", fact: "You marked this done" });
   });
 }
 
 const ORDER: Record<Requirement["status"], number> = { needed: 0, inProgress: 1, claimed: 2 };
 
-function rowsOf(result: AuditResult, area: Area, advisor: AdvisorItem[]): Requirement[] {
-  const rows: Requirement[] = [];
-  collect(result.requirements, area, result.programId, rows, advisor);
+function rowsOf(result: AuditResult, walk: Walk): Requirement[] {
+  const { rows } = walk;
+  collect(result.requirements, result.programId, walk);
+  collectPolicies(result, walk);
   // Needed first, then what this term finishes, then what rests on the student's word; catalog order within each.
   return rows.map((row, index) => ({ row, index })).sort((a, b) => ORDER[a.row.status] - ORDER[b.row.status] || a.index - b.index).map(({ row }) => row);
 }
@@ -278,8 +362,17 @@ export function checkDegree(profile: SchoolProfile, plan: AuditRecord, model: Pi
   if (!programId) return { kind: "unaudited" };
   const audits = runAudits(profile, plan, programId);
   const advisor: AdvisorItem[] = [];
-  const majorRows = rowsOf(audits.major, "major", advisor);
-  const coreRows = rowsOf(audits.core, "core", advisor);
+  const walk = (area: Area, program: ProgramData): Walk => ({ area, program, recordCodes: audits.recordCodes, rows: [], advisor });
+  const majorRows = rowsOf(audits.major, walk("major", programById(programId)));
+  const coreRows = rowsOf(audits.core, walk("core", programById(CORE_ID)));
+  // A rule both programs print (the communication grade) is asked about once.
+  const asked = new Set<string>();
+  const advisorItems = advisor.filter((item) => {
+    const same = `${item.name}\n${item.text}`;
+    if (asked.has(same)) return false;
+    asked.add(same);
+    return true;
+  });
   const neededByMajor = neededCodes(audits.major.requirements);
   const needed = neededCodes(audits.core.requirements, new Set(neededByMajor));
   const waivers = new Map<string, string>();
@@ -296,11 +389,12 @@ export function checkDegree(profile: SchoolProfile, plan: AuditRecord, model: Pi
       { area: "major", title: audits.major.programName, requirements: majorRows },
       { area: "core", title: audits.core.programName, requirements: coreRows },
     ],
-    advisor,
+    advisor: advisorItems,
     needed,
     neededByMajor,
     waivers,
     ignoredClaims: [...new Set([...audits.major.ignoredClaims, ...audits.core.ignoredClaims])].sort(),
+    askAbout: new Map(advisorItems.flatMap((item) => item.askAbout.map((code) => [code, item.name] as const))),
   };
 }
 

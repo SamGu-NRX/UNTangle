@@ -65,7 +65,7 @@ export function RequirementDetail({ entry, model }: { entry: LeftItem; model: Co
 function statusText(requirement: Requirement): ReactNode {
   switch (requirement.status) {
     case "needed":
-      return `Still needs ${requirement.fact.replace(/^One /, "one ")}`;
+      return requirement.source.kind === "policy" ? requirement.fact : `Still needs ${requirement.fact.replace(/^One /, "one ")}`;
     case "inProgress":
       return (
         <>
@@ -97,10 +97,18 @@ function NeedPart({ requirement, model }: { requirement: Requirement; model: Cou
       </section>
     );
   }
+  if (requirement.source.kind === "policy") {
+    return (
+      <section className={styles.dsec} aria-labelledby="req-need">
+        <h3 id="req-need">What the audit found</h3>
+        <p className={styles.rule}>{requirement.source.detail}</p>
+      </section>
+    );
+  }
   return (
     <section className={styles.dsec} aria-labelledby="req-need">
       <h3 id="req-need">Still needed</h3>
-      <Need outcome={requirement.outcome} model={model} depth={0} />
+      <Need outcome={requirement.source.outcome} model={model} depth={0} />
     </section>
   );
 }
@@ -121,13 +129,23 @@ function Need({ outcome, model, depth }: { outcome: NodeOutcome; model: CourseMo
           ))}
         </>
       );
-    case "choose":
+    case "choose": {
+      // A slot's options are the catalog's equivalents: any one of them fills it, so they stay together.
+      const single = remaining.eligible.filter((slot) => slot.options.length === 1);
+      const several = remaining.eligible.filter((slot) => slot.options.length > 1);
       return (
         <>
           <p className={styles.reqLead}>{plural(remaining.picks, "more course")} from these:</p>
-          <OptionList options={remaining.eligible.flatMap((slot) => slot.options.map((option) => option.courses))} model={model} />
+          {single.length > 0 ? <OptionList options={single.map((slot) => slot.options[0]!.courses)} model={model} /> : null}
+          {several.map((slot, index) => (
+            <div key={index} className={styles.reqChoice}>
+              <p className={styles.reqLead}>Or one of these:</p>
+              <OptionList options={slot.options.map((option) => option.courses)} model={model} />
+            </div>
+          ))}
         </>
       );
+    }
     case "hours":
       return (
         <>
@@ -170,6 +188,12 @@ function AdvisorPart({ item, model }: { item: AdvisorItem; model: CourseModel })
           <CourseList ids={item.candidates} model={model} />
         </section>
       ) : null}
+      {item.askAbout.length > 0 ? (
+        <section className={styles.dsec} aria-labelledby="req-ask-about">
+          <h3 id="req-ask-about">Ask whether these count</h3>
+          <CourseList ids={item.askAbout} model={model} />
+        </section>
+      ) : null}
     </>
   );
 }
@@ -202,17 +226,7 @@ function OptionList({ options, model }: { options: readonly string[][]; model: C
           option.length === 1 ? (
             <CourseItem key={option[0]} id={option[0]!} model={model} />
           ) : (
-            <li key={option.join("+")} className={styles.reqSet} tabIndex={-1}>
-              <span className={styles.lead} aria-hidden="true" />
-              <span>
-                {option.map((id, index) => (
-                  <span key={id}>
-                    {index > 0 ? (index === option.length - 1 ? " and " : ", ") : null}
-                    <CourseLink id={id} />
-                  </span>
-                ))}
-              </span>
-            </li>
+            <CourseSet key={option.join("+")} ids={option} model={model} />
           ),
         )}
       </ul>
@@ -234,6 +248,33 @@ function OptionList({ options, model }: { options: readonly string[][]; model: C
 
 function CourseList({ ids, model }: { ids: readonly string[]; model: CourseModel }) {
   return <OptionList options={ids.map((id) => [id])} model={model} />;
+}
+
+/**
+ * Courses the catalog asks for together (a lecture and its lab). The set
+ * reads as ready as its least ready course, with that course's fact.
+ */
+function CourseSet({ ids, model }: { ids: readonly string[]; model: CourseModel }) {
+  const rows = ids.map((id) => model.rows.get(id));
+  const known = rows.filter((row): row is CourseRowModel => row !== undefined);
+  const least = known.length === ids.length ? known.reduce((worst, row) => ((RANK[row.status] ?? 4) > (RANK[worst.status] ?? 4) ? row : worst)) : undefined;
+  const fact = least ? rowFact(least)?.text : known.length < ids.length ? "Not all in UNTangle's catalog yet" : undefined;
+  return (
+    <li className={styles.reqSet} data-status={least?.status} tabIndex={-1}>
+      <span className={styles.lead} aria-hidden="true">
+        {least ? <StatusGlyph status={least.status} /> : null}
+      </span>
+      <span>
+        {ids.map((id, index) => (
+          <span key={id}>
+            {index > 0 ? (index === ids.length - 1 ? " and " : ", ") : null}
+            <CourseLink id={id} />
+          </span>
+        ))}
+      </span>
+      {fact ? <span className={styles.reqFact}>{fact}</span> : null}
+    </li>
+  );
 }
 
 /** A course in a requirement: its readiness glyph, its code (a link when UNTangle has it), title and one fact. */
