@@ -1,0 +1,33 @@
+{
+  "disclaimer": "These bars are proposals with no calibration evidence yet. They encode the UNTangle plan's quality intent as first-pass thresholds; none of them has been measured against a baseline run, and any of them may be recalibrated once real scorecards exist. Do not treat a pass or fail against these bars as a calibrated quality verdict.",
+  "bars": {
+    "journey": {
+      "bar": "every case passes for both personas at both viewports",
+      "reason": "the plan promises the core journeys work for each persona on phone and desktop, so a persona- or viewport-specific failure is a shipped broken journey"
+    },
+    "persistence-faults": {
+      "bar": "each durability rule holds in every injected case",
+      "reason": "durability rules are absolute: if any injected fault (crash, restart, lost connection) loses data a rule promises to keep, registered-user persistence has failed"
+    },
+    "honesty": {
+      "bar": "0 violations",
+      "reason": "the product's core claim is trustworthiness: a single place where the UI claims more confidence or provenance than the data supports is a honesty violation, and the bar is zero"
+    },
+    "routing": {
+      "bar": "100% building coverage, median distance error <=10%, max <=20%, p95 latency <=200ms for 12 stops",
+      "reason": "wayfinding is only useful if every building is routable, typical estimates are close enough to trust, worst cases stay bounded, and a 12-stop solve feels instant"
+    },
+    "optimizer": {
+      "bar": "0 hard-constraint violations, optimality gap 0 on enumerable instances, p95 <=500ms at 8 courses",
+      "reason": "a scheduler that breaks a hard constraint or misses a provably-optimal answer on a small enumerable instance is wrong, and users will not wait half a second per solve at realistic scale"
+    },
+    "data": {
+      "bar": "exact certification counts, real-term bundle present",
+      "reason": "certification counts are public facts the UI quotes verbatim, and the plan requires the real term's data bundle to be present rather than a stale or placeholder term"
+    },
+    "a11y-polish": {
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "reason": "serious and critical accessibility defects exclude users outright, keyboard-only operability is the plan's stated floor, and visual clipping or ignored reduced-motion preferences are shipped polish defects"
+    }
+  }
+}
