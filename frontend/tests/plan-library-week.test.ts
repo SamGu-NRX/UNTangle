@@ -30,7 +30,7 @@ function sectionsOf(events: ScheduleEvent[]): PlannedSection[] {
   const blocks = weekBlocks(events);
   return [...new Set(blocks.map((b) => b.code))].map((code) => {
     const own = blocks.filter((b) => b.code === code);
-    return { code, sectionId: own[0].sectionId, blocks: own };
+    return { code, sectionId: own[0].sectionId, label: events.find((event) => event.courseCode === code)!.sectionLabel, blocks: own };
   });
 }
 
@@ -103,15 +103,43 @@ describe("comparing Main (A) with Fridays off (B)", () => {
     });
   });
 
+  test("meeting text groups days by start time", () => {
+    const mixed = sectionsOf([
+      ...meets("MATH 1680", "001", ["Thu", "Tue"], "09:35", "10:50", "GAB"),
+      ...meets("MATH 1680", "001", ["Mon"], "08:00", "08:50", "GAB"),
+    ]);
+    expect(sectionChanges(mixed, []).changes).toEqual([
+      { code: "MATH 1680", from: "M 8:00, TR 9:35", to: null },
+    ]);
+  });
+
+  test("start-time groups follow their first day, not their start time", () => {
+    const mixed = sectionsOf([
+      ...meets("MATH 1680", "001", ["Tue", "Thu"], "08:00", "08:50", "GAB"),
+      ...meets("MATH 1680", "001", ["Mon"], "10:00", "10:50", "GAB"),
+    ]);
+    expect(sectionChanges(mixed, []).changes).toEqual([
+      { code: "MATH 1680", from: "M 10:00, TR 8:00", to: null },
+    ]);
+  });
+
+  test("different sections at identical times include their section labels", () => {
+    const a = sectionsOf(meets("CSCE 2110", "001", ["Mon", "Wed", "Fri"], "09:00", "09:50", "GAB"));
+    const b = sectionsOf(meets("CSCE 2110", "002", ["Mon", "Wed", "Fri"], "09:00", "09:50", "GAB"));
+    expect(sectionChanges(a, b).changes).toEqual([
+      { code: "CSCE 2110", from: "MWF 9:00, section 001", to: "MWF 9:00, section 002" },
+    ]);
+  });
+
   test("a course only one schedule has shows as added or dropped", () => {
     const extra = [...main, ...meets("TECM 2700", "900", ["Fri"], "13:00", "13:50", "GAB")];
     expect(sectionChanges(sectionsOf(extra), sectionsOf(main)).changes).toEqual([{ code: "TECM 2700", from: "F 1:00", to: null }]);
   });
 
-  test("an online or TBA section that changes still shows, as No set time", () => {
-    const online = (sectionId: string): PlannedSection => ({ code: "TECM 2700", sectionId, blocks: [] });
+  test("online or TBA sections include labels only when their text matches", () => {
+    const online = (sectionId: string): PlannedSection => ({ code: "TECM 2700", sectionId, label: sectionId, blocks: [] });
     expect(sectionChanges([...sectionsOf(main), online("900")], [...sectionsOf(main), online("901")]).changes).toEqual([
-      { code: "TECM 2700", from: "No set time", to: "No set time" },
+      { code: "TECM 2700", from: "No set time, section 900", to: "No set time, section 901" },
     ]);
     expect(sectionChanges([...sectionsOf(main), online("900")], sectionsOf(main)).changes).toEqual([
       { code: "TECM 2700", from: "No set time", to: null },
@@ -127,10 +155,10 @@ describe("comparing Main (A) with Fridays off (B)", () => {
     });
     // Real-looking ids that the sample catalog has never had.
     const gone = (state: ReturnType<typeof plan>) => plannedSections(state, sampleCatalog);
-    const a = gone(plan("2027-spring:ANTH 1010:11111"));
-    const b = gone(plan("2027-spring:ANTH 1010:22222"));
-    expect(a.map((s) => [s.code, s.unresolved])).toEqual([["ANTH 1010", "gone"]]);
-    expect(sectionChanges(a, b).changes).toEqual([{ code: "ANTH 1010", from: "Not offered now", to: "Not offered now" }]);
+    const a = gone(plan("vsb:spring-2027:ANTH 1010:11111"));
+    const b = gone(plan("vsb:spring-2027:ANTH 1010:22222"));
+    expect(a.map((s) => [s.code, s.unresolved, s.label])).toEqual([["ANTH 1010", "gone", "class 11111"]]);
+    expect(sectionChanges(a, b).changes).toEqual([{ code: "ANTH 1010", from: "Not offered now, section class 11111", to: "Not offered now, section class 22222" }]);
   });
 
   test("meetings from the bundled samples are said once", () => {
@@ -143,7 +171,7 @@ describe("comparing Main (A) with Fridays off (B)", () => {
     const base = getInitialPlannerState();
     const state = { ...base, courseStatuses: { ...base.courseStatuses, "ANTH 1010": "inProgress" as const }, selectedSections: { "ANTH 1010": "anth-1010-002" } };
     const sections = plannedSections(state, sampleCatalog);
-    expect(sections.map((s) => [s.code, s.sectionId, s.blocks.length])).toEqual([["ANTH 1010", "anth-1010-002", 3]]);
+    expect(sections.map((s) => [s.code, s.sectionId, s.label, s.blocks.length])).toEqual([["ANTH 1010", "anth-1010-002", "002", 3]]);
   });
 });
 
@@ -244,6 +272,34 @@ describe("sections across three plans", () => {
       ],
       same: ["PHYS 2220"],
     });
+  });
+
+  test("a text collision labels every section in the three-plan row", () => {
+    const plan = (sectionId: string, start: string) => sectionsOf(meets("CSCE 2110", sectionId, ["Mon", "Wed", "Fri"], start, "10:50", "GAB"));
+    expect(sectionGrid([plan("001", "09:00"), plan("002", "09:00"), plan("003", "10:00")])).toEqual({
+      rows: [{
+        code: "CSCE 2110",
+        cells: ["MWF 9:00, section 001", "MWF 9:00, section 002", "MWF 10:00, section 003"],
+        ids: ["001", "002", "003"],
+      }],
+      same: [],
+    });
+  });
+
+  test("a sample and a real section with the same label and times fall back to the class number", () => {
+    const blocks = sectionsOf(meets("CSCE 2110", "002", ["Mon", "Wed", "Fri"], "09:00", "09:50", "GAB"))[0].blocks;
+    const sample: PlannedSection = { code: "CSCE 2110", sectionId: "csce-2110-002", label: "002", blocks };
+    const real: PlannedSection = { code: "CSCE 2110", sectionId: "vsb:spring-2027:CSCE 2110:12345", label: "002", blocks };
+    expect(sectionGrid([[sample], [real]]).rows).toEqual([
+      { code: "CSCE 2110", cells: ["MWF 9:00, section 002, sample", "MWF 9:00, section 002, class 12345"], ids: ["csce-2110-002", "vsb:spring-2027:CSCE 2110:12345"] },
+    ]);
+  });
+
+  test("a text collision leaves an absent course's cell null", () => {
+    const plan = (sectionId: string) => sectionsOf(meets("CSCE 2110", sectionId, ["Mon"], "09:00", "09:50", "GAB"));
+    expect(sectionGrid([plan("001"), [], plan("002")]).rows).toEqual([
+      { code: "CSCE 2110", cells: ["M 9:00, section 001", null, "M 9:00, section 002"], ids: ["001", null, "002"] },
+    ]);
   });
 
   test("with two plans it says what sectionChanges says", () => {

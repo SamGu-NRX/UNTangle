@@ -13,6 +13,13 @@ import type { CourseSections, Meeting, Section } from "@/lib/sections/model";
 
 mock.module("server-only", () => ({}));
 
+// mock.restore() leaves module mocks in place, and later test files in the
+// same run (even with --isolate) would get this file's partial sections proxy,
+// whose missing respondClassNumber breaks the class-number route test. So the
+// real modules are copied before mocking and put back in afterAll.
+const realSectionsServer = { ...(await import("@/lib/sections/server")) };
+const realGradesHistory = { ...(await import("@/lib/grades-history")) };
+
 const respondCalls: Array<[string, string, string]> = [];
 const getCourseSectionsCalls: string[] = [];
 
@@ -85,7 +92,11 @@ mock.module("@/lib/sections/server", () => ({
 mock.module("@/lib/grades-history", () => ({
   gradesHistory: { getCourseHistory: async () => historyOk },
 }));
-afterAll(() => mock.restore());
+afterAll(() => {
+  mock.module("@/lib/sections/server", () => realSectionsServer);
+  mock.module("@/lib/grades-history", () => realGradesHistory);
+  mock.restore();
+});
 
 const { GET } = await import("@/app/api/sections/[term]/[subject]/[number]/route");
 
