@@ -181,7 +181,7 @@ campus bounding box, retrieved from the Overpass API endpoint recorded with the 
 in `frontend/src/lib/campus/data/ut-austin/verification.json`
 (https://overpass.kumi.systems/api/interpreter, bbox 30.281,-97.744,30.291,-97.729), and
 they follow the same shape as the UNT Denton files under
-`frontend/src/lib/campus/data/unt/`. The adapter's `map` capability can point at these files
+`frontend/src/lib/campus/data/`. The adapter's `map` capability can point at these files
 as-is; what is missing compared to UNT is building code abbreviations (UT uses codes like
 "GDC" for the Gates Dell Complex in schedule locations), so a curated code-to-building table
 is a later task, sourced from UT's public Building Information app, which lists each building

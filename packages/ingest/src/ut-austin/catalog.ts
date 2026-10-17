@@ -164,10 +164,10 @@ function parseHours(text: string | null): { hours: number | null; hoursText: str
   return { hours: match ? Number(match[1]) : null, hoursText: text };
 }
 
-/** "3 Lecture Hours" -> 3; "1,2,3,4 Lecture Hours" -> null. */
+/** "3 Lecture Hours" -> 3; "4.5 Lab Hours" -> 4.5; "1,2,3,4 Lecture Hours" -> null. */
 function parseComponentHours(text: string | null): number | null {
   if (!text) return null;
-  const match = text.match(/^(\d+)\s+Lecture Hours$|^(\d+)\s+Lab Hours$/);
+  const match = text.match(/^(\d+(?:\.\d+)?)\s+Lecture Hours$|^(\d+(?:\.\d+)?)\s+Lab Hours$/);
   return match ? Number(match[1] ?? match[2]) : null;
 }
 
