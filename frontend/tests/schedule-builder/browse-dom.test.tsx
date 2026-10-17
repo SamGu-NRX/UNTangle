@@ -117,6 +117,13 @@ const buttons = (root: ParentNode, name: RegExp) =>
 const gridEvents = (root: ParentNode) => [...root.querySelectorAll<HTMLButtonElement>("[data-event]")].map((b) => b.textContent ?? "");
 const listbox = () => document.querySelector<HTMLElement>('[role="listbox"]')!;
 const option = (index: number) => document.getElementById(`combination-${index}`)!;
+/** A row's name from its content: its text, minus the hidden description and the aria-hidden drawing. */
+const shownText = (row: Element) =>
+  [...row.childNodes]
+    .filter((node) => !(node instanceof HTMLElement && (node.hidden || node.getAttribute("aria-hidden") === "true")))
+    .map((node) => node.textContent)
+    .join("");
+const description = (row: Element) => document.getElementById(row.getAttribute("aria-describedby")!)!.textContent;
 const toastText = () => document.querySelector(".ui-toast")?.textContent ?? "";
 
 async function hover(target: Element) {
@@ -143,13 +150,17 @@ describe("Browse all", () => {
     expect(document.body.textContent).toContain("4 combinations fit. Ranked by your preferences.");
     const options = [...listbox().querySelectorAll('[role="option"]')];
     expect(options).toHaveLength(4);
-    expect(options[0].getAttribute("aria-label")).toBe(
+    // WCAG 2.5.3: a row's name is its visible text, so voice control can say what it shows. The long
+    // version a screen reader hears after it is the row's description.
+    expect(options.map((o) => o.getAttribute("aria-label"))).toEqual([null, null, null, null]);
+    expect([shownText(options[0]), description(options[0])]).toEqual([
+      "1 3 days, 9:00–3:20 CSCE 2110 001 MATH 2700 001",
       "Combination 1: 3 days, 9:00 to 3:20. CSCE 2110 section 001; MATH 2700 section 001, same as your week.",
-    );
+    ]);
     // The twin row is its own row, named by its own section.
-    expect(options[1].getAttribute("aria-label")).toContain("CSCE 2110 section 003");
-    // The row that is the week as it is says so.
-    expect(options[2].getAttribute("aria-label")).toContain("your week");
+    expect(description(options[1])).toContain("CSCE 2110 section 003");
+    // The row that is the week as it is says so, shown and spoken.
+    expect([shownText(options[2]).includes("Your week"), description(options[2]).includes("your week")]).toEqual([true, true]);
     expect(options.map((o) => o.getAttribute("aria-posinset"))).toEqual(["1", "2", "3", "4"]);
     expect(options.every((o) => o.getAttribute("aria-setsize") === "4")).toBe(true);
     await view.unmount();

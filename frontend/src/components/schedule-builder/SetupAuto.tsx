@@ -309,6 +309,7 @@ type ReadyProps = { preferences: SchedulePreferences; onEdit: (key: LeanKey) => 
 
 function ReadyPane({ preferences: p, onEdit, heading, headingId, touch }: ReadyProps) {
   const rows = ledger(p);
+  const describedBy = useId();
   return (
     <>
       <p className={styles.eyebrow}>{CHAPTERS[2]}</p>
@@ -323,13 +324,19 @@ function ReadyPane({ preferences: p, onEdit, heading, headingId, touch }: ReadyP
           const [w, h] = CARD_SIZE[key];
           const Pic = LEAN_PIC[key];
           return (
-            <button key={key} type="button" className={prefs.card} data-wide={key === "time" ? "" : undefined} aria-label={`Change ${LEANS[key].title}, now ${leanValue(key, v)}`} onClick={() => onEdit(key)}>
+            // The name is the card's visible text, "Fewer days on campus A lot", so voice control can say
+            // what it shows (WCAG 2.5.3); as an aria-label, the spoken version below failed axe 4.14's
+            // label-content-name-mismatch. The space keeps the title and value apart in the name.
+            <button key={key} type="button" className={prefs.card} data-wide={key === "time" ? "" : undefined} aria-describedby={`${describedBy}-${key}`} onClick={() => onEdit(key)}>
               <span className={prefs.cardPic}>
                 <Pic v={v} w={key === "time" && touch ? 190 : w} h={h} />
               </span>
               <span>
-                <b>{LEANS[key].title}</b>
+                <b>{LEANS[key].title}</b>{" "}
                 <span className={prefs.cardValue}>{leanValue(key, v)}</span>
+              </span>
+              <span id={`${describedBy}-${key}`} hidden>
+                Change {LEANS[key].title}, now {leanValue(key, v)}
               </span>
             </button>
           );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, type CSSProperties, type KeyboardEvent } from "react";
+import { Fragment, useLayoutEffect, useMemo, useRef, type CSSProperties, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import type { Section } from "@/lib/sections";
 import styles from "./builder.module.css";
@@ -46,7 +46,10 @@ function figures(row: BrowseRow): string {
   return row.earliestStart === null || row.latestEnd === null ? days : `${days}, ${timeRange(row.earliestStart, row.latestEnd)}`;
 }
 
-/** What a screen reader hears for a row (the drawing is hidden from it). */
+/**
+ * A row's description: the long version a screen reader hears after its name, which is the row's
+ * visible text ("1 5 days, 8:00–11:00 ANTH 1010 100 …"). The drawing is hidden from it.
+ */
 function spoken(row: BrowseRow, index: number, names: readonly Name[], yours: boolean): string {
   const span = row.earliestStart === null || row.latestEnd === null ? "" : `, ${clock(row.earliestStart)} to ${clock(row.latestEnd)}`;
   const sections = names.map((name) => `${name.code} section ${name.label}${name.changed ? "" : ", same as your week"}`).join("; ");
@@ -204,7 +207,9 @@ export function CombinationsList({ feed, find, hueOf, current, active, previewed
             aria-selected={index === active}
             aria-posinset={index + 1}
             aria-setsize={rows.length}
-            aria-label={spoken(row, index, names, yours)}
+            // The name is the row's visible text, so voice control can say what it shows (WCAG 2.5.3);
+            // as an aria-label, the spoken version below failed axe 4.14's label-content-name-mismatch.
+            aria-describedby={`${optionId(index)}-spoken`}
             className={styles.combo}
             data-active={index === previewed || undefined}
             style={{ transform: `translateY(${index * rowHeight}px)` }}
@@ -215,9 +220,7 @@ export function CombinationsList({ feed, find, hueOf, current, active, previewed
               if (!disabled) onChoose(index, event.detail === 0);
             }}
           >
-            <span className={styles.comboRank} aria-hidden="true">
-              {index + 1}
-            </span>
+            <span className={styles.comboRank}>{index + 1}</span>{" "}
             <span className={styles.comboWeek} aria-hidden="true" style={{ "--days": scale.days.length } as CSSProperties}>
               {scale.days.map((day) => (
                 <span key={day}>
@@ -238,18 +241,26 @@ export function CombinationsList({ feed, find, hueOf, current, active, previewed
                 </span>
               ))}
             </span>
-            <span className={styles.comboText} aria-hidden="true">
+            {/* Spaces between the parts, which the grid and flex layouts don't draw, keep the name's
+                words apart: "8:00–11:00 ANTH 1010 100", not "8:00–11:00ANTH 1010 100". */}
+            <span className={styles.comboText}>
               <span className={styles.comboHead}>
                 {figures(row)}
-                {yours ? <span className={styles.comboYours}>Your week</span> : null}
-              </span>
+                {yours ? <> <span className={styles.comboYours}>Your week</span></> : null}
+              </span>{" "}
               <span className={styles.comboNames} data-columns={columns}>
-                {names.map((name) => (
-                  <span key={name.code} data-hue={hueOf(name.code)} data-same={name.changed ? undefined : ""}>
-                    <b>{name.code}</b> {name.label}
-                  </span>
+                {names.map((name, i) => (
+                  <Fragment key={name.code}>
+                    {i > 0 ? " " : null}
+                    <span data-hue={hueOf(name.code)} data-same={name.changed ? undefined : ""}>
+                      <b>{name.code}</b> {name.label}
+                    </span>
+                  </Fragment>
                 ))}
               </span>
+            </span>
+            <span id={`${optionId(index)}-spoken`} hidden>
+              {spoken(row, index, names, yours)}
             </span>
           </div>
         );
