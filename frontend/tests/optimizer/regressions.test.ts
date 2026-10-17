@@ -482,4 +482,51 @@ describe("walking places", () => {
       { day: "Mon", start: 591, end: 641, buildingId: null, place: "FRLD" },
     ])).schedules[0]).toMatchObject({ cost: 0, breakdown: { walkSeconds: 0, unknownWalks: 0 } });
   });
+
+  test("an online intermediary keeps the walking lower bound admissible", () => {
+    const walkingTime: OptimizeRequest["walkingTime"] = (from, to) => {
+      if (from === to) return { seconds: 0, source: "campus-network" };
+      const pair = [from, to].sort().join(">");
+      if (pair === "A>M" || pair === "B>M") return { seconds: 600, source: "campus-network" };
+      if (pair === "A>B") return { seconds: 1800, source: "campus-network" };
+      return { seconds: null, source: "unknown" };
+    };
+    const request: OptimizeRequest = {
+      courses: [
+        {
+          code: "A",
+          credits: 3,
+          sections: [
+            { id: "a-good", courseCode: "A", rating: 5, meetings: [
+              { day: "Mon", start: 540, end: 600, buildingId: "M", place: "M" },
+              { day: "Mon", start: 600, end: 605, buildingId: "M", place: "M" },
+            ] },
+            { id: "a-online-wins", courseCode: "A", rating: 5, meetings: [{ day: "Mon", start: 540, end: 600, buildingId: "A", place: "A" }] },
+          ],
+        },
+        { code: "B", credits: 3, sections: [{ id: "b", courseCode: "B", rating: 5, meetings: [{ day: "Mon", start: 660, end: 720, buildingId: "B", place: "B" }] }] },
+
+        {
+          code: "C",
+          credits: 3,
+          sections: [
+            { id: "c-in-person", courseCode: "C", rating: 5, meetings: [{ day: "Mon", start: 610, end: 650, buildingId: "M", place: "M" }] },
+            { id: "c-online", courseCode: "C", rating: 4.9, meetings: [{ day: "Mon", start: 600, end: 640, buildingId: null, place: "online" }] },
+          ],
+        },
+      ],
+      locks: {},
+      excluded: [],
+      constraints: { ...none, walking: null },
+      weights: { ...weights, rating: 1 },
+      walkingTime,
+      k: 1,
+    };
+    const result = optimize(request);
+    const reference = referenceTopK(request);
+    expect(result.schedules[0]).toMatchObject({ byCourse: { A: "a-online-wins", C: "c-online" }, cost: 180 });
+    expect(reference.schedules[0]).toMatchObject({ byCourse: { A: "a-online-wins", C: "c-online" }, cost: 180 });
+    expect(result.schedules[0].byCourse).toEqual(reference.schedules[0].byCourse);
+    expect(result.schedules[0].cost).toBe(reference.schedules[0].cost);
+  });
 });

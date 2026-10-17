@@ -175,9 +175,9 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
           if (filled > 0) {
             if (oneSegment) {
               if (filled < window) gap += window - filled;
-              if (!noWalkBetween(prev, next)) {
-                walkCost += walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
-              }
+              // A remaining meeting can occupy this gap, including online, and
+              // remove the endpoint pair. Charging any walk here would not be
+              // a lower bound, so leave it at zero when fill is possible.
             }
           } else {
             gap += window;
@@ -222,16 +222,14 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
         // this bound, so there is no per-segment table to build or retain.
         if (fill !== null) for (let r = 0; r < count && filled < window; r += 1) filled += fill[remaining[r]][day][cell];
         cost += weights.compact * COST_PER_GAP_MINUTE * Math.max(0, window - filled);
-        if (!noWalkBetween(prev, next)) {
-          let walking: number;
-          if (filled === 0) {
-            walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;
-            if (bufferSeconds !== null && window * 60 < walking + bufferSeconds) return -1;
-          } else {
-            walking = walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
-          }
+        if (!noWalkBetween(prev, next) && filled === 0) {
+          const walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;
+          if (bufferSeconds !== null && window * 60 < walking + bufferSeconds) return -1;
           cost += weights.walking * COST_PER_WALK_SECOND * walking;
         }
+        // When fill is possible, a remaining meeting can occupy this gap,
+        // including online, and remove the endpoint pair. Charging any walk
+        // there would not be a lower bound, so the bound charges none.
       }
       prev = next;
     }

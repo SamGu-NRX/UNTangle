@@ -810,9 +810,6 @@ function search(prepared, budget, options) {
             if (oneSegment) {
               if (filled < window)
                 gap += window - filled;
-              if (!noWalkBetween(prev, next)) {
-                walkCost += walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
-              }
             }
           } else {
             gap += window;
@@ -857,15 +854,10 @@ function search(prepared, budget, options) {
           for (let r = 0;r < count && filled < window; r += 1)
             filled += fill[remaining[r]][day][cell];
         cost += weights.compact * COST_PER_GAP_MINUTE * Math.max(0, window - filled);
-        if (!noWalkBetween(prev, next)) {
-          let walking;
-          if (filled === 0) {
-            walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;
-            if (bufferSeconds !== null && window * 60 < walking + bufferSeconds)
-              return -1;
-          } else {
-            walking = walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
-          }
+        if (!noWalkBetween(prev, next) && filled === 0) {
+          const walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;
+          if (bufferSeconds !== null && window * 60 < walking + bufferSeconds)
+            return -1;
           cost += weights.walking * COST_PER_WALK_SECOND * walking;
         }
       }
