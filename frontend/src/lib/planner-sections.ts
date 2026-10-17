@@ -258,8 +258,8 @@ const sampleRatings = new Map(seedSections.map((section) => [section.id, section
 
 /**
  * The one adapter from an enrollment option to the optimizer's section: every
- * component's timed meetings, with their date ranges and building ids (null
- * stays null, an unknown walk). Returns null for an option with no timed
+ * component's timed meetings, with their date ranges, mapped building ids and
+ * walking places. An absent place stays null for an unassigned room. Returns null for an option with no timed
  * meeting, which has nothing to place on the week.
  */
 export function toOptSection(section: Section, instructorGpaHundredths?: number | null): OptSection | null {
@@ -269,6 +269,7 @@ export function toOptSection(section: Section, instructorGpaHundredths?: number 
       start: meeting.startMinutes,
       end: meeting.endMinutes,
       buildingId: meeting.buildingId,
+      place: meeting.kind === "online" ? "online" : (meeting.buildingId ?? meeting.buildingCode),
       dates: knownRange(meeting.dates),
     }),
   );

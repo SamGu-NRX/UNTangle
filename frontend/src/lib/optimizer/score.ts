@@ -99,8 +99,20 @@ export function selfCost(section: OptSection, weights: OptWeights, neutralTenths
   return lean * COST_PER_LEAN_MINUTE + weights.rating * own.shortfall * COST_PER_RATING_TENTH;
 }
 
-export function sameBuilding(a: string | null, b: string | null): boolean {
-  return a !== null && b !== null && a === b;
+const ONLINE_PLACE = "online";
+
+/** The place key used by Week: mapped building id, unmapped building code, or null. */
+type MeetingPlace = { buildingId?: string | null; place?: string | null };
+
+export function placeOf(meeting: MeetingPlace): string | null {
+  return meeting.place === undefined ? (meeting.buildingId ?? null) : meeting.place;
+}
+
+/** Whether two consecutive meetings need no walk. */
+export function noWalkBetween(from: MeetingPlace, to: MeetingPlace): boolean {
+  const fromPlace = placeOf(from);
+  const toPlace = placeOf(to);
+  return fromPlace === ONLINE_PLACE || toPlace === ONLINE_PLACE || (fromPlace !== null && fromPlace === toPlace);
 }
 
 /**
@@ -211,6 +223,7 @@ export function costTerms(input: ScoreInput): CostTerms {
     if (!list) continue;
     someBackToBack(list, (prev, next) => {
       terms.gapMinutes += Math.max(0, next.start - prev.end);
+      if (noWalkBetween(prev, next)) return false;
       const walk = walkSeconds(walkingTime, prev.buildingId, next.buildingId);
       if (walk === null) terms.unknownWalks += 1;
       else terms.knownTravelSeconds += walk;

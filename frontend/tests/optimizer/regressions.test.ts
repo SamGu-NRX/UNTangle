@@ -414,7 +414,7 @@ describe("explanations name dates when the sessions differ", () => {
 });
 
 
-test("unroutable same-ID meetings fail a hard walking constraint in direct and worker searches", () => {
+test("same-place meetings do not require a walk when the provider cannot route them", () => {
   const request: OptimizeRequest = {
     courses: [
       { code: "A", credits: 3, sections: [{ id: "a", courseCode: "A", rating: null, meetings: [{ day: "Mon", start: 540, end: 590, buildingId: "ntdp" }] }] },
@@ -425,12 +425,12 @@ test("unroutable same-ID meetings fail a hard walking constraint in direct and w
     weights: { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 },
     walkingTime: () => ({ seconds: null, source: "unknown" }),
   };
-  expect(optimize(request).status).toBe("infeasible");
-  expect(referenceTopK(request).schedules).toEqual([]);
-  expect(optimize(fromPlainRequest(toPlainRequest(request), 60_000)).status).toBe("infeasible");
+  expect(optimize(request).status).toBe("optimal");
+  expect(referenceTopK(request).schedules).not.toEqual([]);
+  expect(optimize(fromPlainRequest(toPlainRequest(request), 60_000)).status).toBe("optimal");
   const scored = { ...request, constraints: { ...request.constraints, walking: null }, weights: { ...request.weights, walking: 1 } };
-  expect(optimize(scored).schedules[0]).toMatchObject({ cost: 600, breakdown: { unknownWalks: 1, walkSeconds: 0 } });
-  expect(referenceTopK(scored).schedules[0]).toMatchObject({ cost: 600, breakdown: { unknownWalks: 1, walkSeconds: 0 } });
+  expect(optimize(scored).schedules[0]).toMatchObject({ cost: 0, breakdown: { unknownWalks: 0, walkSeconds: 0 } });
+  expect(referenceTopK(scored).schedules[0]).toMatchObject({ cost: 0, breakdown: { unknownWalks: 0, walkSeconds: 0 } });
   expect(optimize({ ...request, walkingTime: () => ({ seconds: 0, source: "campus-network" }) }).status).toBe("optimal");
 });
 
@@ -449,5 +449,102 @@ describe("a course with zero options", () => {
       walkingTime: () => ({ seconds: 60, source: "campus-network" }),
     });
     expect(result.schedules).toEqual([]);
+  });
+});
+
+describe("walking places", () => {
+  const weights = { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 1, rating: 0 };
+  const none = { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: null };
+  const request = (meetings: OptMeeting[], constraints: OptimizeRequest["constraints"] = none): OptimizeRequest => ({
+    courses: meetings.map((meeting, i) => ({
+      code: `C${i}`,
+      credits: 3,
+      sections: [{ id: `c${i}`, courseCode: `C${i}`, rating: null, meetings: [meeting] }],
+    })),
+    locks: {},
+    excluded: [],
+    constraints,
+    weights,
+    walkingTime: () => ({ seconds: null, source: "unknown" }),
+  });
+
+  test("a timed online class has no cost and does not fail a tight walking check", () => {
+    const meetings: OptMeeting[] = [
+      { day: "Mon", start: 540, end: 590, buildingId: null, place: "online" },
+      { day: "Mon", start: 591, end: 641, buildingId: "cury", place: "cury" },
+    ];
+    const scored = optimize(request(meetings));
+    expect(scored).toMatchObject({ status: "optimal", schedules: [{ cost: 0, breakdown: { walkSeconds: 0, unknownWalks: 0 } }] });
+    expect(referenceTopK(request(meetings)).schedules[0]).toMatchObject({ cost: 0, breakdown: { walkSeconds: 0, unknownWalks: 0 } });
+
+    const checked = optimize(request(meetings, { ...none, walking: { bufferMinutes: 0 } }));
+    expect(checked.status).toBe("optimal");
+  });
+
+  test("an unassigned in-person class still has an unknown walk to a mapped building", () => {
+    const result = optimize(request([
+      { day: "Mon", start: 540, end: 590, buildingId: null, place: null },
+      { day: "Mon", start: 591, end: 641, buildingId: "cury", place: "cury" },
+    ]));
+    expect(result).toMatchObject({ status: "optimal", schedules: [{ cost: 600, breakdown: { walkSeconds: 0, unknownWalks: 1 } }] });
+  });
+
+  test("two classes in the same unmapped building have no walk", () => {
+    const result = optimize(request([
+      { day: "Mon", start: 540, end: 590, buildingId: null, place: "FRLD" },
+      { day: "Mon", start: 591, end: 641, buildingId: null, place: "FRLD" },
+    ]));
+    expect(result).toMatchObject({ status: "optimal", schedules: [{ cost: 0, breakdown: { walkSeconds: 0, unknownWalks: 0 } }] });
+    expect(referenceTopK(request([
+      { day: "Mon", start: 540, end: 590, buildingId: null, place: "FRLD" },
+      { day: "Mon", start: 591, end: 641, buildingId: null, place: "FRLD" },
+    ])).schedules[0]).toMatchObject({ cost: 0, breakdown: { walkSeconds: 0, unknownWalks: 0 } });
+  });
+
+  test("an online intermediary keeps the walking lower bound admissible", () => {
+    const walkingTime: OptimizeRequest["walkingTime"] = (from, to) => {
+      if (from === to) return { seconds: 0, source: "campus-network" };
+      const pair = [from, to].sort().join(">");
+      if (pair === "A>M" || pair === "B>M") return { seconds: 600, source: "campus-network" };
+      if (pair === "A>B") return { seconds: 1800, source: "campus-network" };
+      return { seconds: null, source: "unknown" };
+    };
+    const request: OptimizeRequest = {
+      courses: [
+        {
+          code: "A",
+          credits: 3,
+          sections: [
+            { id: "a-good", courseCode: "A", rating: 5, meetings: [
+              { day: "Mon", start: 540, end: 600, buildingId: "M", place: "M" },
+              { day: "Mon", start: 600, end: 605, buildingId: "M", place: "M" },
+            ] },
+            { id: "a-online-wins", courseCode: "A", rating: 5, meetings: [{ day: "Mon", start: 540, end: 600, buildingId: "A", place: "A" }] },
+          ],
+        },
+        { code: "B", credits: 3, sections: [{ id: "b", courseCode: "B", rating: 5, meetings: [{ day: "Mon", start: 660, end: 720, buildingId: "B", place: "B" }] }] },
+
+        {
+          code: "C",
+          credits: 3,
+          sections: [
+            { id: "c-in-person", courseCode: "C", rating: 5, meetings: [{ day: "Mon", start: 610, end: 650, buildingId: "M", place: "M" }] },
+            { id: "c-online", courseCode: "C", rating: 4.9, meetings: [{ day: "Mon", start: 600, end: 640, buildingId: null, place: "online" }] },
+          ],
+        },
+      ],
+      locks: {},
+      excluded: [],
+      constraints: { ...none, walking: null },
+      weights: { ...weights, rating: 1 },
+      walkingTime,
+      k: 1,
+    };
+    const result = optimize(request);
+    const reference = referenceTopK(request);
+    expect(result.schedules[0]).toMatchObject({ byCourse: { A: "a-online-wins", C: "c-online" }, cost: 180 });
+    expect(reference.schedules[0]).toMatchObject({ byCourse: { A: "a-online-wins", C: "c-online" }, cost: 180 });
+    expect(result.schedules[0].byCourse).toEqual(reference.schedules[0].byCourse);
+    expect(result.schedules[0].cost).toBe(reference.schedules[0].cost);
   });
 });
