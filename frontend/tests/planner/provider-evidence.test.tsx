@@ -5,7 +5,7 @@
  * From the round-5 finding that the provider's resolveSectionPlan call dropped
  * the map, so the recommendations the page shows tie-breaked on section id.
  */
-import { afterAll, afterEach, beforeAll, beforeEach, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, mock, test } from "bun:test";
 import type { GradeData } from "@/lib/grades";
 import type { CourseHistory, HistoryResult, HistoryTerm } from "@/lib/grades-history/types";
 import type { CourseOptions, SectionCatalog } from "@/lib/planner-sections";

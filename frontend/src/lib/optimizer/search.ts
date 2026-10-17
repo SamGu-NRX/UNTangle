@@ -148,8 +148,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     return seconds < 0 ? null : seconds;
   };
 
-  const { times, timeIndex, fill, walkFloor } = prepared;
-  const floorStride = buildingCount + 1;
+  const { times, timeIndex, fill } = prepared;
   const timeCount = times.length;
   const pairsMatter = weights.compact > 0 || weights.walking > 0 || bufferSeconds !== null;
   // A range with no occurrence has mask 0 and cannot support the weekly bounds.

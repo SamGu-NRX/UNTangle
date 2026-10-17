@@ -30,7 +30,6 @@ import {
 import { neutralRatingTenths, noWalkBetween, placeOf, selfCost, transferFits, UNKNOWN_WALK_SECONDS, walkSeconds } from "./score";
 import { dayNumber, someBackToBack, weekSegments } from "./weeks";
 import {
-  type EvidenceContributions,
   instructorEvidenceContributions,
 } from "@untangle/core/instructor-tiebreak";
 

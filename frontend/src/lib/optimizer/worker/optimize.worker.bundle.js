@@ -838,8 +838,7 @@ function search(prepared, budget, options) {
     const seconds = walk[from * buildingCount + to];
     return seconds < 0 ? null : seconds;
   };
-  const { times, timeIndex, fill, walkFloor } = prepared;
-  const floorStride = buildingCount + 1;
+  const { times, timeIndex, fill } = prepared;
   const timeCount = times.length;
   const pairsMatter = weights.compact > 0 || weights.walking > 0 || bufferSeconds !== null;
   const oneSegment = prepared.weekSegments === 1 && prepared.candidates.every((c) => c.meetings.every((m) => m.weeks !== 0));
