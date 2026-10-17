@@ -5,7 +5,7 @@ Every primitive in `frontend/src/components/ui/`, read from the code at the comm
 Build features from these. If none fits, ask the lead: `components/ui/**` is lead-owned, and a near-copy in a feature folder is the start of a second design system.
 
 Two rules hold for every primitive:
-- Course codes inside any of them use the `.ui-code` class. Sam's rule makes that class DM Sans 600 with tabular numerals; until the lead updates `ui.css`, it still renders in Syne (see "Known gaps" below).
+- Course codes inside any of them use the `.ui-code` class, which `ui.css` renders in DM Sans 600 with tabular numerals (Sam's rule).
 - Each primitive already handles focus rings, 44px coarse-pointer hit areas, reduced motion and keyboard-instant behavior. Don't override its transitions or `:focus-visible` styles.
 
 ## Actions
@@ -102,6 +102,7 @@ The ⌘K layer. It opens and closes with no animation, keeps focus in the input,
 ### BottomSheet (`BottomSheet.tsx`)
 - **Props:** `open`, `onOpenChange`, `title`, `detents` (default `["92%"]`; detail sheets pass `["52%", "92%"]`), `initialDetent`, `detent` and `onDetentChange` (controlled), `modal`, `dismissible`, `glass`, `closeOnBack`, `returnFocus`, `header`, `initialFocus`.
 - **States:** each detent, dragging (follows the finger), settling (spring), dismissing. Reduced motion jumps between detents with a short opacity dip.
+- **Focus on open:** a modal sheet opened without `initialFocus` focuses its heading, else its first control after the resize handle, else the sheet. The heading takes `tabindex="-1"` and draws no ring, because it is not a control; the handle stays in the Tab order and shows its ring when a keyboard user reaches it. Only a heading or control that belongs to this sheet counts: anything hidden, inert, or inside a dialog, menu or listbox nested in the sheet is skipped. Because a focused heading sits outside the Tab order, the Tab trap wraps from it: Shift+Tab from a heading before every stop goes to the last stop, and Tab from one after them goes to the first.
 - **Use when:** you need a phone sheet that `ContextPanel` or `Dialog` doesn't already give you. The Day itinerary is the non-modal, glass case.
 - **Don't use when:** on desktop. Don't stack a second sheet; replace the first sheet's content.
 - **Specimen:** Toast, dialog, sheet ("Course sheet", "Day sheet").
@@ -164,6 +165,5 @@ The ⌘K layer. It opens and closes with no animation, keeps focus in the input,
 
 ## Known gaps
 
-- `.ui-code`, `.ui-plate__code`, `.ui-path__stop` and `.ui-slider__bubble` in `ui.css` still use `--font-mark` (Syne). Sam's rule says DM Sans: 600 with tabular numerals for codes, 700 for plates, pin numbers and the leave-by numeral. The lead owns the fix. Don't work around it in feature CSS.
 - `RangeSlider`, `DatePicker` in range mode, `TermPresets` and `SearchPalette` have no `/dev/controls` specimen.
 - `Row` and `FactList` were proposed as primitives and don't exist. Build rows from the anatomy in [surfaces.md](surfaces.md).
