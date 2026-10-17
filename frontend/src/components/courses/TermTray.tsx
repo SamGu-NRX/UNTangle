@@ -31,6 +31,8 @@ type Props = {
   weekHref: string;
   /** Less frequent tray actions, one step away behind ⋯. Empty hides the menu. */
   more: MenuEntry[];
+  /** The one sentence an empty tray shows: where Auto's courses come from. */
+  emptyText: string;
 };
 
 /**
@@ -38,7 +40,7 @@ type Props = {
  * term, its credits, Auto, and the courses in it. Empty, it shows where the
  * courses will go and one sentence about Auto.
  */
-export function TermTray({ term, rows, colors, pending, budget, running, onAuto, result, selectedId, actions, weekHref, more }: Props) {
+export function TermTray({ term, rows, colors, pending, budget, running, onAuto, result, selectedId, actions, weekHref, more, emptyText }: Props) {
   const credits = rows.reduce((sum, row) => sum + (pending.has(row.id) ? 0 : row.credits), 0);
   const over = credits > budget;
   return (
@@ -106,7 +108,7 @@ export function TermTray({ term, rows, colors, pending, budget, running, onAuto,
             <i />
             <i />
           </div>
-          <p>Auto fills this term from courses you can take.</p>
+          <p>{emptyText}</p>
         </div>
       )}
     </section>

@@ -102,7 +102,8 @@ export function SearchTrigger({
       {compact ? null : (
         <span className="ui-search-trigger__visible" aria-hidden="true">
           <span className="ui-search-trigger__text">{placeholder}</span>
-          <Kbd className="ui-search__kbd">{shortcut}</Kbd>
+          {/* An empty shortcut (Courses' phone field) drew an empty key cap. */}
+          {shortcut ? <Kbd className="ui-search__kbd">{shortcut}</Kbd> : null}
         </span>
       )}
     </button>

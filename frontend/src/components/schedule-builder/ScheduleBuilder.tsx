@@ -814,7 +814,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
                       disabled={previewing}
                       onClick={() => openPanel({ kind: "event", code: section.courseCode })}
                     >
-                      <span className={styles.code}>{section.courseCode}</span>
+                      <span className={styles.code}>{section.courseCode}</span>{" "}
                       {section.online || section.async ? "Online" : "TBA"}
                     </button>
                   ))}
@@ -1027,7 +1027,10 @@ function FinalsLine({
             aria-label={name}
             onClick={() => onOpen(courseCode)}
           >
-            <span className={styles.code}>{courseCode}</span>
+            {/* The space keeps the pill's text "BIOL 1710 Tue 3:30 PM", the start of its name, so a
+                voice-control user can say what it shows (WCAG 2.5.3). Without it the text ran together
+                and axe's label-content-name-mismatch failed. */}
+            <span className={styles.code}>{courseCode}</span>{" "}
             {/* The outline's color isn't the only sign of an overlap: the glyph marks it too. */}
             <span className={styles.pillTime}>
               {clash ? <AlertGlyph size={14} /> : null}

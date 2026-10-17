@@ -2,14 +2,13 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { MoonGlyph, SunriseGlyph } from "@/components/ui/icons";
-import type { SchedulePreferences, WeekDay } from "@/lib/types";
+import type { SchedulePreferences } from "@/lib/types";
 import { GRID_END, GRID_START, isBusy, isWeekly, paint, STEP, toggleDayOff, UNNAMED, withHours } from "./limits";
 import styles from "./prefs.module.css";
 import { WEEKDAYS } from "./preferences";
 import { clockWithSuffix, DAY_NAME } from "./week";
 
 const ROWS = (GRID_END - GRID_START) / STEP;
-const PLURAL: Record<WeekDay, string> = { Mon: "Mondays", Tue: "Tuesdays", Wed: "Wednesdays", Thu: "Thursdays", Fri: "Fridays" };
 /** A touch held this long paints instead of scrolling. */
 const HOLD_MS = 320;
 /** A touch that moves farther than this before the hold is a scroll. */
@@ -197,9 +196,12 @@ export function PaintGrid({ preferences: p, onChange, newId, touch }: Props) {
       <div className={styles.paintDays}>
         {WEEKDAYS.map((day) => {
           const off = c.daysOff.includes(day);
+          // The name is what the button shows when pressed, "Fri off", so voice control can say what it
+          // sees either way (WCAG 2.5.3). "Fridays off" failed axe 4.14's label-content-name-mismatch:
+          // "Fri" is no word in it. The space keeps the shown text "Fri Off", not "FriOff".
           return (
-            <button key={day} type="button" className={styles.paintDay} aria-pressed={off} aria-label={`${PLURAL[day]} off`} onClick={() => onChange((q) => toggleDayOff(q, day))}>
-              <span>{day}</span>
+            <button key={day} type="button" className={styles.paintDay} aria-pressed={off} aria-label={`${day} off`} onClick={() => onChange((q) => toggleDayOff(q, day))}>
+              <span>{day}</span>{" "}
               <small aria-hidden="true">Off</small>
             </button>
           );

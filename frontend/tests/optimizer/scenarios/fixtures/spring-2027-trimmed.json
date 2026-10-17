@@ -22432,6 +22432,743 @@
    ],
    "status": "ok"
   },
+  "PSYC 1630": {
+   "course_code": "PSYC 1630",
+   "fetched_at": "2026-10-04T16:22:39.705058+00:00",
+   "message": "11 enrollment options in 2027 Spring",
+   "section_count": 11,
+   "sections": [
+    {
+     "class_number": "13371",
+     "class_numbers": [
+      "13371"
+     ],
+     "component": "Enrollment option",
+     "days": "",
+     "days_and_times": "None",
+     "end_time": "",
+     "instructor": "Contractor,Ateka Akbar",
+     "linked_sections": [
+      {
+       "class_number": "13371",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Contractor,Ateka Akbar",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 150,
+       "room": "UNT Internet Course",
+       "section": "400",
+       "start_time": "",
+       "total_seats": 150
+      }
+     ],
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "meetings": [
+      {
+       "class_number": "13371",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Contractor,Ateka Akbar",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "UNT Internet Course",
+       "section": "400",
+       "start_time": ""
+      }
+     ],
+     "open_seats": 150,
+     "option": "1",
+     "room": "UNT Internet Course",
+     "section": "400",
+     "session": "Regular Academic Session",
+     "start_time": "",
+     "status": "Open",
+     "total_seats": 150
+    },
+    {
+     "class_number": "12801",
+     "class_numbers": [
+      "12801"
+     ],
+     "component": "Enrollment option",
+     "days": "MWF",
+     "days_and_times": "Monday Wednesday Friday 1:00PM to 1:50PM",
+     "end_time": "1:50PM",
+     "instructor": "Baysden,Matthew Fleming",
+     "linked_sections": [
+      {
+       "class_number": "12801",
+       "days": "MWF",
+       "days_and_times": "Monday Wednesday Friday 1:00PM to 1:50PM",
+       "end_time": "1:50PM",
+       "instructor": "Baysden,Matthew Fleming",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 75,
+       "room": "FRLD 360",
+       "section": "501",
+       "start_time": "1:00PM",
+       "total_seats": 75
+      }
+     ],
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "meetings": [
+      {
+       "class_number": "12801",
+       "days": "MWF",
+       "days_and_times": "Monday Wednesday Friday 1:00PM to 1:50PM",
+       "end_time": "1:50PM",
+       "instructor": "Baysden,Matthew Fleming",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "FRLD 360",
+       "section": "501",
+       "start_time": "1:00PM"
+      }
+     ],
+     "open_seats": 75,
+     "option": "2",
+     "room": "FRLD 360",
+     "section": "501",
+     "session": "Regular Academic Session",
+     "start_time": "1:00PM",
+     "status": "Open",
+     "total_seats": 75
+    },
+    {
+     "class_number": "2261",
+     "class_numbers": [
+      "2261"
+     ],
+     "component": "Enrollment option",
+     "days": "",
+     "days_and_times": "None",
+     "end_time": "",
+     "instructor": "Sims,Calvin Matthew",
+     "linked_sections": [
+      {
+       "class_number": "2261",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Sims,Calvin Matthew",
+       "meeting_dates": "12/14/2026 - 01/08/2027",
+       "open_seats": 80,
+       "room": "UNT Internet Course",
+       "section": "402",
+       "start_time": "",
+       "total_seats": 80
+      }
+     ],
+     "meeting_dates": "12/14/2026 - 01/08/2027",
+     "meetings": [
+      {
+       "class_number": "2261",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Sims,Calvin Matthew",
+       "meeting_dates": "12/14/2026 - 01/08/2027",
+       "room": "UNT Internet Course",
+       "section": "402",
+       "start_time": ""
+      }
+     ],
+     "open_seats": 80,
+     "option": "3",
+     "room": "UNT Internet Course",
+     "section": "402",
+     "session": "3 Week 1",
+     "start_time": "",
+     "status": "Open",
+     "total_seats": 80
+    },
+    {
+     "class_number": "1406+13146",
+     "class_numbers": [
+      "1406",
+      "13146"
+     ],
+     "component": "Enrollment option",
+     "days": "",
+     "days_and_times": "None \u2022 Tuesday 11:15AM to 12:05PM",
+     "end_time": "",
+     "instructor": "Manriquez,Lisa",
+     "linked_sections": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 560,
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": "",
+       "total_seats": 560
+      },
+      {
+       "class_number": "13146",
+       "days": "T",
+       "days_and_times": "Tuesday 11:15AM to 12:05PM",
+       "end_time": "12:05PM",
+       "instructor": "Clayton,Krisstal Dawn",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 70,
+       "room": "Peb 216",
+       "section": "301",
+       "start_time": "11:15AM",
+       "total_seats": 70
+      }
+     ],
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "meetings": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": ""
+      },
+      {
+       "class_number": "13146",
+       "days": "T",
+       "days_and_times": "Tuesday 11:15AM to 12:05PM",
+       "end_time": "12:05PM",
+       "instructor": "Clayton,Krisstal Dawn",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "Peb 216",
+       "section": "301",
+       "start_time": "11:15AM"
+      }
+     ],
+     "open_seats": 560,
+     "option": "4",
+     "room": "UNT Internet Course",
+     "section": "401 + 301",
+     "session": "Regular Academic Session",
+     "start_time": "",
+     "status": "Open",
+     "total_seats": 560
+    },
+    {
+     "class_number": "1406+13149",
+     "class_numbers": [
+      "1406",
+      "13149"
+     ],
+     "component": "Enrollment option",
+     "days": "",
+     "days_and_times": "None \u2022 Wednesday 9:05AM to 9:55AM",
+     "end_time": "",
+     "instructor": "Manriquez,Lisa",
+     "linked_sections": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 560,
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": "",
+       "total_seats": 560
+      },
+      {
+       "class_number": "13149",
+       "days": "W",
+       "days_and_times": "Wednesday 9:05AM to 9:55AM",
+       "end_time": "9:55AM",
+       "instructor": "Grohman,Magdalena Grazyna",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 70,
+       "room": "BLB 015",
+       "section": "303",
+       "start_time": "9:05AM",
+       "total_seats": 70
+      }
+     ],
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "meetings": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": ""
+      },
+      {
+       "class_number": "13149",
+       "days": "W",
+       "days_and_times": "Wednesday 9:05AM to 9:55AM",
+       "end_time": "9:55AM",
+       "instructor": "Grohman,Magdalena Grazyna",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "BLB 015",
+       "section": "303",
+       "start_time": "9:05AM"
+      }
+     ],
+     "open_seats": 560,
+     "option": "5",
+     "room": "UNT Internet Course",
+     "section": "401 + 303",
+     "session": "Regular Academic Session",
+     "start_time": "",
+     "status": "Open",
+     "total_seats": 560
+    },
+    {
+     "class_number": "1406+13145",
+     "class_numbers": [
+      "1406",
+      "13145"
+     ],
+     "component": "Enrollment option",
+     "days": "",
+     "days_and_times": "None \u2022 Monday 2:30PM to 3:20PM",
+     "end_time": "",
+     "instructor": "Manriquez,Lisa",
+     "linked_sections": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 560,
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": "",
+       "total_seats": 560
+      },
+      {
+       "class_number": "13145",
+       "days": "M",
+       "days_and_times": "Monday 2:30PM to 3:20PM",
+       "end_time": "3:20PM",
+       "instructor": "Grohman,Magdalena Grazyna",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 70,
+       "room": "Peb 216",
+       "section": "300",
+       "start_time": "2:30PM",
+       "total_seats": 70
+      }
+     ],
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "meetings": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": ""
+      },
+      {
+       "class_number": "13145",
+       "days": "M",
+       "days_and_times": "Monday 2:30PM to 3:20PM",
+       "end_time": "3:20PM",
+       "instructor": "Grohman,Magdalena Grazyna",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "Peb 216",
+       "section": "300",
+       "start_time": "2:30PM"
+      }
+     ],
+     "open_seats": 560,
+     "option": "6",
+     "room": "UNT Internet Course",
+     "section": "401 + 300",
+     "session": "Regular Academic Session",
+     "start_time": "",
+     "status": "Open",
+     "total_seats": 560
+    },
+    {
+     "class_number": "1406+13151",
+     "class_numbers": [
+      "1406",
+      "13151"
+     ],
+     "component": "Enrollment option",
+     "days": "",
+     "days_and_times": "None \u2022 Thursday 1:25PM to 2:15PM",
+     "end_time": "",
+     "instructor": "Manriquez,Lisa",
+     "linked_sections": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 560,
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": "",
+       "total_seats": 560
+      },
+      {
+       "class_number": "13151",
+       "days": "R",
+       "days_and_times": "Thursday 1:25PM to 2:15PM",
+       "end_time": "2:15PM",
+       "instructor": "Hord,Caitlyn Nicole",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 70,
+       "room": "BLB 015",
+       "section": "305",
+       "start_time": "1:25PM",
+       "total_seats": 70
+      }
+     ],
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "meetings": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": ""
+      },
+      {
+       "class_number": "13151",
+       "days": "R",
+       "days_and_times": "Thursday 1:25PM to 2:15PM",
+       "end_time": "2:15PM",
+       "instructor": "Hord,Caitlyn Nicole",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "BLB 015",
+       "section": "305",
+       "start_time": "1:25PM"
+      }
+     ],
+     "open_seats": 560,
+     "option": "7",
+     "room": "UNT Internet Course",
+     "section": "401 + 305",
+     "session": "Regular Academic Session",
+     "start_time": "",
+     "status": "Open",
+     "total_seats": 560
+    },
+    {
+     "class_number": "1406+13152",
+     "class_numbers": [
+      "1406",
+      "13152"
+     ],
+     "component": "Enrollment option",
+     "days": "",
+     "days_and_times": "None \u2022 Friday 9:05AM to 9:55AM",
+     "end_time": "",
+     "instructor": "Manriquez,Lisa",
+     "linked_sections": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 560,
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": "",
+       "total_seats": 560
+      },
+      {
+       "class_number": "13152",
+       "days": "F",
+       "days_and_times": "Friday 9:05AM to 9:55AM",
+       "end_time": "9:55AM",
+       "instructor": "Grohman,Magdalena Grazyna",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 70,
+       "room": "Wh 216",
+       "section": "306",
+       "start_time": "9:05AM",
+       "total_seats": 70
+      }
+     ],
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "meetings": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": ""
+      },
+      {
+       "class_number": "13152",
+       "days": "F",
+       "days_and_times": "Friday 9:05AM to 9:55AM",
+       "end_time": "9:55AM",
+       "instructor": "Grohman,Magdalena Grazyna",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "Wh 216",
+       "section": "306",
+       "start_time": "9:05AM"
+      }
+     ],
+     "open_seats": 560,
+     "option": "8",
+     "room": "UNT Internet Course",
+     "section": "401 + 306",
+     "session": "Regular Academic Session",
+     "start_time": "",
+     "status": "Open",
+     "total_seats": 560
+    },
+    {
+     "class_number": "1406+13182",
+     "class_numbers": [
+      "1406",
+      "13182"
+     ],
+     "component": "Enrollment option",
+     "days": "",
+     "days_and_times": "None \u2022 Wednesday 2:30PM to 3:20PM",
+     "end_time": "",
+     "instructor": "Manriquez,Lisa",
+     "linked_sections": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 560,
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": "",
+       "total_seats": 560
+      },
+      {
+       "class_number": "13182",
+       "days": "W",
+       "days_and_times": "Wednesday 2:30PM to 3:20PM",
+       "end_time": "3:20PM",
+       "instructor": "Grohman,Magdalena Grazyna",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 70,
+       "room": "BLB 010",
+       "section": "307",
+       "start_time": "2:30PM",
+       "total_seats": 70
+      }
+     ],
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "meetings": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": ""
+      },
+      {
+       "class_number": "13182",
+       "days": "W",
+       "days_and_times": "Wednesday 2:30PM to 3:20PM",
+       "end_time": "3:20PM",
+       "instructor": "Grohman,Magdalena Grazyna",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "BLB 010",
+       "section": "307",
+       "start_time": "2:30PM"
+      }
+     ],
+     "open_seats": 560,
+     "option": "9",
+     "room": "UNT Internet Course",
+     "section": "401 + 307",
+     "session": "Regular Academic Session",
+     "start_time": "",
+     "status": "Open",
+     "total_seats": 560
+    },
+    {
+     "class_number": "1406+13148",
+     "class_numbers": [
+      "1406",
+      "13148"
+     ],
+     "component": "Enrollment option",
+     "days": "",
+     "days_and_times": "None \u2022 Thursday 11:15AM to 12:05PM",
+     "end_time": "",
+     "instructor": "Manriquez,Lisa",
+     "linked_sections": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 560,
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": "",
+       "total_seats": 560
+      },
+      {
+       "class_number": "13148",
+       "days": "R",
+       "days_and_times": "Thursday 11:15AM to 12:05PM",
+       "end_time": "12:05PM",
+       "instructor": "Hord,Caitlyn Nicole",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 70,
+       "room": "Wh 316",
+       "section": "302",
+       "start_time": "11:15AM",
+       "total_seats": 70
+      }
+     ],
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "meetings": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": ""
+      },
+      {
+       "class_number": "13148",
+       "days": "R",
+       "days_and_times": "Thursday 11:15AM to 12:05PM",
+       "end_time": "12:05PM",
+       "instructor": "Hord,Caitlyn Nicole",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "Wh 316",
+       "section": "302",
+       "start_time": "11:15AM"
+      }
+     ],
+     "open_seats": 560,
+     "option": "10",
+     "room": "UNT Internet Course",
+     "section": "401 + 302",
+     "session": "Regular Academic Session",
+     "start_time": "",
+     "status": "Open",
+     "total_seats": 560
+    },
+    {
+     "class_number": "1406+13150",
+     "class_numbers": [
+      "1406",
+      "13150"
+     ],
+     "component": "Enrollment option",
+     "days": "",
+     "days_and_times": "None \u2022 Tuesday 1:25PM to 2:15PM",
+     "end_time": "",
+     "instructor": "Manriquez,Lisa",
+     "linked_sections": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 560,
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": "",
+       "total_seats": 560
+      },
+      {
+       "class_number": "13150",
+       "days": "T",
+       "days_and_times": "Tuesday 1:25PM to 2:15PM",
+       "end_time": "2:15PM",
+       "instructor": "Clayton,Krisstal Dawn",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "open_seats": 70,
+       "room": "SAGE 230",
+       "section": "304",
+       "start_time": "1:25PM",
+       "total_seats": 70
+      }
+     ],
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "meetings": [
+      {
+       "class_number": "1406",
+       "days": "",
+       "days_and_times": "None",
+       "end_time": "",
+       "instructor": "Manriquez,Lisa",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "UNT Internet Course",
+       "section": "401",
+       "start_time": ""
+      },
+      {
+       "class_number": "13150",
+       "days": "T",
+       "days_and_times": "Tuesday 1:25PM to 2:15PM",
+       "end_time": "2:15PM",
+       "instructor": "Clayton,Krisstal Dawn",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "room": "SAGE 230",
+       "section": "304",
+       "start_time": "1:25PM"
+      }
+     ],
+     "open_seats": 560,
+     "option": "11",
+     "room": "UNT Internet Course",
+     "section": "401 + 304",
+     "session": "Regular Academic Session",
+     "start_time": "",
+     "status": "Open",
+     "total_seats": 560
+    }
+   ],
+   "status": "ok"
+  },
   "SPAN 2040": {
    "course_code": "SPAN 2040",
    "fetched_at": "2026-10-04T16:28:32.798813+00:00",

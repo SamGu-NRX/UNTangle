@@ -339,6 +339,143 @@ describe("the review's probe records against the real trees", () => {
   });
 });
 
+/** Every requirement with work left, as [path, remaining kind]. */
+function workLeft(outcomes: NodeOutcome[], path: string[] = []): [string, string][] {
+  return outcomes.flatMap((outcome) => {
+    const here = [...path, outcome.name];
+    const below = workLeft(outcome.children ?? [], here);
+    return outcome.remaining.kind === "none" ? below : [[here.join(" > "), outcome.remaining.kind], ...below];
+  });
+}
+
+/** Every course code the remaining work names as needed or eligible. */
+function codesNeeded(outcomes: NodeOutcome[]): string[] {
+  const codes = outcomes.flatMap((outcome): string[] => {
+    const own = outcome.remaining;
+    const here =
+      own.kind === "courses" ? [...own.courses, ...own.oneOf.flat(2)]
+      : own.kind === "choose" ? own.eligible.flatMap((slot) => slot.options.flatMap((option) => option.courses))
+      : own.kind === "hours" ? own.eligible.flat()
+      : [];
+    return [...here, ...codesNeeded(outcome.children ?? [])];
+  });
+  return [...new Set(codes)].sort();
+}
+
+const requirement = (result: AuditResult, prefix: string): NodeOutcome => {
+  const walk = (outcomes: NodeOutcome[]): NodeOutcome | null => {
+    for (const outcome of outcomes) {
+      if (outcome.name.startsWith(prefix)) return outcome;
+      const nested = walk(outcome.children ?? []);
+      if (nested) return nested;
+    }
+    return null;
+  };
+  const found = walk(result.requirements);
+  if (!found) throw new Error(`no requirement starting ${prefix}`);
+  return found;
+};
+
+/** What the CS BS audit leaves to an advisor for every student: the uncaptured lists and the prose rules. */
+const CS_ADVISORY: [string, string][] = [
+  ["Major requirements > 55-hour major minimum", "advisor"],
+  ["Major requirements > CSCE advanced electives, 6 hours", "advisor"],
+  ["Technical writing, 3 hours", "advisor"],
+  ["Note", "advisor"],
+  ["Minor", "advisor"],
+  ["Electives", "advisor"],
+];
+const CORE_ADVISORY: [string, string][] = [
+  ["Component Area Option double-dip rule", "advisor"],
+  ["Option A other-core courses", "advisor"],
+  ["Other ways to complete the core", "advisor"],
+];
+
+describe("remaining work for the degree-compare investigation's students", () => {
+  // The student-auto journey's transcript (output/playwright/student-auto/fixtures/make-transcript.mjs).
+  const journey = [done("MATH 1710", 3, "B", { term: 1 }), done("ENGL 1310", 3, "A", { term: 1 }), done("CSCE 1040", 3, "A", { term: 2 })];
+
+  test("the journey transcript: 111 hours left, MATH 1710 fills the calculus slot, and the rest of the major is listed", () => {
+    const major = auditProgram(program("cs-bs"), journey, COMPLETE);
+    expect(major.totals).toEqual({ required: 120, finished: 9, inProgress: 0, claimed: 0, stillNeeded: 111, unknownHours: [] });
+    expect(requirement(major, "Required courses").remaining).toEqual({ kind: "courses", courses: listedCodes("cs-bs", "Required courses").filter((code) => code !== "CSCE 1040"), oneOf: [] });
+    expect(requirement(major, "Other required courses").remaining).toEqual({ kind: "courses", courses: ["EENG 2710", "TECM 2700"], oneOf: [] });
+    expect(requirement(major, "CSCE core, 6 hours").remaining).toEqual({ kind: "hours", hours: 6, eligible: [["CSCE 3530"], ["CSCE 4115"], ["CSCE 4430"], ["CSCE 4600"], ["CSCE 4650"]] });
+    expect(requirement(major, "Laboratory science").remaining).toMatchObject({ kind: "choose", picks: 2 });
+    const core = auditProgram(program("core"), journey, COMPLETE);
+    expect(core.totals).toEqual({ required: 42, finished: 6, inProgress: 0, claimed: 0, stillNeeded: 36, unknownHours: [] });
+    expect(requirement(core, "Mathematics").remaining).toEqual({ kind: "none" });
+    expect(requirement(core, "Communication Group 2").remaining).toMatchObject({ kind: "choose", picks: 1 });
+  });
+
+  test("a first-year student with nothing: every hour left, and calculus offered as both of its alternatives", () => {
+    const major = auditProgram(program("cs-bs"), [], COMPLETE);
+    expect(major.totals?.stillNeeded).toBe(120);
+    expect(auditProgram(program("core"), [], COMPLETE).totals?.stillNeeded).toBe(42);
+    expect(requirement(major, "Other required courses").remaining).toEqual({ kind: "courses", courses: ["EENG 2710", "TECM 2700"], oneOf: [[["MATH 1710"], ["MATH 1810", "MATH 1820"]]] });
+  });
+
+  test("the completed four-year plan: no course is needed anywhere, MATH 1720 included, and only advisory rules remain", () => {
+    const record = planRecord(csPlan, csFills);
+    const major = auditProgram(program("cs-bs"), record, COMPLETE);
+    const core = auditProgram(program("core"), record, COMPLETE);
+    expect(codesNeeded(major.requirements)).toEqual([]);
+    expect(codesNeeded(core.requirements)).toEqual([]);
+    expect(workLeft(major.requirements)).toEqual([["Major requirements", "parts"], ...CS_ADVISORY]);
+    expect(workLeft(core.requirements)).toEqual(CORE_ADVISORY);
+    expect(major.totals).toEqual({ required: 120, finished: 120, inProgress: 0, claimed: 0, stillNeeded: 0, unknownHours: [] });
+    expect(core.totals).toEqual({ required: 42, finished: 43, inProgress: 0, claimed: 0, stillNeeded: 0, unknownHours: [] });
+  });
+
+  test("the final term in progress: 105 finished and 15 in progress leave no hours and no course needed", () => {
+    const record = planRecord(csPlan, csFills, { inProgressFrom: 4 * 2 + 2 });
+    const major = auditProgram(program("cs-bs"), record, COMPLETE);
+    const core = auditProgram(program("core"), record, COMPLETE);
+    expect(major.totals).toEqual({ required: 120, finished: 105, inProgress: 15, claimed: 0, stillNeeded: 0, unknownHours: [] });
+    expect(core.totals).toEqual({ required: 42, finished: 37, inProgress: 6, claimed: 0, stillNeeded: 0, unknownHours: [] });
+    expect(requirement(major, "Required courses")).toMatchObject({ status: "inProgress", remaining: { kind: "none" } });
+    expect(codesNeeded(major.requirements)).toEqual([]);
+    expect(codesNeeded(core.requirements)).toEqual([]);
+    expect(workLeft(major.requirements)).toEqual([["Major requirements", "parts"], ...CS_ADVISORY]);
+  });
+
+  test("lab science: both chemistry pairs are one pick, so one pick is left and that chemistry slot is not offered again", () => {
+    const record = [done("CHEM 1410"), done("CHEM 1430", 1), done("CHEM 1415"), done("CHEM 1435", 1)];
+    const lab = requirement(auditProgram(program("cs-bs"), record, COMPLETE), "Laboratory science");
+    expect(lab.remaining).toMatchObject({ kind: "choose", picks: 1 });
+    const offered = codesNeeded([lab]);
+    expect(offered.filter((code) => ["CHEM 1410", "CHEM 1415", "CHEM 1430", "CHEM 1435"].includes(code))).toEqual([]);
+    expect(offered).toEqual(expect.arrayContaining(["CHEM 1420", "CHEM 1440"]));
+  });
+
+  test("advisory candidates read the fullest allocation: a claimed CSCE core course frees CSCE 4430 for the advanced electives", () => {
+    const result = auditProgram(program("cs-bs"), [done("CSCE 4115"), done("CSCE 4430"), done("CSCE 4600"), { code: "CSCE 3530", credits: 3, sourceKind: "claimed" }], COMPLETE);
+    expect(requirement(result, "CSCE advanced electives").remaining).toMatchObject({ kind: "advisor", candidates: ["CSCE 4430", "CSCE 4600"] });
+    const inProgress = { code: "TECM 4180", grade: null, credits: 3, sourceKind: "current", inProgress: true, term: 9 } satisfies AuditCourse;
+    expect(requirement(auditProgram(program("cs-bs"), [inProgress], COMPLETE), "Technical writing").remaining).toMatchObject({ kind: "advisor", candidates: ["TECM 4180"] });
+  });
+
+  test("core: a partly met Component Area Option still counts its hours, so the total stays a floor", () => {
+    expect(auditProgram(program("core"), [done("ANTH 1150")], COMPLETE).totals).toEqual({ required: 42, finished: 3, inProgress: 0, claimed: 0, stillNeeded: 39, unknownHours: [] });
+    expect(auditProgram(program("core"), [{ code: "ANTH 1150", credits: 3, sourceKind: "claimed" }], COMPLETE).totals).toEqual({ required: 42, finished: 0, inProgress: 0, claimed: 3, stillNeeded: 39, unknownHours: [] });
+  });
+
+  test("technical writing takes 4000-4999 TECM courses only: TECM 5000 is a graduate course", () => {
+    const writing = (record: AuditCourse[]) => requirement(auditProgram(program("cs-bs"), record, COMPLETE), "Technical writing");
+    expect(writing([done("TECM 5000")]).detail).toContain("matching the subject and level rule: none.");
+    expect(writing([done("TECM 5000")]).remaining).toMatchObject({ kind: "advisor", candidates: [] });
+    expect(writing([done("TECM 3700"), done("TECM 4180"), done("TECM 5000")]).remaining).toMatchObject({ kind: "advisor", candidates: ["TECM 4180"] });
+  });
+
+  test("CSCE advanced electives list 3000-4999 CSCE courses: a 5000-level graduate course is left to an advisor", () => {
+    // CSCE 3214 and CSCE 4205 are on no required, core or breadth list, so only the elective pool can use them.
+    const electives = requirement(auditProgram(program("cs-bs"), [done("CSCE 3214"), done("CSCE 4205"), done("CSCE 5200")], COMPLETE), "CSCE advanced electives");
+    expect(electives.status).toBe("advisory");
+    expect(electives.remaining).toMatchObject({ kind: "advisor", candidates: ["CSCE 3214", "CSCE 4205"] });
+    expect(electives.remaining.kind === "advisor" && electives.remaining.reason).toContain("A 5000-level graduate course is not counted");
+  });
+});
+
 describe("build guards", () => {
   test("policies deduplicate across the program and university scans", () => {
     const names = (nodes: RequirementNode[]): string[] =>

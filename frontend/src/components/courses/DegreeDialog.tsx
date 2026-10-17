@@ -19,8 +19,10 @@ type Props = {
   source: "transcript" | "sample" | "none";
   onImport: () => void;
   onSample: () => void;
-  /** The major's core list against the student's record; null without a major. Covered courses show in Done. */
+  /** A sample major's core list against the student's record; null without one. Covered courses show in Done. */
   core: { done: number; total: number } | null;
+  /** For a major the degree audit covers, the catalog it checks against; null otherwise. */
+  catalog: { year: string; program: string } | null;
   /** Where focus goes on close when the opener is gone (opened on arrival from the landing). */
   returnFocus?: () => HTMLElement | null;
 };
@@ -33,11 +35,12 @@ const SOURCE_TEXT = {
 
 /**
  * The degree behind the page (rule 8): the major as a search list, not a
- * dropdown, how far the student is through its core list, and where the
- * statuses came from with a way to import again.
- * There is no catalog-year control: the core lists carry no catalog year.
+ * dropdown, the catalog its degree check reads (or, for a major the audit
+ * does not cover, how far the student is through its sample core list), and
+ * where the statuses came from with a way to import again.
+ * There is no catalog-year control: the audit has one catalog year.
  */
-export function DegreeDialog({ open, onOpenChange, major, onChoose, source, onImport, onSample, core, returnFocus }: Props) {
+export function DegreeDialog({ open, onOpenChange, major, onChoose, source, onImport, onSample, core, catalog, returnFocus }: Props) {
   const [query, setQuery] = useState("");
   const shown = majors.filter((entry) => entry.name.toLowerCase().includes(query.trim().toLowerCase()));
   return (
@@ -81,6 +84,13 @@ export function DegreeDialog({ open, onOpenChange, major, onChoose, source, onIm
           ))
         )}
       </div>
+      {catalog ? (
+        <p className={styles.majorCore}>
+          <span>
+            Checked against the {catalog.year} catalog for {catalog.program}, with the University Core
+          </span>
+        </p>
+      ) : null}
       {core ? (
         <p className={styles.majorCore}>
           <span>

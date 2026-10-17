@@ -145,6 +145,20 @@ describe("SearchTrigger", () => {
     style.remove();
     await view.unmount();
   });
+
+  test("an empty shortcut draws no key cap; the default draws ⌘K", async () => {
+    // Courses' phone field passes shortcut="", and an empty key cap showed as a blank box at the field's end.
+    const { SearchTrigger } = await import("@/components/ui/SearchField");
+    const view = await mount(
+      <>
+        <SearchTrigger shortcut="" />
+        <SearchTrigger />
+      </>,
+    );
+    const caps = [...view.container.querySelectorAll("kbd")].map((kbd) => kbd.textContent);
+    expect(caps).toEqual(["⌘K"]);
+    await view.unmount();
+  });
 });
 
 describe("Segmented", () => {
