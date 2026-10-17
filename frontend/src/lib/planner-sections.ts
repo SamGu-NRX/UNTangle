@@ -262,7 +262,7 @@ const sampleRatings = new Map(seedSections.map((section) => [section.id, section
  * walking places. An absent place stays null for an unassigned room. Returns null for an option with no timed
  * meeting, which has nothing to place on the week.
  */
-export function toOptSection(section: Section): OptSection | null {
+export function toOptSection(section: Section, instructorGpaHundredths?: number | null): OptSection | null {
   const meetings = section.meetings.filter(isTimed).map(
     (meeting): OptMeeting => ({
       day: meeting.day,
@@ -280,6 +280,14 @@ export function toOptSection(section: Section): OptSection | null {
     courseCode: section.courseCode,
     label: optionLabel(section),
     rating: rating !== undefined && Number.isFinite(rating) && rating > 0 ? rating : null,
+    // Accepted evidence, whole hundredths only: a fractional, negative or
+    // over-400 value is not evidence and must not reach the engine.
+    ...(typeof instructorGpaHundredths === "number" &&
+    Number.isInteger(instructorGpaHundredths) &&
+    instructorGpaHundredths >= 0 &&
+    instructorGpaHundredths <= 400
+      ? { instructorGpaHundredths }
+      : {}),
     meetings,
   };
 }

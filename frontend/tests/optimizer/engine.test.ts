@@ -6,6 +6,7 @@ import {
   checkBudgets,
   checkExplanations,
   checkLargeInstancesValid,
+  evidenceInstance,
   smallInstance,
   termInstance,
   withoutDates,
@@ -14,6 +15,14 @@ import { referenceCost, referenceTopK } from "./reference";
 
 const SEEDS = Array.from({ length: 400 }, (_, i) => i + 1);
 const TERM_SEEDS = Array.from({ length: 300 }, (_, i) => 7001 + i);
+
+describe("optimizer against the reference with instructor evidence", () => {
+  const EVIDENCE_SEEDS = Array.from({ length: 300 }, (_, i) => 9001 + i);
+
+  test("matches the reference on 300 evidence-rich instances", () => {
+    expect(checkAgainstReference(optimize, EVIDENCE_SEEDS, evidenceInstance)).toEqual([]);
+  });
+});
 
 describe("optimizer against the brute-force reference", () => {
   test("the 400 undated inputs remain byte-identical when dated fixtures gain a term", () => {

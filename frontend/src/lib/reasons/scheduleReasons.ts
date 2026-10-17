@@ -40,17 +40,12 @@ import { OPT_DAYS, type OptDay, type OptSection, type ScheduleBreakdown } from "
 import type { GradeData } from "@/lib/grades";
 import type { CourseHistory } from "@/lib/grades-history/types";
 import { hasOpenSeats } from "@/lib/planner-sections";
+import { MIN_GRADED_SECTIONS } from "@/lib/sections/instructor-evidence";
+import { instructorEvidenceContributions } from "@untangle/core/instructor-tiebreak";
 import type { Section } from "@/lib/sections/model";
 import type { Reason, ReasonEvidence, ScheduleReasonsInput, StatedPreference } from "./types";
 
 const DEFAULT_MAX_REASONS = 3;
-
-/**
- * Grade history needs at least this many of the instructor's past sections
- * of the course with A through F grades. A starting value with no evidence
- * behind it.
- */
-const MIN_GRADED_SECTIONS = 3;
 
 const DAY_NAMES: Record<OptDay, string> = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
 
@@ -244,8 +239,7 @@ function seatWarning(section: OptSection, catalog: Pick<Section, "status" | "com
 
 const aThroughF = (g: GradeData) => g.gradeA + g.gradeB + g.gradeC + g.gradeD + g.gradeF;
 
-function gradeReason(section: OptSection, history: CourseHistory): Reason | null {
-  const code = `${history.course.subject} ${history.course.number}`;
+function gradeReason(section: OptSection, history: CourseHistory): Reason | null {  const code = `${history.course.subject} ${history.course.number}`;
   if (code !== section.courseCode) throw new Error(`reasons: grade history for ${code} was given for section ${section.id} of ${section.courseCode}`);
   const graded = history.terms.flatMap((term) => term.sections).filter((past) => aThroughF(past.grades) > 0).length;
   if (graded < MIN_GRADED_SECTIONS) return null;
@@ -305,6 +299,57 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
   const weights = request.weights;
 
   const comparisons: Array<{ reason: Reason; worth: number }> = [];
+  // Instructor evidence decides only between equal-cost options: when the
+  // costs differ, a stated preference decided; when the evidence sums are
+  // equal too, the key decided. The contributions are core's omit rule (the
+  // same values the engine prepares), read off the same request the
+  // alternatives came from, so a sentence can only quote what the engine saw.
+  if (next && alternatives[input.index].cost === alternatives[input.index + 1].cost) {
+    const contributions = instructorEvidenceContributions(
+      request.courses.map((course) => ({
+        courseCode: course.code,
+        options: Object.fromEntries(
+          course.sections.map((section) => [
+            section.id,
+            typeof section.instructorGpaHundredths === "number"
+              ? { kind: "known" as const, meanGradePointsHundredths: section.instructorGpaHundredths }
+              : { kind: "unknown" as const },
+          ]),
+        ),
+      })),
+    );
+    const evidenceOf = (option: Option) =>
+      option.sections.reduce((sum, section) => sum + contributions[section.courseCode].options[section.id], 0);
+    const mineEvidence = evidenceOf(mine);
+    const nextEvidence = evidenceOf(next);
+    if (mineEvidence > nextEvidence) {
+      const [me, other] = [input.optionName(input.index), input.optionName(input.index + 1)];
+      const contributing = mine.sections.filter((section) => contributions[section.courseCode].options[section.id] > 0);
+      comparisons.push({
+        worth: Number.POSITIVE_INFINITY,
+        reason: {
+          sentence: `Instructor grade history decided between ${me} and ${other}: ${joinList(
+            contributing.map((section) => {
+              const mean = contributions[section.courseCode].options[section.id];
+              return `${section.courseCode}'s instructor's past students averaged ${Math.floor(mean / 100)}.${String(mean % 100).padStart(2, "0")}`;
+            }),
+          )}.`,
+          kind: "tie-break",
+          preference: null,
+          evidence: {
+            numbers: [
+              ...contributing.map((section) => ({
+                label: `${section.courseCode} ${section.label ?? section.id} instructor mean grade points`,
+                value: contributions[section.courseCode].options[section.id] / 100,
+              })),
+              { label: `${me}: instructor evidence over counted courses`, value: mineEvidence / 100 },
+              { label: `${other}: instructor evidence over counted courses`, value: nextEvidence / 100 },
+            ],
+          },
+        },
+      });
+    }
+  }
   const facts: Reason[] = [];
   // SAFETY: PREFERENCES is a Record<StatedPreference, ...> literal, so its keys are exactly StatedPreference.
   const stated = (Object.keys(PREFERENCES) as StatedPreference[]).filter((key) => weights[key] > 0).sort((a, b) => weights[b] - weights[a]);

@@ -8,9 +8,10 @@ import type { Section } from "@/lib/sections/model";
  * - preference-met: no option does better on a stated preference.
  * - fact: this option alone, on a stated preference.
  * - grade-history: the chosen instructor's past grades.
+ * - tie-break: instructor evidence decided between equal-cost options.
  * - seats: a chosen section is closed, wait-listed, cancelled or full.
  */
-export type ReasonKind = "comparison" | "trade-off" | "preference-met" | "fact" | "grade-history" | "seats";
+export type ReasonKind = "comparison" | "trade-off" | "preference-met" | "fact" | "grade-history" | "tie-break" | "seats";
 
 /** A key into the student's preference weights. */
 export type StatedPreference = keyof OptWeights;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { instructorTiebreak, type CourseEvidence, type SchedulePicks } from "../../src/instructor-tiebreak";
+import { instructorEvidenceContributions, instructorTiebreak, type CourseEvidence, type SchedulePicks } from "../../src/instructor-tiebreak";
 import { allKnown, everySchedule, ids, imputationTrap, mixedRequest } from "./fixtures";
 
 /** -1 when a ranks first, 1 when b does, 0 on a tie. */
@@ -107,5 +107,32 @@ describe("instructorTiebreak", () => {
     expect(typeof instructorTiebreak(allKnown([300, 300], [300, 300]))).toBe("function");
     expect(() => instructorTiebreak([...allKnown([300, 300], [300, 300]), allKnown([300, 300], [300, 300])[0]])).toThrow();
     expect(() => instructorTiebreak([{ courseCode: "CSCE 1030", options: {} }])).toThrow();
+  });
+});
+
+describe("instructorEvidenceContributions", () => {
+  test("a counted course contributes its own hundredths, an uncounted course zero for every option", () => {
+    const contributions = instructorEvidenceContributions(mixedRequest);
+    expect(contributions["MATH 1680"].counted).toBe(true);
+    expect(contributions["MATH 1680"].options[ids.math.morning]).toBe(312);
+    expect(contributions["PSCI 1040"].counted).toBe(true);
+    expect(contributions["PSCI 1040"].options[ids.psci.only]).toBe(300);
+    expect(contributions["CSCE 1030"].counted).toBe(false);
+    expect(contributions["CSCE 1030"].options[ids.csce.high]).toBe(0);
+    expect(contributions["CSCE 1030"].options[ids.csce.unmatched]).toBe(0);
+  });
+
+  test("the comparator ranks schedules exactly by the sum of their picks' contributions", () => {
+    const contributions = instructorEvidenceContributions(mixedRequest);
+    const compare = instructorTiebreak(mixedRequest);
+    const sum = (picks: SchedulePicks) =>
+      Object.entries(picks).reduce((total, [courseCode, optionId]) => total + contributions[courseCode].options[optionId], 0);
+    const schedules = everySchedule(mixedRequest);
+    for (const a of schedules) {
+      for (const b of schedules) {
+        // compare(a, b) > 0 ranks b first, i.e. b's pick sum is the larger one.
+        expect(Math.sign(compare(a, b))).toBe(Math.sign(sum(b) - sum(a)));
+      }
+    }
   });
 });

@@ -70,6 +70,17 @@ export type OptSection = {
   meetings: OptMeeting[];
   /** Instructor rating 0..5, or null when there is none. */
   rating: number | null;
+  /**
+   * Mean grade points of this instructor's past students in this course, in
+   * hundredths (3.27 is 327), a whole number from 0 to 400, from accepted
+   * grade-history evidence (a confident instructor match with enough graded
+   * sections; the caller decides what counts as accepted). Null or absent
+   * when there is none: unknown evidence never satisfies the instructor
+   * tie-break, which leaves a course out entirely when any of its options
+   * lacks evidence (docs/architecture/README.md). Grade history never
+   * enters `rating`.
+   */
+  instructorGpaHundredths?: number | null;
   /** How a student refers to the section, such as "002"; defaults to the id. */
   label?: string;
   /**
