@@ -101,6 +101,7 @@ export function termLabel(term: string): string {
 export function rowFact(record: TranscriptCourseRecord, decision: CheckDecision | null = decisionOf(record, {})): string {
   if (decision === "ignored") return "Skipped";
   if (decision === "inProgress") return "Taking";
+  if (decision === "completed" && record.appliedStatus === "inProgress") return "Done";
   return record.grade ? `Grade ${record.grade}` : "Done";
 }
 
@@ -133,10 +134,19 @@ export function missingApprovedRecords(
   current: readonly TranscriptCourseRecord[],
 ): TranscriptCourseRecord[] {
   const byId = new Map(current.map((record) => [record.id, record]));
-  // Status and the review flag decide whether a record counts as transcript evidence.
+  // Prerequisite evidence reads code, grade, credits, appliedStatus, reviewRequired,
+  // duplicateExcluded and prerequisiteSatisfied. Compare those fields, not descriptive
+  // fields such as rationale, which effectiveTranscriptRecord appends to during review.
   return approved.filter((record) => {
     const held = byId.get(record.id);
-    return held?.appliedStatus !== record.appliedStatus || held.reviewRequired !== record.reviewRequired;
+    return !held
+      || held.code !== record.code
+      || held.grade !== record.grade
+      || held.credits !== record.credits
+      || held.appliedStatus !== record.appliedStatus
+      || held.reviewRequired !== record.reviewRequired
+      || held.duplicateExcluded !== record.duplicateExcluded
+      || held.prerequisiteSatisfied !== record.prerequisiteSatisfied;
   });
 }
 

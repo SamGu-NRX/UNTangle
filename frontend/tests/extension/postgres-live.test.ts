@@ -22,6 +22,7 @@ import { schema } from "@/lib/db/schema";
 import { documentRepository } from "@/lib/document-sync/repository";
 import { documentHandlers } from "@/lib/document-sync/handlers";
 import type { Section } from "@/lib/sections/model";
+import { vsbSectionId } from "@/lib/sections/vsb";
 import { httpSyncIO } from "@/lib/sync/planner-sync";
 import { createDeviceGrants, pkceChallenge, type DeviceGrants } from "@/server/auth/device-grants";
 import { postgresDeviceStore } from "@/server/auth/device-postgres";
@@ -52,7 +53,7 @@ const meeting = (overrides: Partial<Section["meetings"][number]> = {}) => ({
 });
 
 const section = (term: string, courseCode: string, sectionCode: string, classNumbers: string[], day: Section["meetings"][number]["day"] = "Mon"): Section => ({
-  id: `vsb:${term}:${courseCode}:${sectionCode}`, term, courseCode, sectionCode, classNumbers,
+  id: vsbSectionId(term, courseCode, classNumbers), term, courseCode, sectionCode, classNumbers,
   option: null, instructor: { display: null, raw: "" }, seats: { open: 3, total: 40 },
   status: "open", rawStatus: "Open", session: { label: "16W", dates: { start: null, end: null, raw: "" } },
   components: [], meetings: [meeting({ day })], online: false, async: false, tba: false,
