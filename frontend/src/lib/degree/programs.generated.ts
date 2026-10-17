@@ -6,7 +6,7 @@ import type { DegreeData } from "@untangle/core/degree/types";
 export const DEGREE_DATA: DegreeData = {
   "catalogId": "unt-2026-27",
   "catalogYear": "2026-2027",
-  "builtAt": "2026-10-17T16:03:24.070Z",
+  "builtAt": "2026-10-17T17:00:14.755Z",
   "pages": [
     {
       "file": "cs-bs.html",
@@ -262,10 +262,10 @@ export const DEGREE_DATA: DegreeData = {
                 "subjects": [
                   "CSCE"
                 ],
-                "minLevel": 4000,
-                "maxLevel": null
+                "minLevel": 3000,
+                "maxLevel": 4999
               },
-              "note": "The authoritative list is the CSCE Advanced Elective Courses list, linked from the catalog page and not captured here; the audit applies the 4000-level CSCE rule and flags this node as advisory.",
+              "note": "UNT's CSCE Advanced Elective Courses list is not captured here, so the audit lists any 3000- or 4000-level CSCE course on your record as a possible elective. A 5000-level graduate course is not counted; ask an advisor whether it can be.",
               "citation": {
                 "page": "cs-bs.html",
                 "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",

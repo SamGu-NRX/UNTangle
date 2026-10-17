@@ -31,7 +31,7 @@ test("before the saved plan loads, the course detail shows loading and no status
         placed: [],
         chosenSectionId: undefined,
         initialInstructor: null,
-        inCore: true,
+        degreeNote: "On your major's core list.",
         actions: { plan: noop, unplan: noop, markCredit: noop, clearCredit: noop, chooseSection: noop },
         planLoaded,
       }),

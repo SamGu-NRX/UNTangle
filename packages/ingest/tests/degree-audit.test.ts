@@ -466,6 +466,14 @@ describe("remaining work for the degree-compare investigation's students", () =>
     expect(writing([done("TECM 5000")]).remaining).toMatchObject({ kind: "advisor", candidates: [] });
     expect(writing([done("TECM 3700"), done("TECM 4180"), done("TECM 5000")]).remaining).toMatchObject({ kind: "advisor", candidates: ["TECM 4180"] });
   });
+
+  test("CSCE advanced electives list 3000-4999 CSCE courses: a 5000-level graduate course is left to an advisor", () => {
+    // CSCE 3214 and CSCE 4205 are on no required, core or breadth list, so only the elective pool can use them.
+    const electives = requirement(auditProgram(program("cs-bs"), [done("CSCE 3214"), done("CSCE 4205"), done("CSCE 5200")], COMPLETE), "CSCE advanced electives");
+    expect(electives.status).toBe("advisory");
+    expect(electives.remaining).toMatchObject({ kind: "advisor", candidates: ["CSCE 3214", "CSCE 4205"] });
+    expect(electives.remaining.kind === "advisor" && electives.remaining.reason).toContain("A 5000-level graduate course is not counted");
+  });
 });
 
 describe("build guards", () => {
