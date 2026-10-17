@@ -323,7 +323,7 @@ async function runViewport(context, name) {
   const prefs = await openPrefs(page);
   const sliderValue = await setEarliestStart(prefs, "10 AM");
   check(`${name}: nothing before 10 AM set`, sliderValue === "10 AM", sliderValue);
-  await prefs.getByRole("button", { name: "Fridays off" }).click();
+  await prefs.getByRole("button", { name: "Fri off", exact: true }).click();
   await paintWorkBlock(prefs, 1, "Tue, 5–9 PM");
   await paintWorkBlock(prefs, 3, "Thu, 5–9 PM");
   await shot("06-prefs.png");
