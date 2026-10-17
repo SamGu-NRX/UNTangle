@@ -1,0 +1,171 @@
+/* /today — jointv2 palette and motion tokens; reduced motion is handled by
+   the global rule, which disables any animation declared here. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.snapshotNote {
+  color: var(--muted, #6b7280);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.phaseLabel {
+  font-family: var(--font-display, "Syne", sans-serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ink, #1f2937);
+  margin: 0;
+}
+
+.weekendNote {
+  color: var(--muted, #6b7280);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.card {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  background: var(--surface, #ffffff);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cardMeta {
+  color: var(--muted, #6b7280);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.cardTitle {
+  font-family: var(--font-display, "Syne", sans-serif);
+  font-size: 1.15rem;
+  margin: 0;
+  color: var(--ink, #1f2937);
+}
+
+.countdown {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  color: var(--accent, #166534);
+}
+
+.walkCard {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  background: color-mix(in srgb, var(--accent, #166534) 6%, var(--surface, #ffffff));
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.walkTitle {
+  font-weight: 600;
+  margin: 0;
+  color: var(--ink, #1f2937);
+}
+
+.walkDetail {
+  margin: 0;
+  color: var(--muted, #374151);
+  font-size: 0.95rem;
+}
+
+.walkFallbackNote {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted, #6b7280);
+  font-style: italic;
+}
+
+.walkError {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #b91c1c;
+}
+
+.walkNote {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--accent, #166534) 8%, var(--surface, #ffffff));
+  color: var(--ink, #1f2937);
+  font-size: 0.95rem;
+}
+
+.controls {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.toggle {
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  background: var(--surface, #ffffff);
+  color: var(--ink, #1f2937);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--accent, #166534);
+  outline-offset: 2px;
+}
+
+.weekList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+.weekDay {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+}
+
+.weekDayLabel {
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+  color: var(--ink, #1f2937);
+}
+
+.weekDayEmpty {
+  color: var(--muted, #9ca3af);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.weekDayItem {
+  margin: 0.15rem 0;
+  font-size: 0.85rem;
+  color: var(--ink, #374151);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 48rem) {
+  .wrap {
+    padding: 2.5rem 1.5rem 4rem;
+  }
+}
