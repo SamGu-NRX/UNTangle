@@ -60,11 +60,18 @@ an `OptimizeRequest`. `worker/` runs it off the main thread for the Week view.
   evenings, walking, rating). The cost is an integer sum in human units, so
   ties are exact. The exchange rates in `score.ts` are a judgment, not a
   measurement.
-- Ties break by section ids in course-code order. With `maxNodes` the answer
-  is the same on every machine. With `timeBudgetMs` it can stop at different
-  points on different machines.
+- Ties break in three tiers. First the cost: a preference is never traded for
+  instructor evidence. Among exactly equal costs, the plan with the higher sum
+  of its sections' `instructorGpaHundredths` wins, counting only courses where
+  every option has that evidence. When any option of a course lacks it, the
+  course is left out for every option (the omit-per-course rule in
+  `docs/tasks/instructor-tiebreak.md`), so missing data never acts as evidence. What
+  remains breaks by section ids in course-code order. With `maxNodes` the
+  answer is the same on every machine. With `timeBudgetMs` it can stop at
+  different points on different machines.
 - A malformed request (an unknown section, a duplicate exclusion or blocked-time
-  id, a negative walking time) throws `OptimizerInputError`. That is a caller
+  id, a negative walking time, an `instructorGpaHundredths` that isn't a whole
+  number from 0 to 400) throws `OptimizerInputError`. That is a caller
   bug, never student input. `parseSchedulePreferences` in `planner.ts` rejects
   stored preferences that would trigger one, such as duplicate blocked-time ids.
 
