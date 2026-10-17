@@ -174,7 +174,7 @@ async function journey(browser, viewport) {
   check(`${tag}: what's left reads by area, then the advisor's list`, JSON.stringify(areas) === JSON.stringify(["Computer Science, BS", "University Core Curriculum", "Check with an advisor"]), JSON.stringify(areas));
   const advisorHead = await left.getByRole("button", { name: "Check with an advisor" }).innerText();
   check(`${tag}: advisor items are a list, never a count`, !/\d/.test(advisorHead) && (await left.locator('[data-requirement="advisor"]').count()) > 0, advisorHead);
-  const required = left.locator('[data-row-open^="req:"]', { hasText: "Required courses" });
+  const required = left.getByRole("button", { name: /^Required courses/ });
   check(`${tag}: a requirement row says what it needs`, (await required.innerText()).replace(/\s+/g, " ").includes("16 courses"), (await required.innerText()).replace(/\s+/g, " "));
   await tap(required);
   const reqPanel = phone ? page.getByRole("dialog", { name: "Required courses", exact: true }) : page.locator("aside.ui-context");
@@ -192,7 +192,8 @@ async function journey(browser, viewport) {
   await reqPanel.waitFor({ state: phone ? "detached" : "hidden" });
 
   // ---------- 2. Auto ----------
-  await rowOf(page, "MATH 1720").waitFor();
+  // CSCE 2100 leads You can take: it unlocks the most of what the degree still needs.
+  await rowOf(page, "CSCE 2100").waitFor();
   await tap(page.getByRole("button", { name: "Auto", exact: true }));
   const result = page.locator('[data-flip="result"]');
   await result.waitFor();
@@ -202,7 +203,7 @@ async function journey(browser, viewport) {
   // Only what the degree still needs, ranked by what each unlocks: three required CSCE courses, MATH 1720 for the
   // Component Area Option, PSYC 1630 for Social and Behavioral Sciences (frontend/tests/courses/plan-edits.test.ts).
   check(`${tag}: Auto planned what the degree still needs`, JSON.stringify(trayIds) === JSON.stringify(["CSCE 1010", "CSCE 2100", "CSCE 2110", "MATH 1720", "PSYC 1630"]), trayIds.join(", "));
-  check(`${tag}: MATH 1720 left its group for the tray`, (await trayRow(page, "MATH 1720").count()) === 1 && (await rowOf(page, "MATH 1720").count()) === 0);
+  check(`${tag}: CSCE 2100 left its group for the tray`, (await trayRow(page, "CSCE 2100").count()) === 1 && (await rowOf(page, "CSCE 2100").count()) === 0);
   const toCheck = page.locator('[data-status=check][data-flip^="row:"]').first();
   // The fact starts with a visually hidden ", " for screen readers, so the text is matched after it.
   const reason = (await toCheck.locator("[data-tone=attention]").innerText()).replace(/^,\s*/, "");
@@ -244,7 +245,7 @@ async function journey(browser, viewport) {
   await tap(result.getByRole("button", { name: "Undo" }));
   await result.waitFor({ state: "detached" });
   await page.waitForTimeout(400);
-  check(`${tag}: Undo removes the auto plan`, (await rowStatus(page, "MATH 1720")) === "available" && (await trayRow(page, "MATH 1720").count()) === 0);
+  check(`${tag}: Undo removes the auto plan`, (await rowStatus(page, "CSCE 2100")) === "available" && (await page.locator('[data-flip^="tray:"]').count()) === 0);
   await openGroup(page, "Done");
   check(`${tag}: inferred statuses stay after Undo`, (await rowStatus(page, "CSCE 1030")) === "check");
   if (!phone) {
@@ -255,6 +256,11 @@ async function journey(browser, viewport) {
     await result.waitFor({ state: "detached" });
     check(`${tag}: Undo is withdrawn after an edit to a course it touched`, true);
     await page.waitForTimeout(400);
+    // The tray's ⋯ takes out what that run still owns, so step 5's plan is MATH 1720 alone, as before Auto planned five.
+    await page.getByRole("button", { name: "More for Spring 2027" }).click();
+    await page.getByRole("menuitem", { name: "Remove the 4 courses Auto added" }).click();
+    await page.locator('[data-flip^="tray:"]').first().waitFor({ state: "detached" });
+    check(`${tag}: ⋯ removes the courses Auto added`, (await page.locator('[data-flip^="tray:"]').count()) === 0);
   }
 
   // ---------- 4. detail ----------
@@ -430,8 +436,8 @@ async function journey(browser, viewport) {
   check(`${tag}: the deep link renders with grade history down`, response.status() === 200, String(response.status()));
   const deepPanel = panelFor("CSCE 2100");
   await deepPanel.getByText(/Couldn.t load grade history/).waitFor();
-  // Desktop kept the second Auto run's CSCE 2100; the phone undid its only run.
-  const deepStatus = phone ? "You can take this" : "Planned for Spring 2027";
+  // Desktop removed what its second Auto run added; the phone undid its only run.
+  const deepStatus = "You can take this";
   // The detail opens on the first render from the catalog, before the planner has read the saved plan:
   // that read waits for the session lookup to prepare an identity. Grade history is answered locally and can
   // arrive first, so wait for the status the saved plan gives rather than reading the panel once.

@@ -11,7 +11,8 @@
  *      a made-up first-year CS student: MATH 1710, ENGL 1310, CSCE 1040),
  *      review the matched rows, click "Looks right".
  *   2. /courses - pick the Computer Science major, then press the tray's
- *      Auto and let it plan the next term's courses.
+ *      Auto and let it plan the next term's courses from what the degree
+ *      audit still needs.
  *   3. /schedule (Week) - open Preferences: nothing before 10 AM, Fridays
  *      off, and two "Work" busy blocks painted onto the grid (Tuesday and
  *      Thursday, 5-9 PM). Then press Auto and wait for the other options.

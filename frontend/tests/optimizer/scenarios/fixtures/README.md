@@ -9,6 +9,10 @@ uses and trimmed to the courses the scenario evaluation needs.
 - Upstream file says `updated_at` 2026-10-04T19:02:54 UTC
 - Trim: top-level fields kept as-is; `courses` kept only for the 56 course
   codes the student scenarios schedule, byte-for-byte from the capture
+- 2026-10-17: PSYC 1630 added, byte-for-byte from a second GET of the same
+  URL. The upstream file still said `updated_at` 2026-10-04T19:02:54 UTC, and
+  its other 56 courses matched this file exactly. The student-auto journey's
+  tray Auto plans PSYC 1630 once Auto draws from the degree audit.
 
 The harness parses this file with the app's own `parseTerm`, so the scenarios
 run on the same data path as the live proxy without touching the network.
