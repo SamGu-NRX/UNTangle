@@ -286,6 +286,15 @@ describe("sections across three plans", () => {
     });
   });
 
+  test("a sample and a real section with the same label and times fall back to the class number", () => {
+    const blocks = sectionsOf(meets("CSCE 2110", "002", ["Mon", "Wed", "Fri"], "09:00", "09:50", "GAB"))[0].blocks;
+    const sample: PlannedSection = { code: "CSCE 2110", sectionId: "csce-2110-002", label: "002", blocks };
+    const real: PlannedSection = { code: "CSCE 2110", sectionId: "vsb:spring-2027:CSCE 2110:12345", label: "002", blocks };
+    expect(sectionGrid([[sample], [real]]).rows).toEqual([
+      { code: "CSCE 2110", cells: ["MWF 9:00, section 002, sample", "MWF 9:00, section 002, class 12345"], ids: ["csce-2110-002", "vsb:spring-2027:CSCE 2110:12345"] },
+    ]);
+  });
+
   test("a text collision leaves an absent course's cell null", () => {
     const plan = (sectionId: string) => sectionsOf(meets("CSCE 2110", sectionId, ["Mon"], "09:00", "09:50", "GAB"));
     expect(sectionGrid([plan("001"), [], plan("002")]).rows).toEqual([

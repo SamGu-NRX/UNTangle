@@ -1,6 +1,6 @@
 import { assignColors, type Hue } from "@/lib/course-colors";
 import { buildScheduleEvents, normalizePlannerState, resolveSectionPlan, summarizeCredits } from "@/lib/planner";
-import { optionIdLabel, optionLabel, scheduleEventsOf, type SectionCatalog } from "@/lib/planner-sections";
+import { optionIdLabel, optionLabel, scheduleEventsOf, sectionRef, type SectionCatalog } from "@/lib/planner-sections";
 import type { ClassDay, PlannerState, ScheduleEvent } from "@/lib/types";
 
 /**
@@ -214,6 +214,20 @@ function sectionText(section: PlannedSection): string {
   return section.blocks.length ? meetsText(section.blocks) : "No set time";
 }
 
+/** True when two cells in a row read the same for different sections. */
+function readAlike(sections: ReadonlyArray<PlannedSection | undefined>, cells: ReadonlyArray<string | null>): boolean {
+  return sections.some((section, i) => section && sections.some((other, j) => other && section.sectionId !== other.sectionId && cells[i] === cells[j]));
+}
+
+function withSection(cell: string | null, section: PlannedSection | undefined, name: (section: PlannedSection) => string): string | null {
+  return section ? `${cell}, ${name(section)}` : cell;
+}
+
+/** What tells a section apart when its label doesn't: a real section's class numbers, which its id is built from, or that it is a made-up sample. */
+function sectionIdentity(section: PlannedSection): string {
+  return sectionRef(section.sectionId).provenance === "real" ? optionIdLabel(section.sectionId) : "sample";
+}
+
 /**
  * Sections across several plans, the first being the one the others are
  * read against: a row for each course whose section is not the same in
@@ -237,15 +251,12 @@ export function sectionGrid(plans: ReadonlyArray<readonly PlannedSection[]>): {
     const first = sections[0];
     if (first && sections.every((section) => section?.sectionId === first.sectionId)) same.push(code);
     else {
-      const texts = sections.map((section) => (section ? sectionText(section) : null));
-      const needsLabels = sections.some((section, i) => section && sections.some((other, j) =>
-        other && section.sectionId !== other.sectionId && texts[i] === texts[j],
-      ));
-      rows.push({
-        code,
-        cells: sections.map((section, i) => (section && needsLabels ? `${texts[i]}, section ${section.label}` : texts[i])),
-        ids: sections.map((section) => section?.sectionId ?? null),
-      });
+      let cells = sections.map((section) => (section ? sectionText(section) : null));
+      // Different sections at the same times read alike, so each cell names its section.
+      if (readAlike(sections, cells)) cells = cells.map((cell, i) => withSection(cell, sections[i], (section) => `section ${section.label}`));
+      // A section code is not unique: a saved sample and a real section can both be "002".
+      if (readAlike(sections, cells)) cells = cells.map((cell, i) => withSection(cell, sections[i], sectionIdentity));
+      rows.push({ code, cells, ids: sections.map((section) => section?.sectionId ?? null) });
     }
   }
   return { rows, same };
