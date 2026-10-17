@@ -26,7 +26,12 @@ export type FetchOutcome =
 
 export type MirrorRequest = { term: string; subject?: string };
 
-export type MirrorFileState = { etag: string | null; lastModified: string | null; fetchedAt: string };
+/**
+ * attemptedAt is when the last request for this URL went out, whatever it
+ * returned: the minimum interval runs from it, so a 304 or a failure counts
+ * as a request just as a 200 does.
+ */
+export type MirrorFileState = { etag: string | null; lastModified: string | null; attemptedAt: string };
 
 /** What the caller persists between runs: per-URL validators and the request log the hourly cap reads. */
 export type MirrorState = { files: Record<string, MirrorFileState>; requests: string[] };
@@ -59,6 +64,10 @@ const userAgent = "UNTangle/1.0 (section release job; https://github.com/SamGu-N
 
 export class MirrorUrlError extends Error {}
 
+const termPattern = /^(spring|summer|fall|winter)-\d{4}$/;
+/** The subject part of a course code, as section-release.ts reads codes. */
+const subjectPattern = /^[A-Z]{3,4}$/;
+
 export class Mirror {
   private readonly policy: ReviewedSourcePolicy;
   private readonly baseUrl: string;
@@ -78,9 +87,16 @@ export class Mirror {
     this.state = options.state ?? emptyMirrorState();
   }
 
-  /** The mirror file for a whole term, or for one subject in it. Throws when the URL leaves the policy. */
+  /**
+   * The mirror file for a whole term, or for one subject in it. Throws on a
+   * malformed term or subject, and when the URL leaves the policy. The prefix
+   * check reads the parsed URL, so a "../" that URL parsing would resolve
+   * cannot pass it.
+   */
   urlFor(term: string, subject?: string): string {
-    const url = subject === undefined ? `${this.baseUrl}${term}.json` : `${this.baseUrl}${term}/${subject}.json`;
+    if (!termPattern.test(term)) throw new MirrorUrlError(`Malformed term ${JSON.stringify(term)}; expected spring-2027.`);
+    if (subject !== undefined && !subjectPattern.test(subject)) throw new MirrorUrlError(`Malformed subject ${JSON.stringify(subject)}; expected MATH.`);
+    const url = new URL(subject === undefined ? `${this.baseUrl}${term}.json` : `${this.baseUrl}${term}/${subject}.json`).href;
     if (!this.policy.allowedUrlPrefixes.some(prefix => url.startsWith(prefix))) {
       throw new MirrorUrlError(`"${url}" is outside the policy for "${this.policy.sourceId}".`);
     }
@@ -103,14 +119,16 @@ export class Mirror {
     const file = this.state.files[url];
     const nowMs = this.now();
     const minInterval = this.policy.minIntervalMs;
-    if (minInterval !== null && file !== undefined && file.fetchedAt !== undefined && nowMs - Date.parse(file.fetchedAt) < minInterval) {
+    if (minInterval !== null && file !== undefined && nowMs - Date.parse(file.attemptedAt) < minInterval) {
       return { kind: "deferred", reason: "min-interval" };
     }
     const maxPerHour = this.policy.maxRequestsPerHour;
     if (maxPerHour !== null && this.requestsInLastHour() >= maxPerHour) {
       return { kind: "deferred", reason: "hourly-budget" };
     }
-    this.state.requests.push(new Date(nowMs).toISOString());
+    const attemptedAt = new Date(nowMs).toISOString();
+    this.state.requests.push(attemptedAt);
+    this.state.files[url] = { etag: file?.etag ?? null, lastModified: file?.lastModified ?? null, attemptedAt };
     this.state.requests = this.state.requests.filter(at => Date.parse(at) > nowMs - 60 * 60_000);
 
     const headers = new Headers({ "User-Agent": userAgent, Accept: "application/json" });
@@ -160,11 +178,7 @@ export class Mirror {
       return { kind: "error", message: error instanceof Error ? error.message : String(error) };
     }
     const fetchedAt = new Date(this.now()).toISOString();
-    this.state.files[url] = {
-      etag: response.headers.get("etag"),
-      lastModified: response.headers.get("last-modified"),
-      fetchedAt,
-    };
+    this.state.files[url] = { etag: response.headers.get("etag"), lastModified: response.headers.get("last-modified"), attemptedAt };
     return { kind: "fetched", body, etag: response.headers.get("etag"), lastModified: response.headers.get("last-modified"), fetchedAt };
   }
 

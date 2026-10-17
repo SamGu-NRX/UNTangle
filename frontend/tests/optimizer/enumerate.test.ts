@@ -4,8 +4,7 @@
  * included, with an honest total, and Auto's own entry point unchanged.
  */
 import { afterAll, describe, expect, test } from "bun:test";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DEFAULT_LIST_LIMIT, enumerateSchedules, MAX_LIST_LIMIT, type EnumerateResult } from "@/lib/optimizer/enumerate";
 import { optimize } from "@/lib/optimizer/optimize";
@@ -184,13 +183,29 @@ describe("budgets and bounds", () => {
 });
 
 // As in mutation.test.ts: plant one bug in a copy of the engine and check the comparison above catches it.
+// The copy sits in node_modules/.cache (see mutant below).
+const CACHE_DIR = join(import.meta.dir, "../../../node_modules/.cache");
 const created: string[] = [];
 afterAll(() => created.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
 async function mutant(file: string, from: string, to: string): Promise<typeof enumerateSchedules> {
-  const dir = mkdtempSync(join(tmpdir(), "untangle-enumerate-mutant-"));
+  // The copy sits inside node_modules/.cache so the mutant's .ts files are not
+  // picked up by typecheck and test globs under tests/optimizer (as in
+  // mutation.test.ts).
+  mkdirSync(CACHE_DIR, { recursive: true });
+  const dir = mkdtempSync(join(CACHE_DIR, "untangle-enumerate-mutant-"));
   created.push(dir);
   cpSync(join(import.meta.dir, "../../src/lib/optimizer"), dir, { recursive: true });
+  // The optimizer imports shared logic from @untangle/core. That specifier
+  // resolves through frontend's own node_modules and tsconfig paths, neither
+  // of which applies this far up the tree, so the copy points the import at
+  // the package's source files directly (three levels up reaches the repo).
+  for (const entry of readdirSync(dir)) {
+    if (!entry.endsWith(".ts")) continue;
+    const copied = join(dir, entry);
+    const text = readFileSync(copied, "utf8");
+    if (text.includes("@untangle/core/")) writeFileSync(copied, text.replaceAll("@untangle/core/", "../../../packages/core/src/"));
+  }
   const path = join(dir, file);
   const text = readFileSync(path, "utf8");
   if (text.split(from).length !== 2) throw new Error(`mutation target in ${file} must occur once: ${from}`);

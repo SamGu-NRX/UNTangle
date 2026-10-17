@@ -1,14 +1,14 @@
 /**
- * Mutation checks: each test copies src/lib/optimizer to a temp directory,
- * plants one bug, and asserts that the check meant to catch that kind of bug
- * fails on the mutant. A check that passes on a planted bug is not checking
- * anything. The planted text must occur exactly once, so a refactor that
- * moves it fails loudly here instead of silently testing nothing.
+ * Mutation checks: each test copies src/lib/optimizer to a temporary
+ * directory inside the workspace, plants one bug, and asserts that the check
+ * meant to catch that kind of bug fails on the mutant. A check that passes
+ * on a planted bug is not checking anything. The planted text must occur
+ * exactly once, so a refactor that moves it fails loudly here instead of
+ * silently testing nothing.
  */
 
 import { afterAll, describe, expect, test } from "bun:test";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   checkAgainstReference,
@@ -16,19 +16,34 @@ import {
   checkExplanations,
   checkLargeInstancesValid,
   checkRegressions,
+  evidenceInstance,
   examInstance,
   termInstance,
   type OptimizeFn,
 } from "./checks";
 
 const SOURCE = join(import.meta.dir, "../../src/lib/optimizer");
+// The copy sits inside node_modules/.cache so the mutant's .ts files are not
+// picked up by typecheck and test globs under tests/optimizer.
+const CACHE_DIR = join(import.meta.dir, "../../../node_modules/.cache");
 const created: string[] = [];
 afterAll(() => created.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
 async function mutant(file: string, from: string, to: string): Promise<OptimizeFn> {
-  const dir = mkdtempSync(join(tmpdir(), "untangle-optimizer-mutant-"));
+  mkdirSync(CACHE_DIR, { recursive: true });
+  const dir = mkdtempSync(join(CACHE_DIR, "untangle-optimizer-mutant-"));
   created.push(dir);
   cpSync(SOURCE, dir, { recursive: true });
+  // The optimizer imports shared logic from @untangle/core. That specifier
+  // resolves through frontend's own node_modules and tsconfig paths, neither
+  // of which applies this far up the tree, so the copy points the import at
+  // the package's source files directly (three levels up reaches the repo).
+  for (const entry of readdirSync(dir)) {
+    if (!entry.endsWith(".ts")) continue;
+    const copied = join(dir, entry);
+    const text = readFileSync(copied, "utf8");
+    if (text.includes("@untangle/core/")) writeFileSync(copied, text.replaceAll("@untangle/core/", "../../../packages/core/src/"));
+  }
   const path = join(dir, file);
   const text = readFileSync(path, "utf8");
   const occurrences = text.split(from).length - 1;
@@ -42,6 +57,8 @@ const SEEDS = Array.from({ length: 400 }, (_, i) => i + 1);
 const agreement = (fn: OptimizeFn) => checkAgainstReference(fn, SEEDS);
 const TERM_SEEDS = Array.from({ length: 300 }, (_, i) => 7001 + i);
 const datedAgreement = (fn: OptimizeFn) => checkAgainstReference(fn, TERM_SEEDS, (seed) => termInstance(seed, true));
+const EVIDENCE_SEEDS = Array.from({ length: 300 }, (_, i) => 9001 + i);
+const evidenceAgreement = (fn: OptimizeFn) => checkAgainstReference(fn, EVIDENCE_SEEDS, evidenceInstance);
 const explanations = (fn: OptimizeFn) => checkExplanations(fn, [...SEEDS, ...Array.from({ length: 150 }, (_, i) => 401 + i)]).failures;
 
 const MUTATIONS: Array<{ name: string; file: string; from: string; to: string; check: (fn: OptimizeFn) => string[] }> = [
@@ -79,6 +96,13 @@ const MUTATIONS: Array<{ name: string; file: string; from: string; to: string; c
     from: " && (a.weeks & b.weeks) !== 0;",
     to: ";",
     check: datedAgreement,
+  },
+  {
+    name: "the engine reads the evidence tie-break instead of ignoring it",
+    file: "prepare.ts",
+    from: "evidence: courseEvidence.options[section.id],",
+    to: "evidence: 0,",
+    check: evidenceAgreement,
   },
   {
     name: "the search treats every consecutive pair in a day as back to back, whatever the dates",
@@ -155,13 +179,6 @@ const MUTATIONS: Array<{ name: string; file: string; from: string; to: string; c
     file: "search.ts",
     from: "if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;",
     to: "if (a[i] !== b[i]) return a[i] < b[i] ? 1 : -1;",
-    check: agreement,
-  },
-  {
-    name: "the evidence tie-break is reversed",
-    file: "search.ts",
-    from: "if (a.evidence !== b.evidence) return a.evidence > b.evidence;",
-    to: "if (a.evidence !== b.evidence) return a.evidence < b.evidence;",
     check: agreement,
   },
   {

@@ -9,7 +9,6 @@
 import {
   OptimizerInputError,
   OPT_DAYS,
-  type OptCourse,
   type OptDateRange,
   type OptDay,
   type OptMeeting,
@@ -52,40 +51,6 @@ export const EVENING_ANCHOR = 22 * 60;
 
 /** Rating used for a section with none: the course's mean, else 3.0. */
 export const DEFAULT_RATING_TENTHS = 30;
-
-/**
- * Starting value: the cost tolerance within which two plans count as tied so
- * instructor evidence can decide between them. It stays below the smallest
- * cost difference two distinct integer-cost plans can have (1), so a
- * preference is never traded for instructor score. Raise it only if the cost
- * model ever gains terms finer than one unit, and only with tests that keep
- * the preference tier dominant.
- */
-export const INSTRUCTOR_TIE_BREAK_TOLERANCE = 0.5;
-
-/**
- * A course may contribute instructor evidence to the tie-break only when
- * EVERY one of its options has a known instructorGpa; when some options in
- * a course lack accepted evidence, that course's grade term is left out for
- * every option (docs/architecture/README.md, "Feature rules that follow
- * from evidence"). Imputing a stand-in value instead would treat missing
- * data as evidence. Exported because the reasons module must derive
- * eligibility from the same request: two computations of the rule could
- * drift apart; one shared function cannot.
- */
-export function courseEvidenceEligible(course: Pick<OptCourse, "sections">): boolean {
-  return course.sections.every((section) => section.instructorGpa !== undefined && section.instructorGpa !== null);
-}
-
-/**
- * The evidence a section contributes when its course is evidence-eligible:
- * its known instructorGpa. Never null on an eligible course, by
- * `courseEvidenceEligible`; an ineligible course contributes 0 for every
- * option, which is exact arithmetic rather than a stand-in measurement.
- */
-export function sectionEvidence(section: OptSection, eligible: boolean): number {
-  return eligible && section.instructorGpa !== undefined && section.instructorGpa !== null ? section.instructorGpa : 0;
-}
 
 export function ratingTenths(rating: number | null): number | null {
   if (rating === null || !Number.isFinite(rating)) return null;
@@ -134,8 +99,20 @@ export function selfCost(section: OptSection, weights: OptWeights, neutralTenths
   return lean * COST_PER_LEAN_MINUTE + weights.rating * own.shortfall * COST_PER_RATING_TENTH;
 }
 
-export function sameBuilding(a: string | null, b: string | null): boolean {
-  return a !== null && b !== null && a === b;
+const ONLINE_PLACE = "online";
+
+/** The place key used by Week: mapped building id, unmapped building code, or null. */
+type MeetingPlace = { buildingId?: string | null; place?: string | null };
+
+export function placeOf(meeting: MeetingPlace): string | null {
+  return meeting.place === undefined ? (meeting.buildingId ?? null) : meeting.place;
+}
+
+/** Whether two consecutive meetings need no walk. */
+export function noWalkBetween(from: MeetingPlace, to: MeetingPlace): boolean {
+  const fromPlace = placeOf(from);
+  const toPlace = placeOf(to);
+  return fromPlace === ONLINE_PLACE || toPlace === ONLINE_PLACE || (fromPlace !== null && fromPlace === toPlace);
 }
 
 /**
@@ -246,6 +223,7 @@ export function costTerms(input: ScoreInput): CostTerms {
     if (!list) continue;
     someBackToBack(list, (prev, next) => {
       terms.gapMinutes += Math.max(0, next.start - prev.end);
+      if (noWalkBetween(prev, next)) return false;
       const walk = walkSeconds(walkingTime, prev.buildingId, next.buildingId);
       if (walk === null) terms.unknownWalks += 1;
       else terms.knownTravelSeconds += walk;

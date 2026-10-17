@@ -267,17 +267,13 @@ describe("scheduleReasons", () => {
   });
 
   describe("unknown travel", () => {
-    test("an unroutable same-building transfer remains unknown in both cost and reasons", () => {
+    test("a same-place transfer has no travel even when the provider cannot route it", () => {
       const req = request([
         course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 540, 600, "ntdp")])]),
         course("CHEM 2370", [section("c0", "CHEM 2370", [at("Mon", 600, 660, "ntdp")])]),
       ], { walking: 1 }, { walkingTime: legs({}) });
-      expect(optimal(req)[0]).toMatchObject({ cost: 600, breakdown: { unknownWalks: 1, walkSeconds: 0 } });
-      expect(sentences(reasonsFor(req)[0])).toEqual(["1 walk between back-to-back classes has no known time."]);
-
-      const routable = { ...req, walkingTime: legs({ "ntdp>ntdp": 0 }) };
-      expect(optimal(routable)[0]).toMatchObject({ cost: 0, breakdown: { unknownWalks: 0, walkSeconds: 0 } });
-      expect(sentences(reasonsFor(routable)[0])).toEqual(["There is no travel between back-to-back classes."]);
+      expect(optimal(req)[0]).toMatchObject({ cost: 0, breakdown: { unknownWalks: 0, walkSeconds: 0 } });
+      expect(sentences(reasonsFor(req)[0])).toEqual(["There is no travel between back-to-back classes."]);
     });
 
     // MATH meets Mon to Wed in LANG; CHEM's c0 follows it in SCI (300 s),
@@ -485,89 +481,71 @@ describe("scheduleReasons", () => {
       expect(() => gradeReasons(history([{ A: 1 }], "2050"))).toThrow("reasons: grade history for BIOL 2050 was given for section b0 of BIOL 2040");
     });
   });
-});
 
-describe("instructor evidence tie-break", () => {
-  const evidenceSection = (id: string, courseCode: string, meetings: Meeting[], gpa: number | null | undefined): Course["sections"][number] => ({
-    id,
-    courseCode,
-    rating: null,
-    meetings,
-    ...(gpa === undefined ? {} : { instructorGpa: gpa }),
-  });
+  describe("instructor evidence tie-break", () => {
+    // MATH meets 9:00-10:00 and CHEM 10:00-11:00 (Mon or Tue, same building),
+    // so every schedule costs the same: only instructor evidence separates
+    // them, and no two sections share a meeting pattern.
+    const tieBreakRequest = () =>
+      request(
+        [
+          course("MATH 1650", [
+            { ...section("m0", "MATH 1650", [at("Mon", 540, 600)]), instructorGpaHundredths: 350 },
+            { ...section("m1", "MATH 1650", [at("Tue", 540, 600)]), instructorGpaHundredths: 280 },
+          ]),
+          course("CHEM 2370", [
+            { ...section("c0", "CHEM 2370", [at("Mon", 600, 660)]), instructorGpaHundredths: 340 },
+            { ...section("c1", "CHEM 2370", [at("Tue", 600, 660)]), instructorGpaHundredths: 310 },
+          ]),
+        ],
+        {},
+      );
 
-  // The engine's tie grid: both cheap plans cost 200 (10 lean minutes at
-  // weight 1), and the winner's ECON instructor averaged 3.9 against 2.9
-  // for the runner-up's. Sections at different times are never twins.
-  // mathGpa fills math-001; math-002 stays without evidence, so with the
-  // default null the MATH course is omitted from the evidence tier for
-  // every plan and ECON decides the tie alone.
-  const tied = (mathGpa: number | null | undefined = null, mathGpa2: number | null | undefined = null) =>
-    request(
-      [
-        course("ECON 1110", [evidenceSection("econ-a", "ECON 1110", [at("Mon", 480, 530)], 3.9), evidenceSection("econ-b", "ECON 1110", [at("Mon", 610, 660)], 2.9)]),
-        course("MATH 1650", [evidenceSection("math-001", "MATH 1650", [at("Mon", 540, 590)], mathGpa), evidenceSection("math-002", "MATH 1650", [at("Mon", 670, 720)], mathGpa2)]),
-      ],
-      { compact: 1 },
-    );
+    test("a reason only when evidence decided between equal-cost options, and never for the last option", () => {
+      const reasons = reasonsFor(tieBreakRequest());
+      // Costs tie, so the engine ranks by evidence: 690 (m0+c0), then the
+      // only schedule differing in both courses, 590 (m1+c1).
+      expect(sentences(reasons[0])).toEqual([
+        "Instructor grade history decided between option 1 and option 2: MATH 1650's instructor's past students averaged 3.50 and CHEM 2370's instructor's past students averaged 3.40.",
+      ]);
+      expect(reasons[0][0].kind).toBe("tie-break");
+      // The last option has no next option to decide against.
+      expect(reasons[1]).toEqual([]);
+    });
 
-  test("an equal-cost tie won on grade history says so in plain words", () => {
-    const req = tied();
-    const alternatives = optimal(req);
-    const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
-    const tie = reasons.find((reason) => reason.kind === "grade-history" && reason.preference === null);
-    expect(tie?.sentence).toBe("Students in this instructor's sections averaged a 3.9.");
-    expect(tie?.evidence.numbers).toContainEqual({ label: "average grade points of sections with grade history", value: 3.9 });
-    expect(tie?.evidence.numbers).toContainEqual({ label: "sections with grade history", value: 1 });
-    for (const reason of reasons) check(req, alternatives, 0, reason);
-  });
+    test("no reason when the evidence sums tie", () => {
+      const req = request(
+        [
+          course("MATH 1650", [
+            { ...section("m0", "MATH 1650", [at("Mon", 540, 600)]), instructorGpaHundredths: 320 },
+            { ...section("m1", "MATH 1650", [at("Tue", 540, 600)]), instructorGpaHundredths: 320 },
+          ]),
+          course("CHEM 2370", [
+            { ...section("c0", "CHEM 2370", [at("Mon", 600, 660)]), instructorGpaHundredths: 320 },
+            { ...section("c1", "CHEM 2370", [at("Tue", 600, 660)]), instructorGpaHundredths: 320 },
+          ]),
+        ],
+        {},
+      );
+      expect(reasonsFor(req)).toEqual([[], []]);
+    });
 
-  test("two sections with grade history say these instructors' sections", () => {
-    // Both MATH options need a gpa for the course to be evidence-eligible;
-    // then the winner quotes the mean over both of its known sections.
-    const req = tied(3.5, 3.5);
-    const alternatives = optimal(req);
-    const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
-    const tie = reasons.find((reason) => reason.kind === "grade-history" && reason.preference === null);
-    // (3.9 + 3.5) / 2 over the two known sections.
-    expect(tie?.sentence).toBe("Students in these instructors' sections averaged a 3.7.");
-    expect(tie?.evidence.numbers).toContainEqual({ label: "sections with grade history", value: 2 });
-    for (const reason of reasons) check(req, alternatives, 0, reason);
-  });
-
-  test("no tie sentence when the winner has no known evidence", () => {
-    // Every section's gpa is null or absent: no plan has any known
-    // evidence, so there is nothing real to quote and the sentence stays
-    // silent. Both spellings of "missing" are covered.
-    const req = request(
-      [
-        course("ECON 1110", [evidenceSection("econ-a", "ECON 1110", [at("Mon", 480, 530)], null), evidenceSection("econ-b", "ECON 1110", [at("Mon", 610, 660)], undefined)]),
-        course("MATH 1650", [evidenceSection("math-001", "MATH 1650", [at("Mon", 540, 590)], undefined), evidenceSection("math-002", "MATH 1650", [at("Mon", 670, 720)], null)]),
-      ],
-      { compact: 1 },
-    );
-    const alternatives = optimal(req);
-    for (const schedule of alternatives.slice(0, 2)) {
-      for (const entry of req.courses) {
-        const picked = entry.sections.find((s) => s.id === schedule.byCourse[entry.code]);
-        expect(picked?.instructorGpa === undefined || picked?.instructorGpa === null).toBe(true);
-      }
-    }
-    const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
-    expect(reasons.some((reason) => reason.kind === "grade-history" && reason.preference === null)).toBe(false);
-  });
-
-  test("no tie sentence when the costs differ", () => {
-    const req = request(
-      [
-        course("ECON 1110", [evidenceSection("econ-a", "ECON 1110", [at("Mon", 480, 530)], 3.9), evidenceSection("econ-b", "ECON 1110", [at("Mon", 610, 660)], 2.9)]),
-        course("MATH 1650", [evidenceSection("math-001", "MATH 1650", [at("Mon", 540, 590)], null), evidenceSection("math-002", "MATH 1650", [at("Mon", 690, 740)], null)]),
-      ],
-      { compact: 1 },
-    );
-    const alternatives = optimal(req);
-    expect(alternatives[0]!.cost).not.toBe(alternatives[1]!.cost);
-    const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
-    expect(reasons.some((reason) => reason.kind === "grade-history" && reason.preference === null)).toBe(false);
+    test("no reason when a stated preference decided the ranks", () => {
+      // m1 (the weaker instructor) meets one fewer day, so fewerDays ranks
+      // {m1, c0} first on cost; evidence never gets to decide.
+      const req = request(
+        [
+          course("MATH 1650", [
+            { ...section("m0", "MATH 1650", [at("Mon", 540, 600), at("Tue", 540, 600)]), instructorGpaHundredths: 350 },
+            { ...section("m1", "MATH 1650", [at("Mon", 540, 600)]), instructorGpaHundredths: 280 },
+          ]),
+          course("CHEM 2370", [{ ...section("c0", "CHEM 2370", [at("Mon", 600, 660)]), instructorGpaHundredths: 340 }]),
+        ],
+        { fewerDays: 1 },
+      );
+      const reasons = reasonsFor(req);
+      expect(reasons[0].map((reason) => reason.kind)).not.toContain("tie-break");
+      expect(reasons[0].map((reason) => reason.preference)).toContain("fewerDays");
+    });
   });
 });

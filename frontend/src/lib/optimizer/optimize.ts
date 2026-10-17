@@ -11,13 +11,10 @@
  * 4. If the first search proves nothing fits, `explainInfeasible` names a
  *    smallest conflicting set and checked one-click relaxations.
  *
- * Order and ties, three tiers: ascending cost; within
- * INSTRUCTOR_TIE_BREAK_TOLERANCE of an equal cost, higher instructor
- * evidence (the mean of the picks' known instructorGpa over courses where
- * every option has one; other courses are omitted for every plan); then
- * the section ids in course-code order compared one
- * by one. With integer costs the tolerance band is exactly equality. The
- * same request always gives the same answer, except
+ * Order and ties: ascending cost, then, among equal costs, stronger
+ * instructor grade-history evidence (the instructor tie-break, carried in
+ * whole hundredths), then the section ids in course-code order
+ * compared one by one. The same request always gives the same answer, except
  * that a wall-clock budget can stop the search at different points on
  * different machines; `maxNodes` does not.
  */

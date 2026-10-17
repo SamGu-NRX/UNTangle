@@ -122,6 +122,27 @@ test("the event list is capped at MAX_EVENTS_IN_RESPONSE", async () => {
   expect(body.events.length).toBe(MAX_EVENTS_IN_RESPONSE);
 });
 
+test("a zero-length event exactly at the range start counts as inside", async () => {
+  const instant = event({ start: "2026-10-20T00:00:00.000Z", end: "2026-10-20T00:00:00.000Z" });
+  const response = await eventsHandler(
+    request("?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z"),
+    { cache: cacheWith([instant], []) },
+  );
+  const body = (await response.json()) as { events: NormalizedEvent[] };
+  expect(body.events.length).toBe(1);
+});
+
+test("events over the count cap are flagged as truncated", async () => {
+  const many = Array.from({ length: MAX_EVENTS_IN_RESPONSE + 5 }, (_, index) => event({ title: `Event ${index}` }));
+  const response = await eventsHandler(
+    request("?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z"),
+    { cache: cacheWith(many, []) },
+  );
+  const body = (await response.json()) as { events: NormalizedEvent[]; truncated: boolean };
+  expect(body.events.length).toBe(MAX_EVENTS_IN_RESPONSE);
+  expect(body.truncated).toBe(true);
+});
+
 test("parseEventsQuery normalizes the building filter and trims q", () => {
   const parsed = parseEventsQuery(
     new URL("http://x/api/v1/events?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z&building=UU&q=%20pickleball%20"),
@@ -139,6 +160,7 @@ test("serializeEventsResponse halves oversized payloads and flags truncation", (
     q: null,
     events: Array.from({ length: 1000 }, () => oneBig),
     sources: [],
+    truncated: false,
   };
   const { json } = serializeEventsResponse(payload);
   const body = JSON.parse(json) as { truncated: boolean; events: NormalizedEvent[] };
@@ -164,6 +186,7 @@ test("an event larger than the response budget is dropped with a per-source note
     q: null,
     events: [event({ sourceId: "alpha", title: bigTitle }), event({ sourceId: "beta", title: bigTitle })],
     sources: [report("alpha"), report("beta")],
+    truncated: false,
   };
   const { json } = serializeEventsResponse(payload);
   const body = JSON.parse(json) as {

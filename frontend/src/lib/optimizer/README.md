@@ -60,21 +60,11 @@ an `OptimizeRequest`. `worker/` runs it off the main thread for the Week view.
   evenings, walking, rating). The cost is an integer sum in human units, so
   ties are exact. The exchange rates in `score.ts` are a judgment, not a
   measurement.
-- Ties break in three tiers. First the cost: a preference is never traded for
-  instructor score. Within `INSTRUCTOR_TIE_BREAK_TOLERANCE` of an equal cost
-  (with integer costs, exactly equal), the plan whose sections' instructors
-  have the stronger grade-history evidence wins, over courses where every
-  option has evidence: when any option of a course lacks a known
-  `instructorGpa`, that course's grade term is left out for every option (the
-  omit-per-course rule, from `docs/architecture/README.md`), so missing data
-  never acts as evidence; a schedule with no eligible course scores 0 for
-  every plan and the ids decide.
-  What remains breaks by section ids in course-code order. With `maxNodes` the
-  answer is the same on every machine. With `timeBudgetMs` it can stop at
-  different points on different machines.
+- Ties break by section ids in course-code order. With `maxNodes` the answer
+  is the same on every machine. With `timeBudgetMs` it can stop at different
+  points on different machines.
 - A malformed request (an unknown section, a duplicate exclusion or blocked-time
-  id, a negative walking time, an `instructorGpa` outside 0 to 4) throws
-  `OptimizerInputError`. That is a caller
+  id, a negative walking time) throws `OptimizerInputError`. That is a caller
   bug, never student input. `parseSchedulePreferences` in `planner.ts` rejects
   stored preferences that would trigger one, such as duplicate blocked-time ids.
 
@@ -151,6 +141,10 @@ map v2, with a straight-line fallback where the graph has no route.
   `score.ts` is the only place they are normalized, by rounding to whole
   seconds, so the walking check, the cost and the breakdown agree.
 - The same building is 0 seconds.
+- Online meetings are not walks. Two classes with the same place are not a
+  walk either, including two rooms in the same unmapped building by building
+  code. An in-person meeting with no assigned place still has a null place, so
+  a pair to or from it is unknown.
 - An unknown walk (a building missing from the registry, or an off-campus one
   such as NTDP) is never 0. It counts as `UNKNOWN_WALK_SECONDS` (600 s) in the
   cost and in the walking check. Ten minutes is the standard break in the

@@ -120,11 +120,18 @@ export class EventSourceCache {
       const cached = entry?.icsText ?? null;
       let status: SourceStatus = "error";
       let eventCount = 0;
+      let error = entry?.error ?? null;
       if (cached !== null) {
-        status = entry!.error === null ? "ok" : "stale";
-        const normalized = normalizeIcsFeed(cached, parseRange, source);
-        events.push(...normalized);
-        eventCount = normalized.length;
+        // The text is parsed on every request, so a body the parser rejects
+        // must fail only its own source, not every request until the next refresh.
+        try {
+          const normalized = normalizeIcsFeed(cached, parseRange, source);
+          events.push(...normalized);
+          eventCount = normalized.length;
+          status = entry!.error === null ? "ok" : "stale";
+        } catch (parseError) {
+          error = `the cached feed does not parse: ${parseError instanceof Error ? parseError.message : String(parseError)}`;
+        }
       }
       reports.push({
         id: source.id,
@@ -132,7 +139,7 @@ export class EventSourceCache {
         status,
         fetchedAt: entry?.fetchedAtMs != null ? new Date(entry.fetchedAtMs).toISOString() : null,
         eventCount,
-        error: entry?.error ?? null,
+        error,
       });
     }
     events.sort((a, b) => (a.start === b.start ? a.title.localeCompare(b.title) : a.start.localeCompare(b.start)));

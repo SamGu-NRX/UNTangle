@@ -184,8 +184,8 @@ export const DEFAULT_CANDIDATE_FILTER: CandidateFilter = { openSeatsOnly: false,
  * An option in the optimizer's shape, carrying its final when UNT's rule
  * places it (lib/final-exams.ts), so Auto never pairs two clashing finals.
  */
-function toSearchedSection(section: Section): OptSection | null {
-  const searched = toOptSection(section);
+function toSearchedSection(section: Section, evidence?: number | null): OptSection | null {
+  const searched = toOptSection(section, evidence);
   const exam = examOf(section);
   return searched && exam.kind === "known" ? { ...searched, exam: exam.exam } : searched;
 }
@@ -199,14 +199,17 @@ export function toOptimizerCourses(
   courseCodes: readonly string[],
   catalog: SectionCatalog = sampleCatalog,
   filter: CandidateFilter = DEFAULT_CANDIDATE_FILTER,
+  /** Per course, per section id, the option's accepted instructor evidence in hundredths (instructor-evidence.ts). */
+  evidenceHundredths?: Readonly<Record<string, Record<string, number | null>>>,
 ): OptCourse[] {
   return [...new Set(courseCodes)].flatMap((code) => {
     const course = getCourseByCode(code);
     const options = catalog(code);
     if (!course || options.status !== "ready") return [];
+    const evidence = evidenceHundredths?.[code];
     const sections = options.result.sections
       .filter((section) => isCandidate(section, filter))
-      .map(toSearchedSection)
+      .map((section) => toSearchedSection(section, evidence?.[section.id]))
       .filter((section): section is OptSection => section !== null);
     if (sections.length === 0) return [];
     return [{ code, credits: Number.isFinite(course.creditHours) && course.creditHours >= 0 ? course.creditHours : 0, sections }];
@@ -242,8 +245,10 @@ export function recommendSections(
   // Campus walkway times plus the Discovery Park shuttle, the same provider Optimize uses.
   walkingTime: WalkingTimeFn = plannerTravelTime,
   filter: CandidateFilter = DEFAULT_CANDIDATE_FILTER,
+  /** Per course, per section id, the option's accepted instructor evidence in hundredths (instructor-evidence.ts). */
+  evidenceHundredths?: Readonly<Record<string, Record<string, number | null>>>,
 ) {
-  const optimizerCourses = toOptimizerCourses(courseCodes, catalog, filter).filter(
+  const optimizerCourses = toOptimizerCourses(courseCodes, catalog, filter, evidenceHundredths).filter(
     (course) => !(course.code in fixedSelections) || course.sections.some((section) => section.id === fixedSelections[course.code]),
   );
   const locks = Object.fromEntries(
@@ -344,6 +349,8 @@ export function resolveSectionPlan(
   catalog: SectionCatalog = sampleCatalog,
   filter: CandidateFilter = DEFAULT_CANDIDATE_FILTER,
   walkingTime: WalkingTimeFn = plannerTravelTime,
+  /** Per course, per section id, the option's accepted instructor evidence in hundredths (instructor-evidence.ts). */
+  evidenceHundredths?: Readonly<Record<string, Record<string, number | null>>>,
 ): SectionPlan {
   const placed = getPlanningTermCourseCodes(state).map((code): PlannedCourse => {
     const options = catalog(code);
@@ -360,7 +367,7 @@ export function resolveSectionPlan(
   const open = placed.filter((course) => course.state === "choose");
   const recommended =
     open.length > 0
-      ? recommendSections(state.optimization, [...Object.keys(chosen), ...open.map((course) => course.code)], chosen, catalog, walkingTime, filter)
+      ? recommendSections(state.optimization, [...Object.keys(chosen), ...open.map((course) => course.code)], chosen, catalog, walkingTime, filter, evidenceHundredths)
       : {};
   const courses = placed.map((course): PlannedCourse => {
     if (course.state !== "choose") return course;
@@ -479,9 +486,11 @@ export function heldOutCourses(
   catalog: SectionCatalog,
   filter: CandidateFilter,
   courseCodes: readonly string[] = getPlanningTermCourseCodes(state),
+  /** Per course, per section id, the option's accepted instructor evidence in hundredths (instructor-evidence.ts). */
+  evidenceHundredths?: Readonly<Record<string, Record<string, number | null>>>,
 ): HeldOutCourse[] {
   const locked = getLockedSelections(state);
-  const offered = new Map(toOptimizerCourses(courseCodes, catalog, filter).map((course) => [course.code, course]));
+  const offered = new Map(toOptimizerCourses(courseCodes, catalog, filter, evidenceHundredths).map((course) => [course.code, course]));
   return courseCodes.flatMap((code): HeldOutCourse[] => {
     const pick = state.selectedSections[code];
     if (!pick || offered.get(code)?.sections.some((section) => section.id === pick)) return [];
@@ -517,11 +526,13 @@ export function buildOptimizeRequest(
     k?: number;
     /** Dated busy pieces from the busy route's serialized response (calendar-feeds/busy-serialize.ts); title-free by construction. */
     busyOccurrences?: readonly SerializedBusyOccurrence[];
+    /** Per course, per section id, the option's accepted instructor evidence in hundredths (instructor-evidence.ts); a course without an entry carries no evidence. */
+    evidenceHundredths?: Readonly<Record<string, Record<string, number | null>>>;
   } = {},
 ): OptimizeRequest {
   const catalog = options.catalog ?? sampleCatalog;
   const codes = options.courseCodes ?? getPlanningTermCourseCodes(state);
-  const held = new Set(heldOutCourses(state, catalog, preferences.constraints, codes).map((course) => course.code));
+  const held = new Set(heldOutCourses(state, catalog, preferences.constraints, codes, options.evidenceHundredths).map((course) => course.code));
   const keptAsIs = [...held].flatMap((code): OptCourse[] => {
     const section = findOption(catalog, code, state.selectedSections[code]);
     const fixed = section && toSearchedSection(section);
@@ -529,7 +540,9 @@ export function buildOptimizeRequest(
     return fixed && course ? [{ code, credits: course.creditHours, sections: [fixed] }] : [];
   });
   const optimizerCourses = [
-    ...toOptimizerCourses(codes, catalog, preferences.constraints).filter((course) => !held.has(course.code)),
+    // A held course's single option contributes the same to every schedule,
+    // so it never decides a tie: only the searched courses carry evidence.
+    ...toOptimizerCourses(codes, catalog, preferences.constraints, options.evidenceHundredths).filter((course) => !held.has(course.code)),
     ...keptAsIs,
   ];
   const searched = new Set(optimizerCourses.map((course) => course.code));
