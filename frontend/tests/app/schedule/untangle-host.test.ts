@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { evidenceFetchable } from "@/app/schedule/untangle-host";
+import { evidenceFetchable } from "@/lib/sections/instructor-evidence";
 import { sampleCatalog, type CourseOptions } from "@/lib/planner-sections";
 import type { CourseSections, Meeting, RealProvenance, Section } from "@/lib/sections/model";
 

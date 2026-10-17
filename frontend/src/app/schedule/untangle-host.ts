@@ -27,12 +27,9 @@ import {
   takeFromAutoRun,
   type PlannedCourse,
 } from "@/lib/planner";
-import { findOption, optionIdLabel, planningTerm, sectionRef, termDates, type CourseOptions } from "@/lib/planner-sections";
+import { findOption, optionIdLabel, planningTerm, sectionRef, termDates } from "@/lib/planner-sections";
 import { weekTravel } from "@/lib/planner-walking";
 import { findClassNumber } from "@/lib/sections/client";
-import { fetchCourseHistory, fetchMissingHistories } from "@/lib/grades-history/course-history";
-import type { CourseHistory, HistoryResult } from "@/lib/grades-history/types";
-import { courseEvidenceHundredths } from "@/lib/sections/instructor-evidence";
 import { optionReasons } from "./option-reasons";
 import { courses as catalog } from "@/lib/seed-data";
 import type { CourseStatus, PlannerState, SchedulePreferences } from "@/lib/types";
@@ -71,18 +68,6 @@ function infeasibleSentence(explanation: Explanation): string {
 /** Undo steps kept per visit. More than anyone presses; a bound, not a rule. */
 const HISTORY = 50;
 const SUGGESTIONS = 8;
-
-/**
- * Whether one planning course may fetch and carry instructor evidence: only
- * when its loaded sections are real. The section store answers "ready" even
- * when it fell back to synthetic sample sections (vsb had no usable record),
- * and samples fabricate instructors — real grade history mapped onto a
- * fabricated name could win the tie-break for a section that is not a real
- * enrollment option.
- */
-export function evidenceFetchable(code: string, loaded: CourseOptions): boolean {
-  return loaded.status === "ready" && loaded.result.provenance.kind === "real" && loaded.result.sections.length > 0 && code.includes(" ");
-}
 
 function withEntry<T>(record: Record<string, T> | undefined, code: string, value: T | undefined): Record<string, T> {
   const next = { ...(record ?? {}) };
@@ -213,6 +198,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     sectionPlan,
     sectionCatalog,
     catalogVersion,
+    evidenceHundredths,
     loadSections,
     schedulePreferences,
     setSchedulePreferences,
@@ -400,60 +386,6 @@ export function useUntangleHost(brand: Brand): BuilderHost {
       });
     },
   };
-
-  // Accepted instructor evidence for Auto's tie-break: per course, each
-  // section's instructor mean from the grade-history service. A course the
-  // service cannot read maps to nulls — unknown evidence never enters the
-  // tie-break, so a throttle never reads as weak grades.
-  const [evidenceHundredths, setEvidenceHundredths] = useState<Record<string, Record<string, number | null>>>({});
-  const planningCodes = getPlanningTermCourseCodes(plannerState).join("\n");
-  // One fetch per course per session: a course's history does not change
-  // with the catalog, so each catalogVersion re-maps the cached results
-  // instead of refetching every history. Failures cache too, so one dead
-  // course costs one bounded attempt, never a retry loop.
-  const historiesRef = useRef(new Map<string, Promise<HistoryResult<CourseHistory>>>());
-  useEffect(() => {
-    const codes = planningCodes.split("\n").filter(Boolean);
-    if (codes.length === 0) {
-      setEvidenceHundredths({});
-      return;
-    }
-    const fetchOne = (code: string) => {
-      const [subject, number = ""] = code.split(" ");
-      // A history the browser cannot read (offline, endpoint down, a test
-      // DOM with no origin) maps to nulls like any other unavailable
-      // source: unknown evidence never enters the tie-break, and one dead
-      // course never blanks the others.
-      return fetchCourseHistory(subject, number).catch(
-        (): HistoryResult<CourseHistory> => ({
-          status: "unavailable",
-          source: "untgrades.app",
-          data: null,
-          error: { reason: "upstream", message: "course history request failed" },
-        }),
-      );
-    };
-    // Only loaded, real-provenance courses fetch, as before; a course first
-    // fetches when its sections load, then never again this session.
-    const fetchable = new Set(codes.filter((code) => evidenceFetchable(code, sectionCatalog(code))));
-    historiesRef.current = fetchMissingHistories(fetchable, historiesRef.current, fetchOne);
-    const histories = historiesRef.current;
-    let cancelled = false;
-    void Promise.all(
-      codes.map(async (code) => {
-        const loaded = sectionCatalog(code);
-        const sections = loaded.status === "ready" ? loaded.result.sections : [];
-        if (sections.length === 0 || !fetchable.has(code)) return [code, {}] as const;
-        const result = await histories.get(code)!;
-        return [code, courseEvidenceHundredths(sections, result)] as const;
-      }),
-    ).then((entries) => {
-      if (!cancelled) setEvidenceHundredths(Object.fromEntries(entries));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [planningCodes, sectionCatalog, catalogVersion]);
 
   // Auto: the same request the optimizer receives everywhere in UNTangle.
   const request = useMemo(

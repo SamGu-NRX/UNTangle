@@ -20,6 +20,7 @@
 import type { InstructorEvidence } from "@untangle/core/instructor-tiebreak";
 import type { CourseHistory, HistoryResult } from "@/lib/grades-history/types";
 import { matchInstructor, type Candidate } from "@/lib/instructors/match";
+import type { CourseOptions } from "@/lib/planner-sections";
 import type { Section } from "./model";
 
 /**
@@ -101,4 +102,16 @@ export function courseEvidenceHundredths(
     const evidence = instructorEvidence(section, history);
     return [section.id, evidence.kind === "known" ? evidence.meanGradePointsHundredths : null];
   }));
+}
+
+/**
+ * Whether one planning course may fetch and carry instructor evidence: only
+ * when its loaded sections are real. The section store answers "ready" even
+ * when it fell back to synthetic sample sections (vsb had no usable record),
+ * and samples fabricate instructors — real grade history mapped onto a
+ * fabricated name could win the tie-break for a section that is not a real
+ * enrollment option.
+ */
+export function evidenceFetchable(code: string, loaded: CourseOptions): boolean {
+  return loaded.status === "ready" && loaded.result.provenance.kind === "real" && loaded.result.sections.length > 0 && code.includes(" ");
 }

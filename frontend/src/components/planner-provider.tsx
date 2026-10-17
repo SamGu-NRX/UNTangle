@@ -28,6 +28,9 @@ import {
   type SectionPlan,
 } from "@/lib/planner";
 import { planningTerm, type SectionCatalog } from "@/lib/planner-sections";
+import { fetchCourseHistory, fetchMissingHistories } from "@/lib/grades-history/course-history";
+import type { CourseHistory, HistoryResult } from "@/lib/grades-history/types";
+import { courseEvidenceHundredths, evidenceFetchable } from "@/lib/sections/instructor-evidence";
 import { createSectionStore, type SectionStore } from "@/lib/section-store";
 import {
   GUEST_ID_KEY,
@@ -203,6 +206,14 @@ type PlannerContextValue = {
   sectionCatalog: SectionCatalog;
   /** Changes when any course's options finish loading. */
   catalogVersion: number;
+  /**
+   * The accepted instructor evidence this provider's `sectionPlan` tie-breaks
+   * on, per planning course and section id (`instructor-evidence.ts`): known
+   * means in whole hundredths, null unknown. Empty until a course's history
+   * resolves; surfaces that plan sections read it from here so displayed
+   * recommendations and optimizer requests tie-break on the same evidence.
+   */
+  evidenceHundredths: Readonly<Record<string, Record<string, number | null>>>;
   /** Starts loading these courses' options (cached, shared with every view). */
   loadSections: (courseCodes: readonly string[]) => void;
   routeStops: ReturnType<typeof routeStopsOf>;
@@ -543,6 +554,59 @@ function IdentityPlannerProvider({
   useEffect(() => {
     if (plannedKey) sectionStore.ensure(plannedKey.split("|"));
   }, [plannedKey, sectionStore]);
+  // Accepted instructor evidence for the tie-break (Auto's request and this
+  // provider's sectionPlan): per planning course, each section's instructor
+  // mean from the grade-history service. A course the service cannot read
+  // maps to nulls — unknown evidence never enters the tie-break, so a
+  // throttle never reads as weak grades.
+  const [evidenceHundredths, setEvidenceHundredths] = useState<Record<string, Record<string, number | null>>>({});
+  // One fetch per course per session: a course's history does not change with
+  // the catalog, so each catalogVersion re-maps the cached results instead of
+  // refetching every history. Failures cache too, so one dead course costs one
+  // bounded attempt, never a retry loop.
+  const historiesRef = useRef(new Map<string, Promise<HistoryResult<CourseHistory>>>());
+  useEffect(() => {
+    const codes = plannedKey ? plannedKey.split("|") : [];
+    if (codes.length === 0) {
+      setEvidenceHundredths({});
+      return;
+    }
+    const fetchOne = (code: string) => {
+      const [subject, number = ""] = code.split(" ");
+      // A history the browser cannot read (offline, endpoint down, a test
+      // DOM with no origin) maps to nulls like any other unavailable source:
+      // unknown evidence never enters the tie-break, and one dead course
+      // never blanks the others.
+      return fetchCourseHistory(subject, number).catch(
+        (): HistoryResult<CourseHistory> => ({
+          status: "unavailable",
+          source: "untgrades.app",
+          data: null,
+          error: { reason: "upstream", message: "course history request failed" },
+        }),
+      );
+    };
+    // Only loaded, real-provenance courses fetch: a course first fetches when
+    // its sections load, then never again this session.
+    const fetchable = new Set(codes.filter((code) => evidenceFetchable(code, sectionStore.catalog(code))));
+    historiesRef.current = fetchMissingHistories(fetchable, historiesRef.current, fetchOne);
+    const histories = historiesRef.current;
+    let cancelled = false;
+    void Promise.all(
+      codes.map(async (code) => {
+        const loaded = sectionStore.catalog(code);
+        const sections = loaded.status === "ready" ? loaded.result.sections : [];
+        if (sections.length === 0 || !fetchable.has(code)) return [code, {}] as const;
+        const result = await histories.get(code)!;
+        return [code, courseEvidenceHundredths(sections, result)] as const;
+      }),
+    ).then((entries) => {
+      if (!cancelled) setEvidenceHundredths(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [plannedKey, sectionStore, catalogVersion]);
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<PlannerSaveState>(PENDING);
   // Fingerprint the last `saved` acknowledgement covered. `Saved` is only
@@ -577,10 +641,12 @@ function IdentityPlannerProvider({
   const [preferencesStorage, setPreferencesStorage] = useState<PreferencesStorage>("stored");
   const { openSeatsOnly, otherSites } = schedulePreferences.constraints;
   const sectionPlan = useMemo(
-    () => resolveSectionPlan(normalizedState, sectionStore.catalog, { openSeatsOnly, otherSites }),
+    // The evidence map is the same one Auto's request carries: a recommendation
+    // the page shows tie-breaks on accepted instructor evidence, not section id.
+    () => resolveSectionPlan(normalizedState, sectionStore.catalog, { openSeatsOnly, otherSites }, undefined, evidenceHundredths),
     // catalogVersion is how the catalog says it has more loaded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [normalizedState, sectionStore, catalogVersion, openSeatsOnly, otherSites],
+    [normalizedState, sectionStore, catalogVersion, openSeatsOnly, otherSites, evidenceHundredths],
   );
   // Actions read the newest plan: a lock pins the section the page shows.
   const sectionPlanRef = useRef(sectionPlan);
@@ -1563,6 +1629,7 @@ function IdentityPlannerProvider({
       sectionPlan,
       sectionCatalog: sectionStore.catalog,
       catalogVersion,
+      evidenceHundredths,
       loadSections: sectionStore.ensure,
       routeStops: routeStopsOf(scheduleEvents),
       scheduleEvents,
