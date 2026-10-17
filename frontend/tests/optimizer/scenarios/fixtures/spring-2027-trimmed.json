@@ -21547,6 +21547,355 @@
    ],
    "status": "ok"
   },
+  "PHYS 1410": {
+   "course_code": "PHYS 1410",
+   "status": "ok",
+   "message": "5 enrollment options in 2027 Spring",
+   "sections": [
+    {
+     "days_and_times": "None",
+     "days": "",
+     "start_time": "",
+     "end_time": "",
+     "room": "UNT Internet Course",
+     "instructor": "Rout,Bibhudutta",
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "section": "400",
+     "class_number": "2194",
+     "open_seats": 200,
+     "total_seats": 200,
+     "class_numbers": [
+      "2194"
+     ],
+     "linked_sections": [
+      {
+       "days_and_times": "None",
+       "days": "",
+       "start_time": "",
+       "end_time": "",
+       "room": "UNT Internet Course",
+       "instructor": "Rout,Bibhudutta",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "400",
+       "class_number": "2194",
+       "open_seats": 200,
+       "total_seats": 200
+      }
+     ],
+     "option": "1",
+     "component": "Enrollment option",
+     "status": "Open",
+     "session": "Regular Academic Session",
+     "meetings": [
+      {
+       "days_and_times": "None",
+       "days": "",
+       "start_time": "",
+       "end_time": "",
+       "room": "UNT Internet Course",
+       "instructor": "Rout,Bibhudutta",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "400",
+       "class_number": "2194"
+      }
+     ]
+    },
+    {
+     "days_and_times": "Monday Wednesday 5:30PM to 6:50PM \u2022 Wednesday 3:55PM to 5:15PM",
+     "days": "MW",
+     "start_time": "5:30PM",
+     "end_time": "6:50PM",
+     "room": "Phys 104",
+     "instructor": "Purvis,Rebekah Minnel",
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "section": "002 + 202",
+     "class_number": "11428+6291",
+     "open_seats": 70,
+     "total_seats": 70,
+     "class_numbers": [
+      "11428",
+      "6291"
+     ],
+     "linked_sections": [
+      {
+       "days_and_times": "Monday Wednesday 5:30PM to 6:50PM",
+       "days": "MW",
+       "start_time": "5:30PM",
+       "end_time": "6:50PM",
+       "room": "Phys 104",
+       "instructor": "Purvis,Rebekah Minnel",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "002",
+       "class_number": "11428",
+       "open_seats": 70,
+       "total_seats": 70
+      },
+      {
+       "days_and_times": "Wednesday 3:55PM to 5:15PM",
+       "days": "W",
+       "start_time": "3:55PM",
+       "end_time": "5:15PM",
+       "room": "SAGE 230",
+       "instructor": "Purvis,Rebekah Minnel",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "202",
+       "class_number": "6291",
+       "open_seats": 70,
+       "total_seats": 70
+      }
+     ],
+     "option": "2",
+     "component": "Enrollment option",
+     "status": "Open",
+     "session": "Regular Academic Session",
+     "meetings": [
+      {
+       "days_and_times": "Monday Wednesday 5:30PM to 6:50PM",
+       "days": "MW",
+       "start_time": "5:30PM",
+       "end_time": "6:50PM",
+       "room": "Phys 104",
+       "instructor": "Purvis,Rebekah Minnel",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "002",
+       "class_number": "11428"
+      },
+      {
+       "days_and_times": "Wednesday 3:55PM to 5:15PM",
+       "days": "W",
+       "start_time": "3:55PM",
+       "end_time": "5:15PM",
+       "room": "SAGE 230",
+       "instructor": "Purvis,Rebekah Minnel",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "202",
+       "class_number": "6291"
+      }
+     ]
+    },
+    {
+     "days_and_times": "Monday Wednesday Friday 11:15AM to 12:05PM \u2022 Friday 3:55PM to 5:15PM",
+     "days": "MWF",
+     "start_time": "11:15AM",
+     "end_time": "12:05PM",
+     "room": "Phys 102",
+     "instructor": "Singh,Jace",
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "section": "001 + 203",
+     "class_number": "11427+11599",
+     "open_seats": 144,
+     "total_seats": 144,
+     "class_numbers": [
+      "11427",
+      "11599"
+     ],
+     "linked_sections": [
+      {
+       "days_and_times": "Monday Wednesday Friday 11:15AM to 12:05PM",
+       "days": "MWF",
+       "start_time": "11:15AM",
+       "end_time": "12:05PM",
+       "room": "Phys 102",
+       "instructor": "Singh,Jace",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "001",
+       "class_number": "11427",
+       "open_seats": 144,
+       "total_seats": 144
+      },
+      {
+       "days_and_times": "Friday 3:55PM to 5:15PM",
+       "days": "F",
+       "start_time": "3:55PM",
+       "end_time": "5:15PM",
+       "room": "SAGE 230",
+       "instructor": "None",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "203",
+       "class_number": "11599",
+       "open_seats": 70,
+       "total_seats": 70
+      }
+     ],
+     "option": "3",
+     "component": "Enrollment option",
+     "status": "Open",
+     "session": "Regular Academic Session",
+     "meetings": [
+      {
+       "days_and_times": "Monday Wednesday Friday 11:15AM to 12:05PM",
+       "days": "MWF",
+       "start_time": "11:15AM",
+       "end_time": "12:05PM",
+       "room": "Phys 102",
+       "instructor": "Singh,Jace",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "001",
+       "class_number": "11427"
+      },
+      {
+       "days_and_times": "Friday 3:55PM to 5:15PM",
+       "days": "F",
+       "start_time": "3:55PM",
+       "end_time": "5:15PM",
+       "room": "SAGE 230",
+       "instructor": "None",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "203",
+       "class_number": "11599"
+      }
+     ]
+    },
+    {
+     "days_and_times": "Monday Wednesday Friday 11:15AM to 12:05PM \u2022 Friday 2:25PM to 3:45PM",
+     "days": "MWF",
+     "start_time": "11:15AM",
+     "end_time": "12:05PM",
+     "room": "Phys 102",
+     "instructor": "Singh,Jace",
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "section": "001 + 201",
+     "class_number": "11427+8265",
+     "open_seats": 144,
+     "total_seats": 144,
+     "class_numbers": [
+      "11427",
+      "8265"
+     ],
+     "linked_sections": [
+      {
+       "days_and_times": "Monday Wednesday Friday 11:15AM to 12:05PM",
+       "days": "MWF",
+       "start_time": "11:15AM",
+       "end_time": "12:05PM",
+       "room": "Phys 102",
+       "instructor": "Singh,Jace",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "001",
+       "class_number": "11427",
+       "open_seats": 144,
+       "total_seats": 144
+      },
+      {
+       "days_and_times": "Friday 2:25PM to 3:45PM",
+       "days": "F",
+       "start_time": "2:25PM",
+       "end_time": "3:45PM",
+       "room": "SAGE 230",
+       "instructor": "None",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "201",
+       "class_number": "8265",
+       "open_seats": 70,
+       "total_seats": 70
+      }
+     ],
+     "option": "4",
+     "component": "Enrollment option",
+     "status": "Open",
+     "session": "Regular Academic Session",
+     "meetings": [
+      {
+       "days_and_times": "Monday Wednesday Friday 11:15AM to 12:05PM",
+       "days": "MWF",
+       "start_time": "11:15AM",
+       "end_time": "12:05PM",
+       "room": "Phys 102",
+       "instructor": "Singh,Jace",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "001",
+       "class_number": "11427"
+      },
+      {
+       "days_and_times": "Friday 2:25PM to 3:45PM",
+       "days": "F",
+       "start_time": "2:25PM",
+       "end_time": "3:45PM",
+       "room": "SAGE 230",
+       "instructor": "None",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "201",
+       "class_number": "8265"
+      }
+     ]
+    },
+    {
+     "days_and_times": "Monday Wednesday 11:00AM to 12:20PM \u2022 Monday Wednesday 12:30PM to 1:20PM",
+     "days": "MW",
+     "start_time": "11:00AM",
+     "end_time": "12:20PM",
+     "room": "FRLD 310",
+     "instructor": "Citati,Andrea",
+     "meeting_dates": "01/11/2027 - 05/07/2027",
+     "section": "501 + 510",
+     "class_number": "12854+12878",
+     "open_seats": 60,
+     "total_seats": 60,
+     "class_numbers": [
+      "12854",
+      "12878"
+     ],
+     "linked_sections": [
+      {
+       "days_and_times": "Monday Wednesday 11:00AM to 12:20PM",
+       "days": "MW",
+       "start_time": "11:00AM",
+       "end_time": "12:20PM",
+       "room": "FRLD 310",
+       "instructor": "Citati,Andrea",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "501",
+       "class_number": "12854",
+       "open_seats": 60,
+       "total_seats": 60
+      },
+      {
+       "days_and_times": "Monday Wednesday 12:30PM to 1:20PM",
+       "days": "MW",
+       "start_time": "12:30PM",
+       "end_time": "1:20PM",
+       "room": "FRLD 310",
+       "instructor": "Citati,Andrea",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "510",
+       "class_number": "12878",
+       "open_seats": 60,
+       "total_seats": 60
+      }
+     ],
+     "option": "5",
+     "component": "Enrollment option",
+     "status": "Open",
+     "session": "Regular Academic Session",
+     "meetings": [
+      {
+       "days_and_times": "Monday Wednesday 11:00AM to 12:20PM",
+       "days": "MW",
+       "start_time": "11:00AM",
+       "end_time": "12:20PM",
+       "room": "FRLD 310",
+       "instructor": "Citati,Andrea",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "501",
+       "class_number": "12854"
+      },
+      {
+       "days_and_times": "Monday Wednesday 12:30PM to 1:20PM",
+       "days": "MW",
+       "start_time": "12:30PM",
+       "end_time": "1:20PM",
+       "room": "FRLD 310",
+       "instructor": "Citati,Andrea",
+       "meeting_dates": "01/11/2027 - 05/07/2027",
+       "section": "510",
+       "class_number": "12878"
+      }
+     ]
+    }
+   ],
+   "section_count": 5,
+   "fetched_at": "2026-10-04T16:18:40.201472+00:00"
+  },
   "PHYS 2220": {
    "course_code": "PHYS 2220",
    "fetched_at": "2026-10-04T16:19:04.278593+00:00",

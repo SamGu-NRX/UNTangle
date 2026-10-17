@@ -13,6 +13,10 @@ uses and trimmed to the courses the scenario evaluation needs.
   URL. The upstream file still said `updated_at` 2026-10-04T19:02:54 UTC, and
   its other 56 courses matched this file exactly. The student-auto journey's
   tray Auto plans PSYC 1630 once Auto draws from the degree audit.
+- 2026-10-17, edge only: PHYS 1410 added the same way. A third GET still
+  said `updated_at` 2026-10-04T19:02:54 UTC, and the other 57 courses matched
+  this file exactly. With edge's larger catalog, the student-auto journey's
+  tray Auto plans PHYS 1410 instead of PSYC 1630.
 
 The harness parses this file with the app's own `parseTerm`, so the scenarios
 run on the same data path as the live proxy without touching the network.

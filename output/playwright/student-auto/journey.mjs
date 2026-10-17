@@ -270,8 +270,9 @@ async function runViewport(context, name) {
   const trayJoined = trayRows.map((row) => row.replace(/\s+/g, " ").trim()).join(" | ");
   // Auto plans only what the degree audit still needs, ranked by what each unlocks
   // (frontend/tests/courses/degree.test.ts): three required CSCE courses, MATH 1720 for the
-  // Component Area Option and PSYC 1630 for Social and Behavioral Sciences.
-  const planned = ["CSCE 1010", "CSCE 2100", "CSCE 2110", "MATH 1720", "PSYC 1630"];
+  // Component Area Option and PHYS 1410 for Laboratory science. Alpha plans PSYC 1630 here; edge's catalog adds
+  // PHYS 1430, 1440 and 2240 (582fc9d9), which puts PHYS 1410 ahead (frontend/tests/courses/plan-edits.test.ts).
+  const planned = ["CSCE 1010", "CSCE 2100", "CSCE 2110", "MATH 1720", "PHYS 1410"];
   check(
     `${name}: tray Auto planned what the degree still needs`,
     trayRows.length === planned.length && planned.every((code) => trayJoined.includes(code)) && /Planned/.test(trayText),

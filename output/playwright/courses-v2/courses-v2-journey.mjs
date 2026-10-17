@@ -219,8 +219,9 @@ async function journey(browser, viewport) {
   const trayIds = (await page.locator('[data-flip^="tray:"]').evaluateAll((els) => els.map((el) => el.dataset.flip.slice(5)))).sort();
   check(`${tag}: the result line says what Auto did`, new RegExp(`Planned ${trayIds.length} course`).test(resultText) && trayIds.length > 0, resultText.replace(/\s+/g, " "));
   // Only what the degree still needs, ranked by what each unlocks: three required CSCE courses, MATH 1720 for the
-  // Component Area Option, PSYC 1630 for Social and Behavioral Sciences (frontend/tests/courses/plan-edits.test.ts).
-  check(`${tag}: Auto planned what the degree still needs`, JSON.stringify(trayIds) === JSON.stringify(["CSCE 1010", "CSCE 2100", "CSCE 2110", "MATH 1720", "PSYC 1630"]), trayIds.join(", "));
+  // Component Area Option, PHYS 1410 for Laboratory science. Alpha plans PSYC 1630 here; edge's catalog puts PHYS 1410
+  // ahead (frontend/tests/courses/plan-edits.test.ts).
+  check(`${tag}: Auto planned what the degree still needs`, JSON.stringify(trayIds) === JSON.stringify(["CSCE 1010", "CSCE 2100", "CSCE 2110", "MATH 1720", "PHYS 1410"]), trayIds.join(", "));
   check(`${tag}: CSCE 2100 left its group for the tray`, (await trayRow(page, "CSCE 2100").count()) === 1 && (await rowOf(page, "CSCE 2100").count()) === 0);
   const toCheck = page.locator('[data-status=check][data-flip^="row:"]').first();
   // The fact starts with a visually hidden ", " for screen readers, so the text is matched after it.
