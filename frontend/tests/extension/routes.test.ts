@@ -22,6 +22,7 @@ import { termDates } from "@/lib/planner-sections";
 import { DocumentSchema, type Document, type DocumentKind, type PreferencesBody } from "../../../packages/contracts/src/documents";
 import type { Receipt } from "../../../packages/contracts/src/sync";
 import type { Section } from "@/lib/sections/model";
+import { vsbSectionId } from "@/lib/sections/vsb";
 import type { RemoteDocument } from "@untangle/sync";
 import { splitPlanner } from "@/lib/planner-documents";
 import { defaultSchedulePreferences, getInitialPlannerState } from "@/lib/planner";
@@ -47,7 +48,7 @@ const meeting = (overrides: Partial<Section["meetings"][number]> = {}) => ({
 });
 
 const section = (courseCode: string, sectionCode: string, classNumbers: string[], meetings: Section["meetings"], sectionTerm = term): Section => ({
-  id: `vsb:${sectionTerm}:${courseCode}:${sectionCode}`, term: sectionTerm, courseCode, sectionCode, classNumbers,
+  id: vsbSectionId(sectionTerm, courseCode, classNumbers), term: sectionTerm, courseCode, sectionCode, classNumbers,
   option: null, instructor: { display: null, raw: "" }, seats: { open: 3, total: 40 },
   status: "open", rawStatus: "Open", session: { label: "16W", dates: { start: null, end: null, raw: "" } },
   components: [], meetings, online: false, async: false, tba: meetings.some(m => m.tba),
@@ -415,8 +416,8 @@ describe("extension add-option commands", () => {
     const first = await h.add(token, addCommand());
     expect(first.status).toBe(200);
     // Same operation id, different option, while the schedule still stands at
-    // the committed revision: the rebuilt bytes cannot match, and the reply is
-    // the client's own forbidden rejection — never the first command's receipt.
+    // the committed revision: the option does not match the stored pick, so
+    // the reply is forbidden, never the first command's receipt.
     const reused = await h.add(token, addCommand({ optionId: extensionOptionId(csce2110) as string }));
     expect(reused.status).toBe(409);
     const reusedReply = await readAddReply(reused);
@@ -434,17 +435,37 @@ describe("extension add-option commands", () => {
     expect((await h.store.getDocument("alice", mainId)).revision).toBe(2);
   });
 
-  test("a retry while the term data is unavailable is 503, so the extension retries again", async () => {
-    const options = { sections: sections as Section[] | null, scheduleBody: scheduleBody() as unknown };
+  test("a retry after the committed section leaves the term data returns the original receipt", async () => {
+    const options = { sections, scheduleBody: scheduleBody() };
     const h = setup(options);
     const token = await h.issue();
-    const first = await readAddReply(await h.add(token, addCommand()));
+    const committed = await h.add(token, addCommand());
+    expect(committed.status).toBe(200);
+    const originalReceipt = await readAddReply(committed);
+    expect(originalReceipt).toEqual({ kind: "receipt", operationId: "op-1", committedRevision: 2 });
+    // The response was lost before the section disappeared from the term file.
+    options.sections = sections.filter(candidate => candidate.id !== csce2110Later.id);
+    const retry = await h.add(token, addCommand());
+    expect(retry.status).toBe(200);
+    expect(await readAddReply(retry)).toEqual(originalReceipt);
+    expect((await h.store.getDocument("alice", mainId)).revision).toBe(2);
+    expect(h.sectionReads).toEqual([term]);
+  });
+
+  test("a retry while the term data is unavailable returns the original receipt", async () => {
+    const options: SetupOptions = { sections, scheduleBody: scheduleBody() };
+    const h = setup(options);
+    const token = await h.issue();
+    const committed = await h.add(token, addCommand());
+    expect(committed.status).toBe(200);
+    const originalReceipt = await readAddReply(committed);
+    expect(originalReceipt).toEqual({ kind: "receipt", operationId: "op-1", committedRevision: 2 });
     options.sections = null;
-    const unavailable = await h.add(token, addCommand());
-    expect(unavailable.status).toBe(503);
-    expect(await unavailable.json()).toEqual({ error: "unavailable" });
-    options.sections = sections;
-    expect(await readAddReply(await h.add(token, addCommand()))).toEqual(first);
+    const retry = await h.add(token, addCommand());
+    expect(retry.status).toBe(200);
+    expect(await readAddReply(retry)).toEqual(originalReceipt);
+    expect((await h.store.getDocument("alice", mainId)).revision).toBe(2);
+    expect(h.sectionReads).toEqual([term]);
   });
 
   test("unavailable term data is 503, not a not-found verdict", async () => {
@@ -811,6 +832,12 @@ describe("extension boundary", () => {
 });
 
 describe("extension option ids", () => {
+  test("the planner section id sorts class numbers without changing their component order", () => {
+    const classNumbers = ["40221", "40220"];
+    expect(vsbSectionId("spring-2027", "ACCT 3120", classNumbers)).toBe("vsb:spring-2027:ACCT 3120:40220+40221");
+    expect(classNumbers).toEqual(["40221", "40220"]);
+  });
+
   test("round-trip between the extension id and the term's sections", () => {
     const linked = section("ACCT 3120", "501", ["40220", "40221"], [meeting({ day: "Wed" })]);
     const id = extensionOptionId(linked);
