@@ -75,7 +75,7 @@ for (const vp of [
     await sun.focus();
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
-    await dlg.getByRole("button", { name: "Fridays off" }).click();
+    await dlg.getByRole("button", { name: "Fri off" }).click();
     const grid = dlg.getByRole("application");
     await grid.scrollIntoViewIfNeeded();
     const box = await grid.boundingBox();

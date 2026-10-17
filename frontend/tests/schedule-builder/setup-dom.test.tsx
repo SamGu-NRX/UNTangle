@@ -106,8 +106,20 @@ describe("Set up Auto, step by step", () => {
 
     // Shape of your days: the Preferences grid writes the hard limits, the slider the short-gaps leaning.
     expect(heading()).toBe("When can you have class?");
-    await click(button("Thursdays off"));
+    // WCAG 2.5.3: each day toggle's name is what it shows when pressed, "Thu off", and starts with the
+    // day it shows when not, so voice control can say either. ("Thursdays off" holds no word "Thu";
+    // axe 4.14 fails it.)
+    const days = [...dialog()!.querySelectorAll<HTMLButtonElement>("button[aria-pressed]")].filter((b) => /^(Mon|Tue|Wed|Thu|Fri)$/.test(b.querySelector("span")?.textContent ?? ""));
+    expect(days.map((b) => [b.querySelector("span")!.textContent, b.getAttribute("aria-label")])).toEqual([
+      ["Mon", "Mon off"],
+      ["Tue", "Tue off"],
+      ["Wed", "Wed off"],
+      ["Thu", "Thu off"],
+      ["Fri", "Fri off"],
+    ]);
+    await click(button("Thu off"));
     expect(latest.constraints.daysOff).toEqual(["Thu"]);
+    expect([button("Thu off").getAttribute("aria-pressed"), button("Thu off").textContent]).toEqual(["true", "Thu Off"]);
     const sun = named(dialog()!, '[role="slider"]', "Earliest class start")!;
     await press(sun, "PageDown");
     expect(latest.constraints.earliestStart).toBe(600);
@@ -143,7 +155,7 @@ describe("Set up Auto, step by step", () => {
 
     for (let i = 0; i < 3; i++) await click(button("Skip this question"));
     expect(heading()).toBe("When can you have class?");
-    await click(button("Mondays off"));
+    await click(button("Mon off"));
     await press(dialog()!.querySelector<HTMLElement>('.ui-slider [role="slider"]')!, "ArrowRight");
     expect(latest.constraints.daysOff).toEqual(["Mon"]);
     await click(button("Skip this step"));

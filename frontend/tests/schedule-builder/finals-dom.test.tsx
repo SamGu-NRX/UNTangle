@@ -135,10 +135,12 @@ describe("Week with finals", () => {
     const { value, optimizer } = host([course(csce), course(math), course(engl)], true);
     const view = await render(value);
     expect(pills(view.container).map((b) => [b.textContent, b.getAttribute("aria-label"), b.getAttribute("data-clash")])).toEqual([
-      ["CSCE 2110Mon 8:00 AM", "CSCE 2110 Mon 8:00 AM, final on Monday, May 3, 8:00 to 10:00 AM, overlaps MATH 1710", "check"],
-      ["MATH 1710Mon 9:00 AM", "MATH 1710 Mon 9:00 AM, final on Monday, May 3, 9:00 to 11:00 AM, overlaps CSCE 2110", "check"],
-      ["ENGL 1310Not known", "ENGL 1310 Not known: open it to see why its final time isn't known.", null],
+      ["CSCE 2110 Mon 8:00 AM", "CSCE 2110 Mon 8:00 AM, final on Monday, May 3, 8:00 to 10:00 AM, overlaps MATH 1710", "check"],
+      ["MATH 1710 Mon 9:00 AM", "MATH 1710 Mon 9:00 AM, final on Monday, May 3, 9:00 to 11:00 AM, overlaps CSCE 2110", "check"],
+      ["ENGL 1310 Not known", "ENGL 1310 Not known: open it to see why its final time isn't known.", null],
     ]);
+    // WCAG 2.5.3: each name starts with the pill's visible text, so voice control can say it.
+    expect(pills(view.container).every((b) => b.getAttribute("aria-label")!.startsWith(b.textContent!))).toBe(true);
     // An overlap shows a glyph, not only a color; a pill without one has none.
     expect(pills(view.container).map((b) => Boolean(b.querySelector("svg")))).toEqual([true, true, false]);
     expect(view.container.querySelector("[data-finals]")!.textContent).toContain("Projected");
@@ -179,6 +181,19 @@ describe("Week with finals", () => {
     const view = await render(value);
     expect(pills(view.container)).toHaveLength(0);
     expect(view.container.textContent).not.toContain("finals");
+    await view.unmount();
+  });
+});
+
+describe("Week's No set time line", () => {
+  test("a course without a meeting time is a pill named by its code, a space, then TBA", async () => {
+    const hist = section({ courseCode: "HIST 2610", sectionCode: "001", open: 12, meetings: [] });
+    const { value } = host([course(hist)], false);
+    const view = await render(value);
+    const pill = [...view.container.querySelectorAll<HTMLButtonElement>("button[data-hue]")].find((b) => b.textContent?.startsWith("HIST 2610"));
+    // No aria-label: the name is the text. Chrome spaces the flex items itself, but the text node keeps
+    // the name "HIST 2610 TBA" wherever the name is read from the DOM text, not "HIST 2610TBA".
+    expect([pill?.textContent, pill?.getAttribute("aria-label")]).toEqual(["HIST 2610 TBA", null]);
     await view.unmount();
   });
 });

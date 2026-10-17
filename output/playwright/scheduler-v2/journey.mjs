@@ -175,7 +175,7 @@ for (const vp of [
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("ArrowDown");
   check(`${tag}: the sun knob sets the earliest start`, (await sun.getAttribute("aria-valuetext")) === "9 AM", await sun.getAttribute("aria-valuetext"));
-  await prefs.getByRole("button", { name: "Thursdays off" }).click();
+  await prefs.getByRole("button", { name: "Thu off" }).click();
   // A work block painted on Tuesday, dragged upward from 5 PM to 1 PM: a backwards
   // gesture still makes a block in the right order, never one that ends before it starts.
   const paintGrid = prefs.getByRole("application");
@@ -332,7 +332,7 @@ for (const vp of [
   await closePrefs();
 
   // Impossible: Mondays off too, but the kept ANTH 1010 section meets on Mondays.
-  await (await openPrefs()).getByRole("button", { name: "Mondays off" }).click();
+  await (await openPrefs()).getByRole("button", { name: "Mon off" }).click();
   await closePrefs();
   await strip.getByRole("button", { name: "Keep my week" }).click().catch(() => {});
   await autoMeasured("infeasible", nothing);
