@@ -541,13 +541,24 @@ async function studentViews(browser, vp) {
 }
 
 /**
+ * Real Spring 2027 sections for MATH 1720 and CSCE 1030, recorded for the courses-v2 journey. With
+ * the network blocked, as in CI, the server falls back to sample sections, which have no finals, so
+ * Week would show no Finals line to check.
+ */
+const realSections = JSON.parse(readFileSync(new URL("../courses-v2/fixtures/spring-2027-sections.json", import.meta.url), "utf8")).responses;
+
+/**
  * Week with four courses (its Finals line), Preferences with a day off, Auto's options, Browse all
  * and Export, then Day. Its own context, so a guest with no transcript, who adds four courses from
- * Week's search. (Sharing studentViews' guest fails: its sample transcript marks ENGL 1310 done.)
+ * Week's search: two with real sections (their finals are known) and two samples. (Sharing
+ * studentViews' guest fails: its sample transcript marks courses done.)
  */
 async function weekViews(browser, vp) {
   const { size, phone } = vp;
   const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: phone, hasTouch: phone, deviceScaleFactor: 2 });
+  for (const [path, json] of Object.entries(realSections)) {
+    await ctx.route(`**${path}`, (route) => route.fulfill({ json, headers: { "Cache-Control": "no-store" } }));
+  }
   const page = await ctx.newPage();
   const main = page.locator("main");
   const settle = () => page.waitForTimeout(phone ? 600 : 400);
@@ -560,7 +571,7 @@ async function weekViews(browser, vp) {
       await page.locator(".ui-toast").getByRole("button", { name: "Dismiss" }).click().catch(() => {});
     }
     const panel = (name) => (phone ? page.getByRole("dialog", { name }) : page.locator("aside", { has: page.getByRole("heading", { name, exact: true }) }));
-    for (const code of ["ANTH 1010", "ENGL 1310", "PSYC 1630", "BIOL 1710"]) {
+    for (const code of ["MATH 1720", "CSCE 1030", "ANTH 1010", "PSYC 1630"]) {
       if (phone) await main.getByRole("button", { name: "Add", exact: true }).click();
       else await page.getByRole("button", { name: "Search courses or class numbers" }).click();
       const find = panel("Find courses");
@@ -576,8 +587,10 @@ async function weekViews(browser, vp) {
       await settle();
     }
     const finals = page.locator("[data-finals] button[data-hue]");
+    await finals.first().waitFor({ timeout: 10000 }).catch(() => {});
     const pillMismatches = await nameMismatches(finals);
-    check(size, "week: each final's name starts with what its pill shows", (await finals.count()) > 0 && pillMismatches.length === 0, pillMismatches.join("; "));
+    const pills = await finals.evaluateAll((buttons) => buttons.map((b) => `${JSON.stringify(b.textContent)} named ${JSON.stringify(b.getAttribute("aria-label"))}`));
+    check(size, "week: each final's name starts with what its pill shows", pills.length > 0 && pillMismatches.length === 0, `${pills.length} pills: ${pills.join("; ")}${pillMismatches.length ? `; mismatched: ${pillMismatches.join("; ")}` : ""}`);
     await axe(page, size, "Week with four courses and their finals");
 
     await main.getByRole("button", { name: /^Preferences/ }).click();
