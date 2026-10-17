@@ -22,8 +22,6 @@ import { manualDoneIds, type CourseModel, type CourseRowModel, type PlanSnapshot
 const AUDITED: Partial<Record<MajorId, string>> = { cs: "cs-bs", ce: "ce-bs" };
 const CORE_ID = "core";
 
-export const isAudited = (major: Pick<Major, "id"> | null): boolean => Boolean(major && AUDITED[major.id]);
-
 export type Area = "major" | "core";
 
 /**
