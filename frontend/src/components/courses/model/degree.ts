@@ -37,6 +37,8 @@ export type Requirement = {
   status: "needed" | "inProgress" | "claimed";
   /** What the row says it needs, in one short phrase. */
   fact: string;
+  /** How much it still needs, for an area's summary: courses, or credits for an hours requirement. Zero unless needed. */
+  left: { courses: number; credits: number };
   citation: Citation;
   /** For the detail: the audit's outcome for a requirement node, or what it found for a rule. */
   source: { kind: "node"; outcome: NodeOutcome } | { kind: "policy"; detail: string };
@@ -205,6 +207,16 @@ function creditsLeft(outcome: NodeOutcome): number | null {
   return null;
 }
 
+const NONE_LEFT = { courses: 0, credits: 0 };
+
+/** The courses a course list or a choose node still lacks, or the credits an hours requirement does. */
+function amountLeft(outcome: NodeOutcome): Requirement["left"] {
+  const remaining = outcome.remaining;
+  if (remaining.kind === "courses") return { courses: remaining.courses.length + remaining.oneOf.length, credits: 0 };
+  if (remaining.kind === "choose") return { courses: remaining.picks, credits: 0 };
+  return { courses: 0, credits: creditsLeft(outcome) ?? 0 };
+}
+
 /** "EENG 2710 and TECM 2700", "16 courses", "6 credits", "2 courses". */
 function neededFact(outcome: NodeOutcome): string {
   const remaining = outcome.remaining;
@@ -308,8 +320,8 @@ function collect(outcomes: readonly NodeOutcome[], prefix: string, walk: Walk): 
       collect(outcome.children ?? [], key, walk);
       return;
     }
-    const base = { key, area, name: displayName(outcome), citation: outcome.citation, source: { kind: "node" as const, outcome } };
-    if (outcome.status === "unsatisfied" && remaining.kind !== "none") walk.rows.push({ ...base, status: "needed", fact: neededFact(outcome) });
+    const base = { key, area, name: displayName(outcome), citation: outcome.citation, source: { kind: "node" as const, outcome }, left: NONE_LEFT };
+    if (outcome.status === "unsatisfied" && remaining.kind !== "none") walk.rows.push({ ...base, status: "needed", fact: neededFact(outcome), left: amountLeft(outcome) });
     else if (outcome.status === "inProgress") walk.rows.push({ ...base, status: "inProgress", fact: "Taking now" });
     else if (outcome.status === "claimed") walk.rows.push({ ...base, status: "claimed", fact: "You marked this done" });
   });
@@ -338,7 +350,7 @@ function collectPolicies(result: AuditResult, walk: Walk): void {
     if (policy.status === "satisfied") return;
     const key = `${result.programId}.policy.${index}`;
     if (policy.status === "unsatisfied") {
-      walk.rows.push({ key, area: walk.area, name: inCredits(policy.name), status: "needed", fact: "Not met yet", citation: policy.citation, source: { kind: "policy", detail: inCredits(policy.detail) } });
+      walk.rows.push({ key, area: walk.area, name: inCredits(policy.name), status: "needed", fact: "Not met yet", left: NONE_LEFT, citation: policy.citation, source: { kind: "policy", detail: inCredits(policy.detail) } });
     } else {
       walk.advisor.push({ key, area: walk.area, name: inCredits(policy.name), text: policy.detail, quote: false, candidates: [], askAbout: [], citation: policy.citation });
     }

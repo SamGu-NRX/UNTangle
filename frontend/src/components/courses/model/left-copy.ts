@@ -2,7 +2,7 @@
  * The words above "What's left": the credits headline and the lines that
  * qualify it. Pure, so the DOM tests and the view read the same sentences.
  */
-import type { AuditedDegree } from "./degree";
+import type { AuditedDegree, Requirement } from "./degree";
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
@@ -55,3 +55,20 @@ export function leftNotes(degree: AuditedDegree): string[] {
   }
   return notes;
 }
+
+/**
+ * An area's header when it is closed: "20 courses, 12 credits left", or,
+ * with no course or credit left, the unmet rules or what this term finishes.
+ */
+export function areaSummary(requirements: readonly Requirement[]): string {
+  const needed = requirements.filter((row) => row.status === "needed");
+  const courses = needed.reduce((sum, row) => sum + row.left.courses, 0);
+  const credits = needed.reduce((sum, row) => sum + row.left.credits, 0);
+  const amounts = [courses > 0 ? plural(courses, "course") : null, credits > 0 ? plural(credits, "credit") : null].filter((part) => part !== null);
+  if (amounts.length > 0) return `${amounts.join(", ")} left`;
+  if (needed.length > 0) return `${plural(needed.length, "rule")} not met yet`;
+  return requirements.some((row) => row.status === "inProgress") ? "Taking now" : "You marked this done";
+}
+
+/** The advisor list's disclosure: "12 things to check with an advisor". */
+export const advisorLabel = (count: number) => `${plural(count, "thing")} to check with an advisor`;

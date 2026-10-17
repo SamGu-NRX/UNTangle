@@ -9,6 +9,7 @@ import { useShell, useShellSearch, type ShellSearchProvider } from "@/components
 import { Button } from "@/components/ui/Button";
 import { ContextPanel } from "@/components/ui/ContextPanel";
 import { ChevronDown } from "@/components/ui/icons";
+import { PHONE_QUERY, useMediaQuery } from "@/components/ui/use-media-query";
 import { SearchTrigger } from "@/components/ui/SearchField";
 import type { SearchItem } from "@/components/ui/SearchPalette";
 import { toast } from "@/components/ui/Toast";
@@ -34,7 +35,7 @@ import { RequirementDetail, type LeftItem } from "./RequirementDetail";
 import { AUTO_TIMELINE, fadeIn, flip, fly, measure, MOVE, reducedMotion, wait, type Rects } from "./reveal";
 import { untProfile } from "./school";
 import { TermTray } from "./TermTray";
-import { LEFT_OPEN_AT_START, REQUIREMENT_PREFIX, WhatsLeft, type LeftGroupKey } from "./WhatsLeft";
+import { CreditsLeft, leftOpenAtStart, REQUIREMENT_PREFIX, WhatsLeft, type LeftGroupKey } from "./WhatsLeft";
 
 const INSTRUCTOR_ITEM = "instructor:";
 /** The groups that hold the student's own record, which show with or without a major. */
@@ -115,7 +116,10 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
   const credits = creditProgress(model, transcriptRecords, profile);
 
   const [open, setOpen] = useState(OPEN_AT_START);
-  const [leftOpen, setLeftOpen] = useState(LEFT_OPEN_AT_START);
+  // What's left opens by width until the student toggles a group (leftOpenAtStart).
+  const phone = useMediaQuery(PHONE_QUERY);
+  const [leftToggled, setLeftToggled] = useState<Partial<Record<LeftGroupKey, boolean>>>({});
+  const leftOpen = { ...leftOpenAtStart(phone), ...leftToggled };
   const [expanded, setExpanded] = useState<Record<GroupKey, boolean>>({ check: false, can: false, taking: false, later: false, done: false });
   const [detailId, setDetailId] = useState<string | null>(initialCourseId);
   const [detailOpen, setDetailOpen] = useState(initialCourseId !== null);
@@ -643,15 +647,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
           />
         ) : (
           <>
-            {audited ? (
-              <WhatsLeft
-                degree={audited}
-                open={leftOpen}
-                onToggle={(key: LeftGroupKey) => setLeftOpen((current) => ({ ...current, [key]: !current[key] }))}
-                selectedKey={detailOpen ? leftKey : null}
-                onOpen={openRequirement}
-              />
-            ) : null}
+            {audited ? <CreditsLeft degree={audited} /> : null}
             <TermTray
               term={term}
               rows={trayRows}
@@ -670,6 +666,15 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
               more={autoInTray > 0 ? [{ id: "clear-auto", label: `Remove the ${autoInTray === 1 ? "course" : `${autoInTray} courses`} Auto added`, onSelect: clearAutoPlan, destructive: true }] : []}
             />
             {major ? null : <ChooseMajor term={term} onChoose={() => setDegreeOpen(true)} />}
+            {audited ? (
+              <WhatsLeft
+                degree={audited}
+                open={leftOpen}
+                onToggle={(key: LeftGroupKey) => setLeftToggled((current) => ({ ...current, [key]: !leftOpen[key] }))}
+                selectedKey={detailOpen ? leftKey : null}
+                onOpen={openRequirement}
+              />
+            ) : null}
             <CourseGroups
               groups={groups}
               model={model}

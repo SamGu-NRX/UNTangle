@@ -170,11 +170,29 @@ async function journey(browser, viewport) {
   const leftTitle = await left.getByRole("heading", { level: 2 }).innerText();
   check(`${tag}: the credits left come from the transcript`, leftTitle === "108 credits left", leftTitle);
   check(`${tag}: the degree line no longer counts catalog credits`, (await page.locator("[class*=progress]").count()) === 0);
-  const areas = await left.getByRole("heading", { level: 3 }).allInnerTexts();
-  check(`${tag}: what's left reads by area, then the advisor's list`, JSON.stringify(areas) === JSON.stringify(["Computer Science, BS", "University Core Curriculum", "Check with an advisor"]), JSON.stringify(areas));
-  const advisorHead = await left.getByRole("button", { name: "Check with an advisor" }).innerText();
-  check(`${tag}: advisor items are a list, never a count`, !/\d/.test(advisorHead) && (await left.locator('[data-requirement="advisor"]').count()) > 0, advisorHead);
-  const required = left.getByRole("button", { name: /^Required courses/ });
+  // Planning first: the credits left, then the term card with Auto, then what's left by area, then the advisor's list.
+  const top = async (locator) => (await locator.boundingBox())?.y ?? Number.NaN;
+  const heads = page.locator('section[aria-labelledby^="left-"] > h2 button');
+  const trayTop = await top(page.locator('section[aria-labelledby="tray-title"]'));
+  check(`${tag}: the credits left, then the term, then what's left`, (await top(left)) < trayTop && trayTop < (await top(heads.first())), `${await top(left)} < ${trayTop} < ${await top(heads.first())}`);
+  // textContent reads the hidden ", " between a title and its summary, as the accessible name does.
+  const areas = (await heads.allTextContents()).map((head) => head.replace(/\s+/g, " ").trim());
+  // The sample's ENGL 1320 is in progress, so the core's communication area needs nothing more.
+  const expectedAreas = phone
+    ? ["Computer Science, BS, 20 courses, 12 credits left", "University Core Curriculum, 33 credits left"]
+    : ["Computer Science, BS", "University Core Curriculum"];
+  check(
+    `${tag}: what's left reads by area, ${phone ? "closed with what each needs" : "open"}, then the advisor's list`,
+    JSON.stringify(areas.slice(0, 2)) === JSON.stringify(expectedAreas) && /^\d+ things to check with an advisor$/.test(areas[2] ?? ""),
+    JSON.stringify(areas),
+  );
+  const advisorHead = page.locator("#left-advisor");
+  check(`${tag}: the advisor's list starts closed`, (await advisorHead.getAttribute("aria-expanded")) === "false" && (await page.locator('[data-requirement="advisor"]').count()) === 0);
+  await tap(advisorHead);
+  check(`${tag}: the advisor's disclosure opens the items with their reasons`, (await page.locator('[data-requirement="advisor"]').count()) > 0);
+  await tap(advisorHead);
+  if (phone) await tap(page.locator("#left-major"));
+  const required = page.getByRole("button", { name: /^Required courses/ });
   check(`${tag}: a requirement row says what it needs`, (await required.innerText()).replace(/\s+/g, " ").includes("16 courses"), (await required.innerText()).replace(/\s+/g, " "));
   await tap(required);
   const reqPanel = phone ? page.getByRole("dialog", { name: "Required courses", exact: true }) : page.locator("aside.ui-context");

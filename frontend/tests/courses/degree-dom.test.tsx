@@ -56,13 +56,15 @@ async function coursesFor(transcript: readonly TranscriptCourseRecord[], major: 
   }
   const page = planner.container;
   const left = () => page.querySelector<HTMLElement>('section[aria-labelledby="left-title"]');
+  /** The What's left groups after the term card: the areas, then the advisor's list. */
+  const areaHeads = () => [...page.querySelectorAll('section[aria-labelledby^="left-"] > h2 button')].map((head) => text(head));
   const headings = () => [...page.querySelectorAll("h2, h3")].map((heading) => text(heading));
   const rowText = (id: string) => text(page.querySelector(`[data-row-open="${id}"]`));
   const trayIds = () => [...page.querySelectorAll<HTMLElement>('[data-flip^="tray:"]')].map((row) => row.dataset.flip!.slice(5));
-  return { planner, page, left, headings, rowText, trayIds };
+  return { planner, page, left, areaHeads, headings, rowText, trayIds };
 }
 
-test("the journey transcript: credits left, what's left by area with reasons one step away, and CSCE 1030 as a question", async () => {
+test("the journey transcript: credits left, the term, then what's left by area with reasons one step away, and CSCE 1030 as a question", async () => {
   const view = await coursesFor(journeyTranscript, "cs");
   try {
     await waitFor(() => view.left() !== null, "What's left");
@@ -71,10 +73,15 @@ test("the journey transcript: credits left, what's left by area with reasons one
     expect(text(left)).toContain("The 2026-2027 catalog asks 120 credits for Computer Science, BS.");
     // The catalog total is gone from the degree line; the audit's figure replaced it.
     expect(text(view.page.querySelector("[data-degree]")?.parentElement)).not.toContain("of 120 credits");
-    expect([...left.querySelectorAll("h3")].map((heading) => text(heading))).toEqual(["Computer Science, BS", "University Core Curriculum", "Check with an advisor"]);
-    expect(text(left)).toContain("Other required courses, EENG 2710 and TECM 2700");
-    // What's left comes before the term; the term before the course groups.
-    expect(view.headings().indexOf("111 credits left")).toBeLessThan(view.headings().indexOf("Spring 2027"));
+    // Desktop: the areas open, the advisor's list behind its disclosure.
+    expect(view.areaHeads()).toEqual(["Computer Science, BS", "University Core Curriculum", "12 things to check with an advisor"]);
+    expect(text(view.page)).toContain("Other required courses, EENG 2710 and TECM 2700");
+    expect(view.page.querySelector('[data-requirement="advisor"]')).toBeNull();
+    // The credits left, then the term card, then what's left by area, then the course groups.
+    const order = view.headings();
+    expect(order.indexOf("111 credits left")).toBeLessThan(order.indexOf("Spring 2027"));
+    expect(order.indexOf("Spring 2027")).toBeLessThan(order.indexOf("Computer Science, BS"));
+    expect(order.indexOf("12 things to check with an advisor")).toBeLessThan(order.indexOf("To check"));
 
     // CSCE 1030 is covered for planning but still needed: To check, with the waiver question, not Done.
     const toCheck = view.page.querySelector('section[aria-labelledby="group-check"]')!;
@@ -111,7 +118,7 @@ test("a first-year student with nothing: every credit is left, and the empty tra
   try {
     await waitFor(() => view.left() !== null, "What's left");
     expect(text(view.left()!.querySelector("h2"))).toBe("120 credits left");
-    expect(text(view.left())).toContain("Other required courses, 3 courses");
+    expect(text(view.page)).toContain("Other required courses, 3 courses");
     expect(text(view.page)).toContain("Auto fills this term from courses your degree still needs.");
   } finally {
     await view.planner.unmount();
@@ -124,13 +131,13 @@ test("the finished four-year plan: nothing left, the advisor's list, and Auto pl
     await waitFor(() => view.left() !== null, "What's left");
     const left = view.left()!;
     expect(text(left.querySelector("h2"))).toBe("Nothing left to take");
-    expect([...left.querySelectorAll("h3")].map((heading) => text(heading))).toEqual(["Check with an advisor"]);
-    // Advisory items are a list with their reasons, never a count.
-    const advisorHead = text(left.querySelector("#left-advisor"));
-    expect(advisorHead).toBe("Check with an advisor");
-    view.page.querySelector<HTMLButtonElement>("#left-advisor")!.click();
-    await waitFor(() => left.querySelector('[data-requirement="advisor"]') === null, "the advisor list closed");
-    expect(text(left.querySelector("#left-advisor"))).toBe("Check with an advisor");
+    expect(view.areaHeads()).toEqual(["12 things to check with an advisor"]);
+    // The advisor's list is reference: closed until asked for, then each item with its reason.
+    const advisorHead = view.page.querySelector<HTMLButtonElement>("#left-advisor")!;
+    expect(advisorHead.getAttribute("aria-expanded")).toBe("false");
+    advisorHead.click();
+    await waitFor(() => view.page.querySelectorAll('[data-requirement="advisor"]').length === 12, "the advisor list open");
+    expect(text(view.page.querySelector('[data-requirement="advisor"]'))).toContain("55-hour major minimum, A minimum of 55 semester hours");
     expect(view.page.querySelector('section[aria-labelledby="group-can"]')).toBeNull();
 
     view.page.querySelector<HTMLButtonElement>("[data-auto]")!.click();
@@ -151,7 +158,7 @@ test("the final term: in-progress rows that print 0.000 count at catalog credits
     expect(text(left.querySelector("h2"))).toBe("Up to about 6 credits left");
     expect(text(left)).toContain("CSCE 4240, CSCE 4902 and PSCI 2305 count at catalog credits until grades post.");
     expect(text(left)).toContain("UNTangle doesn't know the credits for AGER 2250 and CSCE 4230, so fewer may be left.");
-    expect(text(left)).toContain("Required courses, Taking now");
+    expect(text(view.page)).toContain("Required courses, Taking now");
   } finally {
     await view.planner.unmount();
   }
@@ -160,12 +167,11 @@ test("the final term: in-progress rows that print 0.000 count at catalog credits
 test("courses marked done by hand: the requirement reads 'You marked this done', and the credits say they count on the student's word", async () => {
   const view = await coursesFor(journeyTranscript, "cs", ["CSCE 1030", "ENGL 1320"]);
   try {
-    await waitFor(() => text(view.left()).includes("You marked this done"), "the marked-done requirement");
+    await waitFor(() => text(view.page).includes("Communication Group 2, You marked this done"), "the marked-done requirement");
     const left = view.left()!;
     expect(text(left.querySelector("h2"))).toBe("105 credits left");
     expect(text(left)).toContain("Counts 6 credits you marked done.");
-    expect(text(left)).toContain("Communication Group 2, You marked this done");
-    expect(text(left)).not.toMatch(/satisfied|verified/i);
+    expect(text(view.page)).not.toMatch(/satisfied|verified/i);
   } finally {
     await view.planner.unmount();
   }
@@ -181,5 +187,25 @@ test("a major the audit doesn't cover keeps its sample list and says plainly the
     expect(text(view.page)).toContain("Auto fills this term from courses you can take.");
   } finally {
     await view.planner.unmount();
+  }
+});
+
+test("on a phone the areas start closed, each saying what is left, so the term card is a screen higher", async () => {
+  const viewport = window as unknown as { happyDOM: { setViewport(size: { width: number; height: number }): void } };
+  viewport.happyDOM.setViewport({ width: 390, height: 844 });
+  const view = await coursesFor(journeyTranscript, "cs");
+  try {
+    await waitFor(() => view.areaHeads().length === 3, "the What's left groups");
+    // Required 16, Other required 2 and Laboratory science 2 courses; CSCE core and breadth 6 credits each.
+    expect(view.areaHeads()).toEqual(["Computer Science, BS, 20 courses, 12 credits left", "University Core Curriculum, 1 course, 33 credits left", "12 things to check with an advisor"]);
+    expect(view.page.querySelector('[data-row-open^="req:"]')).toBeNull();
+    // A header expands its area in place.
+    view.page.querySelector<HTMLButtonElement>("#left-major")!.click();
+    await waitFor(() => view.page.querySelector('[data-row-open="req:cs-bs.0.0"]') !== null, "the major's rows");
+    expect(view.areaHeads()[0]).toBe("Computer Science, BS");
+    expect(view.page.querySelector('[data-row-open^="req:core"]')).toBeNull();
+  } finally {
+    await view.planner.unmount();
+    viewport.happyDOM.setViewport({ width: 1024, height: 768 });
   }
 });

@@ -5,31 +5,29 @@ import { ChevronDown } from "@/components/ui/icons";
 import { StatusGlyph } from "@/components/ui/StatusGlyph";
 import styles from "./courses.module.css";
 import type { AdvisorItem, AuditedDegree, Requirement } from "./model/degree";
-import { leftHeadline, leftNotes } from "./model/left-copy";
+import { advisorLabel, areaSummary, leftHeadline, leftNotes } from "./model/left-copy";
 
 export type LeftGroupKey = "major" | "core" | "advisor";
-export const LEFT_OPEN_AT_START: Readonly<Record<LeftGroupKey, boolean>> = { major: true, core: true, advisor: true };
+
+/**
+ * Which groups start open. Planning next term is the frequent job, so on a
+ * phone the areas start closed, each header summing up what is left, and the
+ * term card sits a screen higher. The advisor's list is reference, closed on
+ * every width.
+ */
+export function leftOpenAtStart(phone: boolean): Readonly<Record<LeftGroupKey, boolean>> {
+  return { major: !phone, core: !phone, advisor: false };
+}
 
 /** A requirement row opens its detail; the key is prefixed so it never collides with a course code. */
 export const REQUIREMENT_PREFIX = "req:";
 
-type Props = {
-  degree: AuditedDegree;
-  open: Readonly<Record<LeftGroupKey, boolean>>;
-  onToggle: (key: LeftGroupKey) => void;
-  selectedKey: string | null;
-  onOpen: (key: string) => void;
-};
-
 /**
  * The first answer on Courses for a major the degree audit covers: how many
- * credits are left, then what is left by area (the major, the University
- * Core), then what only an advisor can settle, each as rows that open their
- * detail with the catalog's reason. Groups open and close at once, like the
- * course groups below (MOTION.md §7).
+ * credits are left, and what that figure leans on. The term card follows it;
+ * what is left by area comes after the term (WhatsLeft).
  */
-export function WhatsLeft({ degree, open, onToggle, selectedKey, onOpen }: Props) {
-  const groups: { key: LeftGroupKey; title: string; requirements: Requirement[] }[] = degree.areas.map((area) => ({ key: area.area, title: area.title, requirements: area.requirements }));
+export function CreditsLeft({ degree }: { degree: AuditedDegree }) {
   return (
     <section className={styles.left} aria-labelledby="left-title">
       <h2 className={styles.leftTitle} id="left-title">
@@ -40,38 +38,64 @@ export function WhatsLeft({ degree, open, onToggle, selectedKey, onOpen }: Props
           {note}
         </p>
       ))}
-      {groups.map((group) =>
-        group.requirements.length === 0 ? null : (
-          <LeftGroup key={group.key} id={group.key} title={group.title} count={group.requirements.length} open={open[group.key]} onToggle={onToggle}>
-            {group.requirements.map((requirement) => (
+    </section>
+  );
+}
+
+type Props = {
+  degree: AuditedDegree;
+  open: Readonly<Record<LeftGroupKey, boolean>>;
+  onToggle: (key: LeftGroupKey) => void;
+  selectedKey: string | null;
+  onOpen: (key: string) => void;
+};
+
+/**
+ * What is left by area (the major, the University Core), then what only an
+ * advisor can settle, as rows that open their detail with the catalog's
+ * reason. Groups open and close at once, like the course groups below
+ * (MOTION.md §7); a closed area says how much is left in its header.
+ */
+export function WhatsLeft({ degree, open, onToggle, selectedKey, onOpen }: Props) {
+  return (
+    <>
+      {degree.areas.map((area) =>
+        area.requirements.length === 0 ? null : (
+          <LeftGroup key={area.area} id={area.area} title={area.title} summary={areaSummary(area.requirements)} open={open[area.area]} onToggle={onToggle}>
+            {area.requirements.map((requirement) => (
               <RequirementRow key={requirement.key} requirement={requirement} selected={selectedKey === requirement.key} onOpen={onOpen} />
             ))}
           </LeftGroup>
         ),
       )}
       {degree.advisor.length > 0 ? (
-        // Never counted: each item is a question to ask, not a tally to shrink.
-        <LeftGroup id="advisor" title="Check with an advisor" count={null} open={open.advisor} onToggle={onToggle}>
+        <LeftGroup id="advisor" title={advisorLabel(degree.advisor.length)} summary={null} open={open.advisor} onToggle={onToggle}>
           {degree.advisor.map((item) => (
             <AdvisorRow key={item.key} item={item} selected={selectedKey === item.key} onOpen={onOpen} />
           ))}
         </LeftGroup>
       ) : null}
-    </section>
+    </>
   );
 }
 
-function LeftGroup({ id, title, count, open, onToggle, children }: { id: LeftGroupKey; title: string; count: number | null; open: boolean; onToggle: (key: LeftGroupKey) => void; children: ReactNode }) {
+function LeftGroup({ id, title, summary, open, onToggle, children }: { id: LeftGroupKey; title: string; summary: string | null; open: boolean; onToggle: (key: LeftGroupKey) => void; children: ReactNode }) {
   const headId = `left-${id}`;
   return (
-    <section className={styles.leftGroup} aria-labelledby={headId} data-open={open}>
-      <h3 className={styles.groupHeading}>
+    <section className={styles.group} aria-labelledby={headId} data-open={open}>
+      <h2 className={styles.groupHeading}>
         <button id={headId} type="button" className={styles.groupHead} aria-expanded={open} onClick={() => onToggle(id)}>
           <span>{title}</span>
-          {open || count === null ? null : <span className={styles.count}>{count}</span>}
+          {/* A closed area says what is left; an open one shows it. */}
+          {open || summary === null ? null : (
+            <span className={styles.count}>
+              <span className={styles.srOnly}>, </span>
+              {summary}
+            </span>
+          )}
           <ChevronDown size={16} className={styles.chev} />
         </button>
-      </h3>
+      </h2>
       {open ? <ul className={styles.rows}>{children}</ul> : null}
     </section>
   );
