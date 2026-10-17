@@ -182,3 +182,13 @@ test("a request range the cached window does not cover still returns its events"
   expect(calls.length).toBe(1); // served from the cached fetch, no refetch
   expect(events.map(event => event.title).sort()).toEqual(["Early event", "Late event"]);
 });
+
+test("a cached feed that does not parse fails only its own source", async () => {
+  const { cache } = harness([source("good"), source("odd")], { ics: id => (id === "odd" ? "BEGIN:VCALENDARX\r\nEND:VCALENDAR" : ics(id)) });
+  const { events, reports } = await cache.getEvents(RANGE);
+  expect(events.map(event => event.sourceId)).toEqual(["good"]);
+  const odd = reports.find(report => report.id === "odd")!;
+  expect(odd.status).toBe("error");
+  expect(odd.eventCount).toBe(0);
+  expect(odd.error).toContain("does not parse");
+});

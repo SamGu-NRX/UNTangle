@@ -104,6 +104,35 @@ describe("Mirror", () => {
     expect(stub.requests.slice(requestsBefore)).toHaveLength(0);
   });
 
+  test("a 304 starts a new minimum interval", async () => {
+    let clock = Date.parse("2026-10-14T18:00:00Z");
+    const policy = { ...stubPolicy(stub.url), minIntervalMs: 60_000 };
+    const mirror = new Mirror({ policy, baseUrl: `${stub.url}/data/`, now: () => clock });
+    expect(await mirror.fetchFile("spring-2027", "MATH")).toMatchObject({ kind: "fetched" });
+    clock += 61_000;
+    expect(await mirror.fetchFile("spring-2027", "MATH")).toEqual({ kind: "not-modified" });
+    clock += 1_000;
+    expect(await mirror.fetchFile("spring-2027", "MATH")).toEqual({ kind: "deferred", reason: "min-interval" });
+  });
+
+  test("a failed request starts the minimum interval", async () => {
+    const policy = { ...stubPolicy(stub.url), minIntervalMs: 60_000 };
+    const mirror = new Mirror({ policy, baseUrl: `${stub.url}/data/` });
+    expect(await mirror.fetchFile("spring-2027", "BROK")).toMatchObject({ kind: "error" });
+    expect(await mirror.fetchFile("spring-2027", "BROK")).toEqual({ kind: "deferred", reason: "min-interval" });
+  });
+
+  test("a term, subject or base that resolves outside the prefix is refused before any request", () => {
+    const requestsBefore = stub.requests.length;
+    const mirror = new Mirror({ policy: stubPolicy(stub.url), baseUrl: `${stub.url}/data/` });
+    expect(() => mirror.urlFor("../private")).toThrow(/Malformed term/);
+    expect(() => mirror.urlFor("spring-2027", "../../x")).toThrow(/Malformed subject/);
+    // The string starts with the allowed prefix; the URL it parses to does not.
+    const escaping = new Mirror({ policy: stubPolicy(stub.url), baseUrl: `${stub.url}/data/../` });
+    expect(() => escaping.urlFor("spring-2027")).toThrow(/outside the policy/);
+    expect(stub.requests.slice(requestsBefore)).toHaveLength(0);
+  });
+
   test("a 404 is absent", async () => {
     const mirror = new Mirror({ policy: stubPolicy(stub.url), baseUrl: `${stub.url}/data/` });
     expect(await mirror.fetchFile("fall-2027")).toEqual({ kind: "absent" });

@@ -1,5 +1,5 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { runReleaseJob } from "../../src/release-job/job";
@@ -211,7 +211,197 @@ describe("runReleaseJob", () => {
   });
 });
 
+type RawTerm = {
+  coverage: Record<string, number>;
+  courses: Record<string, { sections: Array<{ linked_sections: Array<{ open_seats: number }> }> }>;
+};
+
+const editTerm = (edit: (raw: RawTerm) => void): string => {
+  const raw = JSON.parse(termBody) as RawTerm;
+  edit(raw);
+  return JSON.stringify(raw);
+};
+
+/** A MATH subject file holding exactly these courses, taken from the term file's MATH 1680. */
+const mathFile = (courses: Record<string, number>): string => {
+  const source = (JSON.parse(termBody) as RawTerm).courses["MATH 1680"];
+  const entries = Object.entries(courses).map(([code, openSeats]) => {
+    const course = JSON.parse(JSON.stringify(source)) as typeof source;
+    course.sections[0].linked_sections[0].open_seats = openSeats;
+    return [code, course];
+  });
+  return JSON.stringify({ schema_version: 2, term: "2027 Spring", updated_at: "2027-01-02T00:00:00Z", courses: Object.fromEntries(entries) });
+};
+
+describe("runReleaseJob, one run at a time", () => {
+  let stub: StubMirror;
+  let files: Record<string, StubFile>;
+  let outDir: string;
+
+  beforeEach(() => {
+    files = { "/data/spring-2027.json": { body: termBody, etag: '"v1"' } };
+    stub = startStubMirror(files);
+    outDir = mkdtempSync(path.join(os.tmpdir(), "release-job-run-"));
+  });
+
+  afterEach(async () => {
+    await stub.stop();
+    rmSync(outDir, { recursive: true, force: true });
+  });
+
+  const job = (overrides: Partial<Parameters<typeof runReleaseJob>[0]> = {}) =>
+    runReleaseJob({ termId: "spring-2027", outDir, baseUrl: `${stub.url}/data/`, policy: stubPolicy(stub.url), watchTerms: [], ...overrides });
+
+  const publishedCourses = (file: string | undefined) => {
+    const release = JSON.parse(readFileSync(path.join(outDir, file ?? "missing"), "utf8")) as {
+      courses: Array<{ courseCode: string; sections?: Array<{ components: Array<{ openSeats: { value?: number } }> }> }>;
+    };
+    return new Map(release.courses.map(course => [course.courseCode, course.sections?.[0]?.components[0]?.openSeats.value]));
+  };
+
+  test("a refused run still saves the request log, including the watch's request", async () => {
+    files["/data/spring-2027.json"] = { body: '{"schema_version":3}', etag: '"v4"' };
+    const report = await job({ watchTerms: ["fall-2027"] });
+    expect(report.outcome).toBe("refused");
+    const state = JSON.parse(readFileSync(path.join(outDir, "state.json"), "utf8")) as { files: Record<string, unknown>; requests: string[] };
+    expect(Object.keys(state.files).sort()).toEqual([`${stub.url}/data/fall-2027.json`, `${stub.url}/data/spring-2027.json`]);
+    expect(state.requests).toHaveLength(2);
+  });
+
+  test("a term file that claims an incomplete scrape stays refused after a subject overlay", async () => {
+    files["/data/spring-2027.json"] = { body: editTerm(raw => { raw.coverage.catalog_courses = 8; }), etag: '"v1"' };
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    const report = await job({ subjects: ["MATH"] });
+    expect(report.outcome).toBe("refused");
+    expect(report.reason).toBe("partial");
+  });
+
+  test("a term file that is not JSON is refused, not thrown, when subjects are requested", async () => {
+    files["/data/spring-2027.json"] = { body: termBody.slice(0, 100), etag: '"v1"' };
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    const report = await job({ subjects: ["MATH"] });
+    expect(report.outcome).toBe("refused");
+    expect(report.reason).toBe("invalid-json");
+  });
+
+  test("a subject file replaces its subject's slice and nothing outside it", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1690": 7, "CSCE 2110": 7 }), etag: '"m1"' };
+    const report = await job({ subjects: ["MATH"] });
+    expect(report.outcome).toBe("published");
+    const courses = publishedCourses(report.file);
+    expect(courses.has("MATH 1690")).toBe(true);
+    expect(courses.has("MATH 1680")).toBe(false);
+    expect(courses.has("CSCE 2110")).toBe(false);
+  });
+
+  test("a subject file that answers 304 is applied from the cached body", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+    files["/data/spring-2027.json"] = { body: editTerm(raw => { raw.courses["ACCT 5120"].sections[0].linked_sections[0].open_seats = 1; }), etag: '"v2"' };
+    const report = await job({ subjects: ["MATH"] });
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["fetched", "not-modified"]);
+    expect(report.outcome).toBe("published");
+    const courses = publishedCourses(report.file);
+    expect(courses.get("MATH 1680")).toBe(7);
+    expect(courses.get("ACCT 5120")).toBe(1);
+  });
+
+  test("a term file that answers 304 still checks the subject files", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 9 }), etag: '"m2"' };
+    const report = await job({ subjects: ["MATH"] });
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified", "fetched"]);
+    expect(report.outcome).toBe("published");
+    expect(publishedCourses(report.file).get("MATH 1680")).toBe(9);
+  });
+
+  test("validators are dropped for a file whose body is no longer cached", async () => {
+    expect((await job()).outcome).toBe("published");
+    rmSync(path.join(outDir, "bodies"), { recursive: true });
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    const report = await job({ subjects: ["MATH"] });
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["fetched", "fetched"]);
+    expect(report.outcome).toBe("published");
+  });
+
+  test("the report says which subject files were applied and why the others were not", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    files["/data/spring-2027/BADS.json"] = { body: '{"schema_version":1}', etag: '"b1"' };
+    const report = await job({ subjects: ["BADS", "MATH", "NONE"] });
+    expect(report.subjects.sort((a, b) => a.subject.localeCompare(b.subject))).toEqual([
+      { subject: "BADS", applied: false, detail: "BADS.json: schema_version 1 is not 2" },
+      { subject: "MATH", applied: true },
+      { subject: "NONE", applied: false, detail: "HTTP 404: the mirror has no file for this subject" },
+    ]);
+  });
+
+  test("a watch that refetches another term's file does not leave that term a stale cached body", async () => {
+    const fall = (seats: number) => editTerm(raw => {
+      (raw as unknown as { term: string }).term = "2027 Fall";
+      raw.courses["MATH 1680"].sections[0].linked_sections[0].open_seats = seats;
+    });
+    files["/data/fall-2027.json"] = { body: fall(1), etag: '"f1"' };
+    expect((await job({ termId: "fall-2027" })).outcome).toBe("published");
+    files["/data/fall-2027.json"] = { body: fall(2), etag: '"f2"' };
+    expect((await job({ watchTerms: ["fall-2027"] })).termWatch[0]?.schemaOk).toBe(true);
+    const report = await job({ termId: "fall-2027" });
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["fetched"]);
+    expect(report.outcome).toBe("published");
+    expect(publishedCourses(report.file).get("MATH 1680")).toBe(2);
+  });
+
+  test("a subject the hourly budget defers is applied from its cached body", async () => {
+    let clock = Date.parse("2027-01-10T12:00:00Z");
+    const policy = { ...stubPolicy(stub.url), maxRequestsPerHour: 3 };
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ policy, now: () => clock, subjects: ["MATH"] })).outcome).toBe("published");
+    clock += 16 * 60_000;
+    const report = await job({ policy, now: () => clock, subjects: ["MATH"] });
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified", "deferred"]);
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: true, detail: "from the cached body; the fetch was deferred" }]);
+    expect(report.outcome).toBe("unchanged");
+  });
+
+  test("a deferred subject with no cached body publishes nothing", async () => {
+    const policy = { ...stubPolicy(stub.url), maxRequestsPerHour: 1 };
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    const report = await job({ policy, subjects: ["MATH"] });
+    expect(report.outcome).toBe("error");
+    expect(report.reason).toBe("subject-unavailable");
+    expect(existsSync(path.join(outDir, "pointers", "spring-2027.json"))).toBe(false);
+  });
+
+  test("state saved before attemptedAt existed still holds the minimum interval", async () => {
+    const clock = Date.parse("2027-01-10T12:00:00Z");
+    const url = `${stub.url}/data/spring-2027.json`;
+    const old = { files: { [url]: { etag: null, lastModified: null, fetchedAt: new Date(clock - 2 * 60_000).toISOString() } }, requests: [] };
+    writeFileSync(path.join(outDir, "state.json"), JSON.stringify(old));
+    const policy = { ...stubPolicy(stub.url), minIntervalMs: 15 * 60_000 };
+    const report = await job({ policy, now: () => clock });
+    expect(report.outcome).toBe("error");
+    expect(report.reason).toBe("deferred");
+    expect(stub.requests).toEqual([]);
+  });
+
+  test("a watched term that is the job's own term reuses the term fetch", async () => {
+    const policy = { ...stubPolicy(stub.url), minIntervalMs: 60_000 };
+    const report = await job({ policy, watchTerms: ["spring-2027"] });
+    expect(report.termWatch).toEqual([
+      { termId: "spring-2027", appeared: true, schemaOk: true, detail: expect.stringContaining("schema v2 accepted"), sourceObservedAt: expect.any(String) },
+    ]);
+    expect(stub.requests).toEqual(["/data/spring-2027.json"]);
+  });
+});
+
 describe("release-job CLI", () => {
+  test("a flag that only starts with a known name is an unknown argument", async () => {
+    const child = Bun.spawn(["bun", "packages/ingest/src/release-job/cli.ts", "--outdated", "somewhere"], { cwd: path.join(import.meta.dir, "..", "..", "..", ".."), stdout: "pipe", stderr: "pipe" });
+    const [code, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+    expect(code).toBe(1);
+    expect(stderr).toContain('unknown argument "--outdated"');
+  });
+
   test("missing required flags prints usage and exits 1 without fetching", async () => {
     const child = Bun.spawn(["bun", "packages/ingest/src/release-job/cli.ts"], { cwd: path.join(import.meta.dir, "..", "..", "..", ".."), stdout: "pipe", stderr: "pipe" });
     const [code, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);

@@ -10,7 +10,7 @@
  * means the release is suspect, and the last good one stays published.
  */
 
-import type { ComponentRecord, Fact, SectionRelease, SectionRecord } from "../section-release";
+import type { ComponentRecord, DateSpan, Fact, SectionRelease, SectionRecord } from "../section-release";
 
 export type ChangeKind = "status" | "instructor" | "room" | "time" | "dates" | "seats" | "components";
 
@@ -131,7 +131,12 @@ function meetingText(component: ComponentRecord): string {
 }
 
 function factText(fact: Fact<unknown>): string {
-  return fact.state === "known" ? String(fact.value) : `unknown${fact.raw === null ? "" : ` (${fact.raw})`}`;
+  if (fact.state === "unknown") return `unknown${fact.raw === null ? "" : ` (${fact.raw})`}`;
+  if (typeof fact.value === "object" && fact.value !== null) {
+    const { start, end } = fact.value as DateSpan;
+    return `${start} to ${end}`;
+  }
+  return String(fact.value);
 }
 
 function factEqual(a: Fact<unknown>, b: Fact<unknown>): boolean {

@@ -272,13 +272,14 @@ function collectProperty(line: ContentLine, event: RawEvent): void {
       }
       break;
     case "CATEGORIES":
-      // RFC 5545: a comma-separated list of names. First CATEGORIES wins, like SUMMARY and LOCATION.
-      if (event.categories.length === 0) {
-        event.categories = line.value
-          .split(",")
+      // RFC 5545: a comma-separated list of names, and the property may repeat,
+      // so every CATEGORIES line adds to the list. A comma escaped as "\," is
+      // part of a name, so the split skips any backslash pair.
+      event.categories.push(
+        ...(line.value.match(/(?:\\.?|[^\\,])+/g) ?? [])
           .map(part => unescapeText(part).trim())
-          .filter(part => part !== "");
-      }
+          .filter(part => part !== ""),
+      );
       break;
     default:
       break; // DTSTAMP, ATTENDEE, and everything else this library does not model.

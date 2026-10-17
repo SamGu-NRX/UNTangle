@@ -81,7 +81,8 @@ function matchesQuery(event: NormalizedEvent, query: EventsQuery): boolean {
   const fromMs = Date.parse(query.from);
   const toMs = Date.parse(query.to);
   // Half-open overlap: an event counts when any part of it is inside the range.
-  if (!(startMs < toMs && endMs > fromMs)) return false;
+  // A zero-length event counts when its instant is, as the feed parser counts it.
+  if (!(startMs < toMs && (endMs > fromMs || (endMs === startMs && startMs >= fromMs)))) return false;
   if (query.building !== null && event.buildingId !== query.building) return false;
   if (query.q !== null && query.q !== "") {
     const needle = query.q.toLowerCase();
@@ -91,8 +92,8 @@ function matchesQuery(event: NormalizedEvent, query: EventsQuery): boolean {
   return true;
 }
 
-/** Serializes within MAX_RESPONSE_BYTES. An event too large to ever fit is dropped and noted on its source's report; the rest halve until the payload fits; `truncated` flags any drop. The loop is bounded: every pass either returns or strictly shrinks the list. */
-export function serializeEventsResponse(payload: Omit<EventsResponse, "truncated">): { json: string } {
+/** Serializes within MAX_RESPONSE_BYTES. An event too large to ever fit is dropped and noted on its source's report; the rest halve until the payload fits; `truncated` flags any drop here, and stays true when the caller already dropped events. The loop is bounded: every pass either returns or strictly shrinks the list. */
+export function serializeEventsResponse(payload: EventsResponse): { json: string } {
   // An event whose own JSON exceeds the budget can never fit, so dropping it
   // up front keeps the halving loop from stalling on it, and each drop is
   // reported on the source it came from.
@@ -105,7 +106,7 @@ export function serializeEventsResponse(payload: Omit<EventsResponse, "truncated
     return true;
   });
   for (;;) {
-    const truncated = events.length < payload.events.length;
+    const truncated = payload.truncated || events.length < payload.events.length;
     const sources = oversizedDrops.size === 0
       ? payload.sources
       : payload.sources.map(report => {
@@ -146,13 +147,14 @@ export async function eventsHandler(request: Request, deps: EventsHandlerDeps): 
   }
   const { events: allEvents, reports } = await deps.cache.getEvents({ from: parsed.query.from, to: parsed.query.to });
   const matching = allEvents.filter(event => matchesQuery(event, parsed.query));
-  const deduped = dedupeEvents(matching).slice(0, MAX_EVENTS_IN_RESPONSE);
+  const deduped = dedupeEvents(matching);
   const { json } = serializeEventsResponse({
     range: { from: parsed.query.from, to: parsed.query.to },
     building: parsed.query.building,
     q: parsed.query.q,
-    events: deduped,
+    events: deduped.slice(0, MAX_EVENTS_IN_RESPONSE),
     sources: reports,
+    truncated: deduped.length > MAX_EVENTS_IN_RESPONSE,
   });
   return new Response(json, {
     status: 200,
