@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -195,9 +196,10 @@ describe("runReleaseJob", () => {
   });
 
   test("a watched term that is absent gets an appeared=false report", async () => {
-    // Keep the published subject overlay so the cached build is unchanged.
-    // The watch still runs when nothing is published.
-    const report = await job({ subjects: ["MATH"], watchTerms: ["fall-2027"] });
+    // The term file's validators match now, so this run is a 304 — and the
+    // watch still runs: the watchdog is a report, not a side effect of
+    // publishing.
+    const report = await job({ watchTerms: ["fall-2027"] });
     expect(report.outcome).toBe("unchanged");
     expect(report.termWatch).toEqual([
       { termId: "fall-2027", appeared: false, schemaOk: null, detail: expect.stringContaining("404"), sourceObservedAt: null },
@@ -281,6 +283,35 @@ describe("runReleaseJob, one run at a time", () => {
     expect(report.releaseId).toBe(pointer.releaseId);
     expect(report.file).toBe(pointer.file);
     expect(publishedCourses(pointer.file).get("MATH 1680")).toBe(3);
+  });
+
+  test("a 304 without subjects keeps the subject files the published release was built with", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    const before = readFileSync(pointerPath, "utf8");
+
+    const report = await job();
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified"]);
+    expect(report.outcome).toBe("unchanged");
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: true, detail: "kept from the published release, from the cached body" }]);
+    expect(readFileSync(pointerPath, "utf8")).toBe(before);
+    expect(publishedCourses((JSON.parse(before) as { file: string }).file).get("MATH 1680")).toBe(7);
+  });
+
+  test("a 304 that cannot reapply a published subject file publishes nothing", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    const before = readFileSync(pointerPath, "utf8");
+    const mathUrl = `${stub.url}/data/spring-2027/MATH.json`;
+    rmSync(path.join(outDir, "bodies", `${createHash("sha256").update(mathUrl).digest("hex")}.json`));
+
+    const report = await job();
+    expect(report.outcome).toBe("error");
+    expect(report.reason).toBe("subject-unavailable");
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: false, detail: "in the published release, but no cached body" }]);
+    expect(readFileSync(pointerPath, "utf8")).toBe(before);
   });
 
   test("a refused run still saves the request log, including the watch's request", async () => {
