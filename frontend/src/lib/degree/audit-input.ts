@@ -4,7 +4,7 @@
  * and a signed-in student get the same audit from the same rows. It imports
  * only types and the term chronology, so it runs in the browser.
  */
-import type { AuditCourse } from "@untangle/core/degree/audit";
+import type { AuditCourse, ClaimedCourse } from "@untangle/core/degree/audit";
 import type { DegreeData } from "@untangle/core/degree/types";
 import type { TranscriptCourseRecord } from "@/lib/types";
 import { parseAcademicTerm } from "@/lib/term-chronology";
@@ -15,7 +15,31 @@ export type AuditTranscriptRow = Pick<TranscriptCourseRecord, "code" | "term" | 
 export type AuditInput =
   /** The record follows another catalog year; it is not audited against this one. */
   | { ok: false; error: string }
-  | { ok: true; attempts: AuditCourse[]; warnings: string[] };
+  | {
+      ok: true;
+      attempts: AuditCourse[];
+      /** The courses marked done by hand, as the engine's claims; pass them beside `attempts`. */
+      claims: ClaimedCourse[];
+      warnings: string[];
+      /** In-progress courses whose hours came from the course catalog, not the transcript. */
+      catalogHours: string[];
+    };
+
+export type AuditInputOptions = {
+  /**
+   * Codes the student marked done by hand. They become the engine's claims,
+   * which no grade policy reads and no requirement reports satisfied, at
+   * their `catalogHours` (unknown without it).
+   */
+  claimed?: readonly string[];
+  /**
+   * A course's hours in the app's course catalog, or null when the catalog
+   * does not carry it. Given, it fills in the hours of an in-progress row
+   * that printed 0.000 earned and of each claim; without it those hours
+   * stay unknown.
+   */
+  catalogHours?: (code: string) => number | null;
+};
 
 /**
  * A row's place in time for the engine's "latest attempt" reads, in the
@@ -33,8 +57,8 @@ const NO_CREDIT_GRADES = new Set(["F", "W", "I", "NP"]);
 /**
  * Maps the planner's transcript rows to the engine's attempts. Only
  * transcript rows go in: hand-marked statuses and manual credit claims carry
- * no grade or hour evidence, so a caller that counts claims passes them to
- * the engine separately, as `ClaimedCourse`s.
+ * no grade or hour evidence, so `auditInput` returns a caller's claims
+ * apart from them, as `ClaimedCourse`s.
  *
  * - A completed or in-progress row the student has confirmed is an attempt.
  * - An ignored row with an F, W, I or NP grade is still an attempt on the
@@ -46,17 +70,21 @@ const NO_CREDIT_GRADES = new Set(["F", "W", "I", "NP"]);
  * Every attempt is kept, so an in-progress retake sits beside the completed
  * attempt it repeats instead of replacing it.
  */
-function transcriptAttempts(rows: readonly AuditTranscriptRow[]): { attempts: AuditCourse[]; unreviewed: string[] } {
+function transcriptAttempts(rows: readonly AuditTranscriptRow[], catalogHours: AuditInputOptions["catalogHours"]): { attempts: AuditCourse[]; unreviewed: string[]; fromCatalog: string[] } {
   const attempts: AuditCourse[] = [];
   const unreviewed: string[] = [];
+  const fromCatalog: string[] = [];
   for (const row of rows) {
     if (row.duplicateExcluded) continue;
     const grade = row.grade === "" ? null : row.grade;
     const inProgress = row.appliedStatus === "inProgress";
     // The importer keeps the transcript's earned hours, and a current-term
     // row may print 0.000 earned. That 0 is not the course's hours, so an
-    // in-progress row with 0 credits has unknown hours.
-    const credits = inProgress && row.credits === 0 ? null : row.credits;
+    // in-progress row with 0 credits has unknown hours, unless the caller's
+    // course catalog says how many the course carries.
+    const printedZero = inProgress && row.credits === 0;
+    const catalog = printedZero ? (catalogHours?.(row.code) ?? null) : null;
+    const credits = printedZero ? catalog : row.credits;
     const attempt = { code: row.code, grade, credits, sourceKind: row.sourceKind, term: termRank(row.term) };
     if (row.appliedStatus === "ignored") {
       if (grade !== null && NO_CREDIT_GRADES.has(grade)) attempts.push({ ...attempt, inProgress: false });
@@ -66,9 +94,10 @@ function transcriptAttempts(rows: readonly AuditTranscriptRow[]): { attempts: Au
       unreviewed.push(`${row.code} (${row.term})`);
       continue;
     }
+    if (catalog !== null) fromCatalog.push(row.code);
     attempts.push({ ...attempt, inProgress });
   }
-  return { attempts, unreviewed };
+  return { attempts, unreviewed, fromCatalog };
 }
 
 /**
@@ -76,7 +105,11 @@ function transcriptAttempts(rows: readonly AuditTranscriptRow[]): { attempts: Au
  * differ between catalog years, so a record that names another year is
  * refused; one that names none is audited with a warning saying so.
  */
-export function auditInput(record: { catalogId: string | null; transcriptRecords: readonly AuditTranscriptRow[] }, data: Pick<DegreeData, "catalogId" | "catalogYear">): AuditInput {
+export function auditInput(
+  record: { catalogId: string | null; transcriptRecords: readonly AuditTranscriptRow[] },
+  data: Pick<DegreeData, "catalogId" | "catalogYear">,
+  options: AuditInputOptions = {},
+): AuditInput {
   if (record.catalogId !== null && record.catalogId !== data.catalogId) {
     return { ok: false, error: `Your record follows the ${record.catalogId} catalog. Degree audits are only available for ${data.catalogId} so far.` };
   }
@@ -84,9 +117,10 @@ export function auditInput(record: { catalogId: string | null; transcriptRecords
   if (record.catalogId === null) {
     warnings.push(`Your record does not name a catalog year, so it was audited against the ${data.catalogYear} catalog. Check your catalog year on your degree audit.`);
   }
-  const { attempts, unreviewed } = transcriptAttempts(record.transcriptRecords);
+  const { attempts, unreviewed, fromCatalog } = transcriptAttempts(record.transcriptRecords, options.catalogHours);
   if (unreviewed.length > 0) {
     warnings.push(`Not counted until you review them in the planner: ${unreviewed.join(", ")}.`);
   }
-  return { ok: true, attempts, warnings };
+  const claims = [...new Set(options.claimed ?? [])].sort().map((code): ClaimedCourse => ({ code, credits: options.catalogHours?.(code) ?? null, sourceKind: "claimed" }));
+  return { ok: true, attempts, claims, warnings, catalogHours: [...new Set(fromCatalog)].sort() };
 }

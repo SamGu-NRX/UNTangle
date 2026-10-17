@@ -66,6 +66,178 @@
   display: none;
 }
 
+/* A major the degree audit doesn't cover: one plain line under the degree line. */
+.degreeNote {
+  max-width: 62ch;
+  margin: -12px 4px 20px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+/* ───────── What's left ───────── */
+
+/*
+ * The first answer for a major the audit covers: the credits left as a
+ * heading at the tray title's size, the lines that qualify it, then the
+ * requirements as rows on the page (rule 9: no box). Text starts where the
+ * group headings' text does.
+ */
+.left {
+  margin-bottom: 28px;
+}
+.leftTitle {
+  margin: 0;
+  padding: 0 12px;
+  font: 650 20px/26px var(--font-ui);
+  letter-spacing: -0.012em;
+  font-variant-numeric: tabular-nums;
+}
+.leftNote {
+  max-width: 62ch;
+  margin: 2px 0 0;
+  padding: 0 12px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+.leftGroup {
+  margin-top: 14px;
+}
+.leftGroup[data-open="false"] .chev {
+  transform: rotate(-90deg);
+}
+/* A requirement row has no action column: the name and its one fact fill it. */
+.row[data-kind="requirement"] {
+  grid-template-columns: minmax(0, 1fr);
+  padding-right: 12px;
+}
+.reqOpen {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  min-width: 0;
+  min-height: 48px;
+  color: var(--ink);
+  text-align: left;
+}
+.reqOpen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+}
+.reqOpen:focus-visible {
+  outline: none;
+}
+.reqOpen:focus-visible::after {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.row[data-selected] .reqOpen::after {
+  border-radius: 0 10px 10px 0;
+}
+.reqName {
+  overflow: hidden;
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row[data-requirement="claimed"] .reqName,
+.row[data-requirement="inProgress"] .reqName {
+  color: var(--ink-2);
+}
+/* An advisor row: the name, then the audit's reason under it, one line here and the whole of it in the panel. */
+.row[data-requirement="advisor"] .reqOpen {
+  grid-template-rows: auto auto;
+  row-gap: 2px;
+  padding: 10px 0;
+}
+.row[data-requirement="advisor"] .lead {
+  grid-row: 1 / 3;
+  align-self: start;
+  margin-top: 2px;
+}
+.reqReason {
+  display: -webkit-box;
+  grid-column: 2 / 4;
+  grid-row: 2;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ink-2);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+/* The requirement detail (panel on desktop, sheet on phone). */
+.reqLead {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ink-2);
+}
+.reqChoice + .reqChoice,
+.reqCourses + .reqChoice {
+  margin-top: 16px;
+}
+.reqPart {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.reqCourses {
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+.reqCourse,
+.reqSet {
+  display: grid;
+  grid-template-columns: 18px 80px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  min-height: 40px;
+  font-size: 14px;
+}
+.reqSet {
+  grid-template-columns: 18px minmax(0, 1fr);
+}
+.reqCourses > li + li {
+  border-top: 1px solid var(--line);
+}
+.reqTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reqCourse:is([data-status="locked"], [data-status="done"], [data-status="covered"]) .reqTitle {
+  color: var(--ink-2);
+}
+.reqFact {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.reqCourse[data-status="check"] .reqFact {
+  color: var(--attention);
+}
+.reqQuote {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--line-2);
+  font-size: 14px;
+  line-height: 21px;
+  text-wrap: pretty;
+}
+.catalogLink {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
 /* ───────── Term tray ───────── */
 
 .tray {
@@ -501,6 +673,11 @@
   color: var(--brand);
   font: 600 22px/28px var(--font-ui);
   letter-spacing: -0.01em;
+}
+/* A requirement's area in the panel's head: quieter than a course code, because the body names the requirement. */
+.panelArea {
+  color: var(--ink-2);
+  font: 600 15px/22px var(--font-ui);
 }
 .creditsTag {
   display: inline-flex;
@@ -1173,5 +1350,60 @@
   .sub,
   .more {
     padding-left: 40px;
+  }
+  .degreeNote {
+    margin: -6px 2px 14px;
+  }
+  .left {
+    margin-bottom: 22px;
+  }
+  .leftTitle,
+  .leftNote {
+    padding: 0 10px;
+  }
+  .row[data-kind="requirement"] {
+    padding-right: 10px;
+  }
+  /* The name wraps rather than hiding which requirement it is; the fact keeps its line on the right. */
+  .reqOpen {
+    min-height: 58px;
+    padding: 8px 0;
+  }
+  .reqName {
+    font-size: 15px;
+    white-space: normal;
+    text-wrap: pretty;
+  }
+  .reqOpen > .fact {
+    align-self: center;
+    max-width: 14ch;
+  }
+  .reqReason {
+    -webkit-line-clamp: 2;
+  }
+  /* Code over title, fact to the right, as in the course rows. */
+  .reqCourse {
+    grid-template-columns: 18px auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    row-gap: 2px;
+    padding: 8px 0;
+  }
+  .reqCourse > .lead {
+    grid-row: 1 / 3;
+  }
+  .reqCourse > .code {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .reqTitle {
+    grid-column: 2 / 4;
+    grid-row: 2;
+  }
+  .reqFact {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    white-space: normal;
+    text-align: right;
   }
 }

@@ -22,16 +22,19 @@ import { CourseDetail, type DetailActions } from "./CourseDetail";
 import { CourseGroups } from "./CourseGroups";
 import type { RowActions } from "./CourseRow";
 import { DegreeDialog } from "./DegreeDialog";
-import { computeAuto, undoBlocker } from "./model/auto";
+import { undoBlocker } from "./model/auto";
 import { buildCourseModel, type CourseModel, type CourseRowModel } from "./model/course-model";
+import { checkDegree, withDegree } from "./model/degree";
 import { buildGroups, OPEN_AT_START, ROWS_BEFORE_MORE, rowFact, type GroupKey } from "./model/groups";
-import { autoTransaction, courseEdit, manualEdit, snapshotOf, undoAutoTransaction, undoCourseEdit } from "./model/plan-edits";
+import { autoTransaction, courseEdit, manualEdit, planAuto, snapshotOf, undoAutoTransaction, undoCourseEdit } from "./model/plan-edits";
 import { creditProgress, creditsLabel, DEGREE_CREDITS } from "./model/progress";
 import { sampleTranscript } from "./model/sample-transcript";
 import { instructorIndex, searchCatalog } from "./model/search";
+import { RequirementDetail, type LeftItem } from "./RequirementDetail";
 import { AUTO_TIMELINE, fadeIn, flip, fly, measure, MOVE, reducedMotion, wait, type Rects } from "./reveal";
 import { untProfile } from "./school";
 import { TermTray } from "./TermTray";
+import { LEFT_OPEN_AT_START, REQUIREMENT_PREFIX, WhatsLeft, type LeftGroupKey } from "./WhatsLeft";
 
 const INSTRUCTOR_ITEM = "instructor:";
 /** The groups that hold the student's own record, which show with or without a major. */
@@ -84,17 +87,27 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
 
   const { courseStatuses, transcriptRecords, coursePlan: storedPlan } = plannerState;
   const coursePlan: CoursePlan = storedPlan ?? { manualCredit: [], autoPlanned: [], lastAuto: null };
-  const model = useMemo(
-    () => buildCourseModel(profile, snapshotOf(plannerState)),
-    // The model reads only these three; the rest of the plan (sections, the map's day) changes often.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [profile, courseStatuses, transcriptRecords, storedPlan],
-  );
   const major = getMajorById(plannerState.selectedMajor) ?? null;
+  // The prerequisite model says what a student can take; the degree audit says what the degree still needs.
+  const { model, degree } = useMemo(
+    () => {
+      const snapshot = snapshotOf(plannerState);
+      const base = buildCourseModel(profile, snapshot);
+      const check = checkDegree(profile, snapshot, base, major);
+      return { model: withDegree(base, check), degree: check };
+    },
+    // The model reads only these; the rest of the plan (sections, the map's day) changes often.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [profile, courseStatuses, transcriptRecords, storedPlan, major],
+  );
+  const audited = degree.kind === "audited" ? degree : null;
   // Every department's courses, one step away; by default the groups list the degree's.
   const [wide, setWide] = useState(false);
   // Without a major the whole catalog is in scope, and hundreds of rules read as warnings; only the student's own record shows.
-  const groups = useMemo(() => buildGroups(model, major, wide).filter((group) => major || OWN_RECORD.has(group.key)), [model, major, wide]);
+  const groups = useMemo(
+    () => buildGroups(model, major, wide, audited && { needed: audited.needed, neededByMajor: audited.neededByMajor }).filter((group) => major || OWN_RECORD.has(group.key)),
+    [model, major, wide, audited],
+  );
   const hasDepartment = Boolean(major && major.department !== "—");
   const trayRows = useMemo(() => [...model.rows.values()].filter((row) => row.inPlan).sort((a, b) => a.id.localeCompare(b.id)), [model]);
   // A course keeps its color while it stays in the tray (lib/course-colors.ts).
@@ -107,6 +120,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
   const credits = creditProgress(model, transcriptRecords, profile);
 
   const [open, setOpen] = useState(OPEN_AT_START);
+  const [leftOpen, setLeftOpen] = useState(LEFT_OPEN_AT_START);
   const [expanded, setExpanded] = useState<Record<GroupKey, boolean>>({ check: false, can: false, taking: false, later: false, done: false });
   const [detailId, setDetailId] = useState<string | null>(initialCourseId);
   const [detailOpen, setDetailOpen] = useState(initialCourseId !== null);
@@ -351,7 +365,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
     toast(`Removed ${ids.length} course${ids.length === 1 ? "" : "s"} Auto added`);
   };
   const autoInTray = coursePlan.autoPlanned.filter((id) => model.rows.get(id)?.inPlan).length;
-  const coreProgress = major
+  const coreProgress = major && !audited
     ? {
         total: major.coreCourseCodes.length,
         done: major.coreCourseCodes.filter((id) => model.rows.get(id)?.status === "done").length,
@@ -380,8 +394,8 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
     const token = live.current.token;
     const stale = () => !alive.current || live.current.token !== token;
     const mode = modeOf(event);
-    // The choice the transaction will make, so the picked rows can tint before the plan moves.
-    const preview = computeAuto(model, courseStatuses, major.coreCourseCodes, profile.autoCreditBudget).planned;
+    // The choice the transaction will make, from the same candidates, so the picked rows can tint before the plan moves.
+    const preview = planAuto(profile, plannerState, major).outcome.planned;
     setRunning(true);
     setFreshResult(false);
     if (mode === "animate" && preview.length > 0) {
@@ -417,7 +431,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
       return;
     }
     if (outcome.result.changes.length === 0) {
-      toast(`Nothing new to plan for ${term}`);
+      toast(audited && audited.needed.size === 0 ? "Nothing to plan. Your degree needs no more courses." : `Nothing new to plan for ${term}`);
       return;
     }
     const planned = outcome.result.planned.length;
@@ -459,10 +473,25 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
     [model],
   );
   const navigation = useMemo<CourseNavigation>(() => ({ open: openCourse, isKnown: (id) => model.rows.has(id) }), [openCourse, model]);
-  const detailRow = detailId ? model.rows.get(detailId) : undefined;
+  const openRequirement = useCallback((key: string) => {
+    setDetailId(`${REQUIREMENT_PREFIX}${key}`);
+    setDetailOpen(true);
+  }, []);
+  // The panel shows a course, or a requirement from What's left (its id carries REQUIREMENT_PREFIX).
+  const leftKey = detailId?.startsWith(REQUIREMENT_PREFIX) ? detailId.slice(REQUIREMENT_PREFIX.length) : null;
+  const detailRow = detailId && leftKey === null ? model.rows.get(detailId) : undefined;
+  const leftItem = useMemo<LeftItem | undefined>(() => {
+    if (!audited || leftKey === null) return undefined;
+    for (const area of audited.areas) {
+      const requirement = area.requirements.find((entry) => entry.key === leftKey);
+      if (requirement) return { kind: "requirement", requirement, areaTitle: area.title };
+    }
+    const item = audited.advisor.find((entry) => entry.key === leftKey);
+    return item ? { kind: "advisor", item, areaTitle: audited.areas.find((area) => area.area === item.area)!.title } : undefined;
+  }, [audited, leftKey]);
   useEffect(() => {
-    if (detailId && detailOpen) loadSections([detailId]);
-  }, [loadSections, detailOpen, detailId]);
+    if (detailId && leftKey === null && detailOpen) loadSections([detailId]);
+  }, [loadSections, detailOpen, detailId, leftKey]);
   useEffect(() => {
     if (trayRows.length > 0) loadSections(trayRows.map((row) => row.id));
   }, [loadSections, trayRows]);
@@ -511,7 +540,8 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
   /* ---------- search ---------- */
 
   const searchCourses = useMemo(() => [...model.rows.values()].map((row) => ({ id: row.id, title: row.title })), [model]);
-  const coreSet = useMemo(() => new Set(major?.coreCourseCodes ?? []), [major]);
+  // Search ranks the degree's courses first: what the audit still needs, or a sample major's core list.
+  const coreSet = useMemo<ReadonlySet<string>>(() => audited?.needed ?? new Set(major?.coreCourseCodes ?? []), [audited, major]);
   const instructors = useMemo(
     () =>
       instructorIndex(
@@ -586,12 +616,18 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
             {major?.name ?? "Choose your major"}
             <ChevronDown size={16} />
           </button>
-          {major || model.hasTranscript ? (
+          {!audited && (major || model.hasTranscript) ? (
             <span className={styles.progress}>
               {credits} of {DEGREE_CREDITS} credits
             </span>
           ) : null}
         </div>
+        {degree.kind === "unaudited" && hydrated ? (
+          <p className={styles.degreeNote}>
+            The degree check covers Computer Science and Computer Engineering only.
+            {major && major.department !== "—" ? ` For ${major.name}, Courses lists a sample of its courses.` : ""}
+          </p>
+        ) : null}
 
         {!hydrated ? (
           <div className={styles.loading} role="status" aria-label="Loading your plan">
@@ -612,6 +648,15 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
           />
         ) : (
           <>
+            {audited ? (
+              <WhatsLeft
+                degree={audited}
+                open={leftOpen}
+                onToggle={(key: LeftGroupKey) => setLeftOpen((current) => ({ ...current, [key]: !current[key] }))}
+                selectedKey={detailOpen ? leftKey : null}
+                onOpen={openRequirement}
+              />
+            ) : null}
             <TermTray
               term={term}
               rows={trayRows}
@@ -626,6 +671,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
               selectedId={detailOpen ? detailId : null}
               actions={rowActions}
               weekHref={LENS_HREF.week}
+              emptyText={audited ? "Auto fills this term from courses your degree still needs." : "Auto fills this term from courses you can take."}
               more={autoInTray > 0 ? [{ id: "clear-auto", label: `Remove the ${autoInTray === 1 ? "course" : `${autoInTray} courses`} Auto added`, onSelect: clearAutoPlan, destructive: true }] : []}
             />
             {major ? null : <ChooseMajor term={term} onChoose={() => setDegreeOpen(true)} />}
@@ -657,14 +703,19 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
       </div>
 
       <ContextPanel
-        open={detailOpen && detailRow !== undefined}
+        open={detailOpen && (detailRow !== undefined || leftItem !== undefined)}
         onClose={() => setDetailOpen(false)}
-        title={detailRow?.id ?? ""}
+        title={detailRow?.id ?? (leftItem?.kind === "requirement" ? leftItem.requirement.name : leftItem?.item.name) ?? ""}
         heading={
           detailRow ? (
             <span className={styles.panelHeading}>
               <span className={styles.panelCode}>{detailRow.id}</span>
               <span className={styles.creditsTag}>{creditsLabel(detailRow.credits)}</span>
+            </span>
+          ) : leftItem ? (
+            // The area sits where a course's code does; the body names the requirement, as it names a course.
+            <span className={styles.panelHeading}>
+              <span className={styles.panelArea}>{leftItem.areaTitle}</span>
             </span>
           ) : undefined
         }
@@ -685,10 +736,12 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
             placed={placed}
             chosenSectionId={plannerState.selectedSections[detailRow.id]}
             initialInstructor={instructorForDetail}
-            inCore={coreSet.has(detailRow.id)}
+            degreeNote={degreeNote(detailRow, audited !== null, coreSet)}
             actions={detailActions}
             planLoaded={hydrated}
           />
+        ) : leftItem ? (
+          <RequirementDetail key={leftKey} entry={leftItem} model={model} />
         ) : null}
       </ContextPanel>
 
@@ -708,6 +761,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
         }}
         source={source}
         core={coreProgress}
+        catalog={audited ? { year: audited.catalogYear, program: audited.programName } : null}
         onSample={() => {
           applyTranscriptRecords(sampleTranscript);
           setDegreeOpen(false);
@@ -720,6 +774,13 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
       />
     </CourseNavigationContext.Provider>
   );
+}
+
+/** One line in the course detail on how the degree treats the course, or null. */
+function degreeNote(row: CourseRowModel, audited: boolean, degreeCourses: ReadonlySet<string>): string | null {
+  if (row.waiver) return `${row.waiver} covers it as a prerequisite, but your degree still lists ${row.id}. Only an advisor can waive it.`;
+  if (!degreeCourses.has(row.id)) return null;
+  return audited ? "Your degree still needs this course." : "On your major's core list.";
 }
 
 /**

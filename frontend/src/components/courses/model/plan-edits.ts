@@ -8,8 +8,9 @@ import { getPlanningTermCourseCodes, normalizePlannerState, takeFromAutoRun } fr
 import type { PlanTransaction } from "@/lib/planner-transaction";
 import type { AutoTransaction, CoursePlan, CourseStatus, Major, MajorId, PlannerState } from "@/lib/types";
 import type { SchoolProfile } from "../school";
-import { computeAuto, describeAuto, undoBlocker, undoStatuses, type AutoOutcome } from "./auto";
-import { buildCourseModel, type PlanSnapshot } from "./course-model";
+import { computeAuto, describeAuto, undoBlocker, undoStatuses, type AutoOutcome, type AutoSource } from "./auto";
+import { buildCourseModel, type CourseModel, type PlanSnapshot } from "./course-model";
+import { checkDegree, stillNeeded, withDegree } from "./degree";
 
 export type PlanParts = { courseStatuses: Record<string, CourseStatus>; coursePlan: CoursePlan };
 export type PlanUpdate = (current: PlanParts) => Partial<PlanParts>;
@@ -81,6 +82,24 @@ export function withPlanUpdate(plan: PlannerState, update: PlanUpdate): PlannerS
 }
 
 /**
+ * What Auto would do to a plan. The view's preview and the committing
+ * transaction both call this, so they plan from the same candidates: what
+ * the degree audit still needs for a major it covers, else the major's
+ * sample core list.
+ */
+export function planAuto(profile: SchoolProfile, plan: PlannerState, major: Major): { model: CourseModel; outcome: AutoOutcome } {
+  const snapshot = snapshotOf(plan);
+  const base = buildCourseModel(profile, snapshot);
+  const degree = checkDegree(profile, snapshot, base, major);
+  const model = withDegree(base, degree);
+  const source: AutoSource =
+    degree.kind === "audited"
+      ? { kind: "audit", waivers: degree.waivers, stillNeeded: (planned) => stillNeeded(profile, snapshot, major, planned) }
+      : { kind: "sample", coreIds: major.coreCourseCodes };
+  return { model, outcome: computeAuto(model, plan.courseStatuses, source, profile.autoCreditBudget) };
+}
+
+/**
  * Auto as one transaction (planner-provider's `transact`): it decides on the
  * plan as it is when it commits, not as the last render saw it, and changes
  * nothing when there is nothing to change.
@@ -89,8 +108,7 @@ export function autoTransaction(profile: SchoolProfile, major: Major, run: { id:
   return (plan: PlannerState): PlanTransaction<AutoOutcome | "major-changed"> => {
     // The student changed the major while Auto waited: its picks were for the old one.
     if (plan.selectedMajor !== major.id) return { result: "major-changed" };
-    const model = buildCourseModel(profile, snapshotOf(plan));
-    const outcome = computeAuto(model, plan.courseStatuses, major.coreCourseCodes, profile.autoCreditBudget);
+    const { model, outcome } = planAuto(profile, plan, major);
     if (outcome.changes.length === 0) return { result: outcome };
     const summary = describeAuto(outcome, model.hasTranscript, profile.planningTerm);
     const update = applyAuto(outcome, { ...run, major: major.id, changes: outcome.changes, summary, needsCheck: outcome.needsCheck });

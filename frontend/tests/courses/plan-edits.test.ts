@@ -1,7 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { computeAuto } from "@/components/courses/model/auto";
-import { buildCourseModel } from "@/components/courses/model/course-model";
-import { autoTransaction, courseEdit, snapshotOf, undoAutoTransaction, undoCourseEdit } from "@/components/courses/model/plan-edits";
+import { autoTransaction, courseEdit, planAuto, undoAutoTransaction, undoCourseEdit } from "@/components/courses/model/plan-edits";
 import { sampleTranscript } from "@/components/courses/model/sample-transcript";
 import { untProfile } from "@/components/courses/school";
 import { getInitialPlannerState, getMajorById, normalizePlannerState } from "@/lib/planner";
@@ -28,8 +26,10 @@ function samplePlan(overrides: Partial<PlannerState> = {}): PlannerState {
 describe("autoTransaction", () => {
   test("plans what Auto picks on the plan it commits on, and records the run for Undo", () => {
     const plan = samplePlan();
-    const picks = computeAuto(buildCourseModel(profile, snapshotOf(plan)), plan.courseStatuses, cs.coreCourseCodes, profile.autoCreditBudget);
-    expect(picks.planned).toContain("MATH 1720");
+    const picks = planAuto(profile, plan, cs).outcome;
+    // The degree audit's candidates in rank order (most unfinished courses downstream first): the sample student
+    // needs these for the major, and MATH 1720 and PSYC 1630 for core areas.
+    expect(picks.planned).toEqual(["MATH 1720", "CSCE 1010", "CSCE 2110", "CSCE 2100", "PSYC 1630"]);
     const { next, result } = autoTransaction(profile, cs, run)(plan);
     if (result === "major-changed") throw new Error("refused");
     expect(result.planned).toEqual(picks.planned);

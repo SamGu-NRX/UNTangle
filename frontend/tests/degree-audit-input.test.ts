@@ -96,3 +96,31 @@ describe("claims beside the transcript, as Courses will pass them", () => {
     expect(result.totals).toMatchObject({ finished: 0, claimed: 10, stillNeeded: 110 });
   });
 });
+
+describe("Courses' two additions: marked-done courses and catalog hours", () => {
+  /** A current-term row: the transcript prints 0.000 earned, and the importer keeps the 0. */
+  const current = (code: string) => ({ code, term: "Fall 2026", grade: "IP", credits: 0, sourceKind: "current" as const, appliedStatus: "inProgress" as const, duplicateExcluded: false, reviewRequired: false });
+  const catalog = new Map([["CSCE 2100", 3], ["ENGL 1320", 3]]);
+  const catalogHours = (code: string) => catalog.get(code) ?? null;
+
+  test("an in-progress row that printed 0 takes the catalog's hours, and the input says which rows did", () => {
+    const input = auditInput({ catalogId: null, transcriptRecords: [current("CSCE 2100"), current("AGER 2250")] }, DEGREE_DATA, { catalogHours });
+    if (!input.ok) throw new Error(input.error);
+    expect(input.attempts.map((attempt) => [attempt.code, attempt.credits])).toEqual([["CSCE 2100", 3], ["AGER 2250", null]]);
+    expect(input.catalogHours).toEqual(["CSCE 2100"]);
+    // Without a catalog the hours stay unknown, as the audit route reads them.
+    const bare = auditInput({ catalogId: null, transcriptRecords: [current("CSCE 2100")] }, DEGREE_DATA);
+    expect(bare.ok && bare.attempts[0]!.credits).toBeNull();
+    expect(bare.ok && bare.catalogHours).toEqual([]);
+  });
+
+  test("marked-done codes become claims at catalog hours, unknown when the catalog lacks the course", () => {
+    const input = auditInput({ catalogId: null, transcriptRecords: [] }, DEGREE_DATA, { claimed: ["ENGL 1320", "HIST 2610", "ENGL 1320"], catalogHours });
+    if (!input.ok) throw new Error(input.error);
+    expect(input.claims).toEqual([
+      { code: "ENGL 1320", credits: 3, sourceKind: "claimed" },
+      { code: "HIST 2610", credits: null, sourceKind: "claimed" },
+    ]);
+    expect(input.attempts).toEqual([]);
+  });
+});

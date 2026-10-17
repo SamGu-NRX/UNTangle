@@ -33,8 +33,8 @@ type Props = {
   placed: readonly PlacedSection[];
   chosenSectionId: string | undefined;
   initialInstructor: string | null;
-  /** On the major's core list. */
-  inCore: boolean;
+  /** How the degree treats this course, in one sentence ("Your degree still needs this course."), or null. */
+  degreeNote: string | null;
   actions: DetailActions;
   /**
    * False until the planner has read the student's saved plan. Until then the
@@ -57,6 +57,8 @@ function statusLine(row: CourseRowModel, term: string): string {
       return "Taking now";
     case "done":
       return row.meta.kind === "grade" ? `Done in ${row.meta.term} with ${article(row.meta.grade)} ${row.meta.grade}` : "You marked this done";
+    case "check":
+      return row.waiver ? `Check with an advisor whether ${row.id} is waived` : (rowFact(row)?.text ?? "");
     default:
       return rowFact(row)?.text ?? "";
   }
@@ -71,7 +73,7 @@ const stateOfRow = (row: CourseRowModel): StopState => (row.status === "done" ||
  * against the student's record, sections against their week, grade history
  * and the description.
  */
-export function CourseDetail({ row, model, profile, options, placed, chosenSectionId, initialInstructor, inCore, actions, planLoaded }: Props) {
+export function CourseDetail({ row, model, profile, options, placed, chosenSectionId, initialInstructor, degreeNote, actions, planLoaded }: Props) {
   const term = profile.planningTerm;
   const { view, retry } = useGradeHistory(profile, row.id);
   const slices = useMemo(() => slicesByInstructor(view), [view]);
@@ -105,7 +107,7 @@ export function CourseDetail({ row, model, profile, options, placed, chosenSecti
           <DetailActionsPart row={row} term={term} actions={actions} />
           <section className={styles.dsec} aria-labelledby="detail-path">
             <h3 id="detail-path">Path</h3>
-            <PathPart row={row} model={model} dependents={profile.dependents(row.id)} inCore={inCore} />
+            <PathPart row={row} model={model} dependents={profile.dependents(row.id)} degreeNote={degreeNote} />
           </section>
           <section className={styles.dsec} aria-labelledby="detail-sections">
             <h3 id="detail-sections">Sections</h3>
@@ -156,6 +158,11 @@ function DetailActionsPart({ row, term, actions }: { row: CourseRowModel; term: 
       <Button data-detail-primary="" key="remove" variant="secondary" icon={<Minus size={18} />} onClick={(event) => actions.unplan(row.id, event)}>
         Remove from {term}
       </Button>
+    ) : row.status === "check" && row.waiver ? (
+      // Its prerequisites are covered, so the student can take it; whether they must is the advisor's call.
+      <Button data-detail-primary="" key="add" icon={<Plus size={18} />} onClick={(event) => actions.plan(row.id, event)}>
+        Add to {term}
+      </Button>
     ) : row.status === "check" ? (
       <Button data-detail-primary="" key="approval" variant="secondary" icon={<Check size={18} />} onClick={(event) => actions.plan(row.id, event)}>
         I have approval
@@ -190,7 +197,7 @@ function DetailActionsPart({ row, term, actions }: { row: CourseRowModel; term: 
   );
 }
 
-function PathPart({ row, model, dependents, inCore }: { row: CourseRowModel; model: CourseModel; dependents: readonly string[]; inCore: boolean }) {
+function PathPart({ row, model, dependents, degreeNote }: { row: CourseRowModel; model: CourseModel; dependents: readonly string[]; degreeNote: string | null }) {
   // The path draws at most four stops, so it fits a 360px screen: up to two requirements
   // (the catalog rule below names them all), this course, and as many unlocks as fit, at most two.
   const requirements = pathStops(row.rule, model.rows).slice(0, 2);
@@ -298,7 +305,7 @@ function PathPart({ row, model, dependents, inCore }: { row: CourseRowModel; mod
           {uncounted > 0 ? ` and ${uncounted} more` : ""}.
         </p>
       ) : null}
-      {inCore ? <p className={styles.rule}>On your major&apos;s core list.</p> : null}
+      {degreeNote ? <p className={styles.rule}>{degreeNote}</p> : null}
     </>
   );
 }
