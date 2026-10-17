@@ -11,6 +11,7 @@ on:
       - 'output/playwright/design-pass-a/journey.mjs'
       - 'output/playwright/courses-v2/courses-v2-journey.mjs'
       - 'output/playwright/courses-v2/fixtures/**'
+      - 'output/playwright/student-auto/**'
       - 'tools/mock-myunt/**'
       - 'package.json'
       - 'bun.lock'
@@ -104,9 +105,9 @@ jobs:
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      # All six use synthetic or guest data. No journey needs a real UNT account.
+      # All seven use synthetic or guest data. No journey needs a real UNT account.
       matrix:
-        name: [map, webmcp, scheduler-v2, design-pass-a, courses-v2, onboarding]
+        name: [map, webmcp, scheduler-v2, design-pass-a, courses-v2, onboarding, student-auto]
     # Production auth and API rate-limit counters use Postgres even for guests.
     # Each job gets an empty database; the bootstrap password is rotated below.
     services:
@@ -149,7 +150,9 @@ jobs:
           echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/journey-browsers" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/journey-tools"
           cd "$RUNNER_TEMP/journey-tools"
-          bun --no-env-file add --exact playwright@1.58.2 axe-core@4.10.3
+          # axe-core 4.14 checks label-content-name-mismatch by whole words; 4.10 accepted any
+          # substring and passed day toggles named "Mondays off" that show "Mon" (#162).
+          bun --no-env-file add --exact playwright@1.58.2 axe-core@4.14.0
           echo "UNTANGLE_E2E_MODULES=$PWD/node_modules" >> "$GITHUB_ENV"
           echo "PLAYWRIGHT_MODULE=$PWD/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
           echo "AXE_PATH=$PWD/node_modules/axe-core/axe.min.js" >> "$GITHUB_ENV"
@@ -248,6 +251,8 @@ jobs:
             design-pass-a) sudo --preserve-env -u journey "$(command -v node)" output/playwright/design-pass-a/journey.mjs "$UNTANGLE_BASE_URL" http://localhost:4317 "$UNTANGLE_OUT" ;;
             courses-v2) sudo --preserve-env -u journey "$(command -v node)" output/playwright/courses-v2/courses-v2-journey.mjs ;;
             onboarding) sudo --preserve-env -u journey "$(command -v node)" output/playwright/onboarding/journey.mjs "$UNTANGLE_BASE_URL" "$UNTANGLE_OUT" ;;
+            # The solver half runs under Bun as the journey user, so it gets the isolated Bun.
+            student-auto) sudo --preserve-env -u journey env UNTANGLE_BUN=/usr/local/bin/journey-bun "$(command -v node)" output/playwright/student-auto/journey.mjs "$UNTANGLE_BASE_URL" "$UNTANGLE_OUT" ;;
             *) echo "Unknown journey: $JOURNEY" >&2; exit 2 ;;
           esac
       - name: Stop servers and restore Actions network access
