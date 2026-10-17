@@ -628,6 +628,17 @@ async function weekViews(browser, vp) {
     const list = page.getByRole("listbox", { name: "Combinations, best first" });
     await list.waitFor({ timeout: 10000 });
     await settle();
+    // WCAG 2.5.3: a row is named by its visible text (axe 4.14 fails the spoken version as a name);
+    // the spoken version is its description.
+    const firstRow = list.getByRole("option").first();
+    const rowText = (await firstRow.innerText()).replace(/\s+/g, " ").trim();
+    const rowSpoken = await firstRow.evaluate((row) => document.getElementById(row.getAttribute("aria-describedby") ?? "")?.textContent ?? "");
+    check(
+      size,
+      "week: a Browse all row's name is its visible text, and its description the spoken version",
+      (await firstRow.getAttribute("aria-label")) === null && (await list.getByRole("option", { name: rowText, exact: true }).count()) === 1 && /^Combination 1\b/.test(rowSpoken),
+      `${JSON.stringify(rowText)}; described as ${JSON.stringify(rowSpoken)}`,
+    );
     await axe(page, size, "Week Browse all");
     for (let i = 0; i < 2 && (await list.isVisible().catch(() => false)); i += 1) {
       await page.keyboard.press("Escape");

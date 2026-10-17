@@ -31,8 +31,15 @@ const START: SchedulePreferences = {
 };
 
 const dialog = () => document.querySelector<HTMLElement>('[role="dialog"][aria-labelledby]');
+/** An element's text as its accessible name: hidden and aria-hidden parts left out. */
+const contentName = (el: HTMLElement) => {
+  const copy = el.cloneNode(true) as HTMLElement;
+  for (const part of copy.querySelectorAll("[hidden], [aria-hidden='true']")) part.remove();
+  return copy.textContent ?? "";
+};
 const named = (root: ParentNode, selector: string, name: string) =>
-  [...root.querySelectorAll<HTMLElement>(selector)].find((el) => (el.getAttribute("aria-label") ?? el.textContent ?? "").trim() === name);
+  [...root.querySelectorAll<HTMLElement>(selector)].find((el) => (el.getAttribute("aria-label") ?? contentName(el)).trim() === name);
+const description = (el: HTMLElement) => document.getElementById(el.getAttribute("aria-describedby")!)!.textContent;
 const button = (name: string, root: ParentNode = document) => {
   const found = named(root, "button", name);
   if (!found) throw new Error(`No button named "${name}"`);
@@ -133,9 +140,11 @@ describe("Set up Auto, step by step", () => {
     const text = dialog()!.textContent!;
     expect(text).toContain("Thursdays off");
     expect(text).toContain("No class before 10 AM");
-    expect(button("Change Fewer days on campus, now A lot")).toBeTruthy();
+    // WCAG 2.5.3: a leaning card is named by what it shows; "Change …, now …" is its description.
+    const fewer = button("Fewer days on campus A lot");
+    expect([fewer.getAttribute("aria-label"), description(fewer)]).toEqual([null, "Change Fewer days on campus, now A lot"]);
     // The gaps card is named as the slider the student moved was.
-    expect(button("Change Time between classes, now Some")).toBeTruthy();
+    expect(description(button("Time between classes Some"))).toBe("Change Time between classes, now Some");
     expect(text).not.toContain("Short gaps");
     expect(latest).toEqual({
       constraints: { ...START.constraints, daysOff: ["Thu"], earliestStart: 600 },
@@ -174,7 +183,7 @@ describe("Set up Auto, step by step", () => {
     expect(heading()).toBe("When do you like your classes?");
     expect(radio("No preference").getAttribute("aria-checked")).toBe("true");
     for (const name of ["Continue", "Skip this question", "Skip this question", "Skip this question", "Continue"]) await click(button(name));
-    await click(button("Change Short walks, now Doesn't matter"));
+    await click(button("Short walks Doesn't matter"));
     expect(heading()).toBe("How much do short walks between classes matter?");
     await view.unmount();
   });

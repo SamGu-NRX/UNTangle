@@ -261,7 +261,8 @@ for (const vp of [
   const listSummary = ((await page.getByText(/combinations? fits?\./).first().textContent()) ?? "").trim();
   check(`${tag}: Browse all says how many fit`, /^(At least )?[\d,]+ combinations? fits?\./.test(listSummary) || /^1 combination fits\./.test(listSummary), listSummary);
   const rows = list.getByRole("option");
-  const firstLabel = (await rows.first().getAttribute("aria-label")) ?? "";
+  // A row's name is its visible text; the spoken version, with "section", is its description.
+  const firstLabel = await rows.first().evaluate((row) => document.getElementById(row.getAttribute("aria-describedby") ?? "")?.textContent ?? "");
   check(`${tag}: each row names its sections`, /^Combination 1\b/.test(firstLabel) && / section /.test(firstLabel), firstLabel);
   const setSize = Number(await rows.first().getAttribute("aria-setsize"));
   check(`${tag}: only rows near the view are in the page`, (await rows.count()) <= Math.min(setSize, 30), `${await rows.count()} of ${setSize} rendered`);
