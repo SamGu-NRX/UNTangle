@@ -22,8 +22,15 @@ import type { Citation, CourseScope, CourseSlot, OptionGroup, PolicyNode, PoolNo
  * - advisory: the audit cannot decide, and an advisor must;
  * - unsatisfied: not met even counting in-progress and claimed courses.
  * The tree is evaluated in layers: finished courses, then adding in-progress
- * ones, then adding claims. "In progress" and "claimed" are always a later
- * layer's verdict rather than a per-kind rule.
+ * ones, then adding claims. The fullest layer decides whether a node is met;
+ * for a met node, "satisfied", "in progress" and "claimed" name the first
+ * layer that meets it, rather than a per-kind rule.
+ *
+ * Each layer allocates courses afresh, so a node can read claimed (or in
+ * progress) although every course it took is finished: the claim let an
+ * earlier node take a different course and freed a finished one for this
+ * node. The node still depends on the claim, so the label is right; a
+ * display should say so rather than treat it as a contradiction.
  */
 
 /** One transcript attempt at a course. A record may hold several attempts at the same code. */
@@ -74,7 +81,7 @@ export type RemainingSlot = {
   options: {
     /** The option's courses not yet on the record. */
     courses: string[];
-    /** How many picks taking it adds. */
+    /** How many of the picks still needed taking these courses adds, never more than are needed. */
     picks: number;
   }[];
 };
@@ -117,6 +124,11 @@ export type Remaining =
 export type NodeOutcome = {
   name: string;
   kind: RequirementNode["kind"];
+  /**
+   * Defined in the comment at the top of this file. "claimed" or
+   * "inProgress" can sit on a node whose own courses are all finished, when
+   * the claim or in-progress course freed one of them from an earlier node.
+   */
   status: "satisfied" | "inProgress" | "claimed" | "unsatisfied" | "advisory";
   detail: string;
   citation: Citation;
@@ -165,7 +177,7 @@ export type AuditResult = {
    * Hours toward the program's total-hours rule; null when the program has
    * none. A total scoped to the courses the requirements counted (the
    * core's 42 hours) reads the allocation with in-progress and claimed
-   * courses included, so each course is counted once.
+   * courses included, plus a partly met choice's courses, each course once.
    */
   totals: HourTotals | null;
   /** Codes the student claimed that the transcript also holds; the transcript decides them. */
@@ -280,6 +292,12 @@ type Scenario = {
   sharing: ProgramData["courseSharing"];
   /** Each pool's unclaimed candidates, recorded by the pass that knows the tracked claims. */
   pools: { node: PoolNode; codes: string[] }[];
+  /**
+   * Codes an unmet choice's branches took before the choice released them.
+   * Hour totals count them, each once, so a partly met choice still counts
+   * toward an applied total; no requirement sees them as claimed.
+   */
+  partial: Set<string>;
 };
 
 type State = "met" | "unmet" | "undecided";
@@ -332,61 +350,63 @@ function sortedBy<T>(items: T[], key: (item: T) => number): T[] {
  * backtracks; slots and alternatives are tried in catalog order and the first
  * best assignment found is kept, so the result is deterministic.
  */
-/** One pick a choose node made: the slot's index in the node and the option that filled it. */
-type SlotPick = { slot: number; option: OptionGroup };
-
-function bestSlotPicks(slots: CourseSlot[], count: number, scenario: Scenario): { covered: number; picks: SlotPick[] } {
+function bestSlotPicks(slots: CourseSlot[], count: number, scenario: Scenario): { covered: number; codes: string[] } {
   const candidates = slots
-    .map((slot, index) => ({ index, alternatives: sortedBy(slot.alternatives.filter((option) => option.must.every((code) => isFree(scenario, code))), (option) => optionPenalty(option, scenario)) }))
-    .filter((candidate) => candidate.alternatives.length > 0);
-  const maxGain = candidates.map((candidate) => Math.max(...candidate.alternatives.map(optionCount)));
+    .map((slot) => sortedBy(slot.alternatives.filter((option) => option.must.every((code) => isFree(scenario, code))), (option) => optionPenalty(option, scenario)))
+    .filter((alternatives) => alternatives.length > 0);
+  const maxGain = candidates.map((alternatives) => Math.max(...alternatives.map(optionCount)));
   const remainingGain = new Array<number>(candidates.length + 1).fill(0);
   for (let index = candidates.length - 1; index >= 0; index -= 1) remainingGain[index] = remainingGain[index + 1]! + maxGain[index]!;
-  let best = { covered: 0, penalty: 0, picks: [] as SlotPick[] };
+  let best = { covered: 0, penalty: 0, codes: [] as string[] };
   let settled = false;
   const taken = new Set<string>();
-  const picked: SlotPick[] = [];
+  const picked: string[] = [];
   const walk = (index: number, covered: number, penalty: number): void => {
     const capped = Math.min(covered, count);
-    if (capped > best.covered || (capped === best.covered && penalty < best.penalty)) best = { covered: capped, penalty, picks: [...picked] };
+    if (capped > best.covered || (capped === best.covered && penalty < best.penalty)) best = { covered: capped, penalty, codes: [...picked] };
     if (capped >= count) {
       if (penalty === 0) settled = true;
       return;
     }
     const reachable = Math.min(covered + remainingGain[index]!, count);
     if (settled || index >= candidates.length || reachable < best.covered || (reachable === best.covered && penalty >= best.penalty)) return;
-    const candidate = candidates[index]!;
-    for (const option of candidate.alternatives) {
+    for (const option of candidates[index]!) {
       if (option.must.some((code) => taken.has(code))) continue;
       option.must.forEach((code) => taken.add(code));
-      picked.push({ slot: candidate.index, option });
+      picked.push(...option.must);
       walk(index + 1, covered + optionCount(option), penalty + optionPenalty(option, scenario));
-      picked.pop();
+      picked.splice(picked.length - option.must.length, option.must.length);
       option.must.forEach((code) => taken.delete(code));
       if (settled) return;
     }
     walk(index + 1, covered, penalty);
   };
   walk(0, 0, 0);
-  return { covered: best.covered, picks: best.picks };
+  return { covered: best.covered, codes: best.codes };
 }
 
 /**
- * The slots a short choose node can still take picks from, after its own
- * picks are claimed. A slot it already picked from stays open only through
- * an option worth more picks: BIOL 1710 with BIOL 1760 picked, adding BIOL
- * 1720 makes the three-course option, one more pick. Options that need a
- * course another requirement counted are left out.
+ * The options a short choose node can still gain picks from, by slot. An
+ * option is offered when adding its courses not on the record raises the
+ * node's picks under the same search, and `picks` is that gain. So a course
+ * that lets the current picks move between slots is offered, and the second
+ * chemistry pair, an equivalent of a slot already filled, is not. Options
+ * that need a course an earlier requirement counted (in `before`) are left
+ * out. Within a slot, options asking for the same courses are listed once.
  */
-function eligibleSlots(slots: CourseSlot[], picks: SlotPick[], scenario: Scenario): RemainingSlot[] {
-  return slots.flatMap((slot, index) => {
-    const pick = picks.find((entry) => entry.slot === index)?.option;
-    const held = new Set(pick?.must ?? []);
-    const base = pick ? optionCount(pick) : 0;
-    const options = slot.alternatives
-      .filter((option) => optionCount(option) > base && option.must.every((code) => held.has(code) || !scenario.used.has(code)))
-      .map((option) => ({ courses: option.must.filter((code) => !held.has(code) && !isFree(scenario, code)), picks: optionCount(option) - base }));
-    return options.length > 0 ? [{ options }] : [];
+function eligibleSlots(slots: CourseSlot[], count: number, covered: number, scenario: Scenario, before: Set<string>): RemainingSlot[] {
+  return slots.flatMap((slot) => {
+    const options = new Map<string, { courses: string[]; picks: number }>();
+    for (const option of slot.alternatives) {
+      if (option.must.some((code) => before.has(code))) continue;
+      const courses = option.must.filter((code) => !scenario.available.has(code));
+      if (courses.length === 0) continue;
+      const widened: Scenario = { ...scenario, used: before, available: new Set([...scenario.available, ...courses]) };
+      const picks = bestSlotPicks(slots, count, widened).covered - covered;
+      const key = courses.join("+");
+      if (picks > 0 && picks > (options.get(key)?.picks ?? 0)) options.set(key, { courses, picks });
+    }
+    return options.size > 0 ? [{ options: [...options.values()] }] : [];
   });
 }
 
@@ -420,7 +440,7 @@ function evaluate(node: RequirementNode, scenario: Scenario): Evaluation {
   const before = new Set(scenario.used);
   const result = evaluateNode(node, scenario);
   if (result.state !== "unmet" || scenario.sharing !== "advisor" || (node.kind !== "all" && node.kind !== "choose" && node.kind !== "hours")) return result;
-  const alone: Scenario = { ...scenario, used: new Set(), pools: [] };
+  const alone: Scenario = { ...scenario, used: new Set(), pools: [], partial: new Set() };
   if (evaluateNode(node, alone).state !== "met") return result;
   const shared = [...alone.used].filter((code) => before.has(code)).sort();
   const sharing = `met if ${shared.join(", ")} also ${shared.length === 1 ? "counts" : "count"} here, though ${shared.length === 1 ? "it already counts" : "they already count"} toward an earlier requirement. One course may meet several requirements with an advisor's approval.`;
@@ -455,8 +475,8 @@ function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
       return { ...base, state, progress: met / node.items.length, detail: `${met}/${node.items.length} required courses or sequences complete`, need: state === "met" ? NOTHING : missingCourses(unfilled, scenario) };
     }
     case "choose": {
-      const { covered, picks } = bestSlotPicks(node.items, node.count, scenario);
-      const codes = picks.flatMap((pick) => pick.option.must);
+      const before = new Set(scenario.used);
+      const { covered, codes } = bestSlotPicks(node.items, node.count, scenario);
       claim(scenario, codes);
       const state: State = covered >= node.count ? "met" : "unmet";
       return {
@@ -464,7 +484,7 @@ function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
         state,
         progress: covered / node.count,
         detail: `${covered}/${node.count} chosen${codes.length > 0 ? ` (${codes.join(", ")})` : ""}`,
-        need: state === "met" ? NOTHING : { kind: "choose", picks: node.count - covered, eligible: eligibleSlots(node.items, picks, scenario) },
+        need: state === "met" ? NOTHING : { kind: "choose", picks: node.count - covered, eligible: eligibleSlots(node.items, node.count, covered, scenario, before) },
       };
     }
     case "hours": {
@@ -517,6 +537,7 @@ function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
       });
       const met = tried.find((entry) => entry.evaluation.state === "met");
       scenario.used = met ? met.after : start;
+      if (!met) for (const entry of tried) for (const code of entry.after) if (!start.has(code)) scenario.partial.add(code);
       const undecided = tried.some((entry) => entry.evaluation.state === "undecided");
       // Unmet, the choice names its closest branch; an undecided branch wins a tie.
       const closer = (entry: (typeof tried)[number], best: (typeof tried)[number]): boolean =>
@@ -579,52 +600,57 @@ function poolDetail(node: PoolNode, matching: string[], scenario: Scenario): str
 }
 
 /** One full pass over the tree, then a second so pools see what the tracked nodes claimed. */
-function evaluateProgram(program: ProgramData, available: Set<string>, credits: Map<string, number | null>, belowFloor: Set<string>): { evaluations: Evaluation[]; used: Set<string>; pools: Scenario["pools"] } {
+function evaluateProgram(program: ProgramData, available: Set<string>, credits: Map<string, number | null>, belowFloor: Set<string>): { evaluations: Evaluation[]; used: Set<string>; pools: Scenario["pools"]; partial: Set<string> } {
   // Policies are checked separately and reported among the policies, not as requirement nodes.
   const nodes = program.requirements.filter((node) => node.kind !== "policy");
-  const fresh = (claimedByTracked: Set<string> | null): Scenario => ({ available, credits, used: new Set(), claimedByTracked, belowFloor, sharing: program.courseSharing, pools: [] });
+  const fresh = (claimedByTracked: Set<string> | null): Scenario => ({ available, credits, used: new Set(), claimedByTracked, belowFloor, sharing: program.courseSharing, pools: [], partial: new Set() });
   const first = fresh(null);
   nodes.forEach((node) => evaluate(node, first));
   // Pools never claim, so the second pass makes the same claims as the first.
   const second = fresh(first.used);
   const evaluations = nodes.map((node) => evaluate(node, second));
-  return { evaluations, used: second.used, pools: second.pools };
+  return { evaluations, used: second.used, pools: second.pools, partial: second.partial };
 }
 
 /**
  * One outcome from the three layers: finished courses, then in-progress
  * ones added, then claims added. Every layer walks the same tree, so their
  * parts line up by position; a choice lists every branch in each.
+ *
+ * Each layer allocates courses afresh, so an earlier layer can meet a node
+ * with a course the fullest layer gives to another node. The fullest layer
+ * therefore decides whether a node is met, unmet or undecided, and what it
+ * still needs; the earlier layers only label a met node satisfied or in
+ * progress. Otherwise a group could read unmet while every part read done.
  */
-function combine(now: Evaluation, projected: Evaluation, claimed: Evaluation, needed = true): NodeOutcome {
-  const layers = [now, projected, claimed];
+function combine(now: Evaluation, projected: Evaluation, fullest: Evaluation, needed = true): NodeOutcome {
   const status: NodeOutcome["status"] =
-    now.state === "met" ? "satisfied"
+    fullest.state === "unmet" ? "unsatisfied"
+    : fullest.state === "undecided" ? "advisory"
+    : now.state === "met" ? "satisfied"
     : projected.state === "met" ? "inProgress"
-    : claimed.state === "met" ? "claimed"
-    : layers.some((layer) => layer.state === "undecided") ? "advisory"
-    : "unsatisfied";
+    : "claimed";
   // A choice is named for the branch the layer that decided its status
   // settled on: the in-progress or claimed courses' branch, or the branch
   // that made it undecided.
+  const layers = [now, projected, fullest];
   const shown =
     status === "inProgress" ? projected
-    : status === "claimed" ? claimed
+    : status === "claimed" ? fullest
     : status === "advisory" ? layers.find((layer) => layer.state === "undecided")!
+    : now.state === "met" && status === "unsatisfied" ? fullest
     : now;
   // Short of satisfied, the detail shows what each later layer adds.
   const additions = status === "satisfied" ? [] : [
     ...(projected.detail !== now.detail ? [`Counting in-progress courses: ${projected.detail}`] : []),
-    ...(claimed.detail !== projected.detail ? [`Counting courses marked done: ${claimed.detail}`] : []),
+    ...(fullest.detail !== projected.detail ? [`Counting courses marked done: ${fullest.detail}`] : []),
   ];
   const detail = [now.detail, ...additions].join(". ");
-  // An unmet requirement's needs come from the fullest layer, so nothing in
-  // progress or claimed is listed as needed; an advisory one carries the
-  // reason from the layer that left it to an advisor. Under a parent that
-  // needs nothing, nothing is needed: the branch a student did not take is
-  // not work left.
-  const remaining = !needed ? NOTHING : status === "unsatisfied" ? claimed.need : status === "advisory" ? shown.need : NOTHING;
-  const children = now.children?.map((child, index) => combine(child, projected.children![index]!, claimed.children![index]!, remaining.kind !== "none"));
+  // What is left comes from the fullest layer, so nothing in progress or
+  // claimed is listed as needed. Under a parent that needs nothing, nothing
+  // is needed: the branch a student did not take is not work left.
+  const remaining = needed && (status === "unsatisfied" || status === "advisory") ? fullest.need : NOTHING;
+  const children = now.children?.map((child, index) => combine(child, projected.children![index]!, fullest.children![index]!, remaining.kind !== "none"));
   return { name: shown.name, kind: now.kind, status, detail, citation: now.citation, remaining, ...(children ? { children } : {}) };
 }
 
@@ -788,7 +814,10 @@ function collectPolicyNodes(node: RequirementNode, into: PolicyNode[]): void {
  * Hours toward the program's binding total-hours rule, each code once. A
  * finished course counts its credit, an in-progress one without credit its
  * current attempt, and a claim its catalog hours. A total scoped to applied
- * courses reads `applied`, the fullest layer's allocation.
+ * courses reads `applied`: the fullest layer's allocation plus the courses an
+ * unmet choice's branches took. Counting a course that might not apply only
+ * lowers `stillNeeded`, so the floor holds; leaving out one that does apply
+ * (3 of the core's Component Area Option hours, say) would break it.
  *
  * Every total-hours rule must be met, so among rules over the same courses
  * the largest binds: CE BS prints 121 hours beside the university's 120.
@@ -866,7 +895,7 @@ export function auditProgram(program: ProgramData, courses: readonly (AuditCours
     requirements,
     policies,
     coreSharedCourses: program.coreSharedCourses,
-    totals: hourTotals(program, policyNodes, evidence, claims, withClaims.used),
+    totals: hourTotals(program, policyNodes, evidence, claims, new Set([...withClaims.used, ...withClaims.partial])),
     ignoredClaims,
     summary: {
       satisfied: count("satisfied"),

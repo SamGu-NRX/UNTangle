@@ -100,7 +100,14 @@ describe("a choose node counts picks left, and a slot's equivalents fill one pic
   test("both chemistry pairs count once: one pick left, and chemistry is no longer offered", () => {
     const outcome = node(auditProgram(lab, ["CHEM 1410", "CHEM 1430", "CHEM 1415", "CHEM 1435"].map((code) => done(code)), COMPLETE), "Lab");
     expect(outcome.status).toBe("unsatisfied");
-    expect(outcome.remaining).toEqual({ kind: "choose", picks: 1, eligible: [{ options: biologyOptions }, { options: [{ courses: ["GEOL 1610"], picks: 1 }] }] });
+    // With one pick left, both biology lectures and the lab add one pick, not two.
+    const oneLeft = biologyOptions.map((option) => ({ ...option, picks: 1 }));
+    expect(outcome.remaining).toEqual({ kind: "choose", picks: 1, eligible: [{ options: oneLeft }, { options: [{ courses: ["GEOL 1610"], picks: 1 }] }] });
+  });
+
+  test("a course that lets the picks reassign is offered: with A and B taken, C completes A with C while B fills the other slot", () => {
+    const tree = program([choose("Pick", 2, [{ alternatives: [{ must: ["A 1000"] }, { must: ["B 1000"] }] }, { alternatives: [{ must: ["A 1000", "C 1000"] }] }])]);
+    expect(node(auditProgram(tree, [done("A 1000"), done("B 1000")], COMPLETE), "Pick").remaining).toEqual({ kind: "choose", picks: 1, eligible: [{ options: [{ courses: ["C 1000"], picks: 1 }] }] });
   });
 
   test("a picked slot stays open only through an option worth more picks", () => {
@@ -169,6 +176,48 @@ describe("advisory requirements say why, and never give a count", () => {
       reason: "This requirement is met if CSCE 3610 also counts here, though it already counts toward an earlier requirement. One course may meet several requirements with an advisor's approval.",
       candidates: ["CSCE 3610"],
     });
+  });
+});
+
+describe("the fullest allocation decides what is unmet", () => {
+  // No allocation meets all three parts: First takes A with X, or B, and
+  // Second and Third need A and B themselves. Counting X moves First onto
+  // A, which must not leave every part reading done.
+  const whole = program([{ kind: "group", name: "Whole", citation, children: [
+    { kind: "all", name: "First", citation, items: [{ alternatives: [{ must: ["A", "X"] }, { must: ["B"] }] }] },
+    all("Second", "A"),
+    all("Third", "B"),
+  ] }]);
+
+  test("a claim that reshuffles the parts leaves the part it starves unmet, with its need", () => {
+    const outcome = node(auditProgram(whole, [done("A"), done("B"), claimed("X")], COMPLETE), "Whole");
+    expect([outcome.status, outcome.remaining]).toEqual(["unsatisfied", { kind: "parts" }]);
+    expect(outcome.children?.map((part) => [part.name, part.status, part.remaining])).toEqual([
+      ["First", "satisfied", { kind: "none" }],
+      ["Second", "unsatisfied", { kind: "courses", courses: ["A"], oneOf: [] }],
+      ["Third", "claimed", { kind: "none" }],
+    ]);
+  });
+
+  test("an in-progress course that reshuffles the parts does the same", () => {
+    const outcome = node(auditProgram(whole, [done("A"), done("B"), current("X")], COMPLETE), "Whole");
+    expect(outcome.children?.map((part) => [part.name, part.status])).toEqual([["First", "satisfied"], ["Second", "unsatisfied"], ["Third", "inProgress"]]);
+  });
+
+  test("a claim that completes an earlier choice by taking a finished course leaves the later requirement for that course unmet", () => {
+    const tree = program([
+      { kind: "choice", name: "Track", citation, branches: [{ name: "Pair", node: all("Pair", "A", "B") }] },
+      all("Later", "A"),
+    ]);
+    const result = auditProgram(tree, [done("A"), claimed("B")], COMPLETE);
+    expect([node(result, "Track").status, node(result, "Later").status, node(result, "Later").remaining]).toEqual(["claimed", "unsatisfied", { kind: "courses", courses: ["A"], oneOf: [] }]);
+  });
+
+  test("a pool's candidates come from the fullest allocation: a course a claim lets another requirement take is no longer offered", () => {
+    const tree = program([{ kind: "all", name: "Pair", citation, items: [{ alternatives: [{ must: ["CSCE 4201", "MATH 3000"] }] }] }, pool("Advanced electives")]);
+    const result = auditProgram(tree, [done("CSCE 4201"), claimed("MATH 3000")], COMPLETE);
+    expect(node(result, "Pair").status).toBe("claimed");
+    expect(node(result, "Advanced electives").remaining).toEqual({ kind: "advisor", reason: "Advisory: the catalog's course list for this requirement is not captured.", candidates: [] });
   });
 });
 
@@ -264,6 +313,15 @@ describe("hour totals toward the program's total", () => {
     const tree = program([hours("Mathematics", 3, "MATH 1650", "MATH 1710"), hours("History", 3, "HIST 2610"), total("Core total", 9, { kind: "applied" })]);
     const record = [done("MATH 1650"), done("MATH 1710"), current("HIST 2610"), claimed("ANTH 1010")];
     expect(auditProgram(tree, record, COMPLETE).totals).toEqual({ required: 9, finished: 3, inProgress: 3, claimed: 0, stillNeeded: 3, unknownHours: [] });
+  });
+
+  test("a partly met choice's courses count toward an applied total, so the figure stays a floor", () => {
+    const tree = program([
+      { kind: "choice", name: "Option", citation, branches: [{ name: "Six from A", node: hours("Six from A", 6, "ANTH 1150", "COMM 2040") }] },
+      total("Core total", 6, { kind: "applied" }),
+    ]);
+    expect(auditProgram(tree, [done("ANTH 1150")], COMPLETE).totals).toEqual({ required: 6, finished: 3, inProgress: 0, claimed: 0, stillNeeded: 3, unknownHours: [] });
+    expect(auditProgram(tree, [claimed("ANTH 1150")], COMPLETE).totals).toEqual({ required: 6, finished: 0, inProgress: 0, claimed: 3, stillNeeded: 3, unknownHours: [] });
   });
 
   test("the largest of several totals over the same courses binds", () => {

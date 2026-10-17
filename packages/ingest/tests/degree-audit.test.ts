@@ -448,6 +448,18 @@ describe("remaining work for the degree-compare investigation's students", () =>
     expect(offered).toEqual(expect.arrayContaining(["CHEM 1420", "CHEM 1440"]));
   });
 
+  test("advisory candidates read the fullest allocation: a claimed CSCE core course frees CSCE 4430 for the advanced electives", () => {
+    const result = auditProgram(program("cs-bs"), [done("CSCE 4115"), done("CSCE 4430"), done("CSCE 4600"), { code: "CSCE 3530", credits: 3, sourceKind: "claimed" }], COMPLETE);
+    expect(requirement(result, "CSCE advanced electives").remaining).toMatchObject({ kind: "advisor", candidates: ["CSCE 4430", "CSCE 4600"] });
+    const inProgress = { code: "TECM 4180", grade: null, credits: 3, sourceKind: "current", inProgress: true, term: 9 } satisfies AuditCourse;
+    expect(requirement(auditProgram(program("cs-bs"), [inProgress], COMPLETE), "Technical writing").remaining).toMatchObject({ kind: "advisor", candidates: ["TECM 4180"] });
+  });
+
+  test("core: a partly met Component Area Option still counts its hours, so the total stays a floor", () => {
+    expect(auditProgram(program("core"), [done("ANTH 1150")], COMPLETE).totals).toEqual({ required: 42, finished: 3, inProgress: 0, claimed: 0, stillNeeded: 39, unknownHours: [] });
+    expect(auditProgram(program("core"), [{ code: "ANTH 1150", credits: 3, sourceKind: "claimed" }], COMPLETE).totals).toEqual({ required: 42, finished: 0, inProgress: 0, claimed: 3, stillNeeded: 39, unknownHours: [] });
+  });
+
   test("technical writing takes 4000-4999 TECM courses only: TECM 5000 is a graduate course", () => {
     const writing = (record: AuditCourse[]) => requirement(auditProgram(program("cs-bs"), record, COMPLETE), "Technical writing");
     expect(writing([done("TECM 5000")]).detail).toContain("matching the subject and level rule: none.");
