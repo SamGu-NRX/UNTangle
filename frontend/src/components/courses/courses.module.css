@@ -376,9 +376,10 @@
   text-align: left;
   transition: background-color var(--t-hover) ease;
 }
+/* The app's ring (--focus), as on the requirement rows: an inset accent ring met the page ground at 2.87:1, under 3:1. */
 .groupHead:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 2px var(--accent);
+  box-shadow: var(--focus);
 }
 .count {
   font-size: 13px;
@@ -469,8 +470,9 @@
 .rowOpen:focus-visible {
   outline: none;
 }
+/* --focus, as on .reqOpen: accent outside a paper band reads 3.12:1; inset on the ground it was 2.87:1. */
 .rowOpen:focus-visible::after {
-  box-shadow: inset 0 0 0 2px var(--accent);
+  box-shadow: var(--focus);
 }
 .lead {
   display: grid;
