@@ -241,6 +241,27 @@ describe("naming a copy (PR #62 review: two rows called Main)", () => {
     expect(rowNames()).toEqual(["Open Main, active", "Open Other", "Open Saved copy"]);
   });
 
+  // PR #172 review (discussion_r4305797876): Enter on "Main" spoke its refusal through the live region;
+  // a second refusal reported by moving focus left that old reason there, under a field showing the new one.
+  test("the live region never keeps an earlier refusal: Enter on Main, then Save on a taken name", async () => {
+    const { act } = await import("react");
+    const liveRegion = () => document.querySelector('[role="dialog"][data-state="open"] [aria-live="assertive"]')!;
+    await page();
+    await click(button("Save a copy"));
+    await type("Main");
+    await act(async () => nameField().focus());
+    await submit();
+    expect(liveRegion().textContent?.trim()).toBe("Main is your plan. Name this copy something else.");
+    await type("saved copy");
+    expect(liveRegion().textContent).toBe("");
+    // Save pressed from its button: focus is off the field, so the refusal is heard as the field's description.
+    await act(async () => button("Save").focus());
+    await submit();
+    expect(fieldError()).toBe("You already have a copy called Saved copy.");
+    expect(document.activeElement).toBe(nameField());
+    expect(liveRegion().textContent).not.toContain("Main is your plan");
+  });
+
   test("a blank name still saves, as the numbered placeholder", async () => {
     await page();
     await click(button("Save a copy"));

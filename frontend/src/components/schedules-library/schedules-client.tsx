@@ -363,7 +363,13 @@ export function SchedulesClient() {
 
   function closeNaming() {
     setNaming(null);
+    clearNameError();
+  }
+
+  /** The field's refusal and its announcement go together, so the live region never speaks an old reason. */
+  function clearNameError() {
     setNameError(null);
+    nameAnnouncer.clear();
   }
 
   function menuFor(entry: Entry): MenuEntry[] {
@@ -376,7 +382,7 @@ export function SchedulesClient() {
       ];
     }
     return [
-      { id: "rename", label: "Rename", onSelect: () => (setNameValue(plan.name), setNameError(null), setNaming({ kind: "rename", planId: plan.planId })) },
+      { id: "rename", label: "Rename", onSelect: () => (setNameValue(plan.name), clearNameError(), setNaming({ kind: "rename", planId: plan.planId })) },
       { id: "duplicate", label: "Duplicate", onSelect: () => report(store.duplicatePlan(plan.planId), `Duplicated “${plan.name}”`) },
       { id: "export", label: "Export file", onSelect: () => exportPlan(plan) },
       { kind: "separator", id: "sep" },
@@ -398,7 +404,7 @@ export function SchedulesClient() {
 
   function startSaving() {
     setNameValue("");
-    setNameError(null);
+    clearNameError();
     setNaming({ kind: "save" });
   }
 
@@ -647,14 +653,13 @@ export function SchedulesClient() {
             error={nameError}
             onChange={(event) => {
               setNameValue(event.target.value);
-              setNameError(null);
+              clearNameError();
             }}
             autoComplete="off"
           />
         </form>
         <p className="sr-only-v2" aria-live="assertive" aria-atomic="true">
-          {/* Only while the field shows it, so a reopened dialog never carries the last refusal. */}
-          {nameError ? nameAnnouncer.announcement : null}
+          {nameAnnouncer.announcement}
         </p>
       </Dialog>
     </>
