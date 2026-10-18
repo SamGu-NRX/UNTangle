@@ -36,9 +36,14 @@ transcript (`src/components/courses/model/sample-transcript.ts`), which the
 - Major: Computer Science. Then the Courses tray's Auto plans the next term.
 - Preferences on the Week page: nothing before 10 AM, Fridays off, and two
   "Work" busy blocks painted onto the grid — Tuesday and Thursday, 5–9 PM.
-- Auto, then every option walked, screenshotted, axe-audited, and checked for
-  the student's own rules as the UI shows them: no Friday meetings, no
-  conflict markers. Details on option 1, then "Use this".
+- Auto. On edge's catalog the tray plans PHYS 1410, and Week answers that no
+  MATH 1720 and PHYS 1410 pair fits with Fridays off. The journey checks that
+  exact reason, presses the app's own "Allow classes on Fridays", and Auto
+  runs again; the solver then proves the run on the relaxed preferences.
+- Every option walked, screenshotted, axe-audited, and checked for the
+  student's own rules as the UI shows them: no conflict markers, and no
+  Friday meetings while Fridays are still off. Details on option 1, then
+  "Use this".
 
 Run twice: desktop 1440×900 and phone 390×844, each with a fresh guest
 identity (fresh browser context, so storage starts empty).
