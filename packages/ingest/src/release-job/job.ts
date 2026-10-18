@@ -216,9 +216,24 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
   // An unchanged term file's slices are no fresher than the subject files
   // the published release was built with, so a 304 rebuild keeps those it
   // was not asked for, from their cached bodies. One it cannot reapply
-  // stops the run, so it never publishes an older slice.
+  // stops the run, so it never publishes an older slice. A release with no
+  // record (published before records existed) may carry any overlay, so a
+  // run that requests no subjects publishes nothing over it.
   if (termOutcome.kind === "not-modified" && pointer !== null) {
-    for (const subject of await readOverlaySubjects(outDir, pointer.contentSha256)) {
+    const published = await readOverlaySubjects(outDir, pointer.contentSha256);
+    if (published === null && !subjects.length) {
+      return {
+        termId,
+        outcome: "error",
+        reason: "overlay-unknown",
+        detail: `${pointer.releaseId} has no record of the subject files it was built with, so a rebuild from the term file could replace a fresher subject slice; it stays published until a run with subjects or a changed term file records one`,
+        fetched,
+        subjects: subjectReports,
+        termWatch: await runWatch(),
+        wrote: false,
+      };
+    }
+    for (const subject of published ?? []) {
       if (subjects.includes(subject)) continue;
       const entry = await readCachedBody(outDir, mirror.urlFor(termId, subject));
       const check = entry === null ? null : checkSubjectFile(entry.body, termId, subject);
@@ -250,6 +265,11 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
   // 3. Compare with the last good release.
   const previous = pointer ? await sink.readContent(pointer.file) : null;
   if (previous !== null && previous.manifest.contentSha256 === next.manifest.contentSha256) {
+    // This build is the published content, so its subjects describe the
+    // published release too; record them when it has no record yet.
+    if (!dryRun && (await readOverlaySubjects(outDir, next.manifest.contentSha256)) === null) {
+      await writeOverlaySubjects(outDir, next.manifest.contentSha256, overlays.map(overlay => overlay.subject).sort());
+    }
     return { termId, outcome: "unchanged", detail: "same content hash as the published release", previousReleaseId: pointer?.releaseId, fetched, subjects: subjectReports, termWatch: await runWatch(), wrote: false };
   }
   const diff = previous ? diffReleases(previous, next) : null;
@@ -412,13 +432,13 @@ async function writeOverlaySubjects(outDir: string, contentSha256: string, subje
   await rename(`${file}.tmp`, file);
 }
 
-/** The subjects a release was built with; none when it has no record, as for a release published before records existed. */
-async function readOverlaySubjects(outDir: string, contentSha256: string): Promise<string[]> {
+/** The subjects a release was built with; null when it has no record, as for a release published before records existed. */
+async function readOverlaySubjects(outDir: string, contentSha256: string): Promise<string[] | null> {
   let raw: string;
   try {
     raw = await readFile(overlaySubjectsPath(outDir, contentSha256), "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw error;
   }
   const parsed = JSON.parse(raw) as { subjects?: unknown };

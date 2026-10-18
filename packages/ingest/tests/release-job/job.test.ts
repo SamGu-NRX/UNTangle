@@ -314,6 +314,28 @@ describe("runReleaseJob, one run at a time", () => {
     expect(readFileSync(pointerPath, "utf8")).toBe(before);
   });
 
+  test("a 304 without subjects publishes nothing over a release with no overlay record, until a run with subjects records one", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+    // A release published before records existed.
+    rmSync(path.join(outDir, "overlays"), { recursive: true });
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    const before = readFileSync(pointerPath, "utf8");
+
+    const unknown = await job();
+    expect(unknown.fetched.map(entry => entry.kind)).toEqual(["not-modified"]);
+    expect(unknown.outcome).toBe("error");
+    expect(unknown.reason).toBe("overlay-unknown");
+    expect(readFileSync(pointerPath, "utf8")).toBe(before);
+
+    // The same content rebuilt with MATH records its subjects; after that a 304 keeps MATH.
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("unchanged");
+    const kept = await job();
+    expect(kept.outcome).toBe("unchanged");
+    expect(kept.subjects).toEqual([{ subject: "MATH", applied: true, detail: "kept from the published release, from the cached body" }]);
+    expect(readFileSync(pointerPath, "utf8")).toBe(before);
+  });
+
   test("a refused run still saves the request log, including the watch's request", async () => {
     files["/data/spring-2027.json"] = { body: '{"schema_version":3}', etag: '"v4"' };
     const report = await job({ watchTerms: ["fall-2027"] });
