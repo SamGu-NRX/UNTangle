@@ -14,6 +14,7 @@ import type { PlannerState } from "@/lib/types";
 import type { Entry } from "./schedules-client";
 import { adoptionChangeLines, lockChangeLines, skippedSectionLines, versionTime } from "./view-model";
 import { diffLibraryPlans } from "@/lib/plan-library/diff";
+import { UnsavedMainNote } from "./unsaved-main-note";
 import { WeekGrid } from "./week-grid";
 import styles from "./library.module.css";
 
@@ -84,14 +85,7 @@ export function ScheduleDetail({
           </>
         )}
       </div>
-      {!entry.active && !mainSaved ? (
-        <p className={styles.warn}>
-          Main has no saved copy yet.{" "}
-          <button type="button" className={styles.inline} onClick={onSaveMain}>
-            Save a copy first
-          </button>
-        </p>
-      ) : null}
+      {!entry.active && !mainSaved ? <UnsavedMainNote onSaveMain={onSaveMain} /> : null}
       {skipped.length ? (
         <ul className={styles.warnList} aria-label="What Use in Main changes beyond the week">
           {skipped.map((line) => (

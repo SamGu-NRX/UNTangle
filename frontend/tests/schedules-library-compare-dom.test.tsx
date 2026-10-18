@@ -197,6 +197,30 @@ describe("Compare", () => {
     await loaded.unmount();
   });
 
+  test("Use in Main says first when Main has no saved copy, as a copy's detail does", async () => {
+    const note = () => [...document.querySelectorAll("aside p")].find((p) => p.textContent?.startsWith("Main has no saved copy yet."));
+    // No copy holds what Main holds.
+    const unsaved = await page({ saved: [["Lighter", ["ANTH 1010"]]] });
+    await click(button("Compare"));
+    await click(button("Compare Main"));
+    await click(button("Compare Lighter"));
+    expect(button("Use Lighter in Main")).toBeDefined();
+    expect(note()).toBeDefined();
+    // Its link opens the same Save a copy dialog.
+    await click(button("Save a copy first"));
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Save a copy of Main");
+    await click(button("Cancel"));
+    await unsaved.unmount();
+    // "Same as Main" is a saved copy of Main, so the line goes.
+    const saved = await page();
+    await click(button("Compare"));
+    await click(button("Compare Main"));
+    await click(button("Compare Lighter"));
+    expect(button("Use Lighter in Main")).toBeDefined();
+    expect(note()).toBeUndefined();
+    await saved.unmount();
+  });
+
   test("two plans keep Both, and the credits row", async () => {
     const view = await page();
     await click(button("Compare"));

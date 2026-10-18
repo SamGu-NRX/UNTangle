@@ -13,6 +13,7 @@ import { compareRows, overlayBlocks, plannedCredits, plannedSections, sectionCha
 import type { ScheduleEvent } from "@/lib/types";
 import type { Entry } from "./schedules-client";
 import { Legend } from "./schedule-detail";
+import { UnsavedMainNote } from "./unsaved-main-note";
 import { adoptableSide, samePlan, weekWalking } from "./view-model";
 import { WeekGrid } from "./week-grid";
 import styles from "./library.module.css";
@@ -36,12 +37,17 @@ export const MAX_COMPARED = 3;
 export function CompareView({
   sides,
   colors,
+  mainSaved,
   onUse,
+  onSaveMain,
   onDone,
 }: {
   sides: readonly CompareSide[];
   colors: ReadonlyMap<string, Hue>;
+  /** Whether Main already has a saved copy. */
+  mainSaved: boolean;
   onUse: (entry: CompareSide) => void;
+  onSaveMain: () => void;
   onDone: () => void;
 }) {
   const { plannerState, scheduleEvents, sectionCatalog, sectionPlan, candidateFilter } = usePlanner();
@@ -107,6 +113,7 @@ export function CompareView({
           Done
         </Button>
       </div>
+      {adoptable && !mainSaved ? <UnsavedMainNote onSaveMain={onSaveMain} /> : null}
       <div
         // Segmented reports keyboard use itself; a click with detail 0 is a keyboard press too.
         onPointerDownCapture={() => setFromPointer(true)}

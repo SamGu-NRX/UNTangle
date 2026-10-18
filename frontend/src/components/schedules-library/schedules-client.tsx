@@ -392,7 +392,9 @@ export function SchedulesClient() {
     <CompareView
       sides={sides}
       colors={colors}
+      mainSaved={mainSaved}
       onUse={(entry) => void adoptEntry(entry)}
+      onSaveMain={startSaving}
       onDone={closePanel}
     />
   ) : selectedEntry ? (
