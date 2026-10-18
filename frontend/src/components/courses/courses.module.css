@@ -248,6 +248,27 @@
 .reqCourse[data-status="check"] .reqFact {
   color: var(--attention);
 }
+/* What an option fills, a second line under its codes; the glyph stays with the first line. */
+:is(.reqCourse, .reqSet):has(.reqFills) {
+  align-items: baseline;
+  row-gap: 2px;
+  padding: 9px 0;
+}
+:is(.reqCourse, .reqSet):has(.reqFills) > .lead {
+  align-self: start;
+  margin-top: 1px;
+}
+.reqFills {
+  grid-column: 2 / -1;
+  font-size: 12.5px;
+  line-height: 16px;
+  color: var(--ink-2);
+}
+/* The option that finishes the requirement is the one to spot. */
+.reqFills[data-finishes] {
+  color: var(--ink);
+  font-weight: 600;
+}
 .reqQuote {
   margin: 0;
   padding-left: 12px;

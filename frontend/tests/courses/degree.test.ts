@@ -51,7 +51,7 @@ describe("the journey transcript: MATH 1710 B, ENGL 1310 A, CSCE 1040 A", () => 
       ["Other required courses", "needed", "EENG 2710 and TECM 2700"],
       ["CSCE core", "needed", "6 credits"],
       ["CSCE breadth courses", "needed", "6 credits"],
-      ["Laboratory science", "needed", "2 courses"],
+      ["Laboratory science", "needed", "2 selections"],
       // The major's rules the audit finds unmet stay on the list, in credits.
       ["Advanced credits: 42", "needed", "Not met yet"],
       ["Advanced credits at UNT: 24", "needed", "Not met yet"],
