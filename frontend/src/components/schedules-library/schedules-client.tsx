@@ -299,7 +299,7 @@ export function SchedulesClient() {
     announce.current = { kind: "adoption", name: entry.name, adoption };
   }
 
-  /** Refuses a typed name that is "Main" or another copy's under the field, keeping the dialog open. False when refused. */
+  /** Shows a "nameClash" refusal under the field and keeps the dialog open; true when it did. */
   function refuseName(result: { ok: boolean; failure?: SavedPlanStoreFailure }): boolean {
     if (result.ok || result.failure?.kind !== "nameClash") return false;
     setNameError(result.failure.message);
@@ -653,7 +653,8 @@ export function SchedulesClient() {
           />
         </form>
         <p className="sr-only-v2" aria-live="assertive" aria-atomic="true">
-          {nameAnnouncer.announcement}
+          {/* Only while the field shows it, so a reopened dialog never carries the last refusal. */}
+          {nameError ? nameAnnouncer.announcement : null}
         </p>
       </Dialog>
     </>
