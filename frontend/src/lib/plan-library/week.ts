@@ -1,5 +1,5 @@
 import { assignColors, type Hue } from "@/lib/course-colors";
-import { buildScheduleEvents, normalizePlannerState, resolveSectionPlan, summarizeCredits } from "@/lib/planner";
+import { buildScheduleEvents, normalizePlannerState, resolveSectionPlan, summarizeCredits, type SectionPlan } from "@/lib/planner";
 import { optionIdLabel, optionLabel, scheduleEventsOf, sectionRef, type CandidateFilter, type SectionCatalog } from "@/lib/planner-sections";
 import type { ClassDay, PlannerState, ScheduleEvent } from "@/lib/types";
 
@@ -32,20 +32,24 @@ export function spokenClock(minutes: number): string {
   return `${clockText(minutes)} ${h < 12 ? "AM" : "PM"}`;
 }
 
+/** Per course, per section id, an option's accepted instructor evidence in hundredths (the planner's evidenceHundredths). */
+export type Evidence = Readonly<Record<string, Record<string, number | null>>>;
+
 /**
- * The meetings a saved state would show, with each unpicked course on the
- * goal's recommended section. `filter` and `evidenceHundredths` are Main's
- * (the planner's candidateFilter and evidenceHundredths): Main resolves its
- * plan with both, and evidence breaks exact ties (#134), so a preview without
- * it could show a section Use in Main would not pick.
+ * A saved state's sections as Main would resolve them, each unpicked course
+ * on the goal's recommended section. `filter` and `evidenceHundredths` are
+ * Main's (the planner's candidateFilter and evidenceHundredths): Main
+ * resolves its plan with both, and evidence breaks exact ties (#134), so a
+ * preview without it could show a section Use in Main would not pick. Every
+ * preview, drawn week, figures and section list alike, resolves here.
  */
-export function eventsOf(
-  state: PlannerState,
-  catalog: SectionCatalog,
-  filter: CandidateFilter,
-  evidenceHundredths: Readonly<Record<string, Record<string, number | null>>>,
-): ScheduleEvent[] {
-  return buildScheduleEvents(resolveSectionPlan(normalizePlannerState(state), catalog, filter, undefined, evidenceHundredths));
+export function resolveAsMain(state: PlannerState, catalog: SectionCatalog, filter: CandidateFilter, evidenceHundredths: Evidence): SectionPlan {
+  return resolveSectionPlan(normalizePlannerState(state), catalog, filter, undefined, evidenceHundredths);
+}
+
+/** The meetings a saved state would show in Main (resolveAsMain). */
+export function eventsOf(state: PlannerState, catalog: SectionCatalog, filter: CandidateFilter, evidenceHundredths: Evidence): ScheduleEvent[] {
+  return buildScheduleEvents(resolveAsMain(state, catalog, filter, evidenceHundredths));
 }
 
 export function weekBlocks(events: readonly ScheduleEvent[]): WeekBlock[] {
@@ -206,12 +210,12 @@ export type PlannedSection = {
 
 /**
  * Every course a plan schedules, with the section it uses: saved picks, and
- * the goal's recommendation for the rest under Main's `filter`, as the
- * lenses would show it in Main. Sections with no set time are included, so
- * a change to one still counts.
+ * the goal's recommendation for the rest under Main's filter and evidence
+ * (resolveAsMain), as the lenses would show it in Main. Sections with no set
+ * time are included, so a change to one still counts.
  */
-export function plannedSections(state: PlannerState, catalog: SectionCatalog, filter: CandidateFilter): PlannedSection[] {
-  return resolveSectionPlan(normalizePlannerState(state), catalog, filter).courses.flatMap((course): PlannedSection[] => {
+export function plannedSections(state: PlannerState, catalog: SectionCatalog, filter: CandidateFilter, evidenceHundredths: Evidence): PlannedSection[] {
+  return resolveAsMain(state, catalog, filter, evidenceHundredths).courses.flatMap((course): PlannedSection[] => {
     if (course.section) return [{ code: course.code, sectionId: course.section.id, label: optionLabel(course.section), blocks: weekBlocks(scheduleEventsOf(course.section)) }];
     // A saved pick the loaded catalog can't place still differs from another pick.
     if (course.savedId) return [{ code: course.code, sectionId: course.savedId, label: optionIdLabel(course.savedId), blocks: [], unresolved: course.state === "loading" ? "loading" : "gone" }];

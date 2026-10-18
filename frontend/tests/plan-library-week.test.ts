@@ -154,7 +154,7 @@ describe("comparing Main (A) with Fridays off (B)", () => {
       selectedSections: { "ANTH 1010": sectionId },
     });
     // Real-looking ids that the sample catalog has never had.
-    const gone = (state: ReturnType<typeof plan>) => plannedSections(state, sampleCatalog, DEFAULT_CANDIDATE_FILTER);
+    const gone = (state: ReturnType<typeof plan>) => plannedSections(state, sampleCatalog, DEFAULT_CANDIDATE_FILTER, {});
     const a = gone(plan("vsb:spring-2027:ANTH 1010:11111"));
     const b = gone(plan("vsb:spring-2027:ANTH 1010:22222"));
     expect(a.map((s) => [s.code, s.unresolved, s.label])).toEqual([["ANTH 1010", "gone", "class 11111"]]);
@@ -170,7 +170,7 @@ describe("comparing Main (A) with Fridays off (B)", () => {
   test("planned sections come from the plan, every scheduled course with its section", () => {
     const base = getInitialPlannerState();
     const state = { ...base, courseStatuses: { ...base.courseStatuses, "ANTH 1010": "inProgress" as const }, selectedSections: { "ANTH 1010": "anth-1010-002" } };
-    const sections = plannedSections(state, sampleCatalog, DEFAULT_CANDIDATE_FILTER);
+    const sections = plannedSections(state, sampleCatalog, DEFAULT_CANDIDATE_FILTER, {});
     expect(sections.map((s) => [s.code, s.sectionId, s.label, s.blocks.length])).toEqual([["ANTH 1010", "anth-1010-002", "002", 3]]);
   });
 });

@@ -5,6 +5,7 @@
  * happy-dom's localStorage as in a guest's browser.
  */
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
+import type { Evidence } from "@/lib/plan-library/week";
 import type { CandidateFilter, SectionCatalog } from "@/lib/planner-sections";
 import type { Section } from "@/lib/sections";
 import type { CourseSections, Meeting } from "@/lib/sections/model";
@@ -42,7 +43,6 @@ type PageOptions = {
   /** Main's instructor evidence, per course and section id; none by default. */
   evidence?: Evidence;
 };
-type Evidence = Readonly<Record<string, Record<string, number | null>>>;
 
 async function page({ copies = true, hydrated = true, saved, catalog, filter, evidence = {} }: PageOptions = {}) {
   const { DEFAULT_CANDIDATE_FILTER, getInitialPlannerState, normalizePlannerState, resolveSectionPlan } = await import("@/lib/planner");
@@ -352,6 +352,17 @@ describe("a saved copy breaks ties with Main's instructor evidence", () => {
     const view = await page({ saved: [["Anthropology", ["ANTH 1010"]]], catalog, evidence });
     await click(button("Open Anthropology"));
     expect(meetings()).toEqual(["ANTH 1010, Tuesday 9:00 AM to 10:00 AM"]);
+    await view.unmount();
+  });
+
+  test("Compare's section changes name the section Main would pick", async () => {
+    const view = await page({ saved: [["Anthropology", ["ANTH 1010"]], ["Empty", []]], catalog: tiedCatalog(), evidence });
+    await click(button("Compare"));
+    await click(button("Compare Empty"));
+    await click(button("Compare Anthropology"));
+    const changes = [...document.querySelectorAll('aside [aria-labelledby="changes-title"] li')].map((li) => li.textContent ?? "");
+    // Tuesday's option; Monday's would read "M 9:00".
+    expect(changes).toEqual(["ANTH 1010Not in Empty becomes T 9:00"]);
     await view.unmount();
   });
 });
