@@ -315,6 +315,56 @@ describe("grade floors on UNT's letter scale", () => {
   });
 });
 
+describe("policies over an unmet choice's courses", () => {
+  // Two of three Networks courses done: the choice is unmet, so its branch
+  // releases them, yet they count if Networks is the branch finished.
+  const specialization: RequirementNode = {
+    kind: "choice",
+    name: "Specialization",
+    citation,
+    branches: [
+      { name: "Networks", node: choose("Networks", 3, singles("CSCE 3420", "CSCE 3530", "CSCE 3550")) },
+      { name: "AI", node: choose("AI", 3, singles("CSCE 4200", "CSCE 4201", "CSCE 4205")) },
+    ],
+  };
+  const atUnt = (hours: number) => policy("Major at UNT", { type: "advancedHoursAtUnt", hours, courseScope: { kind: "applied" } });
+  const audit = (policies: PolicyNode[], courses: AuditCourse[]) => auditProgram(program([all("Required", "CSCE 3600"), specialization, ...policies]), courses, COMPLETE);
+
+  test("a residence total the unmet branch's courses could close is unverifiable, not short", () => {
+    const outcome = policyOutcome(audit([atUnt(6)], [done("CSCE 3600"), done("CSCE 3420"), done("CSCE 3530")]), "Major at UNT");
+    expect(outcome.status).toBe("unverifiable");
+    expect(outcome.detail).toBe("3 advanced UNT hours of 6. Counting CSCE 3420, CSCE 3530, from a choice no branch has met yet: 9 advanced UNT hours of 6. Cannot verify until a branch is met.");
+  });
+
+  test("a D in the unmet branch keeps the C floor from reading satisfied, and is named", () => {
+    const outcome = policyOutcome(audit([floor()], [done("CSCE 3600"), done("CSCE 3420"), done("CSCE 3530", "D")]), "C floor");
+    expect(outcome.status).toBe("unverifiable");
+    expect(outcome.detail).toBe(
+      "No completed course in scope (major) falls below C. Counting CSCE 3420, CSCE 3530, from a choice no branch has met yet: Below C: CSCE 3530 (D). Cannot verify until a branch is met.",
+    );
+  });
+
+  test("a reading that holds either way keeps its status and names the branch's courses too", () => {
+    const outcome = policyOutcome(audit([floor()], [done("CSCE 3600", "D"), done("CSCE 3420"), done("CSCE 3530", "D")]), "C floor");
+    expect(outcome.status).toBe("unsatisfied");
+    expect(outcome.detail).toBe("Below C: CSCE 3600 (D). Counting CSCE 3420, CSCE 3530, from a choice no branch has met yet: Below C: CSCE 3600 (D), CSCE 3530 (D).");
+    expect(policyOutcome(audit([atUnt(3)], [done("CSCE 3600"), done("CSCE 3420")]), "Major at UNT").status).toBe("satisfied");
+  });
+
+  test("a met choice ignores a nested unmet choice in a branch the student did not take", () => {
+    const track: RequirementNode = { kind: "choice", name: "Track", citation, branches: [{ name: "Systems", node: all("Systems", "CSCE 4600") }, { name: "Specialized", node: specialization }] };
+    const outcome = policyOutcome(auditProgram(program([all("Required", "CSCE 3600"), track, floor()]), [done("CSCE 3600"), done("CSCE 4600"), done("CSCE 3420"), done("CSCE 3530", "D")], COMPLETE), "C floor");
+    expect(outcome.status).toBe("satisfied");
+    expect(outcome.detail).toBe("No completed course in scope (major) falls below C.");
+  });
+
+  test("once the branch is met its courses are placed, and its D fails the floor", () => {
+    const outcome = policyOutcome(audit([floor()], [done("CSCE 3600"), done("CSCE 3420"), done("CSCE 3530", "D"), done("CSCE 3550")]), "C floor");
+    expect(outcome.status).toBe("unsatisfied");
+    expect(outcome.detail).toBe("Below C: CSCE 3530 (D).");
+  });
+});
+
 describe("GPA counts failed attempts and skips credit-only rows", () => {
   const tree = program([gpa(), policy("UNT GPA", { type: "gpa", minimum: 2, scope: "unt", courseScope: { kind: "unt" } })]);
   const gpaOf = (courses: AuditCourse[], options = COMPLETE) => policyOutcome(auditProgram(tree, courses, options), "GPA");

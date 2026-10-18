@@ -1,4 +1,4 @@
-import type { CatalogPage, FlowItem, Section } from "./sections";
+import { normalizeConnector, type CatalogPage, type FlowItem, type Section } from "./sections";
 import type { AllNode, ChooseNode, Citation, CourseSlot, HoursNode, NoteNode, OptionGroup, PolicyNode, PoolNode, ProgramData, RequirementNode } from "@untangle/core/degree/types";
 
 /**
@@ -17,8 +17,16 @@ import type { AllNode, ChooseNode, Citation, CourseSlot, HoursNode, NoteNode, Op
  */
 export type Unit = { must: string[]; either: string[]; anyOf: string[]; orBefore: boolean };
 
+function readConnector(raw: string | null): string | null {
+  if (raw === null) return null;
+  const connector = normalizeConnector(raw);
+  if (connector === null) throw new Error(`Unreadable course connector: "${raw}".`);
+  return connector;
+}
+
 /**
- * Reads a run of courseGroup/marker items as option units:
+ * Reads a run of courseGroup/marker items as option units.
+ * Marker and course-group connectors are normalized; unreadable ones throw:
  * - "or" starts an alternative unit of the same slot;
  * - "and" continues the current unit (lecture plus lab);
  * - "and/or" makes the unit's course and the next one an any-of set;
@@ -32,6 +40,7 @@ export function parseUnits(items: FlowItem[]): Unit[] {
   let pending: string | null = null;
   for (const item of items) {
     if (item.type === "courseGroup") {
+      const connector = readConnector(item.connector);
       const codes = item.courses.map((course) => course.code);
       if (current !== null && pending === "and/or") {
         // Only the one shape the served pages print is read: a single course,
@@ -41,7 +50,7 @@ export function parseUnits(items: FlowItem[]): Unit[] {
         }
         current.anyOf.push(current.must.pop()!, codes[0]!);
         mode = "must";
-        pending = item.connector;
+        pending = connector;
         continue;
       }
       // An "or" marker always separates alternatives, even while collecting
@@ -57,10 +66,13 @@ export function parseUnits(items: FlowItem[]): Unit[] {
         mode = "either";
       }
       (mode === "either" ? current.either : current.must).push(...codes);
-      pending = item.connector;
+      pending = connector;
       continue;
     }
-    if (item.type === "marker" && current) pending = item.text;
+    if (item.type === "marker") {
+      const connector = readConnector(item.text);
+      if (current) pending = connector;
+    }
     // Headings, notes, and labels between course runs do not end the run.
   }
   return units;

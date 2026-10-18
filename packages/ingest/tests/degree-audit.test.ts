@@ -282,6 +282,18 @@ describe("the review's probe records against the real trees", () => {
     expect(status(auditProgram(program("ce-bs"), [done("CSCE 3610"), done("CSCE 4610"), done("CSCE 4730"), done("PHYS 4500")], COMPLETE), "Specialization area").status).toBe("satisfied");
   });
 
+  test("CE: an unfinished specialization's courses keep the major's residence and C-floor checks open", () => {
+    const policy = (record: AuditCourse[], name: string) => auditProgram(program("ce-bs"), record, COMPLETE).policies.find((outcome) => outcome.name === name)!;
+    const required = [done("CSCE 3600"), done("CSCE 3612"), done("CSCE 3730")];
+    // 9 placed advanced UNT hours, 15 if Communication and Networks is the specialization finished.
+    const residence = policy([...required, done("CSCE 3420"), done("CSCE 3530")], "Advanced hours in the major at UNT: 12");
+    expect(residence.status).toBe("unverifiable");
+    expect(residence.detail).toStartWith("9 advanced UNT hours of 12. Counting CSCE 3420, CSCE 3530, from a choice no branch has met yet: 15 advanced UNT hours of 12.");
+    const floor = policy([...required, done("CSCE 3420"), done("CSCE 3530", 3, "D")], "Minimum grade of C (major courses)");
+    expect(floor.status).toBe("unverifiable");
+    expect(floor.detail).toContain("Below C: CSCE 3530 (D).");
+  });
+
   test("the core never shares: an area course does not fill Component Area Option A too", () => {
     const result = auditProgram(program("core"), [done("PADM 2100"), done("ANTH 1150")], COMPLETE);
     expect(status(result, "Social and Behavioral Sciences").status).toBe("satisfied");

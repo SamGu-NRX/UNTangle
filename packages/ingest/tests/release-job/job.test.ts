@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { runReleaseJob } from "../../src/release-job/job";
@@ -150,7 +151,8 @@ describe("runReleaseJob", () => {
     const before = pointerFile();
     const report = await job();
     expect(report.outcome).toBe("unchanged");
-    expect(report.reason).toBe("not-modified");
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified"]);
+    expect(report.wrote).toBe(false);
     expect(pointerFile()).toBe(before);
   });
 
@@ -258,6 +260,81 @@ describe("runReleaseJob, one run at a time", () => {
     };
     return new Map(release.courses.map(course => [course.courseCode, course.sections?.[0]?.components[0]?.openSeats.value]));
   };
+
+  test("a 304 retries publishing after a pointer write fails", async () => {
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    mkdirSync(pointerPath, { recursive: true });
+    writeFileSync(path.join(pointerPath, "obstruction"), "block the pointer rename");
+    const lastModified = "Fri, 01 Jan 2027 00:00:00 GMT";
+    files["/data/spring-2027.json"] = { body: changedBody, etag: '"v2"', lastModified };
+
+    await expect(job()).rejects.toMatchObject({ code: "EISDIR", syscall: "rename" });
+    const state = JSON.parse(readFileSync(path.join(outDir, "state.json"), "utf8")) as {
+      files: Record<string, { etag: string; lastModified: string }>;
+    };
+    expect(state.files[`${stub.url}/data/spring-2027.json`]).toMatchObject({ etag: '"v2"', lastModified });
+
+    rmSync(pointerPath, { recursive: true });
+    const report = await job();
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified"]);
+    expect(report.outcome).toBe("published");
+    expect(report.wrote).toBe(true);
+    const pointer = JSON.parse(readFileSync(pointerPath, "utf8")) as { releaseId: string; file: string };
+    expect(report.releaseId).toBe(pointer.releaseId);
+    expect(report.file).toBe(pointer.file);
+    expect(publishedCourses(pointer.file).get("MATH 1680")).toBe(3);
+  });
+
+  test("a 304 without subjects keeps the subject files the published release was built with", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    const before = readFileSync(pointerPath, "utf8");
+
+    const report = await job();
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified"]);
+    expect(report.outcome).toBe("unchanged");
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: true, detail: "kept from the published release, from the cached body" }]);
+    expect(readFileSync(pointerPath, "utf8")).toBe(before);
+    expect(publishedCourses((JSON.parse(before) as { file: string }).file).get("MATH 1680")).toBe(7);
+  });
+
+  test("a 304 that cannot reapply a published subject file publishes nothing", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    const before = readFileSync(pointerPath, "utf8");
+    const mathUrl = `${stub.url}/data/spring-2027/MATH.json`;
+    rmSync(path.join(outDir, "bodies", `${createHash("sha256").update(mathUrl).digest("hex")}.json`));
+
+    const report = await job();
+    expect(report.outcome).toBe("error");
+    expect(report.reason).toBe("subject-unavailable");
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: false, detail: "in the published release, but no cached body" }]);
+    expect(readFileSync(pointerPath, "utf8")).toBe(before);
+  });
+
+  test("a 304 without subjects publishes nothing over a release with no overlay record, until a run with subjects records one", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+    // A release published before records existed.
+    rmSync(path.join(outDir, "overlays"), { recursive: true });
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    const before = readFileSync(pointerPath, "utf8");
+
+    const unknown = await job();
+    expect(unknown.fetched.map(entry => entry.kind)).toEqual(["not-modified"]);
+    expect(unknown.outcome).toBe("error");
+    expect(unknown.reason).toBe("overlay-unknown");
+    expect(readFileSync(pointerPath, "utf8")).toBe(before);
+
+    // The same content rebuilt with MATH records its subjects; after that a 304 keeps MATH.
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("unchanged");
+    const kept = await job();
+    expect(kept.outcome).toBe("unchanged");
+    expect(kept.subjects).toEqual([{ subject: "MATH", applied: true, detail: "kept from the published release, from the cached body" }]);
+    expect(readFileSync(pointerPath, "utf8")).toBe(before);
+  });
 
   test("a refused run still saves the request log, including the watch's request", async () => {
     files["/data/spring-2027.json"] = { body: '{"schema_version":3}', etag: '"v4"' };
