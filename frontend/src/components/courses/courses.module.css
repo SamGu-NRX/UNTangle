@@ -399,6 +399,8 @@
 }
 /* The app's ring (--focus), as on the requirement rows: an inset accent ring met the page ground at 2.87:1, under 3:1. */
 .groupHead:focus-visible {
+  position: relative;
+  z-index: 1;
   outline: none;
   box-shadow: var(--focus);
 }
@@ -494,6 +496,10 @@
 /* --focus, as on .reqOpen: accent outside a paper band reads 3.12:1; inset on the ground it was 2.87:1. */
 .rowOpen:focus-visible::after {
   box-shadow: var(--focus);
+}
+/* The ring reaches 4px past the row: lift the row so the next one's hover tint and hairline stay under it. */
+.row:has(> .rowOpen:focus-visible, > .reqOpen:focus-visible) {
+  z-index: 1;
 }
 .lead {
   display: grid;
