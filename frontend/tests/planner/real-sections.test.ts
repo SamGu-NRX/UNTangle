@@ -79,9 +79,9 @@ describe("the optimizer adapter", () => {
     expect(section.label).toBe("110 + 111");
     expect(section.rating).toBeNull();
     expect(section.meetings).toEqual([
-      { day: "Tue", start: 575, end: 655, buildingId: "cury", dates: { start: "2027-01-11", end: "2027-05-07" } },
-      { day: "Thu", start: 575, end: 655, buildingId: "cury", dates: { start: "2027-01-11", end: "2027-05-07" } },
-      { day: "Mon", start: 480, end: 530, buildingId: "gab", dates: { start: "2027-01-11", end: "2027-05-07" } },
+      { day: "Tue", start: 575, end: 655, buildingId: "cury", place: "cury", dates: { start: "2027-01-11", end: "2027-05-07" } },
+      { day: "Thu", start: 575, end: 655, buildingId: "cury", place: "cury", dates: { start: "2027-01-11", end: "2027-05-07" } },
+      { day: "Mon", start: 480, end: 530, buildingId: "gab", place: "gab", dates: { start: "2027-01-11", end: "2027-05-07" } },
     ]);
   });
 
@@ -163,6 +163,7 @@ describe("the optimizer adapter", () => {
     });
     const [option] = optionsOf(fixtureCatalog(input), "MATH 1680");
     expect(toOptSection(option)!.meetings.map((m) => m.buildingId)).toEqual(["cury", "cury", null]);
+    expect(toOptSection(option)!.meetings.map((m) => m.place)).toEqual(["cury", "cury", "MGV"]);
 
     const monday = buildStopsForDay(scheduleEventsOf(option), "Mon");
     expect(monday).toHaveLength(1);

@@ -63,7 +63,7 @@ export type SourceStatus = "ok" | "stale" | "error";
 export type SourceReport = {
   id: string;
   name: string;
-  /** ok: fresh fetch; stale: serving the last good data after a failed refresh; error: never fetched. */
+  /** ok: fresh fetch; stale: serving the last good data after a failed refresh; error: no data to serve, because no fetch succeeded or the fetched text does not parse. */
   status: SourceStatus;
   /** When the served data was fetched; null when there is none. */
   fetchedAt: string | null;

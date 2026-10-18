@@ -8,8 +8,7 @@
  *
  * Each branch gets a lower bound on the cost of any schedule that completes
  * it (`evaluate`). A branch whose bound is above the best schedule found so
- * far is skipped; at an equal bound, a branch that cannot win the evidence
- * and id tie-break is skipped too (`canWinTie`). The
+ * far, or equal to it but unable to win the id tie-break, is skipped. The
  * bound adds up:
  * - the chosen sections' own costs (time-of-day lean and rating), plus the
  *   cheapest section still possible for every unassigned course;
@@ -33,37 +32,13 @@
  * Independently, fixed pairs retain their exact costs across all segments;
  * combine that bound with the segment bound by maximum. The union-of-days
  * bound remains independent of dates.
- *
- * The schedule order is three tiers: lower cost first; within
- * INSTRUCTOR_TIE_BREAK_TOLERANCE of an equal cost the two plans count as
- * tied and higher instructor evidence wins; then the lower tie-break key
- * (section ids in course-code order). With integer costs the tolerance band
- * is exactly equality, so a preference is never traded for instructor
- * score.
  */
 
-import {
-  COST_PER_DAY,
-  COST_PER_GAP_MINUTE,
-  COST_PER_WALK_SECOND,
-  INSTRUCTOR_TIE_BREAK_TOLERANCE,
-  UNKNOWN_WALK_SECONDS,
-} from "./score";
+import { COST_PER_DAY, COST_PER_GAP_MINUTE, COST_PER_WALK_SECOND, noWalkBetween, UNKNOWN_WALK_SECONDS } from "./score";
 import { OPT_DAYS } from "./types";
 import type { Candidate, Prepared, PreparedMeeting } from "./prepare";
 
 const DAY_COUNT = OPT_DAYS.length;
-
-/**
- * Slack for the evidence comparisons in `canWinTie`: real evidence
- * differences are at least a tenth of a gpa over the eligible-course
- * count, while double rounding error for these sums is around 1e-15, so
- * a value between the two never masks a real difference. After the
- * course-order bound below, the band is strictly redundant insurance
- * (each bound term dominates the eventual pick's, and float addition is
- * monotone), but cheap: being too big only costs a little pruning.
- */
-const EVIDENCE_ROUNDING = 1e-9;
 
 export type Budget = {
   deadline: number;
@@ -76,19 +51,15 @@ export type Budget = {
 export type Leaf = {
   picks: Candidate[];
   cost: number;
-  /**
-   * Mean instructor evidence over the leaf's picks in evidence-eligible
-   * courses (courses where every option has a known gpa; other courses
-   * contribute nothing for any plan), and 0 when no course is eligible so
-   * the key decides. Higher wins the tie-break. The bound in `canWinTie`
-   * sums the same per-candidate `evidence` values in a different order,
-   * so plans that tie in exact arithmetic may differ in their last bits
-   * of rounding; the search's comparisons allow for that with
-   * EVIDENCE_ROUNDING instead of assuming the two sums are identical.
-   */
-  evidence: number;
   /** Section ids in course-code order: the tie-break key. */
   key: string[];
+  /**
+   * The tie-break evidence: the sum of the picked options' instructor
+   * evidence over the courses that count (every option the request lists has
+   * accepted evidence). Computed here from the request alone, so it never
+   * leaks grade history into the result.
+   */
+  evidence: number;
 };
 
 class BudgetExhausted {}
@@ -102,16 +73,9 @@ export function compareKeys(a: readonly string[], b: readonly string[]): number 
   return 0;
 }
 
-/**
- * Strict schedule order, three tiers: lower cost first; when two costs are
- * within INSTRUCTOR_TIE_BREAK_TOLERANCE they count as tied and higher
- * instructor evidence wins; then the lower tie-break key. With integer
- * costs the tolerance band is exactly equality.
- */
-export function leafBefore(a: Pick<Leaf, "cost" | "evidence" | "key">, b: Pick<Leaf, "cost" | "evidence" | "key">): boolean {
-  if (Math.abs(a.cost - b.cost) > INSTRUCTOR_TIE_BREAK_TOLERANCE) return a.cost < b.cost;
-  if (a.evidence !== b.evidence) return a.evidence > b.evidence;
-  return compareKeys(a.key, b.key) < 0;
+/** Strict order: lower cost first, then stronger instructor evidence, then the lower tie-break key. */
+export function leafBefore(a: Pick<Leaf, "cost" | "key" | "evidence">, b: Pick<Leaf, "cost" | "key" | "evidence">): boolean {
+  return a.cost < b.cost || (a.cost === b.cost && (a.evidence > b.evidence || (a.evidence === b.evidence && compareKeys(a.key, b.key) < 0)));
 }
 
 function popcount(value: number): number {
@@ -144,7 +108,7 @@ type Options = {
 export type SearchOutcome = { best: Leaf | null; complete: boolean };
 
 export function search(prepared: Prepared, budget: Budget, options: Options): SearchOutcome {
-  const { courses, words, conflicts, walk, buildingCount, bufferSeconds, weights } = prepared;
+  const { courses, words, conflicts, walk, buildingCount, bufferSeconds, weights, evidenceCourses } = prepared;
   const n = courses.length;
   const candidateByBit: Candidate[] = [];
   for (const candidate of prepared.candidates) candidateByBit[candidate.bit] = candidate;
@@ -169,19 +133,10 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
   const dayEnd = 32 - Math.clz32(anyCandidateDays);
   let daysUsed = 0;
   let selfSum = 0;
-  // Per course, the most evidence any of its candidates contributes (0 for
-  // an evidence-ineligible course, whose options all contribute 0). A
-  // static upper bound on what an unassigned course can add; the alive
-  // mask would tighten it but correctness needs only an over-estimate.
-  const maxEvidenceByCourse: number[] = new Array(n).fill(0);
-  for (const candidate of prepared.candidates) {
-    if (candidate.evidence > maxEvidenceByCourse[candidate.course]) {
-      maxEvidenceByCourse[candidate.course] = candidate.evidence;
-    }
-  }
-  // Evidence-eligible courses; the leaf mean's divisor. 0 when no course
-  // is eligible, which makes every plan's evidence 0 and the key decisive.
-  const eligibleCount = prepared.courses.reduce((count, course) => count + (course.evidenceEligible ? 1 : 0), 0);
+  let evidenceSum = 0;
+  // How many evidence-counted courses are assigned so far: with the prepared
+  // total it bounds what a branch can still add to the tie-break.
+  let countedAssigned = 0;
   let assignedCount = 0;
   const previous = options.previous;
   const same = new Int32Array(previous.length);
@@ -193,8 +148,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     return seconds < 0 ? null : seconds;
   };
 
-  const { times, timeIndex, fill, walkFloor } = prepared;
-  const floorStride = buildingCount + 1;
+  const { times, timeIndex, fill } = prepared;
   const timeCount = times.length;
   const pairsMatter = weights.compact > 0 || weights.walking > 0 || bufferSeconds !== null;
   // A range with no occurrence has mask 0 and cannot support the weekly bounds.
@@ -231,13 +185,13 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
           if (filled > 0) {
             if (oneSegment) {
               if (filled < window) gap += window - filled;
-              if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
-                walkCost += walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
-              }
+              // A remaining meeting can occupy this gap, including online, and
+              // remove the endpoint pair. Charging any walk here would not be
+              // a lower bound, so leave it at zero when fill is possible.
             }
           } else {
             gap += window;
-            if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
+            if (!noWalkBetween(prev, next)) {
               const seconds = walkOf(prev.building, next.building);
               walkCost += seconds ?? UNKNOWN_WALK_SECONDS;
               if (bufferSeconds !== null && window * 60 < (seconds ?? UNKNOWN_WALK_SECONDS) + bufferSeconds) return -1;
@@ -278,16 +232,14 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
         // this bound, so there is no per-segment table to build or retain.
         if (fill !== null) for (let r = 0; r < count && filled < window; r += 1) filled += fill[remaining[r]][day][cell];
         cost += weights.compact * COST_PER_GAP_MINUTE * Math.max(0, window - filled);
-        if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
-          let walking: number;
-          if (filled === 0) {
-            walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;
-            if (bufferSeconds !== null && window * 60 < walking + bufferSeconds) return -1;
-          } else {
-            walking = walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
-          }
+        if (!noWalkBetween(prev, next) && filled === 0) {
+          const walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;
+          if (bufferSeconds !== null && window * 60 < walking + bufferSeconds) return -1;
           cost += weights.walking * COST_PER_WALK_SECOND * walking;
         }
+        // When fill is possible, a remaining meeting can occupy this gap,
+        // including online, and remove the endpoint pair. Charging any walk
+        // there would not be a lower bound, so the bound charges none.
       }
       prev = next;
     }
@@ -434,42 +386,30 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     const bound = lowerSelf + dayPrice * (popcount(nextDays) + mostNewDays) + pairs;
     if (best !== null) {
       if (bound > best.cost) return Number.POSITIVE_INFINITY;
-      if (bound === best.cost && !canWinTie(candidate)) return Number.POSITIVE_INFINITY;
+      if (bound === best.cost) {
+        // The branch's ceiling on tie-break evidence: the candidate's own
+        // evidence plus 400 per still-unassigned counted course (400 is the
+        // largest accepted value). Below the incumbent's evidence, no key
+        // can rescue the branch.
+        const evidenceUpper =
+          evidenceSum + candidate.evidence + 400 * (evidenceCourses - countedAssigned - (courses[candidate.course].evidenceCounted ? 1 : 0));
+        if (!canWinTie(candidate, evidenceUpper)) return Number.POSITIVE_INFINITY;
+      }
     }
     return bound;
   }
 
   /**
-   * At bound === best.cost: can some completion still beat `best` under the
-   * evidence and key tiers? A completion's evidence is bounded from above
-   * by, per course in course order, the assigned section's contribution,
-   * the candidate's own on its course, and, for each unassigned course,
-   * the most any of its candidates contributes (a static per-course max;
-   * ineligible courses contribute 0 for every plan). Sourcing every term
-   * from the course index, never from a running accumulator, keeps the
-   * bound independent of the search's backtracking bookkeeping; and each
-   * term is at least the eventual pick's, so under floating-point rounding
-   * the bound is an upper bound on any completion's leaf evidence (float
-   * addition is monotone). The comparisons still keep the EVIDENCE_ROUNDING
-   * band as cheap insurance; real evidence differences are orders of
-   * magnitude above it, so it never spares a genuinely worse branch.
-   * When in doubt, do not prune. With no eligible course every plan's
-   * evidence is 0, so only the key decides.
+   * At equal cost, can some completion still beat `best` on the tie-break:
+   * stronger instructor evidence, or equal evidence and a lower key? The
+   * caller passes the completion's evidence upper bound; below the
+   * incumbent's evidence no key can rescue the branch, so it prunes.
    */
-  function canWinTie(candidate: Candidate): boolean {
+  function canWinTie(candidate: Candidate, evidenceUpper: number): boolean {
     const target = best!;
-    if (eligibleCount > 0) {
-      let numerator = 0;
-      for (let u = 0; u < n; u += 1) {
-        if (u === candidate.course) numerator += candidate.evidence;
-        else if (assigned[u] !== null) numerator += assigned[u]!.evidence;
-        else numerator += maxEvidenceByCourse[u];
-      }
-      const evidenceBound = numerator / eligibleCount;
-      if (evidenceBound > target.evidence) return true;
-      if (evidenceBound < target.evidence - EVIDENCE_ROUNDING) return false;
-      return true;
-    }
+    if (evidenceUpper < target.evidence) return false;
+    const keys = target.key;
+    let keyWins = false;
     for (let u = 0; u < n; u += 1) {
       let lowest: string;
       if (u === candidate.course) lowest = candidate.section.id;
@@ -487,9 +427,13 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
           }
         }
       }
-      if (lowest !== target.key[u]) return lowest < target.key[u];
+      if (lowest !== keys[u]) {
+        keyWins = lowest < keys[u];
+        break;
+      }
     }
-    return false;
+    if (evidenceUpper > target.evidence) return true;
+    return keyWins;
   }
 
   function recordLeaf(): void {
@@ -497,15 +441,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     const pairs = completeCost();
     if (pairs < 0) return;
     const cost = selfSum + weights.fewerDays * COST_PER_DAY * popcount(daysUsed) + pairs;
-    // Mean instructor evidence over the picks in evidence-eligible courses:
-    // each eligible pick contributes its precomputed evidence, ineligible
-    // courses contribute nothing for any plan (the omit-per-course rule),
-    // so missing data is never treated as evidence. With no eligible
-    // course the evidence is 0 for every plan and the key decides. The sum
-    // runs in course order over candidate.evidence, the same values in the
-    // same order canWinTie's bound sums.
-    const evidence = eligibleCount > 0 ? picks.reduce((sum, pick) => sum + pick.evidence, 0) / eligibleCount : 0;
-    const leaf: Leaf = { picks: [...picks], cost, evidence, key: picks.map((pick) => pick.section.id) };
+    const leaf: Leaf = { picks: [...picks], cost, key: picks.map((pick) => pick.section.id), evidence: evidenceSum };
     options.onLeaf?.(leaf);
     if (options.stopAtFirst) {
       best = leaf;
@@ -853,6 +789,8 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       for (let w = 0; w < words; w += 1) next[w] = alive[w] & ~conflict[w];
       assigned[candidate.course] = candidate;
       selfSum += candidate.self;
+      evidenceSum += candidate.evidence;
+      if (courses[candidate.course].evidenceCounted) countedAssigned += 1;
       const previousDays = daysUsed;
       daysUsed |= candidate.dayMask;
       insertMeetings(candidate);
@@ -870,6 +808,8 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       removeMeetings(candidate);
       daysUsed = previousDays;
       selfSum -= candidate.self;
+      evidenceSum -= candidate.evidence;
+      if (courses[candidate.course].evidenceCounted) countedAssigned -= 1;
       assigned[candidate.course] = null;
     }
   }

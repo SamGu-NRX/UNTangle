@@ -46,6 +46,18 @@ describe("Details beside the week", () => {
     await view.unmount();
   });
 
+  test("an in-person class with no room yet makes the walking at least its known part; an online class leaves it complete", async () => {
+    const now = [mwf("CSCE 2110", "9:00", "9:50", "gab"), mwf("MATH 2700", "10:00", "10:50", "cury")];
+    const elsewhere = (kind: "unassigned" | "online", room: string) =>
+      section({ courseCode: "MATH 2700", meetings: (["Mon", "Wed", "Fri"] as const).map((day) => meeting({ day, at: "10:00", until: "10:50", building: null, room, kind })) });
+    const unassigned = await details(now, [mwf("CSCE 2110", "9:00", "9:50", "gab"), elsewhere("unassigned", "No Facility Assigned")]);
+    expect(unassigned.row("Walking a week")).toEqual({ now: "15 min", option: "At least 0 min", change: null });
+    await unassigned.view.unmount();
+    const online = await details(now, [mwf("CSCE 2110", "9:00", "9:50", "gab"), elsewhere("online", "UNT Internet Course")]);
+    expect(online.row("Walking a week")).toEqual({ now: "15 min", option: "0 min", change: "better" });
+    await online.view.unmount();
+  });
+
   test("a walk with no known time makes the option's walking at least its known part, judged neither way", async () => {
     const now = [mwf("CSCE 2110", "9:00", "9:50", "gab"), mwf("MATH 2700", "10:00", "10:50", "cury")];
     const option = [mwf("CSCE 2110", "9:00", "9:50", "gab"), mwf("MATH 2700", "10:00", "10:50", "annex")];

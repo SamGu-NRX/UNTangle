@@ -458,3 +458,15 @@ test("the shared expansion budget skips unbounded rules instead of walking forev
   expect(result.skipped.every((s) => s.reason.includes("budget"))).toBe(true);
   expect(result.occurrences).toEqual([]);
 });
+
+test("CATEGORIES keeps escaped commas inside a name and adds up across repeated properties", () => {
+  const raw = ics(event(
+    "UID:tags@test",
+    "DTSTART:20261020T180000Z",
+    "DTEND:20261020T190000Z",
+    "SUMMARY:Tagged",
+    "CATEGORIES:Arts\\, Culture,Music",
+    "CATEGORIES:Free Food",
+  ));
+  expect(withEvents(parseCalendarFeed(raw, YEAR_2026))[0]?.categories).toEqual(["Arts, Culture", "Music", "Free Food"]);
+});

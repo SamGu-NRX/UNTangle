@@ -8,7 +8,8 @@
  *
  * Flags:
  *   --term <id>            required, e.g. spring-2027
- *   --out <dir>            required; holds releases/, pointers/ and state.json
+ *   --out <dir>            required; holds releases/, pointers/, state.json and
+ *                          bodies/ (the last body of each fetched file, for a 304)
  *   --dry-run              fetch and report, write nothing
  *   --subjects=A,B         overlay these subject files before building
  *   --watch-term=<id>      a term to watch for first appearance; repeatable;
@@ -40,12 +41,14 @@ function parseArguments(argv: readonly string[]): Arguments | string {
       if (next === undefined) throw new Error(`${name} needs a value`);
       return next;
     };
+    // Exact names only: a prefix match would read --terminal as --term.
+    const is = (name: string) => argument === name || argument.startsWith(`${name}=`);
     if (argument === "--dry-run") arguments_.dryRun = true;
-    else if (argument.startsWith("--term")) arguments_.term = value("--term");
-    else if (argument.startsWith("--out")) arguments_.out = value("--out");
-    else if (argument.startsWith("--subjects")) {
+    else if (is("--term")) arguments_.term = value("--term");
+    else if (is("--out")) arguments_.out = value("--out");
+    else if (is("--subjects")) {
       arguments_.subjects = value("--subjects").split(",").map(subject => subject.trim().toUpperCase()).filter(Boolean);
-    } else if (argument.startsWith("--watch-term")) {
+    } else if (is("--watch-term")) {
       const watched = value("--watch-term");
       if (watched === "none") arguments_.watchTerms = [];
       else {

@@ -5,9 +5,11 @@
  * classes, overlapping finals, or a walk that can never fit).
  *
  * Nothing here can drop a section that some valid schedule uses, with one
- * deliberate exception: a section whose meetings, buildings and final are identical
+ * deliberate exception: a section whose meetings, places and final are identical
  * to a cheaper one of the same course (a "twin") is dropped, because the
- * cheaper twin always ranks ahead of it (see `dropTwins`). The browse list
+ * cheaper twin always ranks ahead of it; at equal cost the twin with the
+ * stronger instructor evidence ranks ahead, and the lower id settles what
+ * the omit rule leaves equal (see `dropTwins`). The browse list
  * keeps twins (`keepTwins`), since it lists every section.
  */
 
@@ -25,15 +27,20 @@ import {
   type OptSection,
   type OptWeights,
 } from "./types";
-import { courseEvidenceEligible, neutralRatingTenths, sectionEvidence, selfCost, transferFits, UNKNOWN_WALK_SECONDS, walkSeconds } from "./score";
+import { neutralRatingTenths, noWalkBetween, placeOf, selfCost, transferFits, UNKNOWN_WALK_SECONDS, walkSeconds } from "./score";
 import { dayNumber, someBackToBack, weekSegments } from "./weeks";
+import {
+  instructorEvidenceContributions,
+} from "@untangle/core/instructor-tiebreak";
 
 export type PreparedMeeting = {
   day: number;
   start: number;
   end: number;
-  /** Interned building index; -1 when the meeting has no building. */
+  /** Interned building index; -1 when the meeting has no mapped building. */
   building: number;
+  /** The place key used to decide whether a walk exists. */
+  place: string | null;
   /** Bit s set when the meeting has a weekday occurrence in activity segment s; undated uses the term. */
   weeks: number;
 };
@@ -45,32 +52,23 @@ export type Candidate = {
   /** Index into `Prepared.courses` (courses sorted by code). */
   course: number;
   self: number;
-  /**
-   * The section's contribution to a schedule's instructor evidence: its
-   * known gpa when the course is evidence-eligible, else 0. Precomputed so
-   * the search never re-derives eligibility, and so the leaf mean and the
-   * completion bound sum the exact same values in the exact same order.
-   */
-  evidence: number;
   /** Bit i set when the section meets on OPT_DAYS[i]. */
   dayMask: number;
   /** Interned meeting-time pattern (days, starts, ends), comparable within a course. */
   timeSignature: number;
   meetings: PreparedMeeting[];
+  /**
+   * What the section's instructor adds to the evidence tie-break, in
+   * hundredths: core's per-option contribution
+   * (`instructorEvidenceContributions`) — its evidence when the course
+   * counts under the omit rule, else 0.
+   */
+  evidence: number;
 };
 
 export type PreparedCourse = {
   code: string;
   credits: number;
-  /**
-   * Whether every section of the request course has a known
-   * instructorGpa, by `courseEvidenceEligible` on the request course:
-   * only then does the course contribute evidence for any option (the
-   * omit-per-course rule). The reasons module recomputes the same flag
-   * from the same request with the same shared function, so the two
-   * sides cannot disagree.
-   */
-  evidenceEligible: boolean;
   /** Candidates ascending by (self cost, section id). */
   candidates: Candidate[];
   /** First word of this course's bits; each course's bits start on a word boundary. */
@@ -80,6 +78,10 @@ export type PreparedCourse = {
   byDayMask: Array<{ dayMask: number; bits: Uint32Array }>;
   /** Number of candidates before the time-of-day, day-off and blocked-time checks. */
   sectionsBeforeConstraints: number;
+  /** Whether every option the request lists for this course has accepted evidence (core's omit rule, via `instructorEvidenceContributions`). */
+  evidenceCounted: boolean;
+  /** The most any live candidate contributes to the tie-break: an upper bound on the course's evidence term. */
+  maxEvidence: number;
 };
 
 export type Prepared = {
@@ -98,6 +100,8 @@ export type Prepared = {
   weights: OptWeights;
   totalCredits: number;
   maxCredits: number | null;
+  /** Courses whose evidence enters the tie-break: every option has accepted evidence. 0 leaves the tier inert. */
+  evidenceCourses: number;
   /** How many courses two alternatives must place at different times (see diversity in optimize.ts). */
   minDifferentCourses: number;
   creditsByCourse: Record<string, number>;
@@ -158,6 +162,12 @@ export function validateRequest(request: OptimizeRequest, checkDeadline: () => v
       if (section.courseCode !== course.code) {
         throw new OptimizerInputError(`section ${section.id} belongs to ${section.courseCode}, listed under ${course.code}`);
       }
+      const gpa = section.instructorGpaHundredths;
+      if (gpa !== undefined && gpa !== null && !isInteger(gpa, 0, 400)) {
+        throw new OptimizerInputError(
+          `section ${section.id} has invalid instructor GPA hundredths ${JSON.stringify(gpa)}; expected a whole number from 0 to 400, or null when there is no accepted evidence`,
+        );
+      }
       if (section.meetings.length === 0) throw new OptimizerInputError(`section ${section.id} has no meetings`);
       const exam = section.exam;
       if (exam !== undefined && exam !== null) {
@@ -177,13 +187,6 @@ export function validateRequest(request: OptimizeRequest, checkDeadline: () => v
         if (dates === undefined || dates === null) continue;
         validateDates(dates, `section ${section.id} meeting`);
         if (request.term === undefined) throw new OptimizerInputError("term is required when any meeting has dates");
-      }
-      if (section.instructorGpa !== undefined && section.instructorGpa !== null) {
-        if (!Number.isFinite(section.instructorGpa) || section.instructorGpa < 0 || section.instructorGpa > 4) {
-          throw new OptimizerInputError(
-            `section ${section.id} has invalid instructorGpa ${section.instructorGpa}; expected a grade-point number 0..4 or null`,
-          );
-        }
       }
     }
   }
@@ -323,7 +326,7 @@ export function timeSignatureOf(meetings: readonly OptMeeting[]): string {
 
 function fullSignatureOf(meetings: readonly OptMeeting[]): string {
   return meetings
-    .map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}~${datesKey(m)}@${m.buildingId ?? ""}`)
+    .map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}~${datesKey(m)}@${placeOf(m) ?? ""}`)
     .sort()
     .join(",");
 }
@@ -392,6 +395,39 @@ export function prepare(
   validateRequest(request, checkDeadline);
   const { constraints, weights } = request;
   const sortedCourses = [...request.courses].sort((a, b) => compareIds(a.code, b.code));
+  // Core owns the omit rule (packages/core/src/instructor-tiebreak.ts): a
+  // course's evidence enters the tie-break only when every option the request
+  // lists has accepted evidence — one option without evidence leaves the
+  // course out for every option, so a schedule can never gain the tier by
+  // dropping that option. `validateRequest` above has already thrown the
+  // louder `OptimizerInputError` on any evidence core would reject.
+  // A course with zero options is an unsatisfiable request, not an error: it
+  // contributes no options, never counts, and the search below finds nothing
+  // for it — but every course in the request keeps an entry in the evidence
+  // map, because the prepared course below reads its counted flag.
+  const evidenceHundredths: Record<string, { counted: boolean; options: Record<string, number> }> = {};
+  for (const course of sortedCourses) {
+    if (course.sections.length === 0) {
+      evidenceHundredths[course.code] = { counted: false, options: {} };
+      continue;
+    }
+    Object.assign(
+      evidenceHundredths,
+      instructorEvidenceContributions([
+        {
+          courseCode: course.code,
+          options: Object.fromEntries(
+            course.sections.map((section) => [
+              section.id,
+              typeof section.instructorGpaHundredths === "number"
+                ? { kind: "known" as const, meanGradePointsHundredths: section.instructorGpaHundredths }
+                : { kind: "unknown" as const },
+            ]),
+          ),
+        },
+      ]),
+    );
+  }
   // Buildings matter only to walking. With walking unweighted and unchecked,
   // every meeting is treated as "no building" and no walking time is fetched.
   const walkingMatters = weights.walking > 0 || constraints.walking !== null;
@@ -451,7 +487,7 @@ export function prepare(
    */
   const tightPair = (prev: PreparedMeeting, next: PreparedMeeting) =>
     bufferMinutes !== null &&
-    !(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0) &&
+    !noWalkBetween(prev, next) &&
     next.start - prev.end < globalMinDuration &&
     !transferFits(prev, next, walkOf(prev.building, next.building), bufferMinutes);
 
@@ -464,16 +500,19 @@ export function prepare(
 
   sortedCourses.forEach((course, courseIndex) => {
     const neutral = neutralRatingTenths(course.sections);
-    // Omit-per-course evidence: computed once per request course with the
-    // shared predicate, then baked into every candidate's contribution.
-    const evidenceEligible = courseEvidenceEligible(course);
     neutralRatingByCourse[course.code] = neutral;
     creditsByCourse[course.code] = course.credits;
+    // Core's omit rule: the course's evidence enters the tie-break only when
+    // every option the request lists has accepted evidence — one option
+    // without evidence leaves the course out for every option, so a schedule
+    // can never gain the tier by dropping that option.
+    const courseEvidence = evidenceHundredths[course.code];
+    const evidenceCounted = courseEvidence.counted;
     const allowed = allowedByCourse[courseIndex];
     const kept: Candidate[] = [];
     for (const section of allowed) {
       const meetings: PreparedMeeting[] = section.meetings
-        .map((m) => ({ day: DAY_INDEX.get(m.day)!, start: m.start, end: m.end, building: intern(m.buildingId), weeks: segments.maskOf(m) }))
+        .map((m) => ({ day: DAY_INDEX.get(m.day)!, start: m.start, end: m.end, building: intern(m.buildingId), place: placeOf(m), weeks: segments.maskOf(m) }))
         .sort((a, b) => a.day - b.day || a.start - b.start);
       // Two meetings of one section are checked like any other pair: they
       // may not overlap, and the walk between them must fit.
@@ -498,9 +537,10 @@ export function prepare(
         section,
         course: courseIndex,
         self: selfCost(section, weights, neutral),
-        evidence: sectionEvidence(section, evidenceEligible),
         dayMask: meetings.reduce((mask, m) => mask | (1 << m.day), 0),
         timeSignature: signatureId,
+        // The candidate's evidence contribution, from core's omit rule.
+        evidence: courseEvidence.options[section.id],
         meetings,
       });
     }
@@ -515,12 +555,13 @@ export function prepare(
     courses.push({
       code: course.code,
       credits: course.credits,
-      evidenceEligible,
       candidates: ordered,
       wordLo,
       wordHi: word,
       byDayMask: [],
       sectionsBeforeConstraints: allowedSections(course, request).length,
+      evidenceCounted,
+      maxEvidence: ordered.reduce((max, candidate) => Math.max(max, candidate.evidence), 0),
     });
   });
 
@@ -634,6 +675,7 @@ export function prepare(
     words,
     conflicts,
     walk,
+    evidenceCourses: courses.filter((course) => course.evidenceCounted).length,
     buildingCount,
     bufferSeconds: bufferMinutes === null ? null : bufferMinutes * 60,
     weekSegments: segments.count,
@@ -668,17 +710,14 @@ function incompatible(a: Candidate, b: Candidate, tightPair: (prev: PreparedMeet
 }
 
 /**
- * Of sections with identical meetings in identical buildings and the same
- * final, keep the one with the lowest (self cost, most instructor evidence,
- * id). Every other cost term and every hard constraint depend only on
- * meetings, buildings and the final, and the diversity rule only on meeting
- * times, so the kept twin is at least as good in every schedule and wins the
- * tie-break: the dropped twin can never be returned at any rank. Twins share
- * meetings, so their schedules differ only by the twin's own evidence
- * contribution; the stronger one wins every comparison, and equal
- * contributions fall back to the id as before. When neither the walking
- * weight nor the walking check is on, buildings affect nothing, so sections
- * with the same times and final are twins regardless of room.
+ * Of sections with identical meetings in identical places and the same final,
+ * keep the one with the lowest (self cost, id). Every other cost term and every
+ * hard constraint depend only on meetings, places and the final, and the
+ * diversity rule only on meeting times, so the kept twin is at least as good in
+ * every schedule and wins the id tie-break: the dropped twin can never be
+ * returned at any rank. When neither the walking weight nor the walking check
+ * is on, places affect nothing, so sections with the same times and final are
+ * twins regardless of room.
  */
 function dropTwins(candidates: Candidate[], walkingMatters: boolean): Candidate[] {
   const best = new Map<string, Candidate>();
@@ -691,6 +730,9 @@ function dropTwins(candidates: Candidate[], walkingMatters: boolean): Candidate[
     if (
       !current ||
       candidate.self < current.self ||
+      // Equal-cost twins differ only in the tie-break: the stronger
+      // instructor's evidence wins when the course counts, and the lower id
+      // settles what the omit rule leaves equal (all evidence 0).
       (candidate.self === current.self &&
         (candidate.evidence > current.evidence ||
           (candidate.evidence === current.evidence && compareIds(candidate.section.id, current.section.id) < 0)))
