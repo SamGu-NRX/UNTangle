@@ -21,6 +21,7 @@ import { PLANNING_TERM } from "@/lib/terms";
 import { createSavedPlanStore, exportPlanJson, subscribeSavedPlans, type SavedPlanStoreFailure, type StoreReadResult } from "@/lib/saved-plans/store";
 import { getInitialPlannerState } from "@/lib/planner";
 import type { PlannerState } from "@/lib/types";
+import type { PlanStamp } from "@/lib/planner-transaction";
 import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
 import { saveOutcome } from "@/lib/connect/review";
 import { adoptCopy, announcementStep, noteLanded, undoAdoption, type Adoption } from "./adopt";
@@ -154,6 +155,15 @@ export function SchedulesClient() {
   const importRef = useRef<HTMLInputElement | null>(null);
   const rowButtons = useRef(new Map<string, HTMLButtonElement>());
   const compareButton = useRef<HTMLButtonElement | null>(null);
+  const archivedToggle = useRef<HTMLButtonElement | null>(null);
+  const focusArchived = useRef(false);
+  useEffect(() => {
+    // Archiving can remove both the menu trigger and the panel's return target.
+    if (focusArchived.current && archivedToggle.current) {
+      archivedToggle.current.focus();
+      focusArchived.current = false;
+    }
+  });
   /** Phone: the button that pushes the comparison, where Back returns focus. */
   const showCompareButton = useRef<HTMLButtonElement | null>(null);
 
@@ -175,7 +185,7 @@ export function SchedulesClient() {
     setViewingCompare(false);
   };
   const focusTarget = () =>
-    comparing ? (phone ? showCompareButton.current : compareButton.current) : (selected && rowButtons.current.get(selected)) || null;
+    comparing ? (phone ? showCompareButton.current : compareButton.current) : (selected && rowButtons.current.get(selected)) || archivedToggle.current;
 
   function pickRow(entry: Entry) {
     if (comparing) {
@@ -197,6 +207,11 @@ export function SchedulesClient() {
 
   // A toast's Undo runs long after the render that made it: it reads the planner through this.
   const plannerNow = useRef(planner);
+  const announce = useRef<
+    | { kind: "adoption"; name: string; adoption: Adoption }
+    | { kind: "restore"; label: string; result: Extract<Replaced, { status: "replaced" }>; stamp: PlanStamp }
+    | null
+  >(null);
   useEffect(() => {
     plannerNow.current = planner;
   });
@@ -220,16 +235,7 @@ export function SchedulesClient() {
       toast(`${label} is no longer available.`);
       return;
     }
-    toast({
-      message: `Restored ${label}`,
-      action: {
-        label: "Undo",
-        onClick: async () => {
-          const undone = await plannerNow.current.transact(undoReplace(result), stamp);
-          if (undone.status !== "committed" || !undone.result) changedSince();
-        },
-      },
-    });
+    announce.current = { kind: "restore", label, result, stamp };
   }
 
   /** The pending "Use in Main" whose Undo is on the toast (adopt.ts). */
@@ -240,7 +246,6 @@ export function SchedulesClient() {
 
   // Success is said only once the new Main is stored (#37's honest-save rule). Until then, or
   // when the save fails or meets a newer version from another tab, the save panel shows below.
-  const announce = useRef<{ name: string; adoption: Adoption } | null>(null);
   const outcome = saveOutcome(planner.saveState.status, Boolean(planner.conflict));
   useEffect(() => {
     // Runs on every commit: the save state arriving re-renders this page.
@@ -249,8 +254,22 @@ export function SchedulesClient() {
     if (step === "wait") return;
     const pending = announce.current;
     announce.current = null;
-    // A save that failed or met a newer version isn't this adoption landing; a later save mustn't announce it.
+    // A save that failed or met a newer version didn't land; a later save mustn't announce it.
     if (step === "drop") return;
+    if (pending.kind === "restore") {
+      const { label, result, stamp } = pending;
+      toast({
+        message: `Restored ${label}`,
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const undone = await plannerNow.current.transact(undoReplace(result), stamp);
+            if (undone.status !== "committed" || !undone.result) changedSince();
+          },
+        },
+      });
+      return;
+    }
     const { name, adoption } = pending;
     toast({
       message: `Main now uses ${name}`,
@@ -273,7 +292,7 @@ export function SchedulesClient() {
     await planner.afterHydration();
     const adoption = adoptCopy(plannerNow.current, snapshot);
     pendingUndo.current = adoption;
-    announce.current = { name: entry.name, adoption };
+    announce.current = { kind: "adoption", name: entry.name, adoption };
   }
 
   function saveCopy(name: string) {
@@ -339,8 +358,12 @@ export function SchedulesClient() {
         label: "Archive",
         destructive: true,
         onSelect: () => {
-          if (selected === plan.planId) setSelected(null);
-          report(store.setPlanArchived(plan.planId, true), `Archived “${plan.name}”`);
+          const result = store.setPlanArchived(plan.planId, true);
+          if (result.ok) {
+            focusArchived.current = true;
+            if (selected === plan.planId) setSelected(null);
+          }
+          report(result, `Archived “${plan.name}”`);
         },
       },
     ];
@@ -523,7 +546,7 @@ export function SchedulesClient() {
 
       {entries.archived.length ? (
         <section className={styles.term}>
-          <button type="button" className={styles.groupToggle} aria-expanded={showArchived} onClick={() => setShowArchived((on) => !on)}>
+          <button ref={archivedToggle} type="button" className={styles.groupToggle} aria-expanded={showArchived} onClick={() => setShowArchived((on) => !on)}>
             Archived
             {showArchived ? null : <span className={styles.count}>{entries.archived.length}</span>}
           </button>
