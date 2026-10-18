@@ -176,26 +176,24 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
     return { termId, outcome: "error", reason: "absent-upstream", detail: `the mirror has no file for ${termId}`, fetched, subjects: subjectReports, termWatch: [], wrote: false };
   }
   const subjects = options.subjects ?? [];
-  // With no subjects, a 304 means the build would repeat the published one.
-  // With subjects, the cached term body is rebuilt, since a subject file can
-  // change while the term file does not.
-  if (termOutcome.kind === "not-modified" && !subjects.length) {
-    return { termId, outcome: "unchanged", reason: "not-modified", detail: `HTTP 304 for ${termUrl}; the published release stays`, fetched, subjects: subjectReports, termWatch: await runWatch(), wrote: false };
-  }
+  const pointer = await sink.readPointer(termId);
 
-  // 2. Subject overlays, then build. A subject file that fails its own
-  //    schema check, or that the mirror no longer has, is dropped and
+  // 2. Subject overlays, then build. A 304 builds from the cached term body:
+  //    it confirms that body, not that it was published, since a publish can
+  //    fail after the state saved its validators. The content hash check in
+  //    step 3 decides whether anything changed. A subject file that fails its
+  //    own schema check, or that the mirror no longer has, is dropped and
   //    reported; the term file's slice for that subject stands. A subject the
   //    run could not ask about (deferred or failed) uses its cached body, and
   //    with none cached the run publishes nothing, since the term file's
   //    slice may be older than the overlay already published.
   const termBody = await bodyOf(termUrl, termOutcome) as string;
   let body = termBody;
+  const overlays: Array<{ subject: string; body: string }> = [];
+  const unavailable: string[] = [];
   if (subjects.length) {
     const requests = subjects.map(subject => ({ term: termId, subject }));
     const outcomes = await mirror.fetchFiles(requests);
-    const overlays: Array<{ subject: string; body: string }> = [];
-    const unavailable: string[] = [];
     for (const { request, url, outcome } of outcomes) {
       record(url, outcome);
       const subject = request.subject as string;
@@ -214,11 +212,44 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
       subjectReports.push({ subject, applied: true, ...(notAsked ? { detail: `from the cached body; the fetch was ${outcome.kind}` } : {}) });
       overlays.push({ subject, body: subjectBody });
     }
-    if (unavailable.length) {
-      return { termId, outcome: "error", reason: "subject-unavailable", detail: `${unavailable.join(", ")}: not fetched and no cached body; the published release stays`, fetched, subjects: subjectReports, termWatch: await runWatch(), wrote: false };
-    }
-    if (overlays.length) body = overlaySubjects(termBody, overlays);
   }
+  // An unchanged term file's slices are no fresher than the subject files
+  // the published release was built with, so a 304 rebuild keeps those it
+  // was not asked for, from their cached bodies. One it cannot reapply
+  // stops the run, so it never publishes an older slice. A release with no
+  // record (published before records existed) may carry any overlay, so a
+  // run that requests no subjects publishes nothing over it.
+  if (termOutcome.kind === "not-modified" && pointer !== null) {
+    const published = await readOverlaySubjects(outDir, pointer.contentSha256);
+    if (published === null && !subjects.length) {
+      return {
+        termId,
+        outcome: "error",
+        reason: "overlay-unknown",
+        detail: `${pointer.releaseId} has no record of the subject files it was built with, so a rebuild from the term file could replace a fresher subject slice; it stays published until a run with subjects or a changed term file records one`,
+        fetched,
+        subjects: subjectReports,
+        termWatch: await runWatch(),
+        wrote: false,
+      };
+    }
+    for (const subject of published ?? []) {
+      if (subjects.includes(subject)) continue;
+      const entry = await readCachedBody(outDir, mirror.urlFor(termId, subject));
+      const check = entry === null ? null : checkSubjectFile(entry.body, termId, subject);
+      if (entry === null || !check?.ok) {
+        unavailable.push(subject);
+        subjectReports.push({ subject, applied: false, detail: `in the published release, but ${check && !check.ok ? check.detail : "no cached body"}` });
+        continue;
+      }
+      subjectReports.push({ subject, applied: true, detail: "kept from the published release, from the cached body" });
+      overlays.push({ subject, body: entry.body });
+    }
+  }
+  if (unavailable.length) {
+    return { termId, outcome: "error", reason: "subject-unavailable", detail: `${unavailable.join(", ")}: no body to apply; the published release stays`, fetched, subjects: subjectReports, termWatch: await runWatch(), wrote: false };
+  }
+  if (overlays.length) body = overlaySubjects(termBody, overlays);
 
   const built = buildSectionRelease({ body, sourceId: "vsb-untgrades", institutionId: "unt", termId, fetchedAt: new Date(now()).toISOString() });
   if (!built.ok) {
@@ -232,9 +263,13 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
   const next = built.release;
 
   // 3. Compare with the last good release.
-  const pointer = await sink.readPointer(termId);
   const previous = pointer ? await sink.readContent(pointer.file) : null;
   if (previous !== null && previous.manifest.contentSha256 === next.manifest.contentSha256) {
+    // This build is the published content, so its subjects describe the
+    // published release too; record them when it has no record yet.
+    if (!dryRun && (await readOverlaySubjects(outDir, next.manifest.contentSha256)) === null) {
+      await writeOverlaySubjects(outDir, next.manifest.contentSha256, overlays.map(overlay => overlay.subject).sort());
+    }
     return { termId, outcome: "unchanged", detail: "same content hash as the published release", previousReleaseId: pointer?.releaseId, fetched, subjects: subjectReports, termWatch: await runWatch(), wrote: false };
   }
   const diff = previous ? diffReleases(previous, next) : null;
@@ -257,6 +292,7 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
 
   // 4. Publish: content first, pointer last. A dry run stops here.
   if (!dryRun) {
+    await writeOverlaySubjects(outDir, next.manifest.contentSha256, overlays.map(overlay => overlay.subject).sort());
     await sink.putContent(next);
     await sink.putPointer(next, new Date(now()).toISOString());
   }
@@ -378,6 +414,38 @@ async function readCachedBody(outDir: string, url: string): Promise<CachedBody |
   } catch {
     return null;
   }
+}
+
+/**
+ * Which subject files a release was built with, keyed by its content hash
+ * so a failed publish never overwrites the record of the release still
+ * published. Written before the release, so a published release always has one.
+ */
+function overlaySubjectsPath(outDir: string, contentSha256: string): string {
+  return path.join(outDir, "overlays", `${contentSha256}.json`);
+}
+
+async function writeOverlaySubjects(outDir: string, contentSha256: string, subjects: string[]): Promise<void> {
+  const file = overlaySubjectsPath(outDir, contentSha256);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(`${file}.tmp`, JSON.stringify({ subjects }), "utf8");
+  await rename(`${file}.tmp`, file);
+}
+
+/** The subjects a release was built with; null when it has no record, as for a release published before records existed. */
+async function readOverlaySubjects(outDir: string, contentSha256: string): Promise<string[] | null> {
+  let raw: string;
+  try {
+    raw = await readFile(overlaySubjectsPath(outDir, contentSha256), "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+  const parsed = JSON.parse(raw) as { subjects?: unknown };
+  if (!Array.isArray(parsed.subjects) || !parsed.subjects.every(subject => typeof subject === "string")) {
+    throw new Error(`${overlaySubjectsPath(outDir, contentSha256)} does not list subjects`);
+  }
+  return parsed.subjects;
 }
 
 /** Fetch state lives beside the releases, so one-shot CLI runs keep their etags and budget. */

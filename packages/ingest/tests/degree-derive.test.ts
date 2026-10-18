@@ -84,6 +84,26 @@ describe("parseUnits", () => {
     expect(units[1]!.orBefore).toBe(true);
   });
 
+  test("an or with marker yields the same units as a with either marker", () => {
+    const items = (text: string): FlowItem[] => [group("BIOL 4510"), { type: "marker", text }, group("BIOL 3800")];
+    const expected = parseUnits(items("with either"));
+    expect(expected).toEqual([{ must: ["BIOL 4510"], either: ["BIOL 3800"], anyOf: [], orBefore: false }]);
+    expect(parseUnits(items("or with"))).toEqual(expected);
+  });
+
+  test("an unreadable marker after a course group throws with its text", () => {
+    expect(() => parseUnits([group("BIOL 4510"), { type: "marker", text: "nor" }])).toThrow('Unreadable course connector: "nor"');
+  });
+
+  test("an unreadable course-group connector throws even at the end of a run", () => {
+    const runs: FlowItem[][] = [
+      [group("BIOL 4510", "nor"), group("BIOL 3800")],
+      [group("BIOL 4510", "nor")],
+      [group("BIOL 1710", "and/or"), group("BIOL 1720", "nor")],
+    ];
+    for (const items of runs) expect(() => parseUnits(items)).toThrow('Unreadable course connector: "nor"');
+  });
+
   test("and/or with a shared lab gives each lecture with the lab, and both lectures as two picks", () => {
     // The CS lab science bullets: "BIOL 1710 and/or", "BIOL 1720", "and", "BIOL 1760".
     const units = parseUnits([group("BIOL 1710", "and/or"), group("BIOL 1720"), { type: "marker", text: "and" }, group("BIOL 1760")]);

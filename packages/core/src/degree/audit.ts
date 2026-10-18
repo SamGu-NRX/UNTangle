@@ -528,15 +528,20 @@ function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
       // Every branch is tried against the claims made before the choice, so
       // each branch's progress is reported on equal terms. The first met
       // branch keeps its claims; when none is met, nothing is claimed and the
-      // branches' courses stay free for later nodes.
+      // branches' courses stay free for later nodes. A met choice keeps only
+      // its branch's unsettled courses, so a nested unmet choice in a branch
+      // the student did not take adds nothing.
       const start = scenario.used;
+      const startPartial = scenario.partial;
       const tried = node.branches.map((branch) => {
         scenario.used = new Set(start);
+        scenario.partial = new Set(startPartial);
         const evaluation = evaluate(branch.node, scenario);
-        return { branch: branch.name, evaluation, after: scenario.used };
+        return { branch: branch.name, evaluation, after: scenario.used, partial: scenario.partial };
       });
       const met = tried.find((entry) => entry.evaluation.state === "met");
       scenario.used = met ? met.after : start;
+      scenario.partial = met ? met.partial : new Set(tried.flatMap((entry) => [...entry.partial]));
       if (!met) for (const entry of tried) for (const code of entry.after) if (!start.has(code)) scenario.partial.add(code);
       const undecided = tried.some((entry) => entry.evaluation.state === "undecided");
       // Unmet, the choice names its closest branch; an undecided branch wins a tie.
@@ -764,6 +769,32 @@ function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied:
 }
 
 /**
+ * A policy read twice: over the courses the nodes placed, and again with the
+ * finished courses an unmet choice's branches took and released (`unsettled`).
+ * Those courses count only if their branch is the one the student finishes.
+ * CE's CSCE 3420 and 3530 are 6 advanced major hours toward Communication and
+ * Networks, and a D in either fails the major's C floor there, but neither
+ * counts if the student finishes another specialization. Reading only the
+ * placed courses would pass that C floor over the D, and reading every course
+ * would pass a residence check on hours that may never apply. So when the two
+ * readings disagree, the policy is unverifiable until a branch is met.
+ */
+function evaluatePolicyBeforeChoices(policy: PolicyNode, evidence: CourseEvidence[], applied: Set<string>, unsettled: Set<string>, pools: Scenario["pools"], options: AuditOptions): PolicyOutcome {
+  const placed = evaluatePolicy(policy, evidence, applied, pools, options);
+  const extra = [...unsettled].filter((code) => !applied.has(code)).sort();
+  if (extra.length === 0) return placed;
+  const widened = evaluatePolicy(policy, evidence, new Set([...applied, ...extra]), pools, options);
+  if (widened.detail === placed.detail) return placed;
+  const sentence = (text: string): string => (text.endsWith(".") ? text : `${text}.`);
+  const counting = `${sentence(placed.detail)} Counting ${extra.join(", ")}, from a choice no branch has met yet: ${sentence(widened.detail)}`;
+  // Hours and grade floors only move one way as courses are added, so two
+  // readings that agree hold for every way the choice can settle. A GPA can
+  // move either way, so for a GPA only an unchanged reading is conclusive.
+  if (widened.status === placed.status && policy.policy.type !== "gpa") return { ...placed, detail: counting };
+  return { ...placed, status: "unverifiable", detail: `${counting} Cannot verify until a branch is met.` };
+}
+
+/**
  * GPA over every graded attempt in scope: A through F carry grade points,
  * and an F's hours count with zero points ("all work attempted"). P, CR, W,
  * I, NP and in-progress rows carry no points and are skipped. A course
@@ -884,9 +915,10 @@ export function auditProgram(program: ProgramData, courses: readonly (AuditCours
   const requirements = now.evaluations.map((evaluation, index) => combine(evaluation, later.evaluations[index]!, withClaims.evaluations[index]!));
 
   // Grade floors and scoped totals read the courses the requirement nodes
-  // claimed from finished work. Advisory pool matches are never claimed,
-  // and claims never reach a policy: nothing verifies them.
-  const policies = policyNodes.map((node) => evaluatePolicy(node, [...evidence.values()], now.used, now.pools, options));
+  // claimed from finished work, and the ones an unmet choice released.
+  // Advisory pool matches are never claimed, and claims never reach a
+  // policy: nothing verifies them.
+  const policies = policyNodes.map((node) => evaluatePolicyBeforeChoices(node, [...evidence.values()], now.used, now.partial, now.pools, options));
 
   const count = (status: NodeOutcome["status"]): number => requirements.filter((result) => result.status === status).length;
   return {
