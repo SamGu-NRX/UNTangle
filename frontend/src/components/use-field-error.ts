@@ -12,6 +12,10 @@ import { useEffect, useRef, useState } from "react";
  * - If the field already has focus (the person pressed Enter in it), focus
  *   cannot move, so the text goes to a live region instead. A trailing
  *   no-break space alternates so a repeated message still changes it.
+ *
+ * Call `clear()` wherever the error clears, so the live region never holds
+ * a reason the field no longer shows: a later error reported by moving
+ * focus leaves the announcement as it is.
  */
 export function useFieldError() {
   const pendingFocus = useRef<HTMLElement | null>(null);
@@ -32,5 +36,9 @@ export function useFieldError() {
     }
   }
 
-  return { report, announcement };
+  function clear() {
+    setAnnouncement("");
+  }
+
+  return { report, clear, announcement };
 }

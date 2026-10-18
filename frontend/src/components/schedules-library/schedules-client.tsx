@@ -14,6 +14,7 @@ import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
 import { TextField } from "@/components/ui/TextField";
 import { toast } from "@/components/ui/Toast";
 import { PHONE_QUERY, useMediaQuery } from "@/components/ui/use-media-query";
+import { useFieldError } from "@/components/use-field-error";
 import { replaceWith, undoReplace, type Replaced } from "@/lib/plan-library/versions";
 import { eventsOf, usesSampleSections, weekBlocks, weekColors, type WeekBlock } from "@/lib/plan-library/week";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
@@ -79,7 +80,7 @@ const currentMinute = () => Math.floor(Date.now() / 60_000);
  */
 export function SchedulesClient() {
   const planner = usePlanner();
-  const { plannerState, scheduleEvents, sectionCatalog, candidateFilter, loadSections, transact } = planner;
+  const { plannerState, scheduleEvents, sectionCatalog, candidateFilter, evidenceHundredths, loadSections, transact } = planner;
   const phone = useMediaQuery(PHONE_QUERY);
   const store = useMemo(() => createSavedPlanStore(), []);
 
@@ -114,7 +115,7 @@ export function SchedulesClient() {
 
   // A handful of schedules, each resolved against the loaded sections: cheap enough to redo per
   // render, which also redraws a saved week as its course options arrive (catalogVersion).
-  // A copy is resolved with Main's filter, so its week is the one Use in Main would give.
+  // A copy is resolved with Main's filter and instructor evidence, so its week is the one Use in Main would give.
   const now = new Date(minute * 60_000);
   const main: Entry = {
     id: MAIN_ID,
@@ -132,13 +133,13 @@ export function SchedulesClient() {
     active: false,
     fact: whenText("Saved", plan.source.capturedAt, now),
     state: plan.state,
-    blocks: weekBlocks(eventsOf(plan.state, sectionCatalog, candidateFilter)),
+    blocks: weekBlocks(eventsOf(plan.state, sectionCatalog, candidateFilter, evidenceHundredths)),
     snapshot: plan,
   });
   const entries = { main, live: live.map(copy), archived: archived.map(copy) };
   // Said once, on the term heading (rule 6), whenever any week drawn here uses the bundled samples.
   const samples =
-    usesSampleSections(scheduleEvents) || plans.some((plan) => usesSampleSections(eventsOf(plan.state, sectionCatalog, candidateFilter)));
+    usesSampleSections(scheduleEvents) || plans.some((plan) => usesSampleSections(eventsOf(plan.state, sectionCatalog, candidateFilter, evidenceHundredths)));
   const all = [entries.main, ...entries.live, ...entries.archived];
   const find = (id: string | null) => all.find((entry) => entry.id === id) ?? null;
 
@@ -150,6 +151,9 @@ export function SchedulesClient() {
   const [showArchived, setShowArchived] = useState(false);
   const [naming, setNaming] = useState<{ kind: "save" } | { kind: "rename"; planId: string } | null>(null);
   const [nameValue, setNameValue] = useState("");
+  /** Why the typed name was refused ("Main", or another copy's), under the field until it changes. */
+  const [nameError, setNameError] = useState<string | null>(null);
+  const nameAnnouncer = useFieldError();
   const [importError, setImportError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement | null>(null);
   const importRef = useRef<HTMLInputElement | null>(null);
@@ -295,15 +299,28 @@ export function SchedulesClient() {
     announce.current = { kind: "adoption", name: entry.name, adoption };
   }
 
-  function saveCopy(name: string) {
-    const saved = store.savePlan({ state: plannerState, name: name.trim() || blankName });
+  /** Shows a "nameClash" refusal under the field and keeps the dialog open; true when it did. */
+  function refuseName(result: { ok: boolean; failure?: SavedPlanStoreFailure }): boolean {
+    if (result.ok || result.failure?.kind !== "nameClash") return false;
+    setNameError(result.failure.message);
+    nameAnnouncer.report(nameRef.current, result.failure.message);
+    bump();
+    return true;
+  }
+
+  /** Saves Main as a copy; false when the typed name was refused. A blank name saves as the placeholder's, numbered past any clash. */
+  function saveCopy(name: string): boolean {
+    const typed = name.trim();
+    const saved = typed ? store.savePlan({ state: plannerState, name: typed, onClash: "refuse" }) : store.savePlan({ state: plannerState, name: blankName });
+    if (refuseName(saved)) return false;
     if (!saved.ok) {
       toast({ message: saved.failure.message, tone: "error" });
       bump();
-      return;
+      return true;
     }
     toast(`Saved “${saved.value.name}”`);
     bump();
+    return true;
   }
 
   function report(result: { ok: boolean; failure?: SavedPlanStoreFailure }, message: string) {
@@ -330,13 +347,29 @@ export function SchedulesClient() {
 
   function submitName() {
     if (!naming) return;
-    if (naming.kind === "save") saveCopy(nameValue);
-    else {
+    if (naming.kind === "save") {
+      if (!saveCopy(nameValue)) return;
+    } else {
       const plan = plans.find((entry) => entry.planId === naming.planId);
       const value = nameValue.trim();
-      if (plan && value && value !== plan.name) report(store.renamePlan(plan.planId, value), `Renamed to “${value}”`);
+      if (plan && value && value !== plan.name) {
+        const renamed = store.renamePlan(plan.planId, value);
+        if (refuseName(renamed)) return;
+        report(renamed, `Renamed to “${value}”`);
+      }
     }
+    closeNaming();
+  }
+
+  function closeNaming() {
     setNaming(null);
+    clearNameError();
+  }
+
+  /** The field's refusal and its announcement go together, so the live region never speaks an old reason. */
+  function clearNameError() {
+    setNameError(null);
+    nameAnnouncer.clear();
   }
 
   function menuFor(entry: Entry): MenuEntry[] {
@@ -349,7 +382,7 @@ export function SchedulesClient() {
       ];
     }
     return [
-      { id: "rename", label: "Rename", onSelect: () => (setNameValue(plan.name), setNaming({ kind: "rename", planId: plan.planId })) },
+      { id: "rename", label: "Rename", onSelect: () => (setNameValue(plan.name), clearNameError(), setNaming({ kind: "rename", planId: plan.planId })) },
       { id: "duplicate", label: "Duplicate", onSelect: () => report(store.duplicatePlan(plan.planId), `Duplicated “${plan.name}”`) },
       { id: "export", label: "Export file", onSelect: () => exportPlan(plan) },
       { kind: "separator", id: "sep" },
@@ -371,6 +404,7 @@ export function SchedulesClient() {
 
   function startSaving() {
     setNameValue("");
+    clearNameError();
     setNaming({ kind: "save" });
   }
 
@@ -587,14 +621,14 @@ export function SchedulesClient() {
       <Dialog
         open={naming !== null}
         onOpenChange={(next) => {
-          if (!next) setNaming(null);
+          if (!next) closeNaming();
         }}
         title={naming?.kind === "rename" ? "Rename schedule" : "Save a copy of Main"}
         width={420}
         initialFocus={nameRef}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setNaming(null)}>
+            <Button variant="secondary" onClick={closeNaming}>
               Cancel
             </Button>
             <Button type="submit" form="schedule-name-form">
@@ -616,10 +650,17 @@ export function SchedulesClient() {
             value={nameValue}
             // The name a blank field saves, so leaving it empty holds no surprise.
             placeholder={naming?.kind === "save" ? blankName : undefined}
-            onChange={(event) => setNameValue(event.target.value)}
+            error={nameError}
+            onChange={(event) => {
+              setNameValue(event.target.value);
+              clearNameError();
+            }}
             autoComplete="off"
           />
         </form>
+        <p className="sr-only-v2" aria-live="assertive" aria-atomic="true">
+          {nameAnnouncer.announcement}
+        </p>
       </Dialog>
     </>
   );

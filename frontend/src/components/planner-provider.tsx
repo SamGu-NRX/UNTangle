@@ -44,7 +44,7 @@ import {
 } from "@/components/schedule/preferences-store";
 import { forgetGuestCalendars } from "@/lib/calendar-feeds/client";
 import { clearPlannerIdentity, createPlannerStateStore, PLANNER_STATE_STORE_KEY } from "@/lib/planner-store";
-import { clearSavedPlansIdentity, getSavedPlanIdentity, savedPlansKey, setSavedPlanIdentity, subscribeSavedPlans } from "@/lib/saved-plans/store";
+import { clearSavedPlansIdentity, getSavedPlanIdentity, savedPlansIn, savedPlansKey, setSavedPlanIdentity, subscribeSavedPlans } from "@/lib/saved-plans/store";
 import {
   plannerBox,
   reducePlannerBox,
@@ -58,6 +58,7 @@ import {
 import type { PlannerStoreIncoming } from "@/lib/planner-store";
 import type { AcademicRecordBody } from "../../../packages/contracts/src/documents";
 import { createSavedPlanStore } from "@/lib/saved-plans/store";
+import { previewCourseCodes } from "@/lib/plan-library/week";
 import { forgetGuestWork, guestWorkIsThisSession, stampGuestWork, STAMP_PREFIX } from "@/lib/guest-session";
 import { joinPlanner, splitPlanner } from "@/lib/planner-documents";
 import {
@@ -560,20 +561,37 @@ function IdentityPlannerProvider({
   useEffect(() => {
     if (plannedKey) sectionStore.ensure(plannedKey.split("|"));
   }, [plannedKey, sectionStore]);
-  // Accepted instructor evidence for the tie-break (Auto's request and this
-  // provider's sectionPlan): per planning course, each section's instructor
+  // The courses this identity's saved copies plan this term. Their previews tie-break on evidence like Main
+  // does, so a copy-only course needs its own (#172 review). Read from the stored bytes, which change only on a
+  // write, so a render parses nothing new; the sections themselves load where a preview asks for them.
+  const copiesOwner = sessionData?.user?.id ?? null;
+  const readSavedCopies = useCallback(() => {
+    if (!prepared) return null;
+    try {
+      return browserStorage()?.getItem(savedPlansKey(copiesOwner)) ?? null;
+    } catch {
+      return null;
+    }
+  }, [prepared, copiesOwner]);
+  const savedCopiesRaw = useSyncExternalStore(subscribeSavedPlans, readSavedCopies, () => null);
+  const copyCodes = useMemo(() => previewCourseCodes(savedPlansIn(savedCopiesRaw).map((plan) => plan.state)), [savedCopiesRaw]);
+  // Main's courses and the copies', once each: the courses that read instructor evidence.
+  const evidenceKey = [...new Set([...(plannedKey ? plannedKey.split("|") : []), ...copyCodes])].join("|");
+  // Accepted instructor evidence for the tie-break (Auto's request, this
+  // provider's sectionPlan and the saved copies' previews): per course in
+  // Main or a saved copy, each section's instructor
   // mean from the grade-history service. A course the service cannot read
   // maps to nulls — unknown evidence never enters the tie-break, so a
   // throttle never reads as weak grades.
   const [evidenceHundredths, setEvidenceHundredths] = useState<Record<string, Record<string, number | null>>>({});
-  // The map the plan and the context read: no planned courses read no
+  // The map the plan and the context read: no planned or copied courses read no
   // evidence, derived during render — the effect must not clear state
   // synchronously (react-hooks/set-state-in-effect), and the retained map
   // matches the once-per-session cache it feeds (histories are
   // session-stable; the next plan's fetch replaces the whole map).
   const shownEvidenceHundredths: Readonly<Record<string, Record<string, number | null>>> = useMemo(
-    () => (plannedKey ? evidenceHundredths : {}),
-    [plannedKey, evidenceHundredths],
+    () => (evidenceKey ? evidenceHundredths : {}),
+    [evidenceKey, evidenceHundredths],
   );
   // One fetch per course per session: a course's history does not change with
   // the catalog, so each catalogVersion re-maps the cached results instead of
@@ -581,7 +599,7 @@ function IdentityPlannerProvider({
   // bounded attempt, never a retry loop.
   const historiesRef = useRef(new Map<string, Promise<HistoryResult<CourseHistory>>>());
   useEffect(() => {
-    const codes = plannedKey ? plannedKey.split("|") : [];
+    const codes = evidenceKey ? evidenceKey.split("|") : [];
     if (codes.length === 0) return;
     const fetchOne = (code: string) => {
       const [subject, number = ""] = code.split(" ");
@@ -618,7 +636,7 @@ function IdentityPlannerProvider({
     return () => {
       cancelled = true;
     };
-  }, [plannedKey, sectionStore, catalogVersion]);
+  }, [evidenceKey, sectionStore, catalogVersion]);
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<PlannerSaveState>(PENDING);
   // Fingerprint the last `saved` acknowledgement covered. `Saved` is only

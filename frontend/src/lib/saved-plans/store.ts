@@ -6,6 +6,7 @@ import { equal } from "@untangle/sync";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
 import type { SavedPlanSnapshot, SavedPlanSource } from "@/lib/plan-library/snapshot-types";
 import type { PlannerState } from "@/lib/types";
+import { clashMessage, freeName, nameClash, nameKey } from "./names";
 
 /**
  * Local saved-plan library — a localStorage-backed store of plan snapshots.
@@ -89,7 +90,9 @@ export type SavedPlanStoreFailure = {
     | "corruptDataRecovered"
     | "quotaExceeded"
     | "invalidPayload"
-    | "planNotFound";
+    | "planNotFound"
+    /** The name is "Main" or another copy's (names.ts); `message` says which, for the name field. */
+    | "nameClash";
   message: string;
   quarantinedTo?: string;
 };
@@ -207,6 +210,15 @@ function parseDoc(raw: string | null): { doc: SavedPlanStoreDoc; notice: SavedPl
   };
 }
 
+/**
+ * The copies a library's stored bytes hold, read without writing anything:
+ * no quarantine and no migration, so it is safe during render. Bytes it
+ * can't read hold no copies.
+ */
+export function savedPlansIn(raw: string | null): SavedPlanSnapshot[] {
+  return parseDoc(raw).doc.plans;
+}
+
 export type SavedPlanStore = {
   /** True when localStorage is usable at all. */
   readonly available: boolean;
@@ -217,18 +229,30 @@ export type SavedPlanStore = {
   listQuarantined(): Array<{ key: string; size: number }>;
   /** Raw quarantined bytes for a key (null when missing or unreadable). */
   readQuarantined(key: string): string | null;
-  savePlan(input: { state: PlannerState; name?: string; now?: Date }): StoreWriteResult<SavedPlanSnapshot>;
+  /**
+   * Saves a copy. A name that is "Main" or another copy's gets a number
+   * ("Plan 2"), so a save the app makes on its own never fails on a name;
+   * `onClash: "refuse"`, for a name the student typed, refuses it instead
+   * with a "nameClash" failure.
+   */
+  savePlan(input: { state: PlannerState; name?: string; now?: Date; onClash?: "number" | "refuse" }): StoreWriteResult<SavedPlanSnapshot>;
   /**
    * Adds whole entries from another library (a guest's, moved on sign-in),
-   * every field kept. An entry already here unchanged is skipped; one whose
-   * id is taken by a different entry gets a new id and nothing else changes.
+   * every field kept but the name: one that is "Main" or a name already here,
+   * or earlier in `plans`, gets a number as an import does ("Plan A 2").
+   * Entries already here keep theirs. An entry already here that differs at
+   * most in name is skipped, so a retry doesn't add the numbered copy twice;
+   * one whose id is taken by a different entry gets a new id.
    */
   addSnapshots(plans: readonly SavedPlanSnapshot[]): StoreWriteResult<SavedPlanSnapshot[]>;
+  /** Refuses "Main" and another copy's name with a "nameClash" failure. */
   renamePlan(planId: string, name: string): StoreWriteResult<SavedPlanSnapshot>;
+  /** Names the copy "<name> (copy)", then "(copy 2)" and so on, past any name in use. */
   duplicatePlan(planId: string, now?: Date): StoreWriteResult<SavedPlanSnapshot>;
   setPlanArchived(planId: string, archived: boolean, now?: Date): StoreWriteResult<SavedPlanSnapshot>;
   /** Capture before async work, then pass to importPlan to refuse account changes. */
   captureIdentity(): symbol;
+  /** Keeps the file's name, numbered ("Plan 2") when it is "Main" or another copy's. */
   importPlan(raw: unknown, now?: Date, identityToken?: symbol): ImportPlanResult;
 };
 
@@ -353,7 +377,7 @@ export function createSavedPlanStore(storage?: Storage | null, userId: string | 
   }
 
   function mutate<T>(
-    mutator: (doc: SavedPlanStoreDoc) => { value: T } | null,
+    mutator: (doc: SavedPlanStoreDoc) => { value: T } | { failure: SavedPlanStoreFailure } | null,
   ): StoreWriteResult<T> {
     if (!available) {
       return {
@@ -398,6 +422,9 @@ export function createSavedPlanStore(storage?: Storage | null, userId: string | 
             message: "Saved plan not found in this library; it may have been changed in another tab.",
           },
         };
+      }
+      if ("failure" in applied) {
+        return { ok: false, failure: applied.failure };
       }
       const nextDoc: SavedPlanStoreDoc = {
         ...doc,
@@ -470,12 +497,14 @@ export function createSavedPlanStore(storage?: Storage | null, userId: string | 
       return readFromRaw(rawRead.raw);
     },
 
-    savePlan({ state, name, now }) {
-      return mutate((doc) => {
-        const capturedName = name && name.trim().length > 0 ? name.trim() : defaultPlanName(now ?? new Date());
+    savePlan({ state, name, now, onClash = "number" }) {
+      return mutate<SavedPlanSnapshot>((doc) => {
+        const typed = name && name.trim().length > 0 ? name.trim() : null;
+        const clash = typed && onClash === "refuse" ? nameClash(typed, doc.plans) : null;
+        if (clash) return { failure: { kind: "nameClash", message: clashMessage(clash) } };
         const snapshot = buildSavedPlanSnapshot({
           state,
-          name: capturedName,
+          name: freeName(typed ?? defaultPlanName(now ?? new Date()), doc.plans.map((plan) => plan.name)),
           source: {
             kind: "workingState",
             detail: "Saved from the working schedule",
@@ -492,8 +521,11 @@ export function createSavedPlanStore(storage?: Storage | null, userId: string | 
         const added: SavedPlanSnapshot[] = [];
         for (const plan of plans) {
           const same = doc.plans.find((entry) => entry.planId === plan.planId);
-          if (same && equal(same, plan)) continue;
-          added.push(same ? { ...plan, planId: crypto.randomUUID() } : plan);
+          if (same && equal({ ...same, name: plan.name }, plan)) continue;
+          const free = freeName(plan.name, [...doc.plans, ...added].map((entry) => entry.name));
+          // A name that needs no number is kept exactly as stored, untrimmed.
+          const name = nameKey(free) === nameKey(plan.name) ? plan.name : free;
+          added.push({ ...plan, name, planId: same ? crypto.randomUUID() : plan.planId });
         }
         doc.plans = [...added, ...doc.plans];
         return { value: added };
@@ -508,11 +540,13 @@ export function createSavedPlanStore(storage?: Storage | null, userId: string | 
           failure: { kind: "invalidPayload", message: "A saved plan needs a non-empty name." },
         };
       }
-      return mutate((doc) => {
+      return mutate<SavedPlanSnapshot>((doc) => {
         const plan = doc.plans.find((entry) => entry.planId === planId);
         if (!plan) {
           return null;
         }
+        const clash = nameClash(trimmed, doc.plans, planId);
+        if (clash) return { failure: { kind: "nameClash", message: clashMessage(clash) } };
         const renamed = { ...plan, name: trimmed };
         doc.plans = doc.plans.map((entry) => (entry.planId === planId ? renamed : entry));
         return { value: renamed };
@@ -579,25 +613,27 @@ export function createSavedPlanStore(storage?: Storage | null, userId: string | 
         };
       }
       const importedAt = (now ?? new Date()).toISOString();
-      const imported: SavedPlanSnapshot = {
-        ...validation.snapshot,
-        planId: crypto.randomUUID(),
-        createdAt: importedAt,
-        archivedAt: null,
-        source: {
-          kind: "import",
-          detail: "Imported from a saved-plan file",
-          capturedAt: importedAt,
-        } satisfies SavedPlanSource,
-      };
       const stored = mutate((doc) => {
+        const imported: SavedPlanSnapshot = {
+          ...validation.snapshot,
+          // A whitespace-only name passes the file check; it imports as a numbered "Imported schedule".
+          name: freeName(validation.snapshot.name.trim() || "Imported schedule", doc.plans.map((plan) => plan.name)),
+          planId: crypto.randomUUID(),
+          createdAt: importedAt,
+          archivedAt: null,
+          source: {
+            kind: "import",
+            detail: "Imported from a saved-plan file",
+            capturedAt: importedAt,
+          } satisfies SavedPlanSource,
+        };
         doc.plans = [imported, ...doc.plans];
         return { value: imported };
       });
       if (!stored.ok) {
         return stored;
       }
-      return { ok: true, snapshot: imported, references: validation.references };
+      return { ok: true, snapshot: stored.value, references: validation.references };
     },
   };
 }
@@ -626,15 +662,16 @@ export function defaultPlanName(now: Date): string {
 }
 
 export function nextCopyName(name: string, plans: SavedPlanSnapshot[]): string {
-  const existing = new Set(plans.map((plan) => plan.name));
-  if (!existing.has(`${name} (copy)`)) {
-    return `${name} (copy)`;
+  const existing = new Set(plans.map((plan) => nameKey(plan.name)));
+  const base = name.trim();
+  if (!existing.has(nameKey(`${base} (copy)`))) {
+    return `${base} (copy)`;
   }
   let counter = 2;
-  while (existing.has(`${name} (copy ${counter})`)) {
+  while (existing.has(nameKey(`${base} (copy ${counter})`))) {
     counter += 1;
   }
-  return `${name} (copy ${counter})`;
+  return `${base} (copy ${counter})`;
 }
 
 export function exportPlanJson(snapshot: SavedPlanSnapshot): string {

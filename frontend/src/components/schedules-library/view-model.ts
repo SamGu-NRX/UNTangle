@@ -7,6 +7,7 @@ import { optionIdLabel, sectionRef } from "@/lib/planner-sections";
 import { weekTravel } from "@/lib/planner-walking";
 import type { Section } from "@/lib/sections";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
+import { freeName } from "@/lib/saved-plans/names";
 import type { SavedPlanStore, SavedPlanStoreFailure, StoreReadResult } from "@/lib/saved-plans/store";
 import { workingStateFingerprint } from "@/lib/saved-plans/restore-adapter";
 import type { PlannerState } from "@/lib/types";
@@ -17,12 +18,7 @@ import type { PlannerState } from "@/lib/types";
  * (archived copies included, in any letter case).
  */
 export function defaultCopyName(taken: readonly string[], of: string): string {
-  const used = new Set(taken.map((name) => name.trim().toLowerCase()));
-  const base = `Copy of ${of}`;
-  for (let n = 1; ; n += 1) {
-    const name = n === 1 ? base : `${base} ${n}`;
-    if (!used.has(name.toLowerCase())) return name;
-  }
+  return freeName(`Copy of ${of}`, taken);
 }
 
 /** Download name for an exported schedule file. */

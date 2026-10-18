@@ -248,6 +248,22 @@
 .reqCourse[data-status="check"] .reqFact {
   color: var(--attention);
 }
+/* What an option fills, a line of its own under the codes; the glyph centers on the codes' line. */
+:is(.reqCourse, .reqSet):has(.reqFills) {
+  row-gap: 2px;
+  padding: 9px 0;
+}
+.reqFills {
+  grid-column: 2 / -1;
+  font-size: 12.5px;
+  line-height: 16px;
+  color: var(--ink-2);
+}
+/* The option that finishes the requirement is the one to spot. */
+.reqFills[data-finishes] {
+  color: var(--ink);
+  font-weight: 600;
+}
 .reqQuote {
   margin: 0;
   padding-left: 12px;
@@ -376,9 +392,12 @@
   text-align: left;
   transition: background-color var(--t-hover) ease;
 }
+/* The app's ring (--focus), as on the requirement rows: an inset accent ring met the page ground at 2.87:1, under 3:1. */
 .groupHead:focus-visible {
+  position: relative;
+  z-index: 1;
   outline: none;
-  box-shadow: inset 0 0 0 2px var(--accent);
+  box-shadow: var(--focus);
 }
 .count {
   font-size: 13px;
@@ -469,8 +488,13 @@
 .rowOpen:focus-visible {
   outline: none;
 }
+/* --focus, as on .reqOpen: accent outside a paper band reads 3.12:1; inset on the ground it was 2.87:1. */
 .rowOpen:focus-visible::after {
-  box-shadow: inset 0 0 0 2px var(--accent);
+  box-shadow: var(--focus);
+}
+/* The ring reaches 4px past the row: lift the row so the next one's hover tint and hairline stay under it. */
+.row:has(> .rowOpen:focus-visible, > .reqOpen:focus-visible) {
+  z-index: 1;
 }
 .lead {
   display: grid;

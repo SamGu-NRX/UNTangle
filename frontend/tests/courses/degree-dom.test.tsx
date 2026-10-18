@@ -196,7 +196,7 @@ test("on a phone the areas start closed, each saying what is left, so the term c
   const view = await coursesFor(journeyTranscript, "cs");
   try {
     await waitFor(() => view.areaHeads().length === 3, "the What's left groups");
-    // Required 16, Other required 2 and Laboratory science 2 courses; CSCE core and breadth 6 credits each.
+    // Required 16, Other required 2 and Laboratory science 2 (selections, counted here as courses); CSCE core and breadth 6 credits each.
     expect(view.areaHeads()).toEqual(["Computer Science, BS, 20 courses, 12 credits left", "University Core Curriculum, 1 course, 33 credits left", "12 things to check with an advisor"]);
     expect(view.page.querySelector('[data-row-open^="req:"]')).toBeNull();
     // A header expands its area in place.
