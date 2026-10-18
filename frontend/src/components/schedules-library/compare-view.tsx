@@ -13,6 +13,7 @@ import { compareRows, overlayBlocks, plannedCredits, plannedSections, sectionCha
 import type { ScheduleEvent } from "@/lib/types";
 import type { Entry } from "./schedules-client";
 import { Legend } from "./schedule-detail";
+import { UnsavedMainNote } from "./unsaved-main-note";
 import { adoptableSide, samePlan, weekWalking } from "./view-model";
 import { WeekGrid } from "./week-grid";
 import styles from "./library.module.css";
@@ -36,15 +37,20 @@ export const MAX_COMPARED = 3;
 export function CompareView({
   sides,
   colors,
+  mainSaved,
   onUse,
+  onSaveMain,
   onDone,
 }: {
   sides: readonly CompareSide[];
   colors: ReadonlyMap<string, Hue>;
+  /** Whether Main already has a saved copy. */
+  mainSaved: boolean;
   onUse: (entry: CompareSide) => void;
+  onSaveMain: () => void;
   onDone: () => void;
 }) {
-  const { plannerState, scheduleEvents, sectionCatalog, sectionPlan } = usePlanner();
+  const { plannerState, scheduleEvents, sectionCatalog, sectionPlan, candidateFilter } = usePlanner();
   const [chosenView, setView] = useState<View>("both");
   const [fromPointer, setFromPointer] = useState(true);
   const [showMore, setShowMore] = useState(false);
@@ -56,9 +62,10 @@ export function CompareView({
   const three = c !== undefined;
   // "Both" exists only for two plans; with a third the view falls back to A.
   const view: View = three && chosenView === "both" ? "a" : !three && chosenView === "c" ? "both" : chosenView;
-  // Each side's sections, resolved once: Main's as Week resolves them, a copy's against the sections loaded now.
+  // Each side's sections, resolved once: Main's as Week resolves them, a copy's against the sections
+  // loaded now with Main's filter, which Use in Main keeps.
   const figures = (side: CompareSide) => {
-    const plan = side.active ? sectionPlan : resolveSectionPlan(normalizePlannerState(side.state), sectionCatalog);
+    const plan = side.active ? sectionPlan : resolveSectionPlan(normalizePlannerState(side.state), sectionCatalog, candidateFilter);
     const events: ScheduleEvent[] = side.active ? scheduleEvents : buildScheduleEvents(plan);
     const placed = plan.courses.flatMap((course) => (course.section ? [course.section] : []));
     return { ...weekStats(events), ...weekWalking(placed), credits: plannedCredits(side.state) };
@@ -70,7 +77,7 @@ export function CompareView({
   const columns = sides.slice(1).map((side) => compareRows(base, figures(side)));
   const rows = columns[0].map((row, i) => ({ label: row.label, a: row.a, others: columns.map((column) => ({ value: column[i].b, verdict: column[i].verdict })) }));
   // From the plans, not the drawn blocks, so an online or TBA section's change still shows.
-  const planned = sides.map((side) => plannedSections(side.state, sectionCatalog));
+  const planned = sides.map((side) => plannedSections(side.state, sectionCatalog, candidateFilter));
   const { changes, same } = sectionChanges(planned[0], planned[1]);
   const grid = sectionGrid(planned);
   // Statuses, claimed credit, Auto, locks, goal and major: one step away, behind "More differences".
@@ -106,6 +113,7 @@ export function CompareView({
           Done
         </Button>
       </div>
+      {adoptable && !mainSaved ? <UnsavedMainNote onSaveMain={onSaveMain} /> : null}
       <div
         // Segmented reports keyboard use itself; a click with detail 0 is a keyboard press too.
         onPointerDownCapture={() => setFromPointer(true)}

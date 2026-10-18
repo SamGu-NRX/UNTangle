@@ -344,8 +344,44 @@ async function runViewport(context, name) {
   await autoWeek.click();
   const strip = page.getByRole("region", { name: "Other weeks Auto found" });
   await strip.waitFor({ state: "visible", timeout: 30000 });
-  const countText = ((await strip.locator('[data-part="count"]').textContent()) ?? "").trim();
+  // Auto's two-phase search can replace the first options. The count is settled
+  // when the strip isn't busy and no swap animation runs on it: SwapText keeps
+  // the old words through its exit animation (motion.ts swapText), so the text
+  // alone can still read the first search's "1 of N".
+  const settledCount = async (why) => {
+    try {
+      await page.waitForFunction(
+        () => {
+          const region = document.querySelector('[role="region"][aria-label="Other weeks Auto found"]');
+          const count = region?.querySelector('[data-part="count"]');
+          const text = (count?.textContent ?? "").trim();
+          return Boolean(region && count) && !region.hasAttribute("aria-busy") && count.getAnimations().length === 0 && /^\d+ of \d+$/.test(text);
+        },
+        null,
+        { timeout: 30000 },
+      );
+    } catch {
+      const lastCount = await page.evaluate(() =>
+        (document.querySelector('[role="region"][aria-label="Other weeks Auto found"] [data-part="count"]')?.textContent ?? "").trim(),
+      );
+      throw new Error(`the Auto search never settled ${why}; last count text was "${lastCount}"`);
+    }
+    return ((await strip.locator('[data-part="count"]').textContent()) ?? "").trim();
+  };
+  let countText = await settledCount("after Auto");
+  // When the final answer changes the option on screen, Week keeps the first list and offers Show
+  // (the grid never moves on its own); Show swaps in the final options the solver is compared with.
+  const show = strip.getByRole("button", { name: "Show", exact: true });
+  if (await show.isVisible().catch(() => false)) {
+    await show.click();
+    await show.waitFor({ state: "hidden", timeout: 5000 });
+    countText = await settledCount("after Show");
+  }
   const total = Number((countText.match(/1 of (\d+)/) ?? [])[1] ?? 0);
+  // A count read mid-swap is the old one; a second read after any swap would have finished must agree.
+  await page.waitForTimeout(500);
+  const countAgain = ((await strip.locator('[data-part="count"]').textContent()) ?? "").trim();
+  check(`${name}: the option count was read once the search settled`, countAgain === countText, `read "${countText}", then "${countAgain}"`);
   check(`${name}: Auto found options to compare`, total > 0, countText);
 
   // 4. walk every option; the grid must stay feasible for the student's rules.

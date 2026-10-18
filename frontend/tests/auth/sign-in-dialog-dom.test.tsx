@@ -15,11 +15,11 @@ afterAll(() => {
 
 const api: AuthApi = { sendLink: async () => ({ error: null }), signIn: async () => ({ error: null }) };
 
-type Props = { pathname?: string; signedIn?: boolean; link?: boolean };
+type Props = { pathname?: string; signedIn?: boolean; link?: boolean; authShell?: boolean };
 
 async function render(props: Props = {}) {
   const { SignInLayer } = await import("@/components/auth-client");
-  const { openSignIn } = await import("@/components/auth-shell");
+  const { AuthShell, openSignIn } = await import("@/components/auth-shell");
   const ui = (p: Props) => (
     <>
       {p.link === false ? null : (
@@ -27,6 +27,11 @@ async function render(props: Props = {}) {
           Sign in
         </a>
       )}
+      {p.authShell ? (
+        <AuthShell>
+          <h1>Reset your password</h1>
+        </AuthShell>
+      ) : null}
       <SignInLayer api={api} pathname={p.pathname ?? "/courses"} signedIn={p.signedIn ?? false} />
     </>
   );
@@ -126,6 +131,21 @@ describe("Sign in over the current page", () => {
     expect(`${document.activeElement?.tagName}#${document.activeElement?.id}`).toBe("MAIN#main");
     await view.unmount();
     main.remove();
+  });
+
+  test("moving to /forgot-password removes the Sign in link, so focus lands on AuthShell's main", async () => {
+    const view = await render();
+    try {
+      await openFrom(view.link);
+      await view.update({ pathname: "/forgot-password", link: false, authShell: true });
+      await settle(200);
+      expect(dialog() === null).toBe(true);
+      expect(view.link.isConnected).toBe(false);
+      expect(`${document.activeElement?.tagName}#${document.activeElement?.id}`).toBe("MAIN#main");
+      expect(document.activeElement).toBe(view.container.querySelector("main.auth"));
+    } finally {
+      await view.unmount();
+    }
   });
 
   test("a modified click follows the link to /auth", async () => {
