@@ -12,7 +12,7 @@ import { eventsOf, overlayBlocks, weekBlocks, type PlacedBlock } from "@/lib/pla
 import { resolveSectionReferences } from "@/lib/plan-library/snapshot";
 import type { PlannerState } from "@/lib/types";
 import type { Entry } from "./schedules-client";
-import { lockChangeLines, skippedSectionLines, versionTime } from "./view-model";
+import { adoptionChangeLines, lockChangeLines, skippedSectionLines, versionTime } from "./view-model";
 import { diffLibraryPlans } from "@/lib/plan-library/diff";
 import { WeekGrid } from "./week-grid";
 import styles from "./library.module.css";
@@ -52,10 +52,12 @@ export function ScheduleDetail({
   const shownVersion = before ? version : "now";
   const versionBlocks = shownVersion === "before-auto" && before ? weekBlocks(eventsOf(before.state, sectionCatalog, candidateFilter)) : null;
   const items = overlayBlocks(entry.blocks, versionBlocks);
-  const skipped = entry.snapshot
+  const adoptionDiff = entry.snapshot ? diffLibraryPlans(entry.snapshot.state, plannerState, sectionCatalog) : null;
+  const skipped = entry.snapshot && adoptionDiff
     ? [
         ...skippedSectionLines(resolveSectionReferences(entry.snapshot.state, sectionCatalog)),
-        ...lockChangeLines(diffLibraryPlans(entry.snapshot.state, plannerState, sectionCatalog).lockChanges),
+        ...lockChangeLines(adoptionDiff.lockChanges),
+        ...adoptionChangeLines(adoptionDiff),
       ]
     : [];
 
