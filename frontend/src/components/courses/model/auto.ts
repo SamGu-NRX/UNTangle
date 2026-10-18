@@ -1,7 +1,8 @@
 /**
  * What one press of Auto changes. Statuses are already inferred live; Auto's
  * job is the plan: drop planned courses the evidence says are finished, then
- * fill the term budget with the engine's ranked eligible core courses.
+ * fill the term budget with eligible courses from one candidate set, ranked
+ * by the prerequisite engine (most unfinished courses downstream first).
  * Every change records its previous value so Undo restores it exactly, and
  * the run is kept with the plan (`coursePlan.lastAuto`) so Undo survives a
  * reload but refuses once the plan has moved on.
@@ -12,11 +13,26 @@ import type { CourseModel } from "./course-model";
 
 export type StatusChange = AutoTransaction["changes"][number];
 
+/**
+ * The courses Auto may plan. For a major the degree audit covers, only what
+ * the degree still needs, asked again after each pick so a requirement Auto
+ * just filled offers nothing more. Other majors keep their sample core list.
+ */
+export type AutoSource =
+  | { kind: "sample"; coreIds: readonly string[] }
+  | {
+      kind: "audit";
+      /** What the degree still needs once these courses count as in progress. */
+      stillNeeded: (planned: readonly string[]) => ReadonlySet<string>;
+      /** Covered courses the degree still lists: Auto leaves them planned. */
+      waivers: ReadonlyMap<string, string>;
+    };
+
 export type AutoOutcome = {
   changes: StatusChange[];
   planned: string[];
   unplanned: string[];
-  /** Core courses the engine could not clear; Auto leaves them to the student. */
+  /** Candidate courses the engine could not clear; Auto leaves them to the student. */
   needsCheck: string[];
   filled: { done: number; taking: number; covered: number };
 };
@@ -27,15 +43,16 @@ const statusOf = (statuses: Readonly<Record<string, PlannerCourseStatus>>, id: s
 export function computeAuto(
   model: CourseModel,
   statuses: Readonly<Record<string, PlannerCourseStatus>>,
-  coreIds: readonly string[],
+  source: AutoSource,
   creditBudget: number,
 ): AutoOutcome {
   const rows = model.rows;
   const changes: StatusChange[] = [];
   const unplanned: string[] = [];
+  const waived = source.kind === "audit" ? source.waivers : new Map<string, string>();
   for (const row of rows.values()) {
     if (!row.inPlan) continue;
-    if (row.assessment?.status === "done" || row.coveredBy) {
+    if (row.assessment?.status === "done" || (row.coveredBy && !waived.has(row.id))) {
       changes.push({ code: row.id, from: statusOf(statuses, row.id), to: "notTaken" });
       unplanned.push(row.id);
     }
@@ -45,19 +62,23 @@ export function computeAuto(
   let credits = stillPlanned.reduce((sum, row) => sum + row.credits, 0);
   const plannedIds = new Set(stillPlanned.map((row) => row.id));
 
-  const ranked = suggestNext({ coreCourseCodes: coreIds }, model.inference, { maxCredits: Number.MAX_SAFE_INTEGER });
+  const kept = [...plannedIds];
+  let candidates: ReadonlySet<string> = source.kind === "audit" ? source.stillNeeded(kept) : new Set(source.coreIds);
+  const ranked = suggestNext({ coreCourseCodes: [...candidates] }, model.inference, { maxCredits: Number.MAX_SAFE_INTEGER });
   const planned: string[] = [];
   for (const suggestion of ranked) {
     const row = rows.get(suggestion.courseId);
-    if (!row || row.status !== "available" || plannedIds.has(row.id)) continue;
+    if (!row || row.status !== "available" || plannedIds.has(row.id) || !candidates.has(row.id)) continue;
     if (credits + row.credits > creditBudget) continue;
     credits += row.credits;
     planned.push(row.id);
     changes.push({ code: row.id, from: statusOf(statuses, row.id), to: "inProgress" });
+    // The pick may finish a requirement whose other options were candidates too.
+    if (source.kind === "audit") candidates = source.stillNeeded([...kept, ...planned]);
   }
 
   const finishedOrPlanned = new Set([...plannedIds, ...planned]);
-  const needsCheck = coreIds.filter((id) => rows.get(id)?.status === "check" && !finishedOrPlanned.has(id));
+  const needsCheck = [...candidates].filter((id) => rows.get(id)?.status === "check" && !finishedOrPlanned.has(id));
   const all = [...rows.values()];
   return {
     changes,

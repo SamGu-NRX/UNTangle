@@ -5,6 +5,7 @@
  * one fact, the one the student acts on: why it waits, what it needs, or the
  * grade. Pure, so the same answer reaches the view and the tests.
  */
+import { suggestNext } from "@/lib/prereq";
 import type { Major } from "@/lib/types";
 import type { CourseModel, CourseRowModel } from "./course-model";
 import type { RuleNode } from "./rules";
@@ -41,49 +42,67 @@ export type CourseGroup = { key: GroupKey; title: string; parts: GroupPart[]; co
 export const ROWS_BEFORE_MORE = 12;
 
 /**
- * The courses the lens lists: the major's core list, its department's
- * catalog, and every course the student already has something on (a grade,
- * this term, a plan, a mark). `wide` (the student asked for every
- * department) and having no department (no major, Undeclared) put the whole
- * catalog in scope.
+ * For a major the degree audit covers (model/degree.ts): the courses the
+ * degree still needs, and the ones the major itself needs.
  */
-export function degreeScope(model: CourseModel, major: Pick<Major, "department" | "coreCourseCodes"> | null, wide = false): Set<string> {
+export type AuditScope = { needed: ReadonlySet<string>; neededByMajor: ReadonlySet<string> };
+
+/** A transcript record counts even when the course is waiting for a check (an unrecognized grade, a row to review). */
+const studentHasIt = (row: CourseRowModel) => row.override || row.onTranscript || !["available", "locked", "check"].includes(row.status);
+
+/**
+ * The courses the lens lists, and every course the student already has
+ * something on (a grade, this term, a plan, a mark). For a major the audit
+ * covers, that is what the degree still needs; for another major, its
+ * sample core list and its department's catalog. `wide` (the student asked
+ * for every department) and having no department (no major, Undeclared)
+ * put the whole catalog in scope.
+ */
+export function degreeScope(model: CourseModel, major: Pick<Major, "department" | "coreCourseCodes"> | null, wide = false, audit: AuditScope | null = null): Set<string> {
   const rows = [...model.rows.values()];
   const department = major && major.department !== "—" ? major.department : null;
-  if (!department || wide) return new Set(rows.map((row) => row.id));
+  if (wide || (!department && !audit)) return new Set(rows.map((row) => row.id));
+  if (audit) return new Set(rows.filter((row) => audit.needed.has(row.id) || studentHasIt(row)).map((row) => row.id));
   const core = new Set(major?.coreCourseCodes ?? []);
-  // A transcript record counts even when the course is waiting for a check (an unrecognized grade, a row to review).
-  const studentHasIt = (row: CourseRowModel) => row.override || row.onTranscript || !["available", "locked", "check"].includes(row.status);
   return new Set(rows.filter((row) => core.has(row.id) || row.department === department || studentHasIt(row)).map((row) => row.id));
 }
 
-export function buildGroups(model: CourseModel, major: Pick<Major, "department" | "coreCourseCodes"> | null, wide = false): CourseGroup[] {
-  const scope = degreeScope(model, major, wide);
-  const core = (major?.coreCourseCodes ?? []).filter((id) => scope.has(id));
-  const coreSet = new Set(core);
-  const department = major && major.department !== "—" ? major.department : null;
+export function buildGroups(model: CourseModel, major: Pick<Major, "department" | "coreCourseCodes"> | null, wide = false, audit: AuditScope | null = null): CourseGroup[] {
+  const scope = degreeScope(model, major, wide, audit);
   const byGroup: Record<GroupKey, string[]> = { check: [], can: [], taking: [], later: [], done: [] };
-  // Core first, in the degree plan's order; then the rest by code.
-  const ordered = [...core, ...[...scope].filter((id) => !coreSet.has(id)).sort()];
-  for (const id of ordered) {
+  // Sample lists: core first, in the degree plan's order. Audited: what Auto would pick first, by the
+  // prerequisite engine's ranking (most unfinished courses downstream). Then the rest by code.
+  const lead = audit
+    ? suggestNext({ coreCourseCodes: [...audit.needed] }, model.inference, { maxCredits: Number.MAX_SAFE_INTEGER }).map((suggestion) => suggestion.courseId).filter((id) => scope.has(id))
+    : (major?.coreCourseCodes ?? []).filter((id) => scope.has(id));
+  const leadSet = new Set(lead);
+  for (const id of [...lead, ...[...scope].filter((id) => !leadSet.has(id)).sort()]) {
     const key = groupOf[model.rows.get(id)!.status];
     if (key) byGroup[key].push(id);
   }
+  const department = major && major.department !== "—" ? major.department : null;
   return GROUPS.flatMap((group) => {
     const ids = byGroup[group.key];
     if (ids.length === 0) return [];
-    const inCore = ids.filter((id) => coreSet.has(id));
-    const rest = ids.filter((id) => !coreSet.has(id));
-    // Subheads only where they sort a choice: what you can take, split by the degree plan.
-    const parts: GroupPart[] =
-      group.key === "can" && inCore.length > 0 && rest.length > 0
-        ? [
-            { label: "In your degree plan", ids: inCore },
-            { label: department && !wide ? `More ${department} courses` : "More courses", ids: rest },
-          ]
-        : [{ label: null, ids }];
+    // Subheads only where they sort a choice: what you can take, split by what asks for it.
+    const parts = group.key === "can" ? canParts(ids, audit, audit ? null : new Set(major?.coreCourseCodes ?? []), department && !wide ? department : null) : [{ label: null, ids }];
     return [{ ...group, parts, count: ids.length }];
   });
+}
+
+function canParts(ids: string[], audit: AuditScope | null, core: ReadonlySet<string> | null, department: string | null): GroupPart[] {
+  const split = audit
+    ? [
+        { label: "For your major", ids: ids.filter((id) => audit.neededByMajor.has(id)) },
+        { label: "For the University Core", ids: ids.filter((id) => audit.needed.has(id) && !audit.neededByMajor.has(id)) },
+        { label: "More courses", ids: ids.filter((id) => !audit.needed.has(id)) },
+      ]
+    : [
+        { label: "In your degree plan", ids: ids.filter((id) => core!.has(id)) },
+        { label: department ? `More ${department} courses` : "More courses", ids: ids.filter((id) => !core!.has(id)) },
+      ];
+  const filled = split.filter((part) => part.ids.length > 0);
+  return filled.length > 1 ? filled : [{ label: null, ids }];
 }
 
 /** The parts with at most `limit` rows in all, and how many were held back. */
@@ -178,6 +197,7 @@ function needsPhrase(node: RuleNode | null): string | null {
 export function rowFact(row: CourseRowModel): RowFact | null {
   switch (row.status) {
     case "check": {
+      if (row.waiver) return { text: "Ask an advisor if it's waived", tone: "attention" };
       if (row.assessment?.reason.message.includes("transcript grade is unrecognized")) {
         return { text: "Transcript grade needs a check", tone: "attention" };
       }

@@ -175,7 +175,7 @@ for (const vp of [
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("ArrowDown");
   check(`${tag}: the sun knob sets the earliest start`, (await sun.getAttribute("aria-valuetext")) === "9 AM", await sun.getAttribute("aria-valuetext"));
-  await prefs.getByRole("button", { name: "Thursdays off" }).click();
+  await prefs.getByRole("button", { name: "Thu off" }).click();
   // A work block painted on Tuesday, dragged upward from 5 PM to 1 PM: a backwards
   // gesture still makes a block in the right order, never one that ends before it starts.
   const paintGrid = prefs.getByRole("application");
@@ -261,7 +261,8 @@ for (const vp of [
   const listSummary = ((await page.getByText(/combinations? fits?\./).first().textContent()) ?? "").trim();
   check(`${tag}: Browse all says how many fit`, /^(At least )?[\d,]+ combinations? fits?\./.test(listSummary) || /^1 combination fits\./.test(listSummary), listSummary);
   const rows = list.getByRole("option");
-  const firstLabel = (await rows.first().getAttribute("aria-label")) ?? "";
+  // A row's name is its visible text; the spoken version, with "section", is its description.
+  const firstLabel = await rows.first().evaluate((row) => document.getElementById(row.getAttribute("aria-describedby") ?? "")?.textContent ?? "");
   check(`${tag}: each row names its sections`, /^Combination 1\b/.test(firstLabel) && / section /.test(firstLabel), firstLabel);
   const setSize = Number(await rows.first().getAttribute("aria-setsize"));
   check(`${tag}: only rows near the view are in the page`, (await rows.count()) <= Math.min(setSize, 30), `${await rows.count()} of ${setSize} rendered`);
@@ -332,7 +333,7 @@ for (const vp of [
   await closePrefs();
 
   // Impossible: Mondays off too, but the kept ANTH 1010 section meets on Mondays.
-  await (await openPrefs()).getByRole("button", { name: "Mondays off" }).click();
+  await (await openPrefs()).getByRole("button", { name: "Mon off" }).click();
   await closePrefs();
   await strip.getByRole("button", { name: "Keep my week" }).click().catch(() => {});
   await autoMeasured("infeasible", nothing);

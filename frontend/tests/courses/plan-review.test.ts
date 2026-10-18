@@ -94,7 +94,7 @@ describe("coursePlan through the real provider", () => {
     await planner.run((p) => p.setSelectedMajor("cs"));
 
     const before = planner.get().plannerState;
-    const outcome = computeAuto(await modelOf(before), before.courseStatuses, CS_CORE, 15);
+    const outcome = computeAuto(await modelOf(before), before.courseStatuses, { kind: "sample", coreIds: CS_CORE }, 15);
     expect(outcome.planned).toEqual(["MATH 1720", "CSCE 2100"]);
     await planner.run((p) =>
       p.updateCoursePlan(applyAuto(outcome, { id: "auto-1", at: "2026-10-13T00:00:00.000Z", major: "cs", changes: outcome.changes, summary: "", needsCheck: [] })),
@@ -117,7 +117,7 @@ describe("coursePlan through the real provider", () => {
     const planner = await guestPlanner();
     await planner.run((p) => p.applyTranscriptRecords(sampleTranscript));
     const before = planner.get().plannerState;
-    const outcome = computeAuto(await modelOf(before), before.courseStatuses, CS_CORE, 15);
+    const outcome = computeAuto(await modelOf(before), before.courseStatuses, { kind: "sample", coreIds: CS_CORE }, 15);
     await planner.run((p) =>
       p.updateCoursePlan(applyAuto(outcome, { id: "auto-2", at: "2026-10-13T00:00:00.000Z", major: null, changes: outcome.changes, summary: "", needsCheck: [] })),
     );
@@ -178,7 +178,7 @@ describe("coursePlan through the real provider", () => {
     await planner.run((p) => p.applyTranscriptRecords(sampleTranscript));
     await planner.run((p) => p.setSelectedMajor("cs"));
     const before = planner.get().plannerState;
-    const outcome = computeAuto(await modelOf(before), before.courseStatuses, CS_CORE, 15);
+    const outcome = computeAuto(await modelOf(before), before.courseStatuses, { kind: "sample", coreIds: CS_CORE }, 15);
     expect(outcome.planned).toEqual(["MATH 1720", "CSCE 2100"]);
     await planner.run((p) =>
       p.updateCoursePlan(applyAuto(outcome, { id: "auto-w", at: "2026-10-13T00:00:00.000Z", major: "cs", changes: outcome.changes, summary: "", needsCheck: [] })),

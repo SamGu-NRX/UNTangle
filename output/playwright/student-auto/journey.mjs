@@ -11,13 +11,17 @@
  *      a made-up first-year CS student: MATH 1710, ENGL 1310, CSCE 1040),
  *      review the matched rows, click "Looks right".
  *   2. /courses - pick the Computer Science major, then press the tray's
- *      Auto and let it plan the next term's courses.
+ *      Auto and let it plan the next term's courses from what the degree
+ *      audit still needs.
  *   3. /schedule (Week) - open Preferences: nothing before 10 AM, Fridays
  *      off, and two "Work" busy blocks painted onto the grid (Tuesday and
  *      Thursday, 5-9 PM). Then press Auto and wait for the other options.
+ *      On edge's catalog, Week says no MATH 1720 and PHYS 1410 pair avoids
+ *      Friday; the student presses its "Allow classes on Fridays" and Auto
+ *      runs again on the relaxed preferences.
  *   4. Walk every option Auto found, screenshot each, axe each, and check
- *      the grid shows no Friday meetings and no conflict markers. Details
- *      on option 1, then "Use this".
+ *      the grid shows no conflict markers, and no Friday meetings while
+ *      Fridays are still off. Details on option 1, then "Use this".
  *   5. Read the student's own storage: the planner state and the stored
  *      preferences, exactly what the Week page's optimizer request was
  *      built from.
@@ -253,6 +257,9 @@ async function runViewport(context, name) {
     preMajorGone,
     preMajorGone ? "section hidden after choosing" : "section still visible after choosing",
   );
+  // The degree audit reads the three imported rows: 9 of CS BS's 120 credits.
+  const leftTitle = (await page.locator("#left-title").textContent({ timeout: 30000 }).catch(() => null))?.trim() ?? "";
+  check(`${name}: Courses opens with the credits left from the transcript`, leftTitle === "111 credits left", leftTitle || "no What's left heading");
   await axe(page, `${name}/courses`);
   await shot("03-courses.png");
   const autoTray = page.getByRole("button", { name: "Auto", exact: true });
@@ -264,10 +271,15 @@ async function runViewport(context, name) {
   const trayRows = await page.locator('[data-flip^="tray:"]').allTextContents();
   await shot("04-tray-auto.png");
   const trayJoined = trayRows.map((row) => row.replace(/\s+/g, " ").trim()).join(" | ");
+  // Auto plans only what the degree audit still needs, ranked by what each unlocks
+  // (frontend/tests/courses/degree.test.ts): three required CSCE courses, MATH 1720 for the
+  // Component Area Option and PHYS 1410 for Laboratory science. Alpha plans PSYC 1630 here; edge's catalog adds
+  // PHYS 1430, 1440 and 2240 (582fc9d9), which puts PHYS 1410 ahead (frontend/tests/courses/plan-edits.test.ts).
+  const planned = ["CSCE 1010", "CSCE 2100", "CSCE 2110", "MATH 1720", "PHYS 1410"];
   check(
-    `${name}: tray Auto planned CSCE 2100 and MATH 1720`,
-    trayRows.length === 2 && trayJoined.includes("CSCE 2100") && trayJoined.includes("MATH 1720") && /Planned/.test(trayText),
-    `${trayText.trim().slice(0, 40)} | ${trayJoined.slice(0, 100)}`,
+    `${name}: tray Auto planned what the degree still needs`,
+    trayRows.length === planned.length && planned.every((code) => trayJoined.includes(code)) && /Planned/.test(trayText),
+    `${trayText.trim().slice(0, 40)} | ${trayJoined.slice(0, 160)}`,
   );
   soft(`${name}: tray result "${trayText.trim()}"; rows: ${trayRows.map((row) => row.trim().slice(0, 40)).join(" | ")}`);
 
@@ -323,7 +335,7 @@ async function runViewport(context, name) {
   const prefs = await openPrefs(page);
   const sliderValue = await setEarliestStart(prefs, "10 AM");
   check(`${name}: nothing before 10 AM set`, sliderValue === "10 AM", sliderValue);
-  await prefs.getByRole("button", { name: "Fridays off" }).click();
+  await prefs.getByRole("button", { name: "Fri off", exact: true }).click();
   await paintWorkBlock(prefs, 1, "Tue, 5–9 PM");
   await paintWorkBlock(prefs, 3, "Thu, 5–9 PM");
   await shot("06-prefs.png");
@@ -335,6 +347,28 @@ async function runViewport(context, name) {
   const autoWeek = main(page).getByRole("button", { name: /^(Auto|Build)/ }).first();
   await autoWeek.click();
   const strip = page.getByRole("region", { name: "Other weeks Auto found" });
+  // With edge's catalog, Courses Auto plans PHYS 1410, and no pair of MATH 1720 and PHYS 1410 sections avoids
+  // Friday, so Week says nothing fits and offers to allow Fridays. The student takes that fix, as a student would;
+  // the solver below then proves Auto optimal on the relaxed request the page saved. Any other reason fails.
+  const nothingFits = page.getByText("Nothing fits these preferences.", { exact: false });
+  await strip.or(nothingFits).first().waitFor({ state: "visible", timeout: 30000 });
+  let fridaysOff = true;
+  // Which recorded worker job the solver compares against: the first one, or the first after the fix.
+  let solverJob = 0;
+  if (await nothingFits.isVisible()) {
+    const why = ((await nothingFits.textContent()) ?? "").replace(/\s+/g, " ").trim();
+    check(
+      `${name}: Week says why nothing fits`,
+      why.includes("No pair of MATH 1720 and PHYS 1410 sections fits together with Fridays off."),
+      why,
+    );
+    await shot("06b-nothing-fits.png");
+    await axe(page, `${name}/nothing-fits`);
+    solverJob = await page.evaluate(() => (window.__solverRequests ?? []).length);
+    await page.getByRole("button", { name: "Allow classes on Fridays", exact: true }).click();
+    fridaysOff = false;
+    await shot("06c-after-fix.png");
+  }
   await strip.waitFor({ state: "visible", timeout: 30000 });
   const countText = ((await strip.locator('[data-part="count"]').textContent()) ?? "").trim();
   const total = Number((countText.match(/1 of (\d+)/) ?? [])[1] ?? 0);
@@ -399,7 +433,7 @@ async function runViewport(context, name) {
         "identical rendered meetings would mean the same option was audited twice",
       );
     }
-    check(`${name}: option ${index} shows no Friday meetings`, fridayEvents === 0, `${fridayEvents} Friday events`);
+    if (fridaysOff) check(`${name}: option ${index} shows no Friday meetings`, fridayEvents === 0, `${fridayEvents} Friday events`);
     check(`${name}: option ${index} shows no conflicts`, conflicts === 0, `${conflicts} conflict-marked events`);
   }
 
@@ -505,7 +539,7 @@ async function runViewport(context, name) {
   writeFileSync(join(viewDir, "prefs.json"), captured.prefs ?? "{}");
   // the exact optimizer job Week Auto posted to its worker, for the solver to
   // compare against its rebuilt request
-  const solverRequest = await page.evaluate(() => (window.__solverRequests ?? [])[0] ?? null);
+  const solverRequest = await page.evaluate((job) => (window.__solverRequests ?? [])[job] ?? null, solverJob);
   writeFileSync(join(viewDir, "worker-request.json"), JSON.stringify(solverRequest, null, 2));
 
   check(`${name}: no page errors`, errors.length === 0, errors.join("; ").slice(0, 200));
@@ -672,7 +706,7 @@ writeFileSync(
     `# student-auto - ${report.when}`,
     "",
     `Student: synthetic first-year CS transcript (MATH 1710 B, ENGL 1310 A, CSCE 1040 A) ->`,
-    `Computer Science major -> tray Auto -> Week preferences (nothing before 10 AM, Fridays off, Work Tue+Thu 5-9 PM) -> Auto.`,
+    `Computer Science major -> tray Auto -> Week preferences (nothing before 10 AM, Fridays off, Work Tue+Thu 5-9 PM) -> Auto (on edge: nothing fits, allow Fridays).`,
     "",
     `Sections: frontend/tests/optimizer/scenarios/fixtures/spring-2027-trimmed.json (recorded from https://vsb.untgrades.app, 2026-10-15; upstream updated 2026-10-04).`,
     "",

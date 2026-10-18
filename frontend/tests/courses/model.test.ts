@@ -125,7 +125,7 @@ describe("course model on the UNT catalog with the sample transcript", () => {
   test("Auto plans eligible core courses and leaves unclear ones to the student", () => {
     const statuses = sampleStatuses();
     const model = buildCourseModel(profile, plan(statuses));
-    const outcome = computeAuto(model, statuses, csCore, 15);
+    const outcome = computeAuto(model, statuses, { kind: "sample", coreIds: csCore }, 15);
     expect(outcome.planned).toEqual(["MATH 1720", "CSCE 2100"]);
     expect(outcome.needsCheck).toEqual([]);
     expect(outcome.filled).toEqual({ done: 3, taking: 1, covered: 1 });
@@ -138,14 +138,14 @@ describe("course model on the UNT catalog with the sample transcript", () => {
 
   test("Auto never unplans a course the student is taking now", () => {
     const statuses = sampleStatuses();
-    const outcome = computeAuto(buildCourseModel(profile, plan(statuses)), statuses, csCore, 15);
+    const outcome = computeAuto(buildCourseModel(profile, plan(statuses)), statuses, { kind: "sample", coreIds: csCore }, 15);
     expect(outcome.unplanned).not.toContain("ENGL 1320");
   });
 
   test("Auto removes a planned course the transcript now covers, and respects the credit budget", () => {
     const statuses = { ...sampleStatuses(), "CSCE 1030": "inProgress" as const };
     const model = buildCourseModel(profile, plan(statuses));
-    const outcome = computeAuto(model, statuses, csCore, 2);
+    const outcome = computeAuto(model, statuses, { kind: "sample", coreIds: csCore }, 2);
     expect(outcome.unplanned).toEqual(["CSCE 1030"]);
     expect(outcome.planned).toEqual([]);
     expect(outcome.changes).toContainEqual({ code: "CSCE 1030", from: "inProgress", to: "notTaken" });

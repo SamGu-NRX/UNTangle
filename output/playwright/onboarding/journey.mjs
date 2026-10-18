@@ -124,7 +124,7 @@ for (const vp of VIEWPORTS) {
     await page.waitForTimeout(350);
 
     check(`${tag}: step 5 is the shape of the days`, (await heading()) === "When can you have class?", await heading());
-    await setup.getByRole("button", { name: "Fridays off" }).click();
+    await setup.getByRole("button", { name: "Fri off" }).click();
     const sun = setup.getByRole("slider", { name: "Earliest class start" });
     await sun.focus();
     await page.keyboard.press("PageDown");
