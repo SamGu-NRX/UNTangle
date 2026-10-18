@@ -528,15 +528,20 @@ function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
       // Every branch is tried against the claims made before the choice, so
       // each branch's progress is reported on equal terms. The first met
       // branch keeps its claims; when none is met, nothing is claimed and the
-      // branches' courses stay free for later nodes.
+      // branches' courses stay free for later nodes. A met choice keeps only
+      // its branch's unsettled courses, so a nested unmet choice in a branch
+      // the student did not take adds nothing.
       const start = scenario.used;
+      const startPartial = scenario.partial;
       const tried = node.branches.map((branch) => {
         scenario.used = new Set(start);
+        scenario.partial = new Set(startPartial);
         const evaluation = evaluate(branch.node, scenario);
-        return { branch: branch.name, evaluation, after: scenario.used };
+        return { branch: branch.name, evaluation, after: scenario.used, partial: scenario.partial };
       });
       const met = tried.find((entry) => entry.evaluation.state === "met");
       scenario.used = met ? met.after : start;
+      scenario.partial = met ? met.partial : new Set(tried.flatMap((entry) => [...entry.partial]));
       if (!met) for (const entry of tried) for (const code of entry.after) if (!start.has(code)) scenario.partial.add(code);
       const undecided = tried.some((entry) => entry.evaluation.state === "undecided");
       // Unmet, the choice names its closest branch; an undecided branch wins a tie.

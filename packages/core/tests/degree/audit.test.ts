@@ -351,6 +351,13 @@ describe("policies over an unmet choice's courses", () => {
     expect(policyOutcome(audit([atUnt(3)], [done("CSCE 3600"), done("CSCE 3420")]), "Major at UNT").status).toBe("satisfied");
   });
 
+  test("a met choice ignores a nested unmet choice in a branch the student did not take", () => {
+    const track: RequirementNode = { kind: "choice", name: "Track", citation, branches: [{ name: "Systems", node: all("Systems", "CSCE 4600") }, { name: "Specialized", node: specialization }] };
+    const outcome = policyOutcome(auditProgram(program([all("Required", "CSCE 3600"), track, floor()]), [done("CSCE 3600"), done("CSCE 4600"), done("CSCE 3420"), done("CSCE 3530", "D")], COMPLETE), "C floor");
+    expect(outcome.status).toBe("satisfied");
+    expect(outcome.detail).toBe("No completed course in scope (major) falls below C.");
+  });
+
   test("once the branch is met its courses are placed, and its D fails the floor", () => {
     const outcome = policyOutcome(audit([floor()], [done("CSCE 3600"), done("CSCE 3420"), done("CSCE 3530", "D"), done("CSCE 3550")]), "C floor");
     expect(outcome.status).toBe("unsatisfied");
