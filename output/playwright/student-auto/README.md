@@ -36,7 +36,8 @@ transcript (`src/components/courses/model/sample-transcript.ts`), which the
 - Major: Computer Science. Then the Courses tray's Auto plans the next term.
 - Preferences on the Week page: nothing before 10 AM, Fridays off, and two
   "Work" busy blocks painted onto the grid — Tuesday and Thursday, 5–9 PM.
-- Auto, then every option walked, screenshotted, axe-audited, and checked for
+- Auto, then wait for the two-phase search to settle before reading the option
+  count. Every option is walked, screenshotted, axe-audited, and checked for
   the student's own rules as the UI shows them: no Friday meetings, no
   conflict markers. Details on option 1, then "Use this".
 

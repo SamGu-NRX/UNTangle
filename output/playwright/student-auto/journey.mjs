@@ -344,6 +344,31 @@ async function runViewport(context, name) {
   await autoWeek.click();
   const strip = page.getByRole("region", { name: "Other weeks Auto found" });
   await strip.waitFor({ state: "visible", timeout: 30000 });
+  // Auto's two-phase search can replace the first options; wait for the final
+  // answer and its animated count before comparing against the solver.
+  try {
+    await page.waitForFunction(
+      () => {
+        const region = document.querySelector('[role="region"][aria-label="Other weeks Auto found"]');
+        const text = (region?.querySelector('[data-part="count"]')?.textContent ?? "").trim();
+        return region && !region.hasAttribute("aria-busy") && /^\d+ of \d+$/.test(text);
+      },
+      null,
+      { timeout: 30000 },
+    );
+  } catch {
+    const lastCount = await page.evaluate(() =>
+      (document.querySelector('[role="region"][aria-label="Other weeks Auto found"] [data-part="count"]')?.textContent ?? "").trim(),
+    );
+    throw new Error(`the Auto search never settled; last count text was "${lastCount}"`);
+  }
+  // When the final answer changes the option on screen, Week keeps the first list and offers Show
+  // (the grid never moves on its own); Show swaps in the final options the solver is compared with.
+  const show = strip.getByRole("button", { name: "Show", exact: true });
+  if (await show.isVisible().catch(() => false)) {
+    await show.click();
+    await show.waitFor({ state: "hidden", timeout: 5000 });
+  }
   const countText = ((await strip.locator('[data-part="count"]').textContent()) ?? "").trim();
   const total = Number((countText.match(/1 of (\d+)/) ?? [])[1] ?? 0);
   check(`${name}: Auto found options to compare`, total > 0, countText);
