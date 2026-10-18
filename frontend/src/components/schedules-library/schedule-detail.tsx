@@ -46,11 +46,11 @@ export function ScheduleDetail({
   onExport: () => void;
   onRestore: (pick: (current: PlannerState) => PlannerState | null, label: string) => void;
 }) {
-  const { sectionCatalog, plannerState } = usePlanner();
+  const { sectionCatalog, candidateFilter, plannerState } = usePlanner();
   const [version, setVersion] = useState<"now" | "before-auto">("now");
   const before = entry.active ? beforeAuto(entry.state) : null;
   const shownVersion = before ? version : "now";
-  const versionBlocks = shownVersion === "before-auto" && before ? weekBlocks(eventsOf(before.state, sectionCatalog)) : null;
+  const versionBlocks = shownVersion === "before-auto" && before ? weekBlocks(eventsOf(before.state, sectionCatalog, candidateFilter)) : null;
   const items = overlayBlocks(entry.blocks, versionBlocks);
   const skipped = entry.snapshot
     ? [

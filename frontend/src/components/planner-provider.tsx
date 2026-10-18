@@ -27,7 +27,7 @@ import {
   takeFromAutoRun,
   type SectionPlan,
 } from "@/lib/planner";
-import { planningTerm, type SectionCatalog } from "@/lib/planner-sections";
+import { planningTerm, type CandidateFilter, type SectionCatalog } from "@/lib/planner-sections";
 import { fetchCourseHistory, fetchMissingHistories } from "@/lib/grades-history/course-history";
 import type { CourseHistory, HistoryResult } from "@/lib/grades-history/types";
 import { courseEvidenceHundredths, evidenceFetchable } from "@/lib/sections/instructor-evidence";
@@ -214,6 +214,12 @@ type PlannerContextValue = {
    * recommendations and optimizer requests tie-break on the same evidence.
    */
   evidenceHundredths: Readonly<Record<string, Record<string, number | null>>>;
+  /**
+   * The options `sectionPlan` may recommend: the student's open-seats and
+   * other-sites settings. Use in Main keeps them, so a surface that previews
+   * another plan resolves it with this filter to show what Main would pick.
+   */
+  candidateFilter: CandidateFilter;
   /** Starts loading these courses' options (cached, shared with every view). */
   loadSections: (courseCodes: readonly string[]) => void;
   routeStops: ReturnType<typeof routeStopsOf>;
@@ -646,13 +652,14 @@ function IdentityPlannerProvider({
   );
   const [preferencesStorage, setPreferencesStorage] = useState<PreferencesStorage>("stored");
   const { openSeatsOnly, otherSites } = schedulePreferences.constraints;
+  const candidateFilter = useMemo<CandidateFilter>(() => ({ openSeatsOnly, otherSites }), [openSeatsOnly, otherSites]);
   const sectionPlan = useMemo(
     // The evidence map is the same one Auto's request carries: a recommendation
     // the page shows tie-breaks on accepted instructor evidence, not section id.
-    () => resolveSectionPlan(normalizedState, sectionStore.catalog, { openSeatsOnly, otherSites }, undefined, shownEvidenceHundredths),
+    () => resolveSectionPlan(normalizedState, sectionStore.catalog, candidateFilter, undefined, shownEvidenceHundredths),
     // catalogVersion is how the catalog says it has more loaded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [normalizedState, sectionStore, catalogVersion, openSeatsOnly, otherSites, shownEvidenceHundredths],
+    [normalizedState, sectionStore, catalogVersion, candidateFilter, shownEvidenceHundredths],
   );
   // Actions read the newest plan: a lock pins the section the page shows.
   const sectionPlanRef = useRef(sectionPlan);
@@ -1636,6 +1643,7 @@ function IdentityPlannerProvider({
       sectionCatalog: sectionStore.catalog,
       catalogVersion,
       evidenceHundredths: shownEvidenceHundredths,
+      candidateFilter,
       loadSections: sectionStore.ensure,
       routeStops: routeStopsOf(scheduleEvents),
       scheduleEvents,
@@ -1877,6 +1885,7 @@ function IdentityPlannerProvider({
     normalizedState,
     sectionPlan,
     shownEvidenceHundredths,
+    candidateFilter,
     sectionStore,
     conflict,
     guestStorageAvailable,

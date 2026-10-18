@@ -1,6 +1,6 @@
 import { assignColors, type Hue } from "@/lib/course-colors";
 import { buildScheduleEvents, normalizePlannerState, resolveSectionPlan, summarizeCredits } from "@/lib/planner";
-import { optionIdLabel, optionLabel, scheduleEventsOf, sectionRef, type SectionCatalog } from "@/lib/planner-sections";
+import { optionIdLabel, optionLabel, scheduleEventsOf, sectionRef, type CandidateFilter, type SectionCatalog } from "@/lib/planner-sections";
 import type { ClassDay, PlannerState, ScheduleEvent } from "@/lib/types";
 
 /**
@@ -32,9 +32,14 @@ export function spokenClock(minutes: number): string {
   return `${clockText(minutes)} ${h < 12 ? "AM" : "PM"}`;
 }
 
-/** The meetings a saved state would show, with each unpicked course on the goal's recommended section. */
-export function eventsOf(state: PlannerState, catalog: SectionCatalog): ScheduleEvent[] {
-  return buildScheduleEvents(resolveSectionPlan(normalizePlannerState(state), catalog));
+/**
+ * The meetings a saved state would show, with each unpicked course on the
+ * goal's recommended section. `filter` is Main's (the planner's
+ * candidateFilter): Use in Main keeps it, so the preview recommends what
+ * Main would.
+ */
+export function eventsOf(state: PlannerState, catalog: SectionCatalog, filter: CandidateFilter): ScheduleEvent[] {
+  return buildScheduleEvents(resolveSectionPlan(normalizePlannerState(state), catalog, filter));
 }
 
 export function weekBlocks(events: readonly ScheduleEvent[]): WeekBlock[] {
@@ -195,11 +200,12 @@ export type PlannedSection = {
 
 /**
  * Every course a plan schedules, with the section it uses: saved picks, and
- * the goal's recommendation for the rest, as the lenses show it. Sections
- * with no set time are included, so a change to one still counts.
+ * the goal's recommendation for the rest under Main's `filter`, as the
+ * lenses would show it in Main. Sections with no set time are included, so
+ * a change to one still counts.
  */
-export function plannedSections(state: PlannerState, catalog: SectionCatalog): PlannedSection[] {
-  return resolveSectionPlan(normalizePlannerState(state), catalog).courses.flatMap((course): PlannedSection[] => {
+export function plannedSections(state: PlannerState, catalog: SectionCatalog, filter: CandidateFilter): PlannedSection[] {
+  return resolveSectionPlan(normalizePlannerState(state), catalog, filter).courses.flatMap((course): PlannedSection[] => {
     if (course.section) return [{ code: course.code, sectionId: course.section.id, label: optionLabel(course.section), blocks: weekBlocks(scheduleEventsOf(course.section)) }];
     // A saved pick the loaded catalog can't place still differs from another pick.
     if (course.savedId) return [{ code: course.code, sectionId: course.savedId, label: optionIdLabel(course.savedId), blocks: [], unresolved: course.state === "loading" ? "loading" : "gone" }];
