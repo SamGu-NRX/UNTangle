@@ -1,5 +1,5 @@
 import { assignColors, type Hue } from "@/lib/course-colors";
-import { buildScheduleEvents, normalizePlannerState, resolveSectionPlan, summarizeCredits, type SectionPlan } from "@/lib/planner";
+import { buildScheduleEvents, getPlanningTermCourseCodes, normalizePlannerState, resolveSectionPlan, summarizeCredits, type SectionPlan } from "@/lib/planner";
 import { optionIdLabel, optionLabel, scheduleEventsOf, sectionRef, type CandidateFilter, type SectionCatalog } from "@/lib/planner-sections";
 import type { ClassDay, PlannerState, ScheduleEvent } from "@/lib/types";
 
@@ -45,6 +45,11 @@ export type Evidence = Readonly<Record<string, Record<string, number | null>>>;
  */
 export function resolveAsMain(state: PlannerState, catalog: SectionCatalog, filter: CandidateFilter, evidenceHundredths: Evidence): SectionPlan {
   return resolveSectionPlan(normalizePlannerState(state), catalog, filter, undefined, evidenceHundredths);
+}
+
+/** Every course the saved states would plan this term, once each, sorted: the courses their previews resolve. */
+export function previewCourseCodes(states: readonly PlannerState[]): string[] {
+  return [...new Set(states.flatMap((state) => getPlanningTermCourseCodes(normalizePlannerState(state))))].sort();
 }
 
 /** The meetings a saved state would show in Main (resolveAsMain). */

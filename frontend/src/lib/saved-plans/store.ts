@@ -210,6 +210,15 @@ function parseDoc(raw: string | null): { doc: SavedPlanStoreDoc; notice: SavedPl
   };
 }
 
+/**
+ * The copies a library's stored bytes hold, read without writing anything:
+ * no quarantine and no migration, so it is safe during render. Bytes it
+ * can't read hold no copies.
+ */
+export function savedPlansIn(raw: string | null): SavedPlanSnapshot[] {
+  return parseDoc(raw).doc.plans;
+}
+
 export type SavedPlanStore = {
   /** True when localStorage is usable at all. */
   readonly available: boolean;

@@ -4,8 +4,10 @@
  * recommendation tie-breaks on it — the same evidence Auto's request carries.
  * From the round-5 finding that the provider's resolveSectionPlan call dropped
  * the map, so the recommendations the page shows tie-breaked on section id.
+ * A course only a saved copy plans reads evidence too, so the copy's preview
+ * picks what Use in Main lands on (PR #172 review).
  */
-import { afterAll, afterEach, beforeAll, beforeEach, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, mock, test } from "bun:test";
 import type { GradeData } from "@/lib/grades";
 import type { CourseHistory, HistoryResult, HistoryTerm } from "@/lib/grades-history/types";
 import type { CourseOptions, SectionCatalog } from "@/lib/planner-sections";
@@ -13,13 +15,18 @@ import type { SectionStore } from "@/lib/section-store";
 import type { CourseSections, Meeting, RealProvenance, Section } from "@/lib/sections/model";
 import { installDom, mountPlanner, removeDom, setSession, waitFor } from "./test-dom";
 
+/** Every course whose history the provider asked for. */
+const requested: string[] = [];
+
 mock.module("@/lib/grades-history/course-history", () => ({
   COURSE_HISTORY_TIMEOUT_MS: 10_000,
   // Every planned course reads the same history: Doe pools to 326 hundredths,
   // Khan to 200 — both accepted, so the course's evidence counts and the
   // stronger instructor must win the cost tie.
-  fetchCourseHistory: (): Promise<HistoryResult<CourseHistory>> =>
-    Promise.resolve({ status: "ok", source: "untgrades.app", data: HISTORY }),
+  fetchCourseHistory: (subject: string, number: string): Promise<HistoryResult<CourseHistory>> => {
+    requested.push(`${subject} ${number}`);
+    return Promise.resolve({ status: "ok", source: "untgrades.app", data: HISTORY });
+  },
   fetchMissingHistories: (
     fetchable: ReadonlySet<string>,
     cached: Map<string, Promise<HistoryResult<CourseHistory>>>,
@@ -125,6 +132,7 @@ afterAll(() => {
 });
 beforeEach(() => {
   window.localStorage.clear();
+  requested.length = 0;
   setSession(null);
 });
 afterEach(async () => {
@@ -142,4 +150,31 @@ test("the displayed recommendation tie-breaks on instructor evidence", async () 
     })),
   );
   await waitFor(() => planner.get().sectionPlan.selections["CSCE 1045"] === STRONG_ID, "evidence moves the recommendation to the stronger instructor");
+});
+
+// PR #172 review (discussion_r4305799934): the provider read evidence only for Main's courses, so a copy-only
+// course previewed on the id tie-break (Khan) while Use in Main, once Main planned it, landed on Doe.
+test("a course only a saved copy plans reads evidence, so its preview picks what Use in Main lands on", async () => {
+  const { createSavedPlanStore } = await import("@/lib/saved-plans/store");
+  const { resolveAsMain } = await import("@/lib/plan-library/week");
+  const { adoptCopy } = await import("@/components/schedules-library/adopt");
+  const { getPlanningTermCourseCodes } = await import("@/lib/planner");
+  const planner = await mountPlanner(undefined, store);
+  mounted.push(planner.unmount);
+  await planner.get().afterHydration();
+  const main = planner.get().plannerState;
+  expect(getPlanningTermCourseCodes(main)).not.toContain("CSCE 1045");
+  const saved = createSavedPlanStore().savePlan({ state: { ...main, courseStatuses: { ...main.courseStatuses, "CSCE 1045": "inProgress" } }, name: "Computing" });
+  if (!saved.ok) throw new Error(saved.failure.message);
+  const copy = saved.value;
+
+  await waitFor(() => planner.get().evidenceHundredths["CSCE 1045"]?.[STRONG_ID] != null, "the copy's course reads its evidence");
+  const now = planner.get();
+  const preview = resolveAsMain(copy.state, now.sectionCatalog, now.candidateFilter, now.evidenceHundredths).selections["CSCE 1045"];
+  await planner.run((p) => void adoptCopy(p, copy));
+  await waitFor(() => planner.get().sectionPlan.selections["CSCE 1045"] !== undefined, "Main plans the adopted course");
+  expect(preview).toBe(STRONG_ID);
+  expect(planner.get().sectionPlan.selections["CSCE 1045"]).toBe(preview);
+  // One history request for the course, from the preview; Main reuses it.
+  expect(requested.filter((code) => code === "CSCE 1045")).toEqual(["CSCE 1045"]);
 });
