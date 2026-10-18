@@ -170,3 +170,83 @@ for (const open of [true, false]) {
     expect(document.querySelector('aside:not([inert])')).toBeNull();
   });
 }
+
+describe("naming a copy (PR #62 review: two rows called Main)", () => {
+  const nameField = () => document.querySelector<HTMLInputElement>('[role="dialog"][data-state="open"] input')!;
+  /** The naming dialog is open; a closing one stays mounted through its exit. */
+  const naming = () => document.querySelector('[role="dialog"][data-state="open"]') !== null;
+  const fieldError = () => {
+    const id = nameField().getAttribute("aria-describedby");
+    return id ? document.getElementById(id)?.textContent : undefined;
+  };
+  const rowNames = () => [...document.querySelectorAll<HTMLButtonElement>("button[aria-label^='Open ']")].map((row) => row.getAttribute("aria-label"));
+  async function type(value: string) {
+    const { act } = await import("react");
+    await act(async () => {
+      const input = nameField();
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+  async function submit() {
+    const { act } = await import("react");
+    await act(async () => {
+      nameField().form!.requestSubmit();
+    });
+  }
+
+  test("saving as Main is refused under the field; the dialog stays open until a free name saves", async () => {
+    await page();
+    await click(button("Save a copy"));
+    await type(" main");
+    await submit();
+    expect(naming()).toBe(true);
+    expect(fieldError()).toBe("Main is your plan. Name this copy something else.");
+    expect(nameField().getAttribute("aria-invalid")).toBe("true");
+    expect(rowNames()).toEqual(["Open Main, active", "Open Saved copy"]);
+    // Editing the name clears the message; a free name saves and closes.
+    await type("Lighter week");
+    expect(fieldError()).toBeUndefined();
+    await submit();
+    expect(naming()).toBe(false);
+    expect(rowNames()).toEqual(["Open Main, active", "Open Lighter week", "Open Saved copy"]);
+  });
+
+  test("saving under another copy's name is refused with that copy's name", async () => {
+    await page();
+    await click(button("Save a copy"));
+    await type("SAVED COPY");
+    await submit();
+    expect(fieldError()).toBe("You already have a copy called Saved copy.");
+    expect(rowNames()).toEqual(["Open Main, active", "Open Saved copy"]);
+  });
+
+  test("renaming to Main or a taken name is refused the same way", async () => {
+    await page();
+    await click(button("Save a copy"));
+    await type("Other");
+    await submit();
+    const trigger = button("More for Other");
+    const { act } = await import("react");
+    await act(async () => trigger.focus());
+    await press(trigger, "Enter");
+    const menu = document.querySelector('[role="menu"][aria-label="More for Other"]')!;
+    await click([...menu.querySelectorAll('[role="menuitem"]')].find((item) => item.textContent === "Rename")!);
+    await type("Main");
+    await submit();
+    expect(fieldError()).toBe("Main is your plan. Name this copy something else.");
+    await type("saved copy");
+    await submit();
+    expect(fieldError()).toBe("You already have a copy called Saved copy.");
+    expect(rowNames()).toEqual(["Open Main, active", "Open Other", "Open Saved copy"]);
+  });
+
+  test("a blank name still saves, as the numbered placeholder", async () => {
+    await page();
+    await click(button("Save a copy"));
+    expect(nameField().placeholder).toBe("Copy of Main");
+    await submit();
+    expect(naming()).toBe(false);
+    expect(rowNames()).toContain("Open Copy of Main");
+  });
+});

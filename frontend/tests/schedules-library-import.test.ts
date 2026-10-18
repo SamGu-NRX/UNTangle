@@ -50,8 +50,9 @@ test("with no change of account, the same file is added", async () => {
   const { file, release } = slowFile(fileText);
   const pending = importScheduleFile(library, file);
   release();
-  expect(await pending).toEqual({ ok: true, name: "Guest copy" });
-  expect(names(null)).toEqual(["Guest copy", "Guest copy"]);
+  // The library already has a copy by that name, so the file comes in numbered (PR #62 review).
+  expect(await pending).toEqual({ ok: true, name: "Guest copy 2" });
+  expect(names(null)).toEqual(["Guest copy 2", "Guest copy"]);
 });
 
 test("a file that isn't JSON says so", async () => {

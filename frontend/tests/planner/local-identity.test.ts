@@ -484,9 +484,10 @@ test("an import captured for A is refused after switching to B, while B can impo
   if (!own.ok) throw new Error(own.failure.message);
   const imported = saved.importPlan(own.value, undefined, saved.captureIdentity());
   if (!imported.ok) throw new Error(imported.failure.message);
-  expect(imported.snapshot.name).toBe("B import");
+  // B's library already has "B import", so the file comes in numbered (PR #62 review).
+  expect(imported.snapshot.name).toBe("B import 2");
   expect(imported.snapshot.state.transcriptRecords).toEqual([]);
-  expect(plans(saved).map((p) => p.name)).toEqual(["B import", "B import"]);
+  expect(plans(saved).map((p) => p.name)).toEqual(["B import 2", "B import"]);
 });
 
 
