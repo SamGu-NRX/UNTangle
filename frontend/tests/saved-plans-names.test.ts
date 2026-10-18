@@ -148,6 +148,49 @@ describe("import", () => {
   });
 });
 
+describe("a guest's copies merged on sign-in (#172 review)", () => {
+  /** A guest library entry as stored, under any name: guest copies saved before the rule can be called "main". */
+  const guestCopy = (name: string): SavedPlanSnapshot => {
+    const guest = createSavedPlanStore(memoryStorage());
+    return { ...saved(guest, "placeholder"), name };
+  };
+
+  test("an account with Plan A, and a guest with Plan A and main, ends with Plan A, Plan A 2 and main 2", () => {
+    const account = createSavedPlanStore(memoryStorage());
+    saved(account, "Plan A");
+    const merged = account.addSnapshots([guestCopy("Plan A"), guestCopy("main")]);
+    expect(merged.ok && merged.value.map((plan) => plan.name)).toEqual(["Plan A 2", "main 2"]);
+    expect(names(account).sort()).toEqual(["Plan A", "Plan A 2", "main 2"]);
+  });
+
+  test("two guest copies with one name are numbered against each other too; a free name is kept as stored", () => {
+    const account = createSavedPlanStore(memoryStorage());
+    const merged = account.addSnapshots([guestCopy("Twin"), guestCopy("twin"), guestCopy(" Lighter ")]);
+    expect(merged.ok && merged.value.map((plan) => plan.name)).toEqual(["Twin", "twin 2", " Lighter "]);
+  });
+
+  test("a retry adds nothing: the numbered copy from the first try counts as already here", () => {
+    const account = createSavedPlanStore(memoryStorage());
+    saved(account, "Plan A");
+    const incoming = [guestCopy("Plan A")];
+    expect(account.addSnapshots(incoming).ok).toBe(true);
+    const again = account.addSnapshots(incoming);
+    expect(again.ok && again.value).toEqual([]);
+    expect(names(account).sort()).toEqual(["Plan A", "Plan A 2"]);
+  });
+
+  test("duplicates the account already holds stay as they are", () => {
+    const account = createSavedPlanStore(memoryStorage());
+    const a = saved(account, "Plan A");
+    const raw = account.list();
+    if (!raw.ok) throw new Error(raw.failure.message);
+    const storage = memoryStorage({ [SAVED_PLANS_STORE_KEY]: JSON.stringify({ ...raw.doc, plans: [a, { ...a, planId: "legacy-twin" }] }) });
+    const old = createSavedPlanStore(storage);
+    expect(old.addSnapshots([guestCopy("Plan A")]).ok).toBe(true);
+    expect(names(old).sort()).toEqual(["Plan A", "Plan A", "Plan A 2"]);
+  });
+});
+
 describe("copies saved before the rule", () => {
   test("keep their names, Main and repeats included, and other copies can still be renamed", () => {
     const store = createSavedPlanStore(memoryStorage());

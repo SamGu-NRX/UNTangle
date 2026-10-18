@@ -229,8 +229,11 @@ export type SavedPlanStore = {
   savePlan(input: { state: PlannerState; name?: string; now?: Date; onClash?: "number" | "refuse" }): StoreWriteResult<SavedPlanSnapshot>;
   /**
    * Adds whole entries from another library (a guest's, moved on sign-in),
-   * every field kept. An entry already here unchanged is skipped; one whose
-   * id is taken by a different entry gets a new id and nothing else changes.
+   * every field kept but the name: one that is "Main" or a name already here,
+   * or earlier in `plans`, gets a number as an import does ("Plan A 2").
+   * Entries already here keep theirs. An entry already here that differs at
+   * most in name is skipped, so a retry doesn't add the numbered copy twice;
+   * one whose id is taken by a different entry gets a new id.
    */
   addSnapshots(plans: readonly SavedPlanSnapshot[]): StoreWriteResult<SavedPlanSnapshot[]>;
   /** Refuses "Main" and another copy's name with a "nameClash" failure. */
@@ -509,8 +512,11 @@ export function createSavedPlanStore(storage?: Storage | null, userId: string | 
         const added: SavedPlanSnapshot[] = [];
         for (const plan of plans) {
           const same = doc.plans.find((entry) => entry.planId === plan.planId);
-          if (same && equal(same, plan)) continue;
-          added.push(same ? { ...plan, planId: crypto.randomUUID() } : plan);
+          if (same && equal({ ...same, name: plan.name }, plan)) continue;
+          const free = freeName(plan.name, [...doc.plans, ...added].map((entry) => entry.name));
+          // A name that needs no number is kept exactly as stored, untrimmed.
+          const name = nameKey(free) === nameKey(plan.name) ? plan.name : free;
+          added.push({ ...plan, name, planId: same ? crypto.randomUUID() : plan.planId });
         }
         doc.plans = [...added, ...doc.plans];
         return { value: added };
