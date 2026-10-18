@@ -62,10 +62,11 @@ async function page() {
   const transactionStamps: PlanStamp[] = [];
   plannerValue = {
     plannerState: main,
-    scheduleEvents: eventsOf(main, sampleCatalog, DEFAULT_CANDIDATE_FILTER),
+    scheduleEvents: eventsOf(main, sampleCatalog, DEFAULT_CANDIDATE_FILTER, {}),
     sectionCatalog: sampleCatalog,
     sectionPlan: resolveSectionPlan(main, sampleCatalog, DEFAULT_CANDIDATE_FILTER),
     candidateFilter: DEFAULT_CANDIDATE_FILTER,
+    evidenceHundredths: {},
     loadSections: () => {},
     transact: async <R,>(transaction: (current: PlannerState) => PlanTransaction<R>, expected: PlanStamp) => {
       transactionStamps.push(expected);

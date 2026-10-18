@@ -79,7 +79,7 @@ const currentMinute = () => Math.floor(Date.now() / 60_000);
  */
 export function SchedulesClient() {
   const planner = usePlanner();
-  const { plannerState, scheduleEvents, sectionCatalog, candidateFilter, loadSections, transact } = planner;
+  const { plannerState, scheduleEvents, sectionCatalog, candidateFilter, evidenceHundredths, loadSections, transact } = planner;
   const phone = useMediaQuery(PHONE_QUERY);
   const store = useMemo(() => createSavedPlanStore(), []);
 
@@ -114,7 +114,7 @@ export function SchedulesClient() {
 
   // A handful of schedules, each resolved against the loaded sections: cheap enough to redo per
   // render, which also redraws a saved week as its course options arrive (catalogVersion).
-  // A copy is resolved with Main's filter, so its week is the one Use in Main would give.
+  // A copy is resolved with Main's filter and instructor evidence, so its week is the one Use in Main would give.
   const now = new Date(minute * 60_000);
   const main: Entry = {
     id: MAIN_ID,
@@ -132,13 +132,13 @@ export function SchedulesClient() {
     active: false,
     fact: whenText("Saved", plan.source.capturedAt, now),
     state: plan.state,
-    blocks: weekBlocks(eventsOf(plan.state, sectionCatalog, candidateFilter)),
+    blocks: weekBlocks(eventsOf(plan.state, sectionCatalog, candidateFilter, evidenceHundredths)),
     snapshot: plan,
   });
   const entries = { main, live: live.map(copy), archived: archived.map(copy) };
   // Said once, on the term heading (rule 6), whenever any week drawn here uses the bundled samples.
   const samples =
-    usesSampleSections(scheduleEvents) || plans.some((plan) => usesSampleSections(eventsOf(plan.state, sectionCatalog, candidateFilter)));
+    usesSampleSections(scheduleEvents) || plans.some((plan) => usesSampleSections(eventsOf(plan.state, sectionCatalog, candidateFilter, evidenceHundredths)));
   const all = [entries.main, ...entries.live, ...entries.archived];
   const find = (id: string | null) => all.find((entry) => entry.id === id) ?? null;
 

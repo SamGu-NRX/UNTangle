@@ -7,6 +7,7 @@
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import type { CandidateFilter, SectionCatalog } from "@/lib/planner-sections";
 import type { Section } from "@/lib/sections";
+import type { CourseSections, Meeting } from "@/lib/sections/model";
 import { fixtureCatalog, fixtureInput, renumber } from "./sections/real-term";
 import { click, installDom, mount, removeDom } from "./ui/dom";
 
@@ -38,9 +39,12 @@ type PageOptions = {
   catalog?: SectionCatalog;
   /** Main's open-seats and other-sites settings; the defaults by default. */
   filter?: CandidateFilter;
+  /** Main's instructor evidence, per course and section id; none by default. */
+  evidence?: Evidence;
 };
+type Evidence = Readonly<Record<string, Record<string, number | null>>>;
 
-async function page({ copies = true, hydrated = true, saved, catalog, filter }: PageOptions = {}) {
+async function page({ copies = true, hydrated = true, saved, catalog, filter, evidence = {} }: PageOptions = {}) {
   const { DEFAULT_CANDIDATE_FILTER, getInitialPlannerState, normalizePlannerState, resolveSectionPlan } = await import("@/lib/planner");
   const { eventsOf } = await import("@/lib/plan-library/week");
   const { sampleCatalog } = await import("@/lib/planner-sections");
@@ -67,14 +71,15 @@ async function page({ copies = true, hydrated = true, saved, catalog, filter }: 
     const result = store.savePlan({ state: taking([...codes]), name });
     if (!result.ok) throw new Error(result.failure.message);
   }
-  const sectionPlan = resolveSectionPlan(normalizePlannerState(main), sectionCatalog, candidateFilter);
+  const sectionPlan = resolveSectionPlan(normalizePlannerState(main), sectionCatalog, candidateFilter, undefined, evidence);
   mainSections = sectionPlan.courses.flatMap((course) => (course.section ? [course.section] : []));
   plannerValue = {
     plannerState: main,
-    scheduleEvents: eventsOf(main, sectionCatalog, candidateFilter),
+    scheduleEvents: eventsOf(main, sectionCatalog, candidateFilter, evidence),
     sectionCatalog,
     sectionPlan,
     candidateFilter,
+    evidenceHundredths: evidence,
     loadSections: () => {},
     transact: async () => ({ status: "committed", result: null }),
     identityReady: true,
@@ -301,6 +306,52 @@ describe("a saved copy previews what Use in Main would pick", () => {
     expect(change).not.toContain("9:35");
     // Its last class ends at 3:50 on Monday, against Main's sample sections.
     expect(figures().find((row) => row[0] === "Last class ends")?.[2]).toStartWith("3:50");
+    await view.unmount();
+  });
+});
+
+/**
+ * ANTH 1010 with two real options alike but for the day, Monday or Tuesday 9:00 to 10:00, so the
+ * goal scores them the same: the exact tie #134's instructor evidence breaks. Other courses stay loading.
+ */
+function tiedCatalog(): SectionCatalog {
+  const code = "ANTH 1010";
+  const option = (id: string, day: Meeting["day"]): Section => ({
+    id, term: "spring-2027", courseCode: code, sectionCode: id.slice(-3), classNumbers: [id.slice(-3)], option: "1",
+    instructor: { display: "Jane Doe", raw: "Doe,Jane" }, seats: { open: 25, total: 40 }, status: "open", rawStatus: "Open",
+    session: { label: "Full Term", dates: { start: null, end: null, raw: "" } }, components: [], online: false, async: false, tba: false,
+    meetings: [{
+      room: "204", buildingCode: "NTDP", buildingId: "ntdp", buildingName: "Discovery Park", kind: "building", offCampus: false,
+      day, startMinutes: 540, endMinutes: 600, dates: { start: null, end: null, raw: "" },
+      instructor: { display: "Jane Doe", raw: "Doe,Jane" }, async: false, tba: false,
+    }],
+  });
+  const result: CourseSections = {
+    status: "ok", availability: "sections", term: "spring-2027", courseCode: code, diagnostic: null,
+    provenance: { kind: "real", source: "vsb.untgrades.app", updatedAt: "2026-10-15T00:00:00Z", note: "" }, checkedAt: "2026-10-15T00:00:00Z",
+    sections: [option("anth-1010-001", "Mon"), option("anth-1010-002", "Tue")],
+  };
+  return (course) => (course === code ? { status: "ready", result } : { status: "loading" });
+}
+
+describe("a saved copy breaks ties with Main's instructor evidence", () => {
+  // #134's tie-break: Main resolves with the evidence it has read, so a preview without it could
+  // show the Monday option while Use in Main lands on Tuesday's stronger instructor.
+  const evidence: Evidence = { "ANTH 1010": { "anth-1010-001": 280, "anth-1010-002": 350 } };
+  const meetings = () => [...document.querySelectorAll('aside [aria-label="Meetings"] li')].map((li) => li.textContent ?? "").filter((text) => text.startsWith("ANTH 1010"));
+
+  test("the detail draws the section Main's evidence picks", async () => {
+    const { DEFAULT_CANDIDATE_FILTER, getInitialPlannerState, resolveSectionPlan } = await import("@/lib/planner");
+    const catalog = tiedCatalog();
+    const initial = getInitialPlannerState();
+    const copy = { ...initial, courseStatuses: { ...initial.courseStatuses, "ANTH 1010": "inProgress" as const } };
+    // The test means something only while evidence decides: without it the tie falls to Monday's id.
+    expect(resolveSectionPlan(copy, catalog, DEFAULT_CANDIDATE_FILTER).selections["ANTH 1010"]).toBe("anth-1010-001");
+    expect(resolveSectionPlan(copy, catalog, DEFAULT_CANDIDATE_FILTER, undefined, evidence).selections["ANTH 1010"]).toBe("anth-1010-002");
+
+    const view = await page({ saved: [["Anthropology", ["ANTH 1010"]]], catalog, evidence });
+    await click(button("Open Anthropology"));
+    expect(meetings()).toEqual(["ANTH 1010, Tuesday 9:00 AM to 10:00 AM"]);
     await view.unmount();
   });
 });

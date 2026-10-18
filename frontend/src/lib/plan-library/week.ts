@@ -34,12 +34,18 @@ export function spokenClock(minutes: number): string {
 
 /**
  * The meetings a saved state would show, with each unpicked course on the
- * goal's recommended section. `filter` is Main's (the planner's
- * candidateFilter): Use in Main keeps it, so the preview recommends what
- * Main would.
+ * goal's recommended section. `filter` and `evidenceHundredths` are Main's
+ * (the planner's candidateFilter and evidenceHundredths): Main resolves its
+ * plan with both, and evidence breaks exact ties (#134), so a preview without
+ * it could show a section Use in Main would not pick.
  */
-export function eventsOf(state: PlannerState, catalog: SectionCatalog, filter: CandidateFilter): ScheduleEvent[] {
-  return buildScheduleEvents(resolveSectionPlan(normalizePlannerState(state), catalog, filter));
+export function eventsOf(
+  state: PlannerState,
+  catalog: SectionCatalog,
+  filter: CandidateFilter,
+  evidenceHundredths: Readonly<Record<string, Record<string, number | null>>>,
+): ScheduleEvent[] {
+  return buildScheduleEvents(resolveSectionPlan(normalizePlannerState(state), catalog, filter, undefined, evidenceHundredths));
 }
 
 export function weekBlocks(events: readonly ScheduleEvent[]): WeekBlock[] {
