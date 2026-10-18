@@ -248,15 +248,10 @@
 .reqCourse[data-status="check"] .reqFact {
   color: var(--attention);
 }
-/* What an option fills, a second line under its codes; the glyph stays with the first line. */
+/* What an option fills, a line of its own under the codes; the glyph centers on the codes' line. */
 :is(.reqCourse, .reqSet):has(.reqFills) {
-  align-items: baseline;
   row-gap: 2px;
   padding: 9px 0;
-}
-:is(.reqCourse, .reqSet):has(.reqFills) > .lead {
-  align-self: start;
-  margin-top: 1px;
 }
 .reqFills {
   grid-column: 2 / -1;
