@@ -244,6 +244,11 @@ function withSection(cell: string | null, section: PlannedSection | undefined, n
   return section ? `${cell}, ${name(section)}` : cell;
 }
 
+/** "section 002" for a section code; a saved real pick the catalog can't place is already labeled by its class numbers ("class 11111"). */
+function labelText(section: PlannedSection): string {
+  return section.unresolved && sectionRef(section.sectionId).provenance === "real" ? section.label : `section ${section.label}`;
+}
+
 /** What tells a section apart when its label doesn't: a real section's class numbers, which its id is built from, or that it is a made-up sample. */
 function sectionIdentity(section: PlannedSection): string {
   return sectionRef(section.sectionId).provenance === "real" ? optionIdLabel(section.sectionId) : "sample";
@@ -274,7 +279,7 @@ export function sectionGrid(plans: ReadonlyArray<readonly PlannedSection[]>): {
     else {
       let cells = sections.map((section) => (section ? sectionText(section) : null));
       // Different sections at the same times read alike, so each cell names its section.
-      if (readAlike(sections, cells)) cells = cells.map((cell, i) => withSection(cell, sections[i], (section) => `section ${section.label}`));
+      if (readAlike(sections, cells)) cells = cells.map((cell, i) => withSection(cell, sections[i], labelText));
       // A section code is not unique: a saved sample and a real section can both be "002".
       if (readAlike(sections, cells)) cells = cells.map((cell, i) => withSection(cell, sections[i], sectionIdentity));
       rows.push({ code, cells, ids: sections.map((section) => section?.sectionId ?? null) });

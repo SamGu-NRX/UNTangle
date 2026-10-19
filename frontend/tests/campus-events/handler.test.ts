@@ -121,6 +121,17 @@ test("deduplicated events are sorted by the representative's start", async () =>
   expect(body.events).toEqual([unrelated, preferred]);
 });
 
+test("events are sorted by instant, not by how their start is written", async () => {
+  const earlier = event({ title: "Zeta Talk", start: "2026-10-20T10:00:00Z" });
+  const later = event({ title: "Alpha Talk", start: "2026-10-20T10:00:00.001Z" });
+  const response = await eventsHandler(
+    request("?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z"),
+    { cache: cacheWith([later, earlier], []) },
+  );
+  const body = (await response.json()) as { events: NormalizedEvent[] };
+  expect(body.events.map((e) => e.title)).toEqual(["Zeta Talk", "Alpha Talk"]);
+});
+
 test("the event list is capped at MAX_EVENTS_IN_RESPONSE", async () => {
   // Distinct titles: the dedupe key is title + place + start, so same-title
   // fixtures would collapse before the cap ever applied.
