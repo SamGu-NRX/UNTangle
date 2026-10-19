@@ -1,0 +1,37 @@
+[run] suites: selfcheck, journey, honesty, a11y-polish, routing, optimizer, data, persistence-faults
+[stack] step target-dir: pass (0ms)
+[stack] step contract-hash: pass (2ms)
+[stack] step submodule-backend: pass (766ms)
+[stack] step backend-install: pass (302ms)
+[stack] step backend-sqlite-build: pass (2541ms)
+[stack] step backend-seed: pass (1600ms)
+[stack] step postgres-init: pass (821ms)
+[stack] step postgres-start: pass (236ms)
+[stack] step frontend-install: pass (1105ms)
+[stack] step migrations-apply: pass (707ms)
+[stack] step db-roundtrip: pass (22ms)
+[stack] step backend-start: pass (1253ms)
+[stack] step frontend-build: pass (38274ms)
+[stack] step frontend-start: pass (1084ms)
+[stack] step playwright-launch: pass (1504ms)
+[run] selfcheck/preflight-all-green ...
+[run] selfcheck/preflight-all-green → pass
+[run] selfcheck/db-roundtrip-persists ...
+[run] selfcheck/db-roundtrip-persists → pass
+[run] selfcheck/frontend-renders ...
+[run] selfcheck/frontend-renders → pass
+[run] selfcheck/rmp-block-active ...
+[run] selfcheck/rmp-block-active → pass
+[run] journey/journey/discover-guest-desktop ...
+[run] journey/journey/discover-guest-desktop → pass
+[run] journey/journey/discover-guest-mobile ...
+[run] journey/journey/discover-guest-mobile → pass
+[run] journey/journey/discover-registered-desktop ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/discover-registered-desktop → pass
+[run] journey/journey/discover-registered-mobile ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
