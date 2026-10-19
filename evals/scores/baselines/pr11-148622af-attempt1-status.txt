@@ -1,0 +1,8 @@
+LOCK-HELD 2026-10-19T20:40:49Z
+GATE-OPEN 2026-10-19T20:40:49Z 1m=0.97 5m=0.41 head=#11 148622af51c4 sha=148622af51c4412853bc8d8abb9386c7adcf5f1b prov=PR #11 head 148622af51c4 (refs/pr/11)
+TARGET-MATERIALIZE 2026-10-19T20:40:50Z git worktree add --detach /home/user/work/untangle-baseline-target 148622af51c4412853bc8d8abb9386c7adcf5f1b
+Preparing worktree (detached HEAD 148622af)
+HEAD is now at 148622af feat(map): extract client data layer with identity matching and safe caching
+TARGET-VERIFIED 2026-10-19T20:40:51Z at 148622af51c4412853bc8d8abb9386c7adcf5f1b
+RUN-END exit=1 2026-10-19T21:44:32Z score=/home/user/work/untangle-baseline-pr11/scorecard-pr11-204049.json loadlog=/home/user/work/baselines-logs/pr11-204049-load.log
+ALL-DONE rc=1 score=/home/user/work/untangle-baseline-pr11/scorecard-pr11-204049.json loadlog=/home/user/work/baselines-logs/pr11-204049-load.log
