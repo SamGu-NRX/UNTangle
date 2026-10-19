@@ -53,16 +53,30 @@ export async function openCase(origin: string, viewport: ViewportName, pathname 
 /** Close everything opened by openCase. Errors are recorded, not thrown. */
 export async function closeCase(cb: CaseBrowser): Promise<void> {
   openCases.delete(cb);
-  for (const closer of [
-    () => cb.context.close(),
-    () => cb.browser.close(),
-  ]) {
-    try {
-      await closer();
-    } catch {
-      // A crashed browser must not mask the case's own result.
-    }
-  }
+  // A browser that dies mid-case (OOM, SIGKILL) can leave close() awaiting a
+  // transport that will never answer — the round-2 journey run 1792409956203
+  // parked ~20 minutes inside close after its case browser vanished. Cleanup
+  // must be fail-safe in TIME, not only in error handling: bound every step
+  // and keep going regardless of how it ends.
+  await boundedClose(cb.context.close(), "context.close()");
+  await boundedClose(cb.browser.close(), "browser.close()");
+}
+
+const CLOSE_STEP_TIMEOUT_MS = 10_000;
+
+function boundedClose(promise: Promise<void>, what: string): Promise<void> {
+  return Promise.race([
+    promise.then(
+      () => undefined,
+      () => undefined,
+    ),
+    new Promise<void>((resolve) => {
+      setTimeout(() => {
+        console.error(`[ui-browser] ${what} did not finish within ${CLOSE_STEP_TIMEOUT_MS}ms — continuing`);
+        resolve();
+      }, CLOSE_STEP_TIMEOUT_MS);
+    }),
+  ]);
 }
 
 /**
