@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "suite": "persistence-faults",
-  "startedAt": "2026-10-12T02:41:17.147Z",
-  "finishedAt": "2026-10-12T02:52:05.074Z",
+  "startedAt": "2026-10-19T16:02:28.960Z",
+  "finishedAt": "2026-10-19T16:12:17.385Z",
   "target": {
     "dir": "/home/user/work/untangle-selftest-target",
-    "sha": "7f12402d62386fa4c6200833f2b66511d201ca99",
-    "actualHead": "7f12402d62386fa4c6200833f2b66511d201ca99"
+    "sha": "1befb428ce270c74931c7ebff32bbae7b08d3440",
+    "actualHead": "1befb428ce270c74931c7ebff32bbae7b08d3440"
   },
   "runtime": {
     "bun": "1.3.14",
@@ -19,100 +19,100 @@
     {
       "step": "target-dir",
       "status": "pass",
-      "durationMs": 1,
+      "durationMs": 0,
       "detail": "/home/user/work/untangle-selftest-target",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-target-dir.log"
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-target-dir.log"
     },
     {
-      "step": "contract-present",
+      "step": "contract-hash",
       "status": "pass",
-      "durationMs": 1,
-      "detail": "/home/user/work/untangle-selftest-target/evals/CONTRACT.md",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-contract-present.log"
+      "durationMs": 11,
+      "detail": "harness evals/CONTRACT.md sha256 86072811b2c376b5fcc0cf25035bbeb0fb050d5e7e4c7ebab7aa55f579b9ae0a (/home/user/work/untangle-r2-selftests/evals/CONTRACT.md); the target is not required to carry evals/",
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-contract-hash.log"
     },
     {
       "step": "submodule-backend",
       "status": "pass",
-      "durationMs": 59,
+      "durationMs": 39,
       "detail": "already initialized at pinned SHA 0a49d4d863161c3b568f6aa6d3da4b4e68637a44",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-submodule-backend.log"
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-submodule-backend.log"
     },
     {
       "step": "backend-install",
       "status": "pass",
-      "durationMs": 11,
+      "durationMs": 1,
       "detail": "cached install present (better-sqlite3 native binding + tsx)",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-backend-install.log"
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-backend-install.log"
     },
     {
       "step": "backend-sqlite-build",
       "status": "pass",
-      "durationMs": 5022,
+      "durationMs": 2902,
       "detail": "native SQLite addon loads in node (memory-db roundtrip ok); backend tsc build emitted dist/",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-backend-sqlite-build.log"
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-backend-sqlite-build.log"
     },
     {
       "step": "postgres-init",
       "status": "pass",
-      "durationMs": 1352,
-      "detail": "fresh cluster at /home/user/work/pgdata-selftest-persist-plant-1791772875794/run-1791772882259-56217",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-postgres-init.log"
+      "durationMs": 833,
+      "detail": "fresh cluster at /home/user/work/pgdata-selftest-persist-plant-1792425748875/run-1792425752492-388009",
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-postgres-init.log"
     },
     {
       "step": "postgres-start",
       "status": "pass",
-      "durationMs": 320,
-      "detail": "postgres up on 127.0.0.1:54320, database untangle created",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-postgres-start.log"
+      "durationMs": 174,
+      "detail": "postgres up on 127.0.0.1:54321, database untangle created",
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-postgres-start.log"
     },
     {
       "step": "frontend-install",
       "status": "pass",
-      "durationMs": 1178,
-      "detail": "bun install --frozen-lockfile at workspace root",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-frontend-install.log"
+      "durationMs": 1,
+      "detail": "cached workspace install present (next + drizzle-kit)",
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-frontend-install.log"
     },
     {
       "step": "migrations-apply",
       "status": "pass",
-      "durationMs": 1299,
-      "detail": "drizzle migrations applied (frontend/node_modules/.bin/drizzle-kit) against postgres://postgres@127.0.0.1:54320/untangle",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-migrations-apply.log"
+      "durationMs": 828,
+      "detail": "drizzle migrations applied (frontend/node_modules/.bin/drizzle-kit) against postgres://postgres@127.0.0.1:54321/untangle",
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-migrations-apply.log"
     },
     {
       "step": "db-roundtrip",
       "status": "pass",
-      "durationMs": 33,
-      "detail": "probe row roundtrip-eee942d8487a49da written and read back via DATABASE_URL (persistence gate satisfied)",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-db-roundtrip.log"
+      "durationMs": 16,
+      "detail": "probe row roundtrip-714638c4273b6ed0 written and read back via DATABASE_URL (persistence gate satisfied)",
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-db-roundtrip.log"
     },
     {
       "step": "backend-start",
       "status": "pass",
-      "durationMs": 2447,
+      "durationMs": 1246,
       "detail": "backend healthy on http://127.0.0.1:3950 under node/tsx (rmp-block preload via NODE_OPTIONS --require). bun --preload attempt failed: bun --preload backend: process exited early (code 1, signal none) — expected: the backend's better-sqlite3 addon crashes Bun at runtime (backend/README.md \"Bun Notes\")",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-backend-start.log"
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-backend-start.log"
     },
     {
       "step": "frontend-build",
       "status": "pass",
-      "durationMs": 86259,
+      "durationMs": 39673,
       "detail": "mode: production-build (next build); fonts: pinned via NEXT_FONT_GOOGLE_MOCKED_RESPONSES (vercel/next.js#99114 workaround)",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-frontend-build.log"
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-frontend-build.log"
     },
     {
       "step": "frontend-start",
       "status": "pass",
-      "durationMs": 6461,
-      "detail": "frontend serving http://localhost:3900 (DATABASE_URL set, BETTER_AUTH_URL aligned to origin, fresh random BETTER_AUTH_SECRET)",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-frontend-start.log"
+      "durationMs": 1171,
+      "detail": "frontend serving http://localhost:3901 (DATABASE_URL set, BETTER_AUTH_URL aligned to origin, fresh random BETTER_AUTH_SECRET)",
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-frontend-start.log"
     },
     {
       "step": "playwright-launch",
       "status": "pass",
-      "durationMs": 2528,
-      "detail": "chromium (headless) launched and rendered http://localhost:3900/ (body 6029 chars)",
-      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-playwright-launch.log"
+      "durationMs": 634,
+      "detail": "chromium (headless) launched and rendered http://localhost:3901/ (body 6029 chars)",
+      "logPath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/step-playwright-launch.log"
     }
   ],
   "infrastructure": {
@@ -126,7 +126,7 @@
       "status": "fail",
       "measured": null,
       "bar": "each durability rule holds in every injected case",
-      "evidencePath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/persistence-faults__acknowledged-saves-survive.json",
+      "evidencePath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/persistence-faults__acknowledged-saves-survive.json",
       "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
     },
     {
@@ -135,7 +135,7 @@
       "status": "fail",
       "measured": null,
       "bar": "each durability rule holds in every injected case",
-      "evidencePath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/persistence-faults__failed-saves-never-saved.json",
+      "evidencePath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/persistence-faults__failed-saves-never-saved.json",
       "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
     },
     {
@@ -144,7 +144,7 @@
       "status": "fail",
       "measured": null,
       "bar": "each durability rule holds in every injected case",
-      "evidencePath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/persistence-faults__denied-storage-degrades-honestly.json",
+      "evidencePath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/persistence-faults__denied-storage-degrades-honestly.json",
       "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
     },
     {
@@ -153,7 +153,7 @@
       "status": "fail",
       "measured": null,
       "bar": "each durability rule holds in every injected case",
-      "evidencePath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/persistence-faults__corrupt-bytes-quarantined.json",
+      "evidencePath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/persistence-faults__corrupt-bytes-quarantined.json",
       "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
     },
     {
@@ -162,7 +162,7 @@
       "status": "fail",
       "measured": null,
       "bar": "each durability rule holds in every injected case",
-      "evidencePath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/persistence-faults__cross-tab-conflict-visible.json",
+      "evidencePath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/persistence-faults__cross-tab-conflict-visible.json",
       "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
     },
     {
@@ -171,7 +171,7 @@
       "status": "fail",
       "measured": null,
       "bar": "each durability rule holds in every injected case",
-      "evidencePath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/persistence-faults__clean-tab-adopts-newer.json",
+      "evidencePath": "/home/user/work/persist-plant-runs/1792425748875/preflight-logs/persistence-faults__clean-tab-adopts-newer.json",
       "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
     }
   ],
