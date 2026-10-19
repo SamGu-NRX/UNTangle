@@ -217,22 +217,12 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
   // the published release was built with, so a 304 rebuild keeps those it
   // was not asked for, from their cached bodies. One it cannot reapply
   // stops the run, so it never publishes an older slice. A release with no
-  // record (published before records existed) may carry any overlay, so a
-  // run that requests no subjects publishes nothing over it.
+  // record (published before records existed) may carry any overlay, even
+  // one the run did not request, so step 3 publishes nothing over it.
+  let overlayUnknown = false;
   if (termOutcome.kind === "not-modified" && pointer !== null) {
     const published = await readOverlaySubjects(outDir, pointer.contentSha256);
-    if (published === null && !subjects.length) {
-      return {
-        termId,
-        outcome: "error",
-        reason: "overlay-unknown",
-        detail: `${pointer.releaseId} has no record of the subject files it was built with, so a rebuild from the term file could replace a fresher subject slice; it stays published until a run with subjects or a changed term file records one`,
-        fetched,
-        subjects: subjectReports,
-        termWatch: await runWatch(),
-        wrote: false,
-      };
-    }
+    overlayUnknown = published === null;
     for (const subject of published ?? []) {
       if (subjects.includes(subject)) continue;
       const entry = await readCachedBody(outDir, mirror.urlFor(termId, subject));
@@ -272,6 +262,26 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
     }
     return { termId, outcome: "unchanged", detail: "same content hash as the published release", previousReleaseId: pointer?.releaseId, fetched, subjects: subjectReports, termWatch: await runWatch(), wrote: false };
   }
+  // A different build over a release with unknown overlays could drop a
+  // fresher subject slice the run did not request. A 200 rebuilds in full
+  // instead, since the term itself changed. The one build allowed through is
+  // one whose own content already has a record of exactly these subjects: a
+  // release an earlier 200 accepted, whose pointer write failed.
+  const appliedSubjects = overlays.map(overlay => overlay.subject).sort();
+  const pending = overlayUnknown ? await readOverlaySubjects(outDir, next.manifest.contentSha256) : null;
+  if (overlayUnknown && (pending === null || pending.join(",") !== appliedSubjects.join(","))) {
+    return {
+      termId,
+      outcome: "error",
+      reason: "overlay-unknown",
+      detail: `${pointer?.releaseId} has no record of the subject files it was built with, and this build differs from it, so it could replace a fresher subject slice; it stays published until a run that rebuilds its exact content or a changed term file records one`,
+      previousReleaseId: pointer?.releaseId,
+      fetched,
+      subjects: subjectReports,
+      termWatch: await runWatch(),
+      wrote: false,
+    };
+  }
   const diff = previous ? diffReleases(previous, next) : null;
   const sanity = sanityCheck(previous, next);
   if (!sanity.ok) {
@@ -292,7 +302,7 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
 
   // 4. Publish: content first, pointer last. A dry run stops here.
   if (!dryRun) {
-    await writeOverlaySubjects(outDir, next.manifest.contentSha256, overlays.map(overlay => overlay.subject).sort());
+    await writeOverlaySubjects(outDir, next.manifest.contentSha256, appliedSubjects);
     await sink.putContent(next);
     await sink.putPointer(next, new Date(now()).toISOString());
   }
