@@ -148,7 +148,8 @@ export async function eventsHandler(request: Request, deps: EventsHandlerDeps): 
   const { events: allEvents, reports } = await deps.cache.getEvents({ from: parsed.query.from, to: parsed.query.to });
   const matching = allEvents.filter(event => matchesQuery(event, parsed.query));
   // A merged event keeps its cluster's first place but its representative's start, which can be later, so sort again before the cap.
-  const deduped = dedupeEvents(matching).sort((a, b) => (a.start === b.start ? a.title.localeCompare(b.title) : a.start.localeCompare(b.start)));
+  // Instants, not strings: "10:00:00Z" sorts after "10:00:00.001Z" as text.
+  const deduped = dedupeEvents(matching).sort((a, b) => Date.parse(a.start) - Date.parse(b.start) || a.title.localeCompare(b.title));
   const { json } = serializeEventsResponse({
     range: { from: parsed.query.from, to: parsed.query.to },
     building: parsed.query.building,
