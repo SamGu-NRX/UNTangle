@@ -1,0 +1,8 @@
+18:00:14 GATE-WAIT load1=0.35 load5=0.51
+18:00:14 GATE-PASS load1=0.35 load5=0.51
+18:00:14 RUN-START tag=stragglers target=d42166faca133b58eba410d0c0fd6b5a0fde38c1 out=/home/user/work/untangle-r2-only-stragglers-180014/journey-r2-repaired-only-stragglers-180014.json only=journey/instructor-registered-mobile journey/auth-registered-desktop
+18:00:14 load=0.35 load5=0.51 availMB=6591 runners=1 top=76MB:jupyter-server 53MB:python3.13 45MB:uvicorn 
+18:00:44 load=1.39 load5=0.75 availMB=5309 runners=1 top=957MB:node 112MB:bun 102MB:node 
+18:01:14 load=1.83 load5=0.92 availMB=5432 runners=1 top=397MB:chrome-headless 253MB:next-server 133MB:bun 
+18:01:32 RUN-END exit=1
+18:01:32 MONITOR-STOPPED exit=1 out=/home/user/work/untangle-r2-only-stragglers-180014/journey-r2-repaired-only-stragglers-180014.json
