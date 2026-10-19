@@ -587,6 +587,35 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
     return "native SQLite addon loads in node (memory-db roundtrip ok); backend tsc build emitted dist/";
   });
 
+  // --- (b2) backend seed — the grade/instructor catalog ----------------------
+  // The backend never seeds itself on boot (seed.ts is a standalone script,
+  // imported by nothing), and its data/untangle.db is a generated output each
+  // fresh checkout starts without: unseeded, every grade-data surface the
+  // contract scores (/courses/[subject]/[number] detail, /instructors/[id])
+  // renders the app's empty-data state — a bare not-found — and the journeys
+  // measure the missing catalog instead of the app's surfaces. Observed: the
+  // r2 journey run at d42166f recorded discover/instructor/a11y-instructor
+  // failures that all trace to that unseeded boot (the a11y instructor scan
+  // died in activate()'s focus fallback on the absent a.detail-row). The seed
+  // is the backend's own documented script over its own bundled data, and it
+  // fully re-seeds (DELETE + insert), so running it per boot is idempotent.
+  await step("backend-seed", async () => {
+    const seedBin = path.join(backendDir, "node_modules", ".bin", "tsx");
+    if (!existsSync(seedBin)) {
+      throw new Error(`tsx not found at ${seedBin} — backend-install did not complete?`);
+    }
+    const r = await runBounded(seedBin, ["src/db/seed.ts"], {
+      cwd: backendDir,
+      env: { ...process.env, PATH: pathWithShim },
+      timeoutMs: 300_000,
+      logPath: stepLog("backend-seed"),
+    });
+    if (r.code !== 0 || !r.tail.includes("Seeded")) {
+      throw new Error(`backend seed failed (code ${r.code}): ${r.tail.slice(-600)}`);
+    }
+    return "backend grade catalog seeded via the backend's own seed script (tsx src/db/seed.ts)";
+  });
+
   // --- (c) postgres: initdb + start + createdb --------------------------------
   const pgBase = path.join("/home/user/work", `pgdata-${options.taskId}`);
   const pgData = path.join(pgBase, `run-${Date.now()}-${process.pid}`);

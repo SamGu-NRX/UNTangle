@@ -11,7 +11,7 @@ import { defineSuite } from "../suite-kit";
 import type { CaseOutcome, CaseSpec, SuiteContext } from "../suite-kit";
 import { closeCase, closeTrackedCases, openCase, screenshot, settle } from "./ui-browser";
 import type { CaseBrowser } from "./ui-browser";
-import { activate, courseRow, expectDetailNot404 } from "./ui-contract";
+import { activate, courseRow, expectDetailNot404, missingElement } from "./ui-contract";
 import { runAxe } from "./ui-axe";
 
 type PageKey = "home" | "courses" | "detail" | "instructor" | "schedule" | "map" | "auth";
@@ -79,6 +79,18 @@ async function openScanPage(ctx: SuiteContext, key: PageKey): Promise<CaseBrowse
       await activate(cb.page, courseRow(cb.page, code).getByRole("link", { name: "Details" }).first());
       await cb.page.waitForURL("**/courses/**", { timeout: 20_000 });
       await expectDetailNot404(cb.page, cb.page.url());
+      // Contract: the course detail page links each professor outcome
+      // (`a.detail-row`), which is what makes /instructors/[id] reachable.
+      // Absence is a surface absence — fail the scan naming it, never as a
+      // bare activate() fallback timeout (the old path surfaced only
+      // "focus: Timeout 5000ms", which names no surface and invites
+      // misdiagnosis; the r2 a11y run died exactly that way on the unseeded
+      // backend, before the stack learned to seed the grade catalog).
+      const instructorLink = await missingElement(
+        cb.page.locator("a.detail-row").first(),
+        "instructor link on the course detail page (a.detail-row — professor outcomes; makes /instructors/[id] reachable, contract: /instructors/[id])",
+      );
+      if (!instructorLink.present) throw new Error("axe instructor scan: " + instructorLink.reason);
       await activate(cb.page, cb.page.locator("a.detail-row").first());
       await cb.page.waitForURL("**/instructors/**", { timeout: 20_000 });
       await settle(cb.page);
@@ -200,18 +212,26 @@ async function runReducedMotion(ctx: SuiteContext, caseId: string): Promise<Case
 
 async function runNoHorizontalOverflow(ctx: SuiteContext, caseId: string): Promise<CaseOutcome> {
   const failures: string[] = [];
-  for (const path of ["/courses", "/schedule", "/map"]) {
-    const cb = await openCase(ctx.frontendOrigin, "mobile", path);
-    await settle(cb.page, 800);
-    const overflow = await cb.page.evaluate(() => ({
-      scrollWidth: document.documentElement.scrollWidth,
-      clientWidth: document.documentElement.clientWidth,
-    }));
-    await screenshot(cb.page, ctx.runDir, `${caseId}-${path.replace(/\//g, "")}`);
-    await closeCase(cb);
-    if (overflow.scrollWidth > overflow.clientWidth) {
-      failures.push(`${path}: scrollWidth ${overflow.scrollWidth} > clientWidth ${overflow.clientWidth}`);
+  // One mobile browser for all three paths: three fresh launch+close cycles
+  // summed past the old 240s case cap on a loaded host (two r2 attempts died
+  // as bare case timeouts mid-way), and the assertion — document overflow at
+  // 390x844 — is per-path and gains nothing from a fresh context per path.
+  const cb = await openCase(ctx.frontendOrigin, "mobile");
+  try {
+    for (const path of ["/courses", "/schedule", "/map"]) {
+      await cb.page.goto(`${ctx.frontendOrigin}${path}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      await settle(cb.page, 800);
+      const overflow = await cb.page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      }));
+      await screenshot(cb.page, ctx.runDir, `${caseId}-${path.replace(/\//g, "")}`);
+      if (overflow.scrollWidth > overflow.clientWidth) {
+        failures.push(`${path}: scrollWidth ${overflow.scrollWidth} > clientWidth ${overflow.clientWidth}`);
+      }
     }
+  } finally {
+    await closeCase(cb);
   }
   if (failures.length > 0) {
     return { status: "fail", measured: failures.join("; "), note: "horizontal overflow at 390x844" };
@@ -277,5 +297,12 @@ export default defineSuite({
       await closeTrackedCases();
     }
   },
-  caseTimeoutMs: 240_000,
+  // 480s: the sum of this suite's own bounded steps (a keyboard case chains
+  // focus+waitForURL+settle+goto waits) could exceed 240s in the worst case,
+  // so a loaded host turned slow cases into bare "case timed out after 240s"
+  // records instead of precise step failures (two r2 a11y cases died that
+  // way). 480s matches the journey suite's cap: room for every bounded step,
+  // still far below the run cap, and a genuinely wedged case still fails in
+  // bounded time.
+  caseTimeoutMs: 480_000,
 });

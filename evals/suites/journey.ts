@@ -364,6 +364,15 @@ async function attributeBecomes(page: Page, locator: Locator, attr: string, want
   }
 }
 
+/**
+ * The contract's `Add {COURSE} section {NNN}` build-control name template as
+ * a RegExp: `nnn` is a three-digit group — \\d{3} for the shape probe,
+ * (\\d{3}) to capture the number out of an existing button's name.
+ */
+function addSectionName(code: string, nnn: string): RegExp {
+  return new RegExp("^Add " + escapeRegExp(code) + " section " + nnn + "$");
+}
+
 // ---------------------------------------------------------------------------
 // Journeys
 // ---------------------------------------------------------------------------
@@ -378,8 +387,13 @@ async function runDiscover(ctx: SuiteContext, caseId: string, persona: PersonaNa
   await page.waitForURL("**/courses/**", { timeout: 20_000 });
   await expectDetailNot404(page, page.url());
 
+  // Contract: the grade summary is a `region`-like div whose ACCESSIBLE NAME
+  // is "Course grade summary" — the target exposes it as aria-label on
+  // div.detail-stats (page.tsx:40), not as text content, so a text matcher
+  // can never resolve it. Look the surface up by accessible name, the same
+  // way the map journey resolves its `Route legs` region.
   const gradeSummary = await missingElement(
-    page.getByText("Course grade summary").first(),
+    page.locator('[aria-label="Course grade summary"]').first(),
     "'Course grade summary' region (contract: /courses/[subject]/[number])",
   );
   if (!gradeSummary.present) return { status: "fail", note: gradeSummary.reason };
@@ -424,16 +438,27 @@ async function runInstructor(ctx: SuiteContext, caseId: string, persona: Persona
 }
 
 /**
- * build — the ADD → LOCK → OPTIMIZE leg of the student journey.
+ * build — the BUILD → OPTIMIZE leg of the student journey, targeted to the
+ * surfaces the head under test actually exposes.
  *
  * Opens a prerequisite-free course's detail page (ANTH 1010: zero
- * prerequisite edges in the bundled catalog, so the planner actions are never
- * prerequisite-blocked), picks a bundled section, ADDS it to the working
- * schedule with the contract's REQUIRED `Add {COURSE} section {NNN}` button,
- * LOCKS it with the REQUIRED `Lock {COURSE} section {NNN}` button
- * (`aria-pressed` = true), marks a second course Taking from its /courses
- * row, then OPTIMIZES on /schedule with the REQUIRED `Optimize schedule`
- * button and reads the rendered plan.
+ * prerequisite edges in the bundled catalog), probes the contract-REQUIRED
+ * build controls (`Add {COURSE} section {NNN}` / `Lock {COURSE} section
+ * {NNN}` — by name template, since {NNN} is only knowable from a section
+ * chooser), then builds the working schedule through the /courses row status
+ * buttons (exposed @ all four heads): the ANTH course plus one CSCE course
+ * marked Taking. On /schedule the REQUIRED `Optimize schedule` button and the
+ * REQUIRED `aria-pressed` state of the active optimization option are probed,
+ * and the rendered plan is read.
+ *
+ * Surfaces the contract only pins to other heads are NOT asserted here: the
+ * planner-actions section (`Plan this course` heading, `Planner status for
+ * {COURSE}` group, `Section choice for {COURSE}` radiogroup) is exposed
+ * @ #7 (1fa6bb7) only, which is not an ancestor of the r2 target d42166f —
+ * the round-2 draft's over-assertion of it measured the wrong head. When a
+ * REQUIRED probe does not resolve, the case collects it and fails at the end
+ * naming every missing element (the honest baseline verdict), with what the
+ * leg did build as the note's context.
  */
 async function runBuild(ctx: SuiteContext, caseId: string, persona: PersonaName, viewport: ViewportName): Promise<CaseOutcome> {
   const page = await landOnCourses(ctx, caseId, persona, viewport);
@@ -444,76 +469,65 @@ async function runBuild(ctx: SuiteContext, caseId: string, persona: PersonaName,
   await page.waitForURL("**/courses/**", { timeout: 20_000 });
   await expectDetailNot404(page, page.url());
 
-  // Contract: /courses/[subject]/[number] — planner actions carry the add/lock
-  // journey. The section is the head's own exposed pattern (@ #7); the add and
-  // lock buttons are contract-REQUIRED.
-  const planHeading = await missingElement(
-    page.getByRole("heading", { name: "Plan this course" }).first(),
-    "`Planner actions for {COURSE}` section with `Plan this course` heading (contract: /courses/[subject]/[number])",
-  );
-  if (!planHeading.present) return { status: "fail", note: planHeading.reason };
-
-  // Mark the course Taking through the contract's status group.
-  const statusGroup = page.getByRole("group", { name: `Planner status for ${code}` }).first();
-  const groupPresent = await missingElement(
-    statusGroup,
-    "`Planner status for {COURSE}` group (contract: /courses/[subject]/[number])",
-  );
-  if (!groupPresent.present) return { status: "fail", note: groupPresent.reason };
-  await activate(page, statusGroup.getByRole("button", { name: "Taking", exact: true }).first());
-
-  // Choose a bundled section (contract radiogroup; "No section yet" is last).
-  const sectionChoice = page.getByRole("radiogroup", { name: `Section choice for ${code}` }).first();
-  const choicePresent = await missingElement(
-    sectionChoice,
-    "`Section choice for {COURSE}` radiogroup (contract: /courses/[subject]/[number])",
-  );
-  if (!choicePresent.present) return { status: "fail", note: choicePresent.reason };
-  const sectionRadio = sectionChoice.getByRole("radio").first();
-  const radioValue = (await sectionRadio.getAttribute("value", { timeout: 8_000 }).catch(() => null)) ?? "";
-  const sectionNumber = radioValue ? (radioValue.split("-").pop() ?? "") : "";
-  if (!sectionNumber) {
-    return { status: "fail", note: `section journey: the chosen section radio exposed no section id (value attribute empty) for ${code}` };
-  }
-
-  // REQUIRED: add the chosen section to the working schedule.
-  const addButton = page.getByRole("button", { name: `Add ${code} section ${sectionNumber}` }).first();
+  // Contract-REQUIRED build controls, probed by their name templates. {NNN}
+  // (the chosen section's number) is only knowable from a section chooser —
+  // a #7-only surface this head does not carry — so the probe matches the
+  // template's shape and, when the button exists, takes {NNN} from the
+  // button's own accessible name. Absent probes are collected, not fatal:
+  // the case measures the whole leg before its verdict.
+  const absent: string[] = [];
+  const addButton = page.getByRole("button", { name: addSectionName(code, "\\d{3}") }).first();
   const add = await missingElement(
     addButton,
-    `\`Add ${code} section ${sectionNumber}\` button (contract: /courses/[subject]/[number], required)`,
+    `\`Add ${code} section {NNN}\` button (contract: /courses/[subject]/[number], required)`,
   );
-  if (!add.present) return { status: "fail", note: add.reason };
-  await activate(page, addButton);
-  // The head's own add acknowledgment (pattern @ #7), read as evidence only —
-  // the binding verification is the working-schedule content on /schedule.
-  const addAck = await page
-    .getByText(new RegExp(`Section ${escapeRegExp(sectionNumber)} is in your working schedule`))
-    .first()
-    .isVisible({ timeout: 6_000 })
-    .catch(() => false);
-
-  // REQUIRED: lock the section (pin it), state via aria-pressed.
-  const lockButton = page.getByRole("button", { name: `Lock ${code} section ${sectionNumber}` }).first();
-  const lock = await missingElement(
-    lockButton,
-    `\`Lock ${code} section ${sectionNumber}\` button (contract: /courses/[subject]/[number], required)`,
-  );
-  if (!lock.present) return { status: "fail", note: lock.reason };
-  await activate(page, lockButton);
-  const lockPressed = await attributeBecomes(page, lockButton, "aria-pressed", "true", 6_000);
-  if (!lockPressed) {
-    return {
-      status: "fail",
-      note: `\`Lock ${code} section ${sectionNumber}\` did not report \`aria-pressed="true"\` after activation (contract: /courses/[subject]/[number], required)`,
-    };
+  let sectionNumber: string | null = null;
+  if (add.present) {
+    const label = ((await addButton.textContent({ timeout: 5_000 }).catch(() => null)) ?? "").trim();
+    sectionNumber = label.match(addSectionName(code, "(\\d{3})"))?.[1] ?? null;
+    if (sectionNumber === null) {
+      return {
+        status: "fail",
+        note: `\`Add ${code} section {NNN}\` button exposed an unparsable name "${label.slice(0, 60)}" (contract: /courses/[subject]/[number], required)`,
+      };
+    }
+    await activate(page, addButton);
+  } else {
+    absent.push(`Add ${code} section {NNN}`);
   }
 
-  // Second active course from its /courses row, then on to /schedule.
+  if (sectionNumber !== null) {
+    // REQUIRED: lock the added section (pin it), state via aria-pressed.
+    const lockButton = page.getByRole("button", { name: `Lock ${code} section ${sectionNumber}` }).first();
+    const lock = await missingElement(
+      lockButton,
+      `\`Lock ${code} section ${sectionNumber}\` button (contract: /courses/[subject]/[number], required)`,
+    );
+    if (lock.present) {
+      await activate(page, lockButton);
+      const lockPressed = await attributeBecomes(page, lockButton, "aria-pressed", "true", 6_000);
+      if (!lockPressed) {
+        return {
+          status: "fail",
+          note: `\`Lock ${code} section ${sectionNumber}\` did not report \`aria-pressed="true"\` after activation (contract: /courses/[subject]/[number], required)`,
+        };
+      }
+    } else {
+      absent.push(`Lock ${code} section {NNN}`);
+    }
+  }
+  // The build action this head exposes for course status: the /courses row
+  // status buttons (contract: /courses, exposed @ all four heads). Mark the
+  // ANTH course Taking from its row, then a CSCE course, then on to /schedule.
   await activate(page, page.getByRole("link", { name: "← Courses" }).first());
   await page.waitForURL("**/courses", { timeout: 20_000 });
   await settle(page);
+  await page.getByRole("textbox", { name: "Search courses" }).fill("ANTH");
+  await waitForFilteredRows(page, "ANTH");
+  await markCourseTaking(page, code);
+
   await page.getByRole("textbox", { name: "Search courses" }).fill("CSCE");
-  await activateCoursesAndOpenSchedule(page, 1, "CSCE");
+  const scheduleCodes = await activateCoursesAndOpenSchedule(page, 1, "CSCE");
   await settle(page, 1200);
 
   // REQUIRED: run the optimizer explicitly.
@@ -522,9 +536,12 @@ async function runBuild(ctx: SuiteContext, caseId: string, persona: PersonaName,
     optimizeButton,
     "`Optimize schedule` button (contract: /schedule, required)",
   );
-  if (!optimize.present) return { status: "fail", note: optimize.reason };
-  await activate(page, optimizeButton);
-  await settle(page, 900);
+  if (optimize.present) {
+    await activate(page, optimizeButton);
+    await settle(page, 900);
+  } else {
+    absent.push("Optimize schedule");
+  }
 
   const options = page.getByRole("button", { name: /Cluster mornings|Cluster nights|Compact days|Minimize walking|Strong professors/ });
   const optionCount = await options.count();
@@ -536,23 +553,37 @@ async function runBuild(ctx: SuiteContext, caseId: string, persona: PersonaName,
       break;
     }
   }
+  if (optionCount > 0 && !pressedOptionFound) {
+    absent.push("optimization-option `aria-pressed` state (contract: /schedule, required)");
+  }
+
   const events = await page.getByRole("button", { name: /\d{1,2}:\d{2} [AP]M – \d{1,2}:\d{2} [AP]M/ }).count();
   const eventCodes = await renderedEventCodes(page);
   await screenshot(page, ctx.runDir, caseId);
 
   if (optionCount < 5) return { status: "fail", note: `expected 5 optimization option buttons on /schedule, found ${optionCount}` };
-  if (!pressedOptionFound) {
-    return { status: "fail", note: "no optimization option reported `aria-pressed=\"true\"` for the active option (contract: /schedule, required)" };
-  }
-  if (events === 0) {
-    return { status: "fail", note: `no calendar event buttons rendered on /schedule after adding ${code} section ${sectionNumber} and optimizing` };
-  }
-  if (!eventCodes.includes(code)) {
-    return { status: "fail", note: `the added section did not reach the working schedule: no calendar event for ${code} (events: ${eventCodes.join(", ") || "none"})` };
+  const built = Array.from(new Set([code, ...scheduleCodes]));
+  if (absent.length === 0) {
+    // Compliant head: every required build control resolved — the built
+    // schedule must actually show the built courses.
+    if (events === 0) {
+      return { status: "fail", note: `no calendar event buttons rendered on /schedule after building the working schedule for ${built.join(", ")}` };
+    }
+    const missingEvents = built.filter((c) => !eventCodes.includes(c));
+    if (missingEvents.length > 0) {
+      return {
+        status: "fail",
+        note: `the working schedule did not reflect the build actions: no calendar event for ${missingEvents.join(", ")} (events: ${eventCodes.join(", ") || "none"})`,
+      };
+    }
+    return {
+      status: "pass",
+      measured: `built ${built.join(", ")} (${events} events incl. ${eventCodes.join(", ")}); ${optionCount} options with aria-pressed state`,
+    };
   }
   return {
-    status: "pass",
-    measured: `added + locked ${code} section ${sectionNumber} (add ack: ${addAck ? "shown" : "not shown"}); ${optionCount} options; ${events} events incl. ${eventCodes.join(", ")}`,
+    status: "fail",
+    note: `the build leg ran through this head's exposed surfaces (marked ${built.join(", ")} taking; ${optionCount} options; ${events} events rendered), but contract-REQUIRED build surfaces are absent: ${absent.join("; ")}`,
   };
 }
 
