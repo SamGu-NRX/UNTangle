@@ -670,8 +670,16 @@ process.exitCode = 1;
 main()
   .then((code) => {
     process.exitCode = code;
+    // Explicit exit: every durable artifact (scorecard, step logs, case
+    // screenshots) is on disk before main() returns and the stack stop is
+    // bounded. A passive exitCode let lingering teardown handles — a
+    // bounded-out browser close whose promise never settles — keep the
+    // process alive indefinitely after the card was written (observed
+    // 2026-10-19, a11y run: card at 15:29:57Z, runner still alive at 15:35Z,
+    // recipe hung waiting on the child's exit).
+    process.exit(code);
   })
   .catch((error: unknown) => {
     console.error(`[run] fatal: ${(error as Error).stack ?? String(error)}`);
-    process.exitCode = 1;
+    process.exit(1);
   });
