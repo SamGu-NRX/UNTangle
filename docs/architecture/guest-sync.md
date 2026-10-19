@@ -31,7 +31,7 @@ The decisions are in `frontend/src/lib/guest-sign-in.ts`; the sign-in step that 
 - Preferences that aren't chosen are replaced. A saved copy holds no preferences, so keeping the account's set discards the guest's, and the sheet says "The set you don't choose is replaced."
 - Escape and the scrim choose "Keep my saved schedule" with the answers as they stand.
 
-Nothing is written or cleared until the student answers, so closing the page asks again on the next load. If a library copy fails, nothing is written and a toast asks the student to try again. If the account save fails after the copies were made, those copies stay in Schedules and the guest stores stay as they were; trying again reuses the copies, so they aren't saved twice (`frontend/src/components/planner-provider.tsx:1425-1449`). If the account changes while the sheet is open in a way that changes the questions, the sheet asks again.
+Nothing is written or cleared until the student answers, so closing the page asks again on the next load. The library copies are saved first, then the account. If either step fails, the choice isn't applied, the guest stores stay as they were, and a toast asks the student to try again; a copy that was already saved stays in Schedules, because nothing rolls it back. Trying again on the same page reuses that copy. After a reload the page doesn't remember it, so a retry then saves a second, numbered copy (`frontend/src/components/planner-provider.tsx:1387`, `1425-1449`). If the account changes while the sheet is open in a way that changes the questions, the sheet asks again.
 
 After the account save succeeds, the guest plan and preference stores that this session stamped are cleared.
 
