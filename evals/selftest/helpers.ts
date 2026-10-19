@@ -4,8 +4,9 @@
  * These tests exercise the REAL runner (evals/run.ts, spawned as a bounded
  * subprocess) against throwaway fixtures built under a fresh mkdtemp dir:
  *
- *   - a fake TARGET checkout (just evals/CONTRACT.md, plus optional dataset
- *     files for the planted-failure test),
+ *   - a fake TARGET checkout (a bare directory — decision 685a: the target
+ *     carries nothing the runner requires — plus optional dataset files for
+ *     the planted-failure test),
  *   - where case accounting is under test, a full COPY of evals/ whose
  *     stack.ts is replaced by a healthy stub, so no Postgres, backend,
  *     frontend build, or browser is ever booted.
@@ -113,17 +114,15 @@ export function makeTempRoot(label: string): string {
 }
 
 /**
- * A minimal fake target checkout: the runner's only hard requirement is
- * evals/CONTRACT.md. Deliberately NOT a git repo, so the real preflight's
- * `submodule-backend` step fails fast (see runner-infra-exit3.test.ts).
+ * A minimal fake target checkout: a bare directory. Decision 685a — the
+ * runner requires NOTHING inside the target (the harness hashes its own
+ * evals/CONTRACT.md); suites discover what they need and report honest
+ * not-applicable when it is absent. Deliberately NOT a git repo, so the real
+ * preflight's `submodule-backend` step fails fast (see runner-infra-exit3.test.ts).
  */
-export function makeFakeTarget(root: string, name = "target", contract?: string): string {
+export function makeFakeTarget(root: string, name = "target"): string {
   const targetDir = path.join(root, name);
-  mkdirSync(path.join(targetDir, "evals"), { recursive: true });
-  writeFileSync(
-    path.join(targetDir, "evals", "CONTRACT.md"),
-    contract ?? "# fake target\n\nThrowaway fixture: the runner only requires this file to exist.\n",
-  );
+  mkdirSync(targetDir, { recursive: true });
   return targetDir;
 }
 
@@ -196,6 +195,18 @@ export function writeFakeSuites(harness: HarnessCopy): void {
   ] as const) {
     writeFileSync(path.join(harness.suitesDir, name), source);
   }
+  // Decision 685b: suites run because they are REGISTERED. The copy's real
+  // registry is patched (never the repo's), so every runner-level test
+  // exercises the same explicit-registry load path as production.
+  const runTs = readFileSync(harness.runTs, "utf8");
+  const patched = runTs.replace(
+    'const SUITE_REGISTRY: readonly string[] = [',
+    'const SUITE_REGISTRY: readonly string[] = [\n  "fakesuite",\n  "failsuite",\n  "throwsuite",\n  "crashysuite",',
+  );
+  if (patched === runTs) {
+    throw new Error("writeFakeSuites: could not patch the harness copy's SUITE_REGISTRY (run.ts shape changed?)");
+  }
+  writeFileSync(harness.runTs, patched);
 }
 
 export const STUB_STACK_TS = `/**
@@ -414,33 +425,89 @@ export function readCard(outPath: string): unknown {
 // suite at it via UNTANGLE_SELFTEST_FRONTEND_ORIGIN).
 // ---------------------------------------------------------------------------
 
-/** The optimizer bench's conformance shape (evals/suites/optdata-lib.ts). */
+/**
+ * The optimizer bench's conformance shape (the real run-bench.ts contract,
+ * decision 685c): one optional defect per planted bench, everything else
+ * healthy — so a failing case is attributable to the planted defect alone.
+ */
 export interface BenchPlant {
-  violations: number;
+  /** Hard-constraint violations on one enumerable instance (healthy: 0). */
+  violations?: number;
+  /** Optimality gap on one enumerable instance (healthy: 0). */
+  gap?: number;
+  /** The pinned 8-course family's solve-time p95 in ms (healthy: 44). */
+  xlWallMsP95?: number;
+  /** Make the bench EXIT nonzero without writing results (run-level failure). */
+  exitCode?: number;
 }
 
 /**
- * Plant a CONFORMING bench at frontend/src/lib/optimizer/bench/ (run.ts, the
- * suite's preferred entrypoint) reporting the given violation count. The
- * report is otherwise healthy: courses 8, gap 0, 20/20 instances, p95 far
- * under the 500 ms bar — so a failing violations-zero is attributable to the
- * planted violations alone.
+ * Plant a CONFORMING real bench at frontend/src/lib/optimizer/bench/
+ * run-bench.ts (decision 685c): it parses the bench's REAL CLI
+ * (--variant/--suite/--k/--repeat), writes the real results file
+ * results/<variant-basename>-<suite>.json in the real report shape
+ * ({variant, suite, k, repeat, instances[], sizeSummary}), and exits 0 —
+ * carrying exactly the planted defects above.
  */
-export function writeBenchArtifact(targetDir: string, plant: BenchPlant): string {
+export function writeBenchArtifact(targetDir: string, plant: BenchPlant = {}): string {
   const benchDir = path.join(targetDir, "frontend", "src", "lib", "optimizer", "bench");
   mkdirSync(benchDir, { recursive: true });
+  const violations = plant.violations ?? 0;
+  const gap = plant.gap ?? 0;
+  const xlP95 = plant.xlWallMsP95 ?? 44;
+  const exitGuard =
+    plant.exitCode === undefined
+      ? ""
+      : `process.exit(${plant.exitCode}); // planted run-level failure: exits before writing any results\n`;
   writeFileSync(
-    path.join(benchDir, "run.ts"),
-    `// selftest-planted bench: conforms to the optdata-lib bench contract
-const report = {
-  courses: 8,
-  violations: ${plant.violations},
-  violationSamples: 20,
-  gap: 0,
-  enumerableInstances: 20,
-  solveTimesMs: Array.from({ length: 20 }, (_, i) => 40 + i),
-};
-process.stdout.write(JSON.stringify(report));
+    path.join(benchDir, "run-bench.ts"),
+    `// selftest-planted bench: conforms to the real run-bench.ts contract (decision 685c)
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+
+function parseArg(name) {
+  const prefix = "--" + name + "=";
+  const hit = process.argv.find((a) => a.startsWith(prefix));
+  return hit === undefined ? null : hit.slice(prefix.length);
+}
+
+const variant = parseArg("variant") ?? "./src/lib/optimizer/brute-force";
+const suite = parseArg("suite") ?? "all";
+const k = Number(parseArg("k") ?? 3);
+const repeat = Number(parseArg("repeat") ?? 3);
+${exitGuard}
+const instance = (name, extra) => ({
+  name: name,
+  suite: "baseline",
+  sizeClass: "8 courses",
+  enumerable: true,
+  statuses: 64,
+  violations: 0,
+  iisValid: true,
+  optimalityGap: 0,
+  topKAgreement: k,
+  diversity: 0.9,
+  initMsP50: 1,
+  initMsP95: 2,
+  searchMsP50: 3,
+  searchMsP95: 4,
+  wallMsP50: 5,
+  wallMsP95: 40,
+  ...extra,
+});
+const instances = [
+  instance("baseline-8", { violations: ${violations} }),
+  instance("dense-8", { optimalityGap: ${gap} }),
+  instance("worst-case-xl", { wallMsP95: ${xlP95} }),
+];
+const resultsDir = path.join(import.meta.dir, "results");
+mkdirSync(resultsDir, { recursive: true });
+const resultsName = path.basename(variant) + "-" + suite + ".json";
+writeFileSync(
+  path.join(resultsDir, resultsName),
+  JSON.stringify({ variant: variant, suite: suite, k: k, repeat: repeat, instances: instances, sizeSummary: [] }, null, 2) + "\\n",
+);
+console.log("bench: " + instances.length + " instances");
 `,
   );
   return benchDir;
@@ -450,24 +517,174 @@ export interface DataArtifacts {
   bundlePath: string;
   descriptorPath: string;
   toolDir: string;
+  seedDataPath: string;
   /** Mutate one byte of the bundled catalog: the descriptor's sha256 no longer matches, counts still do. */
   corruptBundle(): void;
+  /**
+   * Tamper one value in seed-data.json (a string where the audit's rule
+   * demands a positive integer): the real audit rule fails, so the chain
+   * exits nonzero and the certification case fails. Counts stay equal, so
+   * the descriptor case is unaffected.
+   */
+  corruptSeedData(): void;
 }
 
+// A REAL audit.mjs: rules over --input, report.json under --out, exit 0 only
+// when the rules pass (decision 685c: the fixture conforms to the real
+// tool's CLI and exit-code semantics, discovered at the PR #6 head).
+const AUDIT_MJS = `// selftest-planted catalog-consistency audit: real rules over --input
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+
+function parseArg(name) {
+  // The real tools' union: audit.mjs uses node:util parseArgs (both
+  // --name=value and --name value), verify.mjs's manual loop takes
+  // --name value only. The adapter's prescribed commands use the space form.
+  const argv = process.argv.slice(2);
+  const eq = "--" + name + "=";
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a.startsWith(eq)) return a.slice(eq.length);
+    if (a === "--" + name) return argv[i + 1];
+  }
+  return null;
+}
+
+const input = parseArg("input");
+const out = parseArg("out");
+if (input === null || out === null) {
+  console.error("usage: node audit.mjs --input <seed-data.json> --out <dir>");
+  process.exit(2);
+}
+
+let catalog;
+try {
+  catalog = JSON.parse(readFileSync(input, "utf8"));
+} catch (error) {
+  console.error("audit: cannot read the catalog at " + input + ": " + error.message);
+  process.exit(2);
+}
+
+const courses = Array.isArray(catalog.courses) ? catalog.courses : [];
+const sections = Array.isArray(catalog.sections) ? catalog.sections : [];
+const malformedCourseIds = courses.filter((c) => typeof c !== "string" || !/^UNTC-[0-9]+$/.test(c)).length;
+const malformedSections = sections.filter(
+  (s) => s === null || typeof s !== "object" || !Number.isInteger(s.seats) || s.seats <= 0,
+).length;
+const report = {
+  counts: {
+    courses: courses.length,
+    sections: sections.length,
+    instructors: typeof catalog.instructors === "number" ? catalog.instructors : 0,
+  },
+  violations: { malformedCourseIds: malformedCourseIds, malformedSections: malformedSections },
+};
+mkdirSync(out, { recursive: true });
+writeFileSync(path.join(out, "report.json"), JSON.stringify(report, null, 2) + "\\n");
+const failures = malformedCourseIds + malformedSections;
+if (failures > 0) {
+  console.error("audit: " + failures + " failures (malformedCourseIds=" + malformedCourseIds + ", malformedSections=" + malformedSections + ")");
+  process.exit(1);
+}
+console.log("audit: catalog clean");
+`;
+
+// A REAL verify.mjs: certifies the EVIDENCE CHAIN — the recorded report must
+// still describe the current data and carry no findings — ending with the
+// tool's own verdict line ("verdict: PASS" / "verdict: FAIL").
+const VERIFY_MJS = `// selftest-planted catalog-consistency verify: certifies the evidence chain
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+
+function parseArg(name) {
+  // The real tools' union: audit.mjs uses node:util parseArgs (both
+  // --name=value and --name value), verify.mjs's manual loop takes
+  // --name value only. The adapter's prescribed commands use the space form.
+  const argv = process.argv.slice(2);
+  const eq = "--" + name + "=";
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a.startsWith(eq)) return a.slice(eq.length);
+    if (a === "--" + name) return argv[i + 1];
+  }
+  return null;
+}
+
+const results = parseArg("results");
+const repoRoot = parseArg("repo-root");
+if (results === null || repoRoot === null) {
+  console.error("usage: node verify.mjs --results <dir> --repo-root <root>");
+  process.exit(2);
+}
+
+const reportPath = path.join(results, "report.json");
+if (!existsSync(reportPath)) {
+  console.error("verify: no report.json under " + results);
+  process.exit(2);
+}
+let report;
+try {
+  report = JSON.parse(readFileSync(reportPath, "utf8"));
+} catch (error) {
+  console.error("verify: report.json is unparseable: " + error.message);
+  process.exit(2);
+}
+
+const seedPath = path.join(repoRoot, "frontend", "src", "lib", "generated", "seed-data.json");
+let catalog;
+try {
+  catalog = JSON.parse(readFileSync(seedPath, "utf8"));
+} catch (error) {
+  console.error("verify: seed-data.json is unparseable: " + error.message);
+  process.exit(2);
+}
+
+const courses = Array.isArray(catalog.courses) ? catalog.courses : [];
+const sections = Array.isArray(catalog.sections) ? catalog.sections : [];
+const currentViolations = {
+  malformedCourseIds: courses.filter((c) => typeof c !== "string" || !/^UNTC-[0-9]+$/.test(c)).length,
+  malformedSections: sections.filter((s) => s === null || typeof s !== "object" || !Number.isInteger(s.seats) || s.seats <= 0).length,
+};
+const findings = currentViolations.malformedCourseIds + currentViolations.malformedSections;
+if (findings > 0) {
+  console.error("verify: the audited data carries " + findings + " findings");
+  console.log("verdict: FAIL");
+  process.exit(1);
+}
+const mismatches = [];
+if ((report.counts ? report.counts.courses : undefined) !== courses.length) mismatches.push("counts.courses");
+if ((report.counts ? report.counts.sections : undefined) !== sections.length) mismatches.push("counts.sections");
+for (const key of Object.keys(currentViolations)) {
+  if ((report.violations ? report.violations[key] : undefined) !== currentViolations[key]) mismatches.push("violations." + key);
+}
+if (mismatches.length > 0) {
+  console.error("verify: the recorded evidence no longer describes the current data: " + mismatches.join(", "));
+  console.log("verdict: FAIL");
+  process.exit(1);
+}
+console.log("verify: evidence chain certified against the current data");
+console.log("verdict: PASS");
+`;
+
 /**
- * Plant the data suite's two target artifacts, healthy by default:
+ * Plant the data suite's target artifacts, healthy by default (decision
+ * 685c: the REAL tool interface the adapter drives):
+ *   - frontend/src/lib/generated/seed-data.json: the audit's real input;
+ *   - tools/catalog-consistency/audit.mjs + verify.mjs: real node tools
+ *     (audit's rules over --input; verify's evidence-chain certification
+ *     ending in its own verdict line);
  *   - frontend/src/lib/data-provenance.ts: an activeDataset descriptor whose
  *     sha256/counts exactly match the bundled catalog file;
- *   - frontend/src/data/catalog/complete.json: the bundled catalog bundle;
- *   - tools/catalog-consistency/run.ts: a conforming certification tool
- *     (exit 0, numeric counts, failures 0).
+ *   - frontend/src/data/catalog/complete.json: the bundled catalog bundle.
  */
-export function writeDataArtifacts(targetDir: string, opts: { toolFailures?: number } = {}): DataArtifacts {
+export function writeDataArtifacts(targetDir: string): DataArtifacts {
   const bundlePath = path.join(targetDir, "frontend", "src", "data", "catalog", "complete.json");
   const descriptorPath = path.join(targetDir, "frontend", "src", "lib", "data-provenance.ts");
+  const seedDataPath = path.join(targetDir, "frontend", "src", "lib", "generated", "seed-data.json");
   const toolDir = path.join(targetDir, "tools", "catalog-consistency");
   mkdirSync(path.dirname(bundlePath), { recursive: true });
   mkdirSync(path.dirname(descriptorPath), { recursive: true });
+  mkdirSync(path.dirname(seedDataPath), { recursive: true });
   mkdirSync(toolDir, { recursive: true });
 
   writeFileSync(
@@ -493,19 +710,32 @@ export const activeDataset = {
 `,
   );
   writeFileSync(
-    path.join(toolDir, "run.ts"),
-    `// selftest-planted catalog-consistency tool: conforms (exit 0, failures ${opts.toolFailures ?? 0})
-process.stdout.write(JSON.stringify({ certifiedCourses: 84, verifiedSections: 312, instructors: 57, failures: ${opts.toolFailures ?? 0} }));
-`,
+    seedDataPath,
+    JSON.stringify({
+      generatedAt: "selftest-fixture (synthetic; not a real term)",
+      courses: Array.from({ length: 84 }, (_, i) => `UNTC-${1000 + i}`),
+      sections: Array.from({ length: 312 }, (_, i) => ({ id: i, seats: 30 })),
+      instructors: 57,
+    }, null, 2) + "\n",
   );
+  writeFileSync(path.join(toolDir, "audit.mjs"), AUDIT_MJS);
+  writeFileSync(path.join(toolDir, "verify.mjs"), VERIFY_MJS);
 
   return {
     bundlePath,
     descriptorPath,
     toolDir,
+    seedDataPath,
     corruptBundle(): void {
       const before = readFileSync(bundlePath, "utf8");
       writeFileSync(bundlePath, `${before} `); // array lengths unchanged; hash changes
+    },
+    corruptSeedData(): void {
+      const catalog = JSON.parse(readFileSync(seedDataPath, "utf8")) as { sections: Array<Record<string, unknown>> };
+      const first = catalog.sections[0];
+      if (first === undefined) throw new Error("corruptSeedData: fixture has no sections");
+      first.seats = "30"; // a string where the audit's rule demands a positive integer
+      writeFileSync(seedDataPath, JSON.stringify(catalog, null, 2) + "\n");
     },
   };
 }

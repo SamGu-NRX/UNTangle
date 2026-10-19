@@ -5,8 +5,10 @@
  * step.
  *
  * The real (unstubbed) runner and the real stack.ts are exercised. The fake
- * target is a directory holding only evals/CONTRACT.md and is deliberately
- * NOT a git repo, so the `submodule-backend` step fails within seconds.
+ * target is a BARE directory (decision 685a: the target carries nothing the
+ * preflight requires — the harness hashes its own evals/CONTRACT.md) and is
+ * deliberately NOT a git repo, so the `submodule-backend` step fails within
+ * seconds.
  * That is the same code path as the broken-Postgres exit-3 reference
  * (step() → StackBootError → infra scorecard), taken at the earliest
  * breakable step — no Postgres, no backend install, no frontend build, no
@@ -91,7 +93,7 @@ describe("runner contract: infrastructure failure accounting (real stack.ts, sab
       }
 
       // The stack record shows the real progression and the named break.
-      expect(card.stack.map((s) => s.step).slice(0, 2)).toEqual(["target-dir", "contract-present"]);
+      expect(card.stack.map((s) => s.step).slice(0, 2)).toEqual(["target-dir", "contract-hash"]);
       const broken = card.stack.find((s) => s.step === "submodule-backend");
       expect(broken?.status).toBe("fail");
 
