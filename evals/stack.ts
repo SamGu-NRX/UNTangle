@@ -289,6 +289,37 @@ async function pollUntil(
   }
 }
 
+/**
+ * Refuse to boot a server whose fixed port already answers. A leftover server
+ * from a crashed run holds 3900/3951 and answers every health probe while our
+ * own child sits unbound (Next.js survives EADDRINUSE), silently running the
+ * whole suite against a foreign build — seen in planted-journey attempt 4 on
+ * 2026-10-19, whose cases exercised a crashed diagnostic run's frontend.
+ */
+async function assertPortFree(origin: string, label: string): Promise<void> {
+  const port = Number(new URL(origin).port);
+  const taken = await new Promise<boolean>((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(1_000);
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("timeout", () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.once("error", () => resolve(false));
+    socket.connect(port, "127.0.0.1");
+  });
+  if (taken) {
+    throw new Error(
+      `${label}: port ${port} already answers — an orphaned server from a previous run is still up. ` +
+        `Kill it before running; the suite must not measure a foreign stack.`,
+    );
+  }
+}
+
 async function backendHealthy(backendOrigin: string): Promise<boolean> {
   try {
     const res = await fetch(`${backendOrigin}/api/health`, { signal: AbortSignal.timeout(2000) });
@@ -690,6 +721,7 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
   };
 
   await step("backend-start", async () => {
+    await assertPortFree(ctx.backendOrigin, "backend-start");
     await rm(ctx.blockedRmpLogPath, { force: true });
     const attempts: string[] = [];
 
@@ -763,6 +795,7 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
   });
 
   await step("frontend-start", async () => {
+    await assertPortFree(ctx.frontendOrigin, "frontend-start");
     const nextBin = path.join(frontendDir, "node_modules", ".bin", "next");
     const proc = spawnDetached("frontend", ctx, nextBin, ["start", "-p", String(frontendPort)], {
       cwd: frontendDir,
