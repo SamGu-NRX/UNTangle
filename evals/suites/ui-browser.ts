@@ -22,6 +22,16 @@ export interface CaseBrowser {
 }
 
 /**
+ * Every browser openCase launched that nobody has closed yet. A case that
+ * throws before its own close — the planted-defect shape: a persona
+ * activation that times out — would otherwise leak the browser: the transport
+ * pipes keep bun's event loop alive, so run.ts writes its scorecard and then
+ * never exits (observed on the round-2 journey run 1792408147072, where all
+ * 28 case browsers outlived the completed run).
+ */
+const openCases = new Set<CaseBrowser>();
+
+/**
  * Launch a fresh browser + context for one case and land on the app root.
  * `pathname` may carry a query (e.g. "/courses?q=CSCE"); it is appended to the
  * origin exactly as given.
@@ -35,11 +45,14 @@ export async function openCase(origin: string, viewport: ViewportName, pathname 
   const page = await context.newPage();
   await page.goto(`${origin}${pathname}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
   await settle(page);
-  return { browser, context, page };
+  const cb: CaseBrowser = { browser, context, page };
+  openCases.add(cb);
+  return cb;
 }
 
 /** Close everything opened by openCase. Errors are recorded, not thrown. */
 export async function closeCase(cb: CaseBrowser): Promise<void> {
+  openCases.delete(cb);
   for (const closer of [
     () => cb.context.close(),
     () => cb.browser.close(),
@@ -50,6 +63,18 @@ export async function closeCase(cb: CaseBrowser): Promise<void> {
       // A crashed browser must not mask the case's own result.
     }
   }
+}
+
+/**
+ * Boundary drain for a suite's case dispatch: closes whatever the case left
+ * open (including a browser from an enter/activation that threw before the
+ * caller could hold the handle). A no-op when every path already closed its
+ * own browser — the normal case.
+ */
+export async function closeTrackedCases(): Promise<void> {
+  const pending = Array.from(openCases);
+  openCases.clear();
+  for (const cb of pending) await closeCase(cb);
 }
 
 /** Let hydration/route transitions finish: network idle (best-effort) + a beat. */
