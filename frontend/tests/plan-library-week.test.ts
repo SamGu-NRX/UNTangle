@@ -158,7 +158,7 @@ describe("comparing Main (A) with Fridays off (B)", () => {
     const a = gone(plan("vsb:spring-2027:ANTH 1010:11111"));
     const b = gone(plan("vsb:spring-2027:ANTH 1010:22222"));
     expect(a.map((s) => [s.code, s.unresolved, s.label])).toEqual([["ANTH 1010", "gone", "class 11111"]]);
-    expect(sectionChanges(a, b).changes).toEqual([{ code: "ANTH 1010", from: "Not offered now, section class 11111", to: "Not offered now, section class 22222" }]);
+    expect(sectionChanges(a, b).changes).toEqual([{ code: "ANTH 1010", from: "Not offered now, class 11111", to: "Not offered now, class 22222" }]);
   });
 
   test("meetings from the bundled samples are said once", () => {
