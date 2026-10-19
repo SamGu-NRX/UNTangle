@@ -79,7 +79,10 @@ export type JobReport = {
   wrote: boolean;
 };
 
-export async function runReleaseJob(options: RunReleaseJobOptions): Promise<JobReport> {
+export async function runReleaseJob(input: RunReleaseJobOptions): Promise<JobReport> {
+  // Subjects are canonical from here on, so every overlay record and every
+  // comparison with one reads the same list for the same files.
+  const options = { ...input, subjects: canonicalSubjects(input.subjects ?? []) };
   const { outDir } = options;
   const dryRun = options.dryRun === true;
   const sink: ReleaseSink = localSink(outDir);
@@ -99,7 +102,7 @@ export async function runReleaseJob(options: RunReleaseJobOptions): Promise<JobR
   // validators, and a failed write can leave an older body, so the two are
   // compared rather than trusted.
   const cached = new Map<string, string>();
-  const urls = [mirror.urlFor(options.termId), ...(options.subjects ?? []).map(subject => mirror.urlFor(options.termId, subject))];
+  const urls = [mirror.urlFor(options.termId), ...options.subjects.map(subject => mirror.urlFor(options.termId, subject))];
   for (const url of urls) {
     const file = state.files[url];
     if (file === undefined) continue;
@@ -455,7 +458,13 @@ async function readOverlaySubjects(outDir: string, contentSha256: string): Promi
   if (!Array.isArray(parsed.subjects) || !parsed.subjects.every(subject => typeof subject === "string")) {
     throw new Error(`${overlaySubjectsPath(outDir, contentSha256)} does not list subjects`);
   }
-  return parsed.subjects;
+  // A record written before subjects were canonical may repeat one.
+  return canonicalSubjects(parsed.subjects);
+}
+
+/** Subject names trimmed, uppercased, each once, sorted: "math, MATH" and "MATH" name the same files. */
+function canonicalSubjects(subjects: readonly string[]): string[] {
+  return [...new Set(subjects.map(subject => subject.trim().toUpperCase()))].sort();
 }
 
 /** Fetch state lives beside the releases, so one-shot CLI runs keep their etags and budget. */
