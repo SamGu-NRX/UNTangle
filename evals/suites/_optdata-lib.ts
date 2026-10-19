@@ -1,24 +1,34 @@
 /**
  * _optdata-lib — shared machinery for the optimizer and data suites.
  *
- * The underscore prefix marks this as a helper module, not a suite; suite
- * discovery skips underscore-prefixed and *.test.* files, so it exports no
- * suite-shaped default and needs no discovery shim.
+ * The underscore prefix marks this as a helper module, not a suite; the
+ * runner's explicit SUITE_REGISTRY (decision 685b) never registers it, and
+ * *.test.* files are skipped, so it exports no suite-shaped default.
  *
- * DESIGN RULE (review finding): the harness never invents an interface for a
- * target artifact. At run time the suites DETECT the real artifact in the
- * target checkout and drive ITS interface: the invocation is derived from the
- * artifact's own code (its package.json scripts, then its entrypoint files),
- * no arguments are prescribed, and its outputs are recorded verbatim. The
- * suites only ever judge:
- *   - run-level verdicts (spawn failure, timeout, exit code), and
- *   - claims the artifact itself makes that the suite can recognize and
- *     check (a reported violations/gap/p95/course count, a claimed sha256,
- *     a claimed count with a bundle counterpart).
- * Anything else (no recognizable measurements, unfamiliar output shape,
- * unknown instance size) is reported NOT-APPLICABLE with the reason and the
- * verbatim evidence path — never a fail for not matching a shape the
- * artifact never agreed to.
+ * DESIGN RULE (decision 685c — replaces the review-era detect-and-adapt
+ * rule): the data and optimizer adapters call the TARGET's REAL tools with
+ * the exact CLI those tools define. The invocations below are prescribed —
+ * discovered once by reading the tools' own code at the PR heads that
+ * introduced them (catalog-consistency at the PR #6 head, run-bench.ts at
+ * the PR #14 head), not re-derived at run time from the target:
+ *
+ *   data:      node tools/catalog-consistency/audit.mjs \
+ *                --input frontend/src/lib/generated/seed-data.json --out <dir>
+ *              node tools/catalog-consistency/verify.mjs \
+ *                --results <dir> --repo-root <target-root>
+ *              (verify.mjs's parser REQUIRES --repo-root; audit.mjs's own
+ *              "verify with:" hint line omits it — the parser is authoritative.)
+ *
+ *   optimizer: cd frontend && bun run src/lib/optimizer/bench/run-bench.ts \
+ *                --variant=./src/lib/optimizer/brute-force --suite=all \
+ *                --k=3 --repeat=3
+ *              then read frontend/src/lib/optimizer/bench/results/
+ *              brute-force-all.json (the runner writes results next to
+ *              itself: import.meta.dir/results).
+ *
+ * Not-applicable is reserved for ABSENT target files. A tool that exists
+ * but exits nonzero, times out, or writes output that cannot be parsed
+ * FAILS the case — that is a real application finding, never a skip.
  *
  * Pure logic and bounded IO live here so both suites stay thin and the
  * logic is unit-testable (optdata-lib.test.ts).
@@ -208,221 +218,234 @@ export function parseJsonObject(text: string): Record<string, unknown> | undefin
   }
 }
 
-/**
- * Parse a subprocess's stdout as a JSON object, tolerating leading log lines:
- * strict parse first, then the span from the first "{" to the last "}".
- */
-export function parseJsonObjectFromProcess(stdout: string): Record<string, unknown> | undefined {
-  const strict = parseJsonObject(stdout);
-  if (strict !== undefined) return strict;
-  const first = stdout.indexOf("{");
-  const last = stdout.lastIndexOf("}");
-  if (first === -1 || last <= first) return undefined;
-  return parseJsonObject(stdout.slice(first, last + 1));
-}
-
-/** Nearest-rank percentile over a copy of the samples (same statistic as routing). */
-export function percentileNearestRank(samples: number[], pct: number): number {
-  if (samples.length === 0) return Number.NaN;
-  const sorted = [...samples].sort((a, b) => a - b);
-  const rank = Math.min(Math.max(Math.ceil((pct / 100) * sorted.length), 1), sorted.length);
-  const value = sorted[rank - 1];
-  return value ?? Number.NaN;
-}
-
-export function round1(value: number): number {
-  return Math.round(value * 10) / 10;
-}
-
 export function sha256Hex(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
-// ---------------------------------------------------------------------------
-// Artifact invocation discovery — derive the command from the artifact's own
-// code. No arguments are ever prescribed; the artifact runs with its own
-// defaults, cwd = the artifact directory.
-// ---------------------------------------------------------------------------
-
-/** First existing entrypoint file of an artifact directory. */
-export type EntryPoint = { cmd: "bun" | "node"; args: string[]; entryPath: string };
-
-const ENTRY_CANDIDATES: Array<{ file: string; cmd: "bun" | "node" }> = [
-  { file: "run.ts", cmd: "bun" },
-  { file: "run.js", cmd: "node" },
-  { file: "main.ts", cmd: "bun" },
-  { file: "main.js", cmd: "node" },
-  { file: "index.ts", cmd: "bun" },
-  { file: "index.js", cmd: "node" },
-];
-
-export function discoverEntrypointInDir(dir: string): EntryPoint | undefined {
-  for (const candidate of ENTRY_CANDIDATES) {
-    const entryPath = path.join(dir, candidate.file);
-    if (existsSync(entryPath) && statSync(entryPath).isFile()) {
-      return { cmd: candidate.cmd, args: [entryPath], entryPath };
-    }
-  }
-  return undefined;
+/** Round to one decimal for compact `measured` strings (p95 in ms). */
+export function roundNumber(value: number): number {
+  return Math.round(value * 10) / 10;
 }
 
-/**
- * Package-script names the suites recognize inside an artifact's own
- * package.json, in preference order. This is not an imposed schema — these
- * are the script names a runnable artifact plausibly declares for itself;
- * a package.json whose scripts match none of them (and declares more than
- * one, so none is unambiguous) yields undefined and entry-file discovery
- * takes over.
- */
-const PACKAGE_SCRIPT_CANDIDATES = ["bench", "start", "check", "verify", "consistency", "main"];
+// ---------------------------------------------------------------------------
+// Prescribed real-tool invocations (decision 685c) — the adapters run the
+// TARGET's real tools with the exact CLI those tools' own code defines (read
+// once at the PR heads that introduced them; see the file header). Pure
+// builders: no filesystem probing happens here.
+// ---------------------------------------------------------------------------
 
+export const DATA_AUDIT_REL = path.join("tools", "catalog-consistency", "audit.mjs");
+export const DATA_VERIFY_REL = path.join("tools", "catalog-consistency", "verify.mjs");
+export const SEED_DATA_REL = path.join("frontend", "src", "lib", "generated", "seed-data.json");
+
+export const BENCH_RUN_REL = path.join("frontend", "src", "lib", "optimizer", "bench", "run-bench.ts");
+export const BENCH_RESULTS_DIR_REL = path.join("frontend", "src", "lib", "optimizer", "bench", "results");
+/** The bench's own default reference variant (run-bench.ts's usage header). */
+export const BENCH_VARIANT = "./src/lib/optimizer/brute-force";
+/** Results file the real runner writes for `--suite=all`: <variant-basename>-<suite>.json. */
+export const BENCH_RESULTS_FILE_REL = path.join(BENCH_RESULTS_DIR_REL, "brute-force-all.json");
 /**
- * Read the artifact's own package.json and return the script it declares for
- * running the artifact, or undefined when that cannot be determined.
+ * The pinned 8-course instance family (bench instances.ts; the bench README
+ * commits to these family names). The bar's "8 courses" maps to this record.
  */
-export function discoverPackageScript(dir: string): string | undefined {
-  const pkgPath = path.join(dir, "package.json");
-  if (!existsSync(pkgPath) || !statSync(pkgPath).isFile()) return undefined;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(pkgPath, "utf8"));
-  } catch {
-    return undefined;
-  }
-  const scripts = (parsed as { scripts?: Record<string, unknown> } | null)?.scripts;
-  if (scripts === undefined || scripts === null || typeof scripts !== "object") return undefined;
-  for (const name of PACKAGE_SCRIPT_CANDIDATES) {
-    if (typeof scripts[name] === "string") return name;
-  }
-  const declared = Object.keys(scripts).filter((key) => typeof scripts[key] === "string");
-  return declared.length === 1 ? declared[0] : undefined;
+export const XL_INSTANCE_NAME = "worst-case-xl";
+
+export interface PrescribedCommand {
+  cmd: string;
+  args: string[];
+  cwd: string;
+  describe: string;
 }
 
-/**
- * Resolve a runnable command for a conditional-presence artifact, deriving
- * everything from the artifact itself:
- *   1. a package.json script (bun run <script>, cwd = the artifact dir),
- *   2. an entrypoint file inside the directory (bun/node, no args),
- *   3. a script file (.ts -> bun, .js/.mjs -> node, no args),
- *   4. an executable file, executed directly.
- * `ok: false` means the artifact is present but no real interface could be
- * derived — the caller reports the affected cases not-applicable with this
- * reason (present-but-undrivable is not judged against any invented shape).
- */
-export type ArtifactCommand =
-  | { ok: true; cmd: string; args: string[]; cwd: string; describe: string; source: string }
-  | { ok: false; reason: string };
-
-export function artifactCommand(artifactPath: string): ArtifactCommand {
-  if (isDirectory(artifactPath)) {
-    const script = discoverPackageScript(artifactPath);
-    if (script !== undefined) {
-      return {
-        ok: true,
-        cmd: "bun",
-        args: ["run", script],
-        cwd: artifactPath,
-        describe: `bun run ${script} (package.json in ${artifactPath})`,
-        source: "package.json scripts",
-      };
-    }
-    const entry = discoverEntrypointInDir(artifactPath);
-    if (!entry) {
-      return {
-        ok: false,
-        reason:
-          `${artifactPath} declares no runnable interface: its package.json (if any) has no ` +
-          `${PACKAGE_SCRIPT_CANDIDATES.join("/") } script or single unambiguous script, and no ` +
-          `${ENTRY_CANDIDATES.map((c) => c.file).join("/")} entrypoint file exists`,
-      };
-    }
-    return {
-      ok: true,
-      cmd: entry.cmd,
-      args: entry.args,
-      cwd: artifactPath,
-      describe: `${entry.cmd} ${entry.entryPath}`,
-      source: "entrypoint file discovery",
-    };
-  }
-  if (!existsSync(artifactPath) || !statSync(artifactPath).isFile()) {
-    return { ok: false, reason: `${artifactPath} is neither a directory nor a file` };
-  }
-  if (artifactPath.endsWith(".ts")) {
-    return { ok: true, cmd: "bun", args: [artifactPath], cwd: path.dirname(artifactPath), describe: `bun ${artifactPath}`, source: "script file" };
-  }
-  if (artifactPath.endsWith(".js") || artifactPath.endsWith(".mjs")) {
-    return { ok: true, cmd: "node", args: [artifactPath], cwd: path.dirname(artifactPath), describe: `node ${artifactPath}`, source: "script file" };
-  }
+/** The real audit.mjs invocation, cwd = the target root. */
+export function catalogAuditCommand(targetDir: string, outDir: string): PrescribedCommand {
   return {
-    ok: true,
-    cmd: artifactPath,
-    args: [],
-    cwd: path.dirname(artifactPath),
-    describe: `${artifactPath} (executed directly)`,
-    source: "executable file",
+    cmd: "node",
+    args: [DATA_AUDIT_REL, "--input", SEED_DATA_REL, "--out", outDir],
+    cwd: targetDir,
+    describe: `node ${DATA_AUDIT_REL} --input ${SEED_DATA_REL} --out ${outDir}`,
   };
 }
 
-// ---------------------------------------------------------------------------
-// Bench output recognition — interpret what the artifact actually reported,
-// never prescribe what it must report. Unrecognized measurements stay null;
-// every numeric field is also recorded verbatim.
-// ---------------------------------------------------------------------------
-
-export interface BenchMeasurements {
-  /** Recognized hard-constraint violation count, if the output exposes one. */
-  violations: number | null;
-  /** Sample/instance count the output associates with the violations check. */
-  violationSamples: number | null;
-  /** Recognized optimality gap, if exposed. */
-  gap: number | null;
-  /** Instance count the output associates with the gap check. */
-  gapInstances: number | null;
-  /** Recognized instance size (course count), if exposed. */
-  courses: number | null;
-  /** A p95 the bench computed itself, if exposed (assumed milliseconds). */
-  reportedP95Ms: number | null;
-  /** Raw solve-time samples, if exposed (milliseconds). */
-  solveTimesMs: number[] | null;
-  /** EVERY numeric top-level field the bench reported, verbatim. */
-  numericFields: Record<string, number>;
-  /** Fields present but not numeric (recorded verbatim as evidence). */
-  nonNumericFields: string[];
+/** The real verify.mjs invocation, cwd = the target root (--repo-root is required by its parser). */
+export function catalogVerifyCommand(targetDir: string, resultsDir: string): PrescribedCommand {
+  return {
+    cmd: "node",
+    args: [DATA_VERIFY_REL, "--results", resultsDir, "--repo-root", targetDir],
+    cwd: targetDir,
+    describe: `node ${DATA_VERIFY_REL} --results ${resultsDir} --repo-root ${targetDir}`,
+  };
 }
 
-const VIOLATION_KEYS = ["violations", "hardConstraintViolations", "violationCount", "hardViolations"];
-const VIOLATION_SAMPLE_KEYS = ["violationSamples", "instancesChecked", "violationInstances", "samplesChecked"];
-const GAP_KEYS = ["gap", "optimalityGap", "optimalityGapRatio", "gapRatio"];
-const GAP_INSTANCE_KEYS = ["enumerableInstances", "gapInstances", "enumerableInstancesChecked", "gapSamples"];
-const COURSES_KEYS = ["courses", "courseCount", "numCourses", "nCourses"];
-const P95_KEYS = ["p95Ms", "p95ms", "solveTimeP95Ms", "p95Millis", "p95"];
-const SOLVE_TIME_KEYS = ["solveTimesMs", "solveTimes", "timesMs", "solveDurationsMs", "times", "timings", "durationsMs", "latencyMs"];
+/** The real run-bench.ts invocation, cwd = the target's frontend/. */
+export function benchCommand(targetDir: string): PrescribedCommand {
+  const frontendDir = path.join(targetDir, "frontend");
+  const runRel = path.relative(frontendDir, path.join(targetDir, BENCH_RUN_REL));
+  return {
+    cmd: "bun",
+    args: ["run", runRel, `--variant=${BENCH_VARIANT}`, "--suite=all", "--k=3", "--repeat=3"],
+    cwd: frontendDir,
+    describe: `bun run ${runRel} --variant=${BENCH_VARIANT} --suite=all --k=3 --repeat=3`,
+  };
+}
 
-function firstNumber(payload: Record<string, unknown>, keys: string[]): number | null {
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-  }
+export type VerifyVerdict = "PASS" | "FAIL";
+
+/**
+ * verify.mjs's verdict is the LAST non-empty line of its output:
+ * `verdict: PASS` or `verdict: FAIL`. Anything else is unparseable (null).
+ */
+export function parseVerifyVerdict(stdout: string): VerifyVerdict | null {
+  const lines = stdout.split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
+  const last = lines[lines.length - 1];
+  if (last === "verdict: PASS") return "PASS";
+  if (last === "verdict: FAIL") return "FAIL";
   return null;
 }
 
-function firstNumberArray(payload: Record<string, unknown>, keys: string[]): number[] | null {
-  for (const key of keys) {
-    const value = payload[key];
-    if (Array.isArray(value) && value.length > 0 && value.every((t) => typeof t === "number" && Number.isFinite(t))) {
-      return value as number[];
+/** Strictly read a target tool's JSON output file: a JSON object, or undefined. */
+export function readJsonObjectFile(filePath: string): Record<string, unknown> | undefined {
+  let text: string;
+  try {
+    text = readFileSync(filePath, "utf8");
+  } catch {
+    return undefined;
+  }
+  return parseJsonObject(text);
+}
+
+// ---------------------------------------------------------------------------
+// Real bench-report reading (decision 685c) — the prescribed run-bench.ts
+// report shape, as defined by run-bench.ts's own code at the PR #14 head:
+//   { variant, suite, k, repeat, instances: [...], sizeSummary: [...] }
+// with per-instance records { name, suite, sizeClass, enumerable, statuses,
+// violations (max checker violations across repeats), iisValid, optimalityGap,
+// topKAgreement, diversity, initMsP50/P95, searchMsP50/P95, wallMsP50/P95,
+// skipped? }. A report that does not parse into that shape fails the case.
+// ---------------------------------------------------------------------------
+
+export type BenchReportParse =
+  | { ok: true; report: Record<string, unknown>; instances: Array<Record<string, unknown>> }
+  | { ok: false; reason: string };
+
+/** Parse the real bench's results file text; unparseable/foreign shapes name exactly what was wrong. */
+export function parseBenchReport(text: string): BenchReportParse {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    return { ok: false, reason: `bench results file is not valid JSON: ${error instanceof Error ? error.message : String(error)}` };
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { ok: false, reason: "bench results file is not a JSON object" };
+  }
+  const report = parsed as Record<string, unknown>;
+  if (!Array.isArray(report.instances)) {
+    return { ok: false, reason: "bench results file has no instances array (not the run-bench.ts report shape)" };
+  }
+  for (const entry of report.instances) {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      return { ok: false, reason: "bench results instances array holds a non-object entry" };
     }
   }
-  return null;
+  return { ok: true, report, instances: report.instances as Array<Record<string, unknown>> };
 }
+
+function asFiniteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function asNonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+export interface BenchReportSummary {
+  /** Instances whose record carries a numeric `violations` count (the checker ran on them). */
+  violationsChecked: number;
+  /** Max numeric violations across those instances (null when none reported). */
+  violationsMax: number | null;
+  /** "name=N" for every instance whose violations count is > 0. */
+  violationsBreaches: string[];
+  /** Enumerable, non-skipped instances reporting a numeric `optimalityGap` (a comparable best cost). */
+  gapChecked: number;
+  gapMax: number | null;
+  /** "name=G" for every judged instance whose gap is not 0. */
+  gapBreaches: string[];
+  /** Enumerable, non-skipped instances that reported no comparable gap (e.g. proved infeasible). */
+  gapUnjudged: number;
+  /** Instances the bench itself skipped, by name, with the bench's own reason. */
+  skipped: Array<{ name: string; reason: string }>;
+  /** The pinned 8-course family's solve-time p95 (its own wallMsP95). */
+  xlWallMsP95: number | null;
+  /** Whether the report carries a record named XL_INSTANCE_NAME at all. */
+  xlRecordPresent: boolean;
+  /** The pinned family's skip reason, when the bench skipped it. */
+  xlSkipReason: string | null;
+}
+
+/**
+ * Summarize the real bench report for the three optimizer cases. Judged
+ * fields are the bench's own outputs (checker `violations`, the
+ * brute-force-compared `optimalityGap`, per-instance `wallMsP95`); the
+ * 8-course condition maps to the pinned family record by its committed name.
+ */
+export function summarizeBenchReport(instances: Array<Record<string, unknown>>): BenchReportSummary {
+  const summary: BenchReportSummary = {
+    violationsChecked: 0,
+    violationsMax: null,
+    violationsBreaches: [],
+    gapChecked: 0,
+    gapMax: null,
+    gapBreaches: [],
+    gapUnjudged: 0,
+    skipped: [],
+    xlWallMsP95: null,
+    xlRecordPresent: false,
+    xlSkipReason: null,
+  };
+  for (const record of instances) {
+    const name = asNonEmptyString(record.name) ?? "<unnamed>";
+    const skipReason = asNonEmptyString(record.skipped);
+    if (skipReason !== null) summary.skipped.push({ name, reason: skipReason });
+
+    const violations = asFiniteNumber(record.violations);
+    if (violations !== null) {
+      summary.violationsChecked += 1;
+      if (summary.violationsMax === null || violations > summary.violationsMax) summary.violationsMax = violations;
+      if (violations > 0) summary.violationsBreaches.push(`${name}=${violations}`);
+    }
+
+    if (record.enumerable === true && skipReason === null) {
+      const gap = asFiniteNumber(record.optimalityGap);
+      if (gap !== null) {
+        summary.gapChecked += 1;
+        if (summary.gapMax === null || gap > summary.gapMax) summary.gapMax = gap;
+        if (gap !== 0) summary.gapBreaches.push(`${name}=${gap}`);
+      } else {
+        summary.gapUnjudged += 1;
+      }
+    }
+
+    if (name === XL_INSTANCE_NAME) {
+      summary.xlRecordPresent = true;
+      summary.xlSkipReason = skipReason;
+      summary.xlWallMsP95 = asFiniteNumber(record.wallMsP95);
+    }
+  }
+  return summary;
+}
+
+// ---------------------------------------------------------------------------
+// Verbatim numeric collection — every number a tool's parsed output carries,
+// wherever it nests them. Used for the data suite's certification evidence.
+// Output shapes belong to the tool that printed them — the collector adapts,
+// it does not prescribe.
+// ---------------------------------------------------------------------------
 
 /**
  * Collect every finite number in the payload, descending into nested plain
  * objects (leaf keys get dotted paths like "totals.courses"). Arrays and
  * other non-numbers are not counts; they are named for the evidence note.
- * Output shapes belong to the tool that printed them — the collector adapts,
- * it does not prescribe.
  */
 export function collectNumericCounts(
   payload: Record<string, unknown>,
@@ -440,31 +463,6 @@ export function collectNumericCounts(
   };
   visit(payload, "");
   return { counts, nonNumericFields };
-}
-
-/**
- * Best-effort recognition of the bench's reported measurements. Field names
- * are recognized, not required: a bench that reports none of them simply
- * yields nulls and the affected cases go not-applicable with that reason.
- */
-export function interpretBenchOutput(payload: Record<string, unknown>): BenchMeasurements {
-  const numericFields: Record<string, number> = {};
-  const nonNumericFields: string[] = [];
-  for (const [key, value] of Object.entries(payload)) {
-    if (typeof value === "number" && Number.isFinite(value)) numericFields[key] = value;
-    else nonNumericFields.push(key);
-  }
-  return {
-    violations: firstNumber(payload, VIOLATION_KEYS),
-    violationSamples: firstNumber(payload, VIOLATION_SAMPLE_KEYS),
-    gap: firstNumber(payload, GAP_KEYS),
-    gapInstances: firstNumber(payload, GAP_INSTANCE_KEYS),
-    courses: firstNumber(payload, COURSES_KEYS),
-    reportedP95Ms: firstNumber(payload, P95_KEYS),
-    solveTimesMs: firstNumberArray(payload, SOLVE_TIME_KEYS),
-    numericFields,
-    nonNumericFields,
-  };
 }
 
 // ---------------------------------------------------------------------------

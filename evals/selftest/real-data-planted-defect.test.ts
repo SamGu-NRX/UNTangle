@@ -1,20 +1,24 @@
 /**
  * Real-suite planted defect: data.
  *
- * The data suite's boundaries are two target artifacts (evals/suites/data.ts):
- *   - frontend/src/lib/data-provenance.ts, an `activeDataset` descriptor whose
- *     sha256/counts must match the bundled catalog file it names;
- *   - the catalog-consistency tool, executed with --format json, whose
- *     nonzero failure counts fail the certification case.
+ * The data suite's boundaries (decision 685c, evals/suites/data.ts):
+ *   - the REAL catalog-consistency chain: node tools/catalog-consistency/
+ *     audit.mjs --input frontend/src/lib/generated/seed-data.json --out <dir>,
+ *     then node tools/catalog-consistency/verify.mjs --results <dir>
+ *     --repo-root <target> — the certification case fails when a real tool
+ *     exits nonzero or its output is unparseable;
+ *   - frontend/src/lib/data-provenance.ts, an `activeDataset` descriptor
+ *     whose sha256/counts must match the bundled catalog file it names.
  *
- * These tests plant both artifacts against a stubbed-stack harness copy and
+ * These tests plant the artifacts against a stubbed-stack harness copy and
  * assert the REAL suite's verdicts:
  *
- *   healthy descriptor + tool          -> both cases pass        -> exit 0
- *   one corrupted bundle byte          -> descriptor FAILS
- *                                        (sha256 MISMATCH), tool passes -> exit 1
- *   tool reporting failures=2          -> certification FAILS naming
- *                                        failures=2, descriptor passes  -> exit 1
+ *   healthy tools + descriptor + bundles -> both cases pass         -> exit 0
+ *   one corrupted bundle byte            -> descriptor FAILS
+ *                                          (sha256 MISMATCH),
+ *                                          certification passes   -> exit 1
+ *   one tampered seed-data byte          -> audit exits 1 -> certification
+ *                                          FAILS, descriptor passes -> exit 1
  *
  * Run: bun test evals/selftest/real-data-planted-defect.test.ts
  */
@@ -66,7 +70,7 @@ function caseRecord(card: Scorecard, caseId: string) {
 
 describe("real-suite planted defect: data", () => {
   test(
-    "healthy descriptor and tool: both cases pass and the run exits 0",
+    "healthy tools and descriptor: both cases pass and the run exits 0",
     async () => {
       const target = makeFakeTarget(root, "target-data-good");
       writeDataArtifacts(target);
@@ -83,14 +87,16 @@ describe("real-suite planted defect: data", () => {
       for (const record of card.cases) {
         expect(record.status).toBe("pass");
       }
-      // The pass note names the actually-verified bundled file.
+      // The pass note carries the real tool's own verdict line.
+      expect(caseRecord(card, "catalog-certification-counts").note).toContain("verdict: PASS");
+      // The provenance pass note names the actually-verified bundled file.
       expect(caseRecord(card, "provenance-descriptor").note).toContain("complete.json");
     },
     { timeout: 150_000 },
   );
 
   test(
-    "one corrupted bundle byte: provenance-descriptor fails with a sha256 MISMATCH note while the certification case still passes; run exits 1",
+    "one corrupted bundle byte: provenance-descriptor fails with a sha256 MISMATCH note while the certification chain still passes; run exits 1",
     async () => {
       const target = makeFakeTarget(root, "target-data-hash");
       const artifacts = writeDataArtifacts(target);
@@ -115,10 +121,11 @@ describe("real-suite planted defect: data", () => {
   );
 
   test(
-    "tool reporting failures=2: catalog-certification-counts fails naming the count while the descriptor still passes; run exits 1",
+    "one tampered seed-data byte: the real audit exits 1 and catalog-certification-counts fails naming the exit while the descriptor still passes; run exits 1",
     async () => {
       const target = makeFakeTarget(root, "target-data-tool");
-      writeDataArtifacts(target, { toolFailures: 2 });
+      const artifacts = writeDataArtifacts(target);
+      artifacts.corruptSeedData(); // counts equal; the audit's rule fails -> exit 1
       const out = path.join(root, "tool", "card.json");
       const { code, card } = await runData(target, out);
 
@@ -128,7 +135,8 @@ describe("real-suite planted defect: data", () => {
 
       const certification = caseRecord(card, "catalog-certification-counts");
       expect(certification.status).toBe("fail");
-      expect(certification.note).toContain("the tool reports inconsistencies: failures=2");
+      // data.ts: "catalog audit exited 1; stderr tail: ..."
+      expect(certification.note).toContain("catalog audit exited 1");
 
       const descriptor = caseRecord(card, "provenance-descriptor");
       expect(descriptor.status).toBe("pass");
