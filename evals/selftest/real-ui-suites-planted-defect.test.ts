@@ -135,7 +135,7 @@ async function runSuite(suite: string): Promise<SpawnResult> {
   // nothing else cleans up.
   const tmpDir = path.join(outDir, "tmp");
   mkdirSync(tmpDir, { recursive: true });
-  return spawnBounded(
+  const r = await spawnBounded(
     process.execPath,
     [
       REPO_RUN_TS,
@@ -152,6 +152,13 @@ async function runSuite(suite: string): Promise<SpawnResult> {
     // spawnBounded merges env over the inherited environment.
     { cwd: EVALS_DIR, timeoutMs: 3_600_000, env: { TMPDIR: tmpDir } },
   );
+  // Persist the runner's captured streams beside the card. bun test does not
+  // print r.stdout/r.stderr on a failed expect(), so without these files a
+  // runner crash is diagnosed blind — attempt 5 (2026-10-19) exited 1 without
+  // a card and every stderr line it emitted was lost in the recipe's buffers.
+  writeFileSync(path.join(outDir, "runner-stdout.log"), r.stdout ?? "");
+  writeFileSync(path.join(outDir, "runner-stderr.log"), r.stderr ?? "");
+  return r;
 }
 
 function readCard(): Scorecard {
