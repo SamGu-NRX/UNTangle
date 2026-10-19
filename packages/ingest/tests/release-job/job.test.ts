@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { runReleaseJob } from "../../src/release-job/job";
@@ -380,6 +380,42 @@ describe("runReleaseJob, one run at a time", () => {
     expect(report.releaseId).toBe(pointer.releaseId);
     expect(pointer.releaseId).not.toBe((JSON.parse(legacy) as { releaseId: string }).releaseId);
     expect(publishedCourses(pointer.file).get("MATH 1680")).toBe(9);
+  });
+
+  test("a retry with MATH publishes a pending MATH,MATH release over a release with no overlay record", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+    rmSync(path.join(outDir, "overlays"), { recursive: true });
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    const legacy = readFileSync(pointerPath, "utf8");
+
+    files["/data/spring-2027.json"] = { body: changedBody, etag: '"v2"' };
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 9 }), etag: '"m2"' };
+    const blocker = `${pointerPath}.tmp-${process.pid}`;
+    mkdirSync(blocker, { recursive: true });
+    writeFileSync(path.join(blocker, "obstruction"), "block the pointer write");
+    await expect(job({ subjects: ["MATH", "MATH"] })).rejects.toMatchObject({ syscall: "open" });
+    // The pending release's record, as a build before canonical subjects wrote it.
+    const records = readdirSync(path.join(outDir, "overlays"));
+    expect(records).toHaveLength(1);
+    writeFileSync(path.join(outDir, "overlays", records[0] as string), JSON.stringify({ subjects: ["MATH", "MATH"] }));
+
+    rmSync(blocker, { recursive: true });
+    const report = await job({ subjects: ["MATH"] });
+    expect(report.outcome).toBe("published");
+    const pointer = JSON.parse(readFileSync(pointerPath, "utf8")) as { releaseId: string; file: string };
+    expect(pointer.releaseId).not.toBe((JSON.parse(legacy) as { releaseId: string }).releaseId);
+    expect(publishedCourses(pointer.file).get("MATH 1680")).toBe(9);
+  });
+
+  test("a request for math and MATH is recorded as MATH once", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    const report = await job({ subjects: ["math", " MATH"] });
+    expect(report.outcome).toBe("published");
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: true }]);
+    const records = readdirSync(path.join(outDir, "overlays"));
+    expect(records).toHaveLength(1);
+    expect(JSON.parse(readFileSync(path.join(outDir, "overlays", records[0] as string), "utf8"))).toEqual({ subjects: ["MATH"] });
   });
 
   test("a refused run still saves the request log, including the watch's request", async () => {
