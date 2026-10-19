@@ -15,6 +15,7 @@ import type { PreferencesBody, ScheduleBody } from "../../../../packages/contrac
 import type { Receipt } from "../../../../packages/contracts/src/sync";
 import { SyncError } from "@/lib/document-sync/decision";
 import { emptyMainSchedule } from "@/lib/planner-documents";
+import { vsbSectionId } from "@/lib/sections/vsb";
 import { extensionAddReplySchema, type ExtensionAddOptionCommand, type ExtensionAddReply } from "./extension-api";
 import { isPlannedTerm, termMain, type StoredDocumentEntry } from "./main-schedule";
 import { parseExtensionOptionId, sectionMatchesOptionId } from "./option-id";
@@ -88,17 +89,19 @@ function buildWritePayload(command: ExtensionAddOptionCommand, scheduleId: strin
  * and a Main deleted and made again after a lost response is a different
  * document that can stand at the same revision without the pick. So the
  * check runs only when Main is the term's own first id, which is never
- * reused once deleted, and stands at the committed revision; there, the
- * command's option must be the pick recorded for its course, and anything
- * else gets the forbidden rejection. A Main at a later id leaves only the
- * revision relationship to check, as a schedule that has moved on does.
+ * reused once deleted, and stands at the committed revision. There, the id
+ * built from the parsed option must match the course's stored pick; a mismatch
+ * gets the forbidden rejection. This needs no term data, so a removed
+ * section or unavailable term file cannot prevent a receipt replay. A Main
+ * at a later id leaves only the revision relationship to check, as a schedule
+ * that has moved on does.
  *
  * An option id without a term, or for a term the planner doesn't plan, names
  * no Main to look in. This build never commits either; such a receipt can
  * only be an older build's commit, so only the revision relationship checks it.
  */
 async function verifiedReplay(
-  deps: { store: ExtensionStore; sections: SectionsSource },
+  store: ExtensionStore,
   userId: string,
   command: ExtensionAddOptionCommand,
   receipt: Receipt,
@@ -106,19 +109,14 @@ async function verifiedReplay(
   const refuse = () => rejection(command.operationId, "forbidden", 409);
   if (receipt.committedRevision !== command.expectedRevision + 1) return refuse();
   const option = parseExtensionOptionId(command.optionId);
-  const found = option && isPlannedTerm(option.term) ? termMain(await deps.store.documents(userId), option.term) : null;
+  const found = option && isPlannedTerm(option.term) ? termMain(await store.documents(userId), option.term) : null;
   const main = found?.firstId ? found.schedule : null;
   if (option && main && main.revision === receipt.committedRevision) {
-    const sections = await deps.sections.termSections(option.term);
-    // Unavailable term data is no verdict: the boundary answers 503 and the extension retries.
-    if (sections === null) throw new Error("Term sections are unavailable.");
-    const section = sections.find((candidate) => sectionMatchesOptionId(candidate, command.optionId)) ?? null;
-    if (!section) return refuse();
-    // jsonb re-sorts object keys on the way through Postgres, so the rebuilt
-    // write bytes cannot reproduce the receipt's hash even for the identical
-    // command. The check the hash stood for is the committed effect: the
-    // command's option is the pick recorded for its course.
-    if (main.body.selectedSections[section.courseCode] !== section.id) return refuse();
+    // jsonb re-sorts object keys on the way through Postgres, so rebuilt write
+    // bytes can't reproduce the receipt's hash. The check the hash stood for is
+    // the committed effect: the course's pick is the section the option id names.
+    const sectionId = vsbSectionId(option.term, option.courseCode, option.classNumbers);
+    if (main.body.selectedSections[option.courseCode] !== sectionId) return refuse();
   }
   return { status: 200, body: { kind: "receipt", operationId: command.operationId, committedRevision: receipt.committedRevision } };
 }
@@ -138,14 +136,14 @@ export async function applyAddOption(
   // the sync path's receipt lookup precedes every state check — but only for
   // the command the receipt actually committed.
   const existing = await deps.store.receipt(userId, command.operationId);
-  if (existing) return verifiedReplay(deps, userId, command, existing);
+  if (existing) return verifiedReplay(deps.store, userId, command, existing);
   // A copy of this command sent at the same time can commit after the lookup
   // above, moving Main past the expected revision or storing other bytes
   // under the operation id. Before refusing, look again: a receipt that
   // appeared is this command's answer, verified the same way.
   const refuseUnlessCommitted = async (reason: RejectionReason, status: number) => {
     const committed = await deps.store.receipt(userId, command.operationId);
-    return committed ? verifiedReplay(deps, userId, command, committed) : rejection(command.operationId, reason, status);
+    return committed ? verifiedReplay(deps.store, userId, command, committed) : rejection(command.operationId, reason, status);
   };
 
   // The option's term is the term the student saw on class search, and it

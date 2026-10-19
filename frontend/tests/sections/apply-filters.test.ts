@@ -112,7 +112,16 @@ describe("applySectionFilters", () => {
     const { course: kept, summary } = applySectionFilters(course, [], null, null);
     expect(kept.sections.map((s) => s.id)).toEqual(["csce-1045-001", "csce-1045-002", "csce-1045-003"]);
     expect(summary.hidden).toEqual({ total: 0, unknown: 0 });
+    expect(summary.gradeHistory).toEqual({ status: "not-requested" });
+  });
+
+  test("service no-history stays distinct from history that was not requested", () => {
+    const history: HistoryResult<CourseHistory> = { status: "no-history", source: "untgrades.app", data: null };
+    const { summary } = applySectionFilters(course, [], 300, history);
+    const { summary: notRequested } = applySectionFilters(course, [], null, null);
     expect(summary.gradeHistory).toEqual({ status: "no-history" });
+    expect(notRequested.gradeHistory).toEqual({ status: "not-requested" });
+    expect(summary.hidden).toEqual({ total: 3, unknown: 3 });
   });
 
   test("a failing filter drops, an unjudgeable section is counted as unknown and hidden", () => {

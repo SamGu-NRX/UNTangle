@@ -192,6 +192,8 @@ function ImportFlow({ identityReady, restoredTrip }: { identityReady: boolean; r
   }, [identityReady]);
 
   function save(result: TranscriptReconcileResult) {
+    // Another PDF is being read: the review still on screen is the old file's, so it can't be saved.
+    if (phase.phase === "reading") return;
     const selected = importSelection(result.records, decisions);
     if (!selected.length || !identityReady || !hydrated || conflict) return;
     applyTranscriptRecords(selected);
@@ -210,15 +212,9 @@ function ImportFlow({ identityReady, restoredTrip }: { identityReady: boolean; r
     router.push("/courses");
   }, [outcome, savedCount, router]);
 
-  const openMyUnt = (label: string, variant: "primary" | "secondary" | "quiet", size?: "lg") => (
-    <a
-      className={`ui-btn ui-btn--${variant}${size ? ` ui-btn--${size}` : ""}`}
-      href={MYUNT_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={openFromLink}
-      data-ui=""
-    >
+  const openMyUnt = (label: string, variant: "primary" | "secondary" | "quiet", size?: "lg") => {
+    const className = `ui-btn ui-btn--${variant}${size ? ` ui-btn--${size}` : ""}`;
+    const content = (
       <span className="ui-btn__stack">
         <span className="ui-btn__label">
           {variant === "primary" ? (
@@ -230,8 +226,17 @@ function ImportFlow({ identityReady, restoredTrip }: { identityReady: boolean; r
           <span className="sr-only-v2"> (opens a new window)</span>
         </span>
       </span>
-    </a>
-  );
+    );
+    return identityReady ? (
+      <a className={className} href={MYUNT_URL} target="_blank" rel="noopener noreferrer" onClick={openFromLink} data-ui="">
+        {content}
+      </a>
+    ) : (
+      <button type="button" disabled className={className} data-ui="">
+        {content}
+      </button>
+    );
+  };
   const chooseFile = (
     <button type="button" className={styles.inlineAction} disabled={!identityReady} onClick={choosePdf}>
       Choose file

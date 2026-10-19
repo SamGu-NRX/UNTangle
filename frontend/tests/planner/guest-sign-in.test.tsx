@@ -336,6 +336,26 @@ test("a guest who only saved a schedule in this session has it moved into the ac
   expect(guestWorkIsThisSession()).toBe(false);
 });
 
+// PR #172 review (discussion_r4305797781): the merge kept every guest name, so two rows were called "Plan A".
+test("a guest copy named like one the account has comes in numbered; the account's keeps its name", async () => {
+  expect(createSavedPlanStore(window.localStorage, user.id).savePlan({ state: plan(["MATH 1720"]), name: "Plan A" }).ok).toBe(true);
+  const guest = await mountPlanner();
+  mounted.push(guest.unmount);
+  await waitFor(() => guest.get().hydrated, "guest");
+  await guest.run(() => {
+    expect(createSavedPlanStore().savePlan({ state: plan(["CSCE 1040"]), name: "plan a" }).ok).toBe(true);
+  });
+  await waitFor(() => guestWorkIsThisSession("library"), "library write stamped");
+  await guest.unmount();
+  mounted.splice(mounted.indexOf(guest.unmount), 1);
+  await signIn();
+  await waitFor(() => library().length === 2, "moved");
+  expect(library().map((entry) => [entry.name, planned(entry.state, "CSCE 1040")])).toEqual([
+    ["plan a 2", true],
+    ["Plan A", false],
+  ]);
+});
+
 test("when the answer can't be stored, the account stays on screen and the question opens again", async () => {
   server.seedPlan(user.id, plan(["MATH 1720"]));
   guestLeft(plan(["CSCE 1040"]));

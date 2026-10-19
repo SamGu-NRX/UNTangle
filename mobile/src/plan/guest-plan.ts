@@ -1,5 +1,6 @@
 import { assignColors, type Hue } from "@/lib/course-colors";
 import { eventsOf, weekBlocks, weekStats, type WeekBlock, type WeekStats } from "@/lib/plan-library/week";
+import { DEFAULT_CANDIDATE_FILTER } from "@/lib/planner";
 import { optionsConflict, planningTerm, sampleCatalog } from "@/lib/planner-sections";
 import { courses, defaultPlannerState } from "@/lib/seed-data";
 import type { Section } from "@/lib/sections/model";
@@ -187,7 +188,8 @@ export function weekOf(picks: Picks, colors: ReadonlyMap<string, Hue>): GuestWee
     },
     selectedSections: { ...picks },
   };
-  const events = eventsOf(state, sampleCatalog);
+  // A guest has no section filter and no instructor evidence: the defaults eventsOf used before it took both.
+  const events = eventsOf(state, sampleCatalog, DEFAULT_CANDIDATE_FILTER, {});
   const blocks = weekBlocks(events);
   return {
     events,

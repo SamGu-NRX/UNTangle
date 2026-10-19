@@ -1,12 +1,13 @@
 import { figuresOf } from "@/components/schedule-builder/answer";
 import { eventsOf, unknownWalksOf, walksOf, type WalkFn } from "@/components/schedule-builder/week";
 import { normalizePlannerState } from "@/lib/planner";
-import type { PlanLockChange } from "@/lib/plan-library/diff";
+import type { PlanDiff, PlanLockChange } from "@/lib/plan-library/diff";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
 import { optionIdLabel, sectionRef } from "@/lib/planner-sections";
 import { weekTravel } from "@/lib/planner-walking";
 import type { Section } from "@/lib/sections";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
+import { freeName } from "@/lib/saved-plans/names";
 import type { SavedPlanStore, SavedPlanStoreFailure, StoreReadResult } from "@/lib/saved-plans/store";
 import { workingStateFingerprint } from "@/lib/saved-plans/restore-adapter";
 import type { PlannerState } from "@/lib/types";
@@ -17,12 +18,7 @@ import type { PlannerState } from "@/lib/types";
  * (archived copies included, in any letter case).
  */
 export function defaultCopyName(taken: readonly string[], of: string): string {
-  const used = new Set(taken.map((name) => name.trim().toLowerCase()));
-  const base = `Copy of ${of}`;
-  for (let n = 1; ; n += 1) {
-    const name = n === 1 ? base : `${base} ${n}`;
-    if (!used.has(name.toLowerCase())) return name;
-  }
+  return freeName(`Copy of ${of}`, taken);
 }
 
 /** Download name for an exported schedule file. */
@@ -104,16 +100,19 @@ export function weekWalking(sections: readonly Section[], travel: WalkFn = weekT
 }
 
 /**
- * What "Use in Main" does with each saved section it can't keep, one line per
- * course, said by what happens (lib/plan-library/snapshot.ts classifies them):
- * a section no longer offered is replaced, one for a course not planned this
- * term is not used, and a course the catalog doesn't know leaves the schedule.
+ * What "Use in Main" does with saved sections the week can't draw, one line
+ * per course: stale samples are replaced, inactive sections aren't used, and
+ * unknown courses leave the schedule. A real id stays saved when the class
+ * schedule no longer has it, or when the schedule can't be read yet (still
+ * loading, or only the samples are there), so those need a line too.
  */
 export function skippedSectionLines(report: SectionReferenceReport): string[] {
   return [
     ...report.stale.map((finding) => `${finding.courseCode}: its saved section is no longer offered, so Week picks another.`),
     ...report.inactive.map((finding) => `${finding.courseCode}: not planned this term, so its saved section isn't used.`),
     ...report.unknownCourses.map((finding) => `${finding.courseCode}: not in this catalog, so it leaves the schedule.`),
+    ...report.needsReview.map((finding) => `${finding.courseCode}: its saved section isn't in the class schedule now. Use in Main keeps it, marked Needs review in Week.`),
+    ...report.unchecked.map((finding) => `${finding.courseCode}: its saved section can't be checked against the class schedule yet. Use in Main keeps it.`),
   ];
 }
 
@@ -141,6 +140,38 @@ export function lockChangeLines(changes: readonly PlanLockChange[]): string[] {
       ? `${courseCode}: Use in Main locks it to ${label} instead.`
       : `${courseCode}: Use in Main locks it to ${label}.`;
   });
+}
+
+/**
+ * What "Use in Main" replaces beyond sections and locks, since the week can't
+ * show course evidence or the major. `diff` compares the copy (savedPlan)
+ * with Main (workingState); adoption applies the copy's side. Only a change
+ * to or from done is said: planned against not taken is which courses the
+ * week schedules, and the week already draws that.
+ */
+export function adoptionChangeLines(diff: PlanDiff): string[] {
+  const lines = diff.statusChanges.flatMap(({ courseCode, from, to }) => {
+    if (from === "completed") return [`${courseCode}: Use in Main marks it done.`];
+    if (to === "completed") return [`${courseCode}: Use in Main no longer counts it as done.`];
+    return [];
+  });
+  for (const { courseCode, fact, savedPlan } of diff.courseFactChanges) {
+    lines.push(
+      fact === "manualCredit"
+        ? savedPlan
+          ? `${courseCode}: Use in Main counts it as credit you have.`
+          : `${courseCode}: Use in Main drops the credit you marked for it.`
+        : savedPlan
+          ? `${courseCode}: Use in Main marks it as planned by Auto.`
+          : `${courseCode}: Use in Main drops its Auto-fill mark.`,
+    );
+  }
+  if (diff.majorChanged) lines.push("Use in Main changes the major to this copy's.");
+  if (diff.transcriptRecords.changed) {
+    const records = (count: number) => `${count} ${count === 1 ? "record" : "records"}`;
+    lines.push(`Use in Main replaces Main's transcript records (${records(diff.transcriptRecords.workingState)}) with this copy's (${records(diff.transcriptRecords.savedPlan)}).`);
+  }
+  return lines;
 }
 
 /**

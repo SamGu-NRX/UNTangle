@@ -2,7 +2,10 @@ import { describe, expect, it } from "bun:test";
 import { exportFileName, hasSavedCopy, versionTime, whenText } from "@/components/schedules-library/view-model";
 import { buildSavedPlanSnapshot } from "@/lib/plan-library/snapshot";
 import { defaultPlannerState } from "@/lib/seed-data";
-import { normalizePlannerState } from "@/lib/planner";
+import { getInitialPlannerState, normalizePlannerState } from "@/lib/planner";
+import { diffLibraryPlans, type PlanDiff } from "@/lib/plan-library/diff";
+import { sampleCatalog } from "@/lib/planner-sections";
+import { fixtureCatalog, fixtureInput } from "./sections/real-term";
 import type { PlannerState } from "@/lib/types";
 
 const capturedAt = "2026-10-10T12:00:00.000Z";
@@ -74,6 +77,31 @@ describe("what Use in Main does with sections it can't keep", () => {
     ]);
   });
 
+  it("explains needs-review and loading sections after stale, inactive and unknown courses", async () => {
+    const { skippedSectionLines } = await import("@/components/schedules-library/view-model");
+    const { resolveSectionReferences } = await import("@/lib/plan-library/snapshot");
+    const base = getInitialPlannerState();
+    const state: PlannerState = {
+      ...base,
+      courseStatuses: { ...base.courseStatuses, "ANTH 1010": "inProgress", "ANTH 1150": "notTaken", "MATH 1680": "inProgress", "CSCE 1030": "inProgress" },
+      selectedSections: {
+        "CSCE 1030": "vsb:spring-2027:CSCE 1030:9999",
+        "MATH 1680": "vsb:spring-2027:MATH 1680:9998+9999",
+        "ZZZZ 9999": "zzzz-9999-001",
+        "ANTH 1150": "anth-1150-001",
+        "ANTH 1010": "anth-1010-999",
+      },
+    };
+    const catalog = fixtureCatalog(fixtureInput(), ["CSCE 1030"]);
+    expect(skippedSectionLines(resolveSectionReferences(state, catalog))).toEqual([
+      "ANTH 1010: its saved section is no longer offered, so Week picks another.",
+      "ANTH 1150: not planned this term, so its saved section isn't used.",
+      "ZZZZ 9999: not in this catalog, so it leaves the schedule.",
+      "MATH 1680: its saved section isn't in the class schedule now. Use in Main keeps it, marked Needs review in Week.",
+      "CSCE 1030: its saved section can't be checked against the class schedule yet. Use in Main keeps it.",
+    ]);
+  });
+
   it("says nothing when every saved section carries over", async () => {
     const { skippedSectionLines } = await import("@/components/schedules-library/view-model");
     const { resolveSectionReferences } = await import("@/lib/plan-library/snapshot");
@@ -110,6 +138,91 @@ describe("what Use in Main does to locks", () => {
       "BIOL 1112: Use in Main locks it to section 003 instead.",
       "CHEM 1410: Use in Main unlocks its section.",
     ]);
+  });
+});
+
+describe("what Use in Main replaces beyond the week", () => {
+  const record = (id: string): PlannerState["transcriptRecords"][number] => ({
+    id,
+    code: "CSCE 1030",
+    title: "Computer Science I",
+    term: "2025 Fall",
+    grade: "B",
+    credits: 3,
+    confidence: 1,
+    rationale: "synthetic",
+    duplicateExcluded: false,
+    prerequisiteSatisfied: true,
+    reviewRequired: false,
+    appliedStatus: "completed",
+    sourceKind: "unt",
+  });
+
+  it("names done statuses the copy changes, before the major and transcript replacement", async () => {
+    const { adoptionChangeLines } = await import("@/components/schedules-library/view-model");
+    const base = getInitialPlannerState();
+    const copy: PlannerState = {
+      ...base,
+      courseStatuses: { ...base.courseStatuses, "ANTH 1010": "completed", "ANTH 1150": "inProgress", "BIOL 1112": "notTaken" },
+      selectedMajor: "cs",
+      transcriptRecords: [record("copy-1")],
+    };
+    const main: PlannerState = {
+      ...base,
+      courseStatuses: { ...base.courseStatuses, "ANTH 1010": "inProgress", "ANTH 1150": "notTaken", "BIOL 1112": "completed" },
+      selectedMajor: null,
+      transcriptRecords: [record("main-1"), record("main-2")],
+    };
+    expect(adoptionChangeLines(diffLibraryPlans(copy, main, sampleCatalog))).toEqual([
+      // ANTH 1150 is planned in the copy and not taken in Main: the week shows that, so it isn't said.
+      "ANTH 1010: Use in Main marks it done.",
+      "BIOL 1112: Use in Main no longer counts it as done.",
+      "Use in Main changes the major to this copy's.",
+      "Use in Main replaces Main's transcript records (2 records) with this copy's (1 record).",
+    ]);
+  });
+
+  it("uses singular Main and plural copy record counts, including an empty copy", async () => {
+    const { adoptionChangeLines } = await import("@/components/schedules-library/view-model");
+    const base = getInitialPlannerState();
+    const main = { ...base, transcriptRecords: [record("main-1")] };
+    const copy = { ...base, transcriptRecords: [record("copy-1"), record("copy-2")] };
+    expect(adoptionChangeLines(diffLibraryPlans(copy, main, sampleCatalog))).toEqual([
+      "Use in Main replaces Main's transcript records (1 record) with this copy's (2 records).",
+    ]);
+    expect(adoptionChangeLines(diffLibraryPlans(base, main, sampleCatalog))).toEqual([
+      "Use in Main replaces Main's transcript records (1 record) with this copy's (0 records).",
+    ]);
+  });
+
+  it("names credit and Auto marks it adds or drops before major and transcript changes", async () => {
+    const { adoptionChangeLines } = await import("@/components/schedules-library/view-model");
+    const base = getInitialPlannerState();
+    const diff: PlanDiff = {
+      ...diffLibraryPlans(base, base, sampleCatalog),
+      courseFactChanges: [
+        { courseCode: "ANTH 1010", fact: "manualCredit", savedPlan: true, workingState: false },
+        { courseCode: "ANTH 1150", fact: "manualCredit", savedPlan: false, workingState: true },
+        { courseCode: "BIOL 1112", fact: "autoPlanned", savedPlan: true, workingState: false },
+        { courseCode: "CHEM 1410", fact: "autoPlanned", savedPlan: false, workingState: true },
+      ],
+      majorChanged: true,
+      transcriptRecords: { savedPlan: 0, workingState: 1, changed: true },
+    };
+    expect(adoptionChangeLines(diff)).toEqual([
+      "ANTH 1010: Use in Main counts it as credit you have.",
+      "ANTH 1150: Use in Main drops the credit you marked for it.",
+      "BIOL 1112: Use in Main marks it as planned by Auto.",
+      "CHEM 1410: Use in Main drops its Auto-fill mark.",
+      "Use in Main changes the major to this copy's.",
+      "Use in Main replaces Main's transcript records (1 record) with this copy's (0 records).",
+    ]);
+  });
+
+  it("says nothing for an unchanged diff", async () => {
+    const { adoptionChangeLines } = await import("@/components/schedules-library/view-model");
+    const base = getInitialPlannerState();
+    expect(adoptionChangeLines(diffLibraryPlans(base, base, sampleCatalog))).toEqual([]);
   });
 });
 

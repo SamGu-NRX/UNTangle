@@ -10,9 +10,15 @@ import { afterAll, expect, mock, test } from "bun:test";
 import type { CourseHistory, HistoryTerm, HistoryResult } from "@/lib/grades-history/types";
 import type { GradeData } from "@/lib/grades";
 import type { CourseSections, Meeting, Section } from "@/lib/sections/model";
-import { SectionsProxy } from "@/lib/sections/proxy";
 
 mock.module("server-only", () => ({}));
+
+// mock.restore() leaves module mocks in place, and later test files in the
+// same run (even with --isolate) would get this file's partial sections proxy,
+// whose missing respondClassNumber breaks the class-number route test. So the
+// real modules are copied before mocking and put back in afterAll.
+const realSectionsServer = { ...(await import("@/lib/sections/server")) };
+const realGradesHistory = { ...(await import("@/lib/grades-history")) };
 
 const respondCalls: Array<[string, string, string]> = [];
 const getCourseSectionsCalls: string[] = [];
@@ -71,25 +77,26 @@ const HISTORY: CourseHistory = {
 };
 const historyOk: HistoryResult<CourseHistory> = { status: "ok", source: "untgrades.app", data: HISTORY };
 
-// A real proxy with only these two methods stubbed. Bun can hand this module
-// mock to other test files in the same run, and the class-number route test in
-// tests/rate-limit/sections-route.test.ts failed when it found no
-// respondClassNumber here.
-class StubProxy extends SectionsProxy {
-  override async respond(term: string, subject: string, number: string) {
-    respondCalls.push([term, subject, number]);
-    return Response.json({ passthrough: true });
-  }
-  override async getCourseSections(term: string, code: string) {
-    getCourseSectionsCalls.push(`${term} ${code}`);
-    return course;
-  }
-}
-mock.module("@/lib/sections/server", () => ({ sectionsProxy: new StubProxy() }));
+mock.module("@/lib/sections/server", () => ({
+  sectionsProxy: {
+    respond: async (term: string, subject: string, number: string) => {
+      respondCalls.push([term, subject, number]);
+      return Response.json({ passthrough: true });
+    },
+    getCourseSections: async (term: string, code: string) => {
+      getCourseSectionsCalls.push(`${term} ${code}`);
+      return course;
+    },
+  },
+}));
 mock.module("@/lib/grades-history", () => ({
   gradesHistory: { getCourseHistory: async () => historyOk },
 }));
-afterAll(() => mock.restore());
+afterAll(() => {
+  mock.module("@/lib/sections/server", () => realSectionsServer);
+  mock.module("@/lib/grades-history", () => realGradesHistory);
+  mock.restore();
+});
 
 const { GET } = await import("@/app/api/sections/[term]/[subject]/[number]/route");
 
