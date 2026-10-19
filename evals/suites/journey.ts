@@ -42,7 +42,7 @@ import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { Client } from "pg";
 import { defineSuite } from "../suite-kit";
 import type { CaseOutcome, CaseSpec, SuiteContext } from "../suite-kit";
-import { openCase, screenshot, settle } from "./ui-browser";
+import { closeTrackedCases, openCase, screenshot, settle } from "./ui-browser";
 import type { ViewportName } from "./ui-browser";
 import { signIn, signOut, syntheticPersona, signUp } from "./ui-persona";
 import type { SyntheticPersona } from "./ui-persona";
@@ -1070,6 +1070,10 @@ export default defineSuite({
       return await RUNNERS[journey](ctx, caseId, persona, viewport);
     } catch (error) {
       return { status: "fail", note: `case threw: ${error instanceof Error ? error.message : String(error)}` };
+    } finally {
+      // A case that throws mid-entry (the planted-defect shape) must not leak
+      // its browser — leaked transports keep run.ts alive past its scorecard.
+      await closeTrackedCases();
     }
   },
   caseTimeoutMs: 480_000,

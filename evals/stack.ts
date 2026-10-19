@@ -14,11 +14,15 @@
  *   postgres-init         fresh cluster under /home/user/work/pgdata-<taskId>
  *                         (never inside the repo)
  *   postgres-start        server on a free 5432x port + createdb untangle
+ *   frontend-install      workspace root bun install (frontend deps). Runs
+ *                         BEFORE migrations-apply: on a fresh target checkout
+ *                         frontend/node_modules does not exist yet, and
+ *                         drizzle.config.ts imports drizzle-kit — without the
+ *                         workspace install, migrate cannot resolve it
  *   migrations-apply      frontend drizzle migrations via drizzle-kit migrate
  *   db-roundtrip          DATABASE_URL save-then-read-back (persistence gate:
  *                         frontend/src/lib/persistence.ts disables persistence
  *                         when DATABASE_URL is unset)
- *   frontend-install      workspace root bun install (frontend deps)
  *   backend-start         backend up on a free port; RateMyProfessors blocked via
  *                         the rmp-block preload. Primary attempt: bun --preload
  *                         (per harness spec). The backend's better-sqlite3 addon
@@ -282,6 +286,37 @@ async function pollUntil(
       throw new Error(`${description}: not healthy within ${timeoutMs}ms`);
     }
     await sleep(POLL_INTERVAL_MS);
+  }
+}
+
+/**
+ * Refuse to boot a server whose fixed port already answers. A leftover server
+ * from a crashed run holds 3900/3951 and answers every health probe while our
+ * own child sits unbound (Next.js survives EADDRINUSE), silently running the
+ * whole suite against a foreign build — seen in planted-journey attempt 4 on
+ * 2026-10-19, whose cases exercised a crashed diagnostic run's frontend.
+ */
+async function assertPortFree(origin: string, label: string): Promise<void> {
+  const port = Number(new URL(origin).port);
+  const taken = await new Promise<boolean>((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(1_000);
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("timeout", () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.once("error", () => resolve(false));
+    socket.connect(port, "127.0.0.1");
+  });
+  if (taken) {
+    throw new Error(
+      `${label}: port ${port} already answers — an orphaned server from a previous run is still up. ` +
+        `Kill it before running; the suite must not measure a foreign stack.`,
+    );
   }
 }
 
@@ -604,6 +639,24 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
     return `postgres up on 127.0.0.1:${port}, database untangle created`;
   });
 
+  // --- (c) frontend deps — must precede migrations-apply on fresh checkouts:
+  // drizzle.config.ts imports drizzle-kit, which resolves only once the
+  // workspace install has populated frontend/node_modules.
+  await step("frontend-install", async () => {
+    const nextBin = path.join(frontendDir, "node_modules", ".bin", "next");
+    const drizzleBin = path.join(frontendDir, "node_modules", ".bin", "drizzle-kit");
+    if (existsSync(nextBin) && existsSync(drizzleBin)) {
+      return "cached workspace install present (next + drizzle-kit)";
+    }
+    const r = await runBounded("bun", ["install", "--frozen-lockfile"], {
+      cwd: ctx.targetDir,
+      timeoutMs: 600_000,
+      logPath: stepLog("frontend-install"),
+    });
+    if (r.code !== 0) throw new Error(`workspace bun install failed (code ${r.code}): ${r.tail.slice(-600)}`);
+    return "bun install --frozen-lockfile at workspace root";
+  });
+
   // --- (d) drizzle migrations ---------------------------------------------------
   await step("migrations-apply", async () => {
     const localBin = path.join(frontendDir, "node_modules", ".bin", "drizzle-kit");
@@ -611,7 +664,11 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
     const args = existsSync(localBin) ? ["migrate"] : ["drizzle-kit", "migrate"];
     const r = await runBounded(cmd, args, {
       cwd: frontendDir,
-      env: { ...process.env, DATABASE_URL: ctx.databaseUrl },
+      // PATH must include the bunx shim dir: on a fresh target checkout the
+      // local drizzle-kit bin does not exist yet (migrations-apply runs before
+      // frontend-install), and some hosts ship a dangling `bunx` symlink —
+      // the same host quirk the backend-build step guards against.
+      env: { ...process.env, DATABASE_URL: ctx.databaseUrl, PATH: pathWithShim },
       timeoutMs: 180_000,
       logPath: stepLog("migrations-apply"),
     });
@@ -645,21 +702,7 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
     }
   });
 
-  // --- (f) frontend install, build, start --------------------------------------
-  await step("frontend-install", async () => {
-    const nextBin = path.join(frontendDir, "node_modules", ".bin", "next");
-    const drizzleBin = path.join(frontendDir, "node_modules", ".bin", "drizzle-kit");
-    if (existsSync(nextBin) && existsSync(drizzleBin)) {
-      return "cached workspace install present (next + drizzle-kit)";
-    }
-    const r = await runBounded("bun", ["install", "--frozen-lockfile"], {
-      cwd: ctx.targetDir,
-      timeoutMs: 600_000,
-      logPath: stepLog("frontend-install"),
-    });
-    if (r.code !== 0) throw new Error(`workspace bun install failed (code ${r.code}): ${r.tail.slice(-600)}`);
-    return "bun install --frozen-lockfile at workspace root";
-  });
+  // --- (f) frontend build, start ------------------------------------------------
 
   const backendPort = await getFreePort(BACKEND_PORT_RANGE.start, BACKEND_PORT_RANGE.end, usedPorts);
   usedPorts.add(backendPort);
@@ -678,6 +721,7 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
   };
 
   await step("backend-start", async () => {
+    await assertPortFree(ctx.backendOrigin, "backend-start");
     await rm(ctx.blockedRmpLogPath, { force: true });
     const attempts: string[] = [];
 
@@ -751,6 +795,7 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
   });
 
   await step("frontend-start", async () => {
+    await assertPortFree(ctx.frontendOrigin, "frontend-start");
     const nextBin = path.join(frontendDir, "node_modules", ".bin", "next");
     const proc = spawnDetached("frontend", ctx, nextBin, ["start", "-p", String(frontendPort)], {
       cwd: frontendDir,

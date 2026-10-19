@@ -22,12 +22,22 @@ export interface CaseBrowser {
 }
 
 /**
+ * Every browser openCase launched that nobody has closed yet. A case that
+ * throws before its own close — the planted-defect shape: a persona
+ * activation that times out — would otherwise leak the browser: the transport
+ * pipes keep bun's event loop alive, so run.ts writes its scorecard and then
+ * never exits (observed on the round-2 journey run 1792408147072, where all
+ * 28 case browsers outlived the completed run).
+ */
+const openCases = new Set<CaseBrowser>();
+
+/**
  * Launch a fresh browser + context for one case and land on the app root.
  * `pathname` may carry a query (e.g. "/courses?q=CSCE"); it is appended to the
  * origin exactly as given.
  */
 export async function openCase(origin: string, viewport: ViewportName, pathname = "/"): Promise<CaseBrowser> {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await launchWithRetry();
   const context = await browser.newContext({
     viewport: VIEWPORTS[viewport],
     deviceScaleFactor: 1,
@@ -35,21 +45,73 @@ export async function openCase(origin: string, viewport: ViewportName, pathname 
   const page = await context.newPage();
   await page.goto(`${origin}${pathname}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
   await settle(page);
-  return { browser, context, page };
+  const cb: CaseBrowser = { browser, context, page };
+  openCases.add(cb);
+  return cb;
 }
 
 /** Close everything opened by openCase. Errors are recorded, not thrown. */
 export async function closeCase(cb: CaseBrowser): Promise<void> {
-  for (const closer of [
-    () => cb.context.close(),
-    () => cb.browser.close(),
-  ]) {
+  openCases.delete(cb);
+  // A browser that dies mid-case (OOM, SIGKILL) can leave close() awaiting a
+  // transport that will never answer — the round-2 journey run 1792409956203
+  // parked ~20 minutes inside close after its case browser vanished. Cleanup
+  // must be fail-safe in TIME, not only in error handling: bound every step
+  // and keep going regardless of how it ends.
+  await boundedClose(cb.context.close(), "context.close()");
+  await boundedClose(cb.browser.close(), "browser.close()");
+}
+
+const CLOSE_STEP_TIMEOUT_MS = 10_000;
+
+/**
+ * Bun 1.3.14 on this host intermittently fails out of its child_process stdio
+ * plumbing during chromium launch (`connect ENOENT`, and later "Failed to
+ * connect" — diagnostic run 2026-10-19 around map-registered-desktop, a11y run
+ * 2026-10-19 around axe-auth). Three attempts with growing delays turn those
+ * transients into recovered launches instead of dead suites.
+ */
+const LAUNCH_DELAYS_MS = [2_000, 5_000];
+
+async function launchWithRetry(): Promise<Browser> {
+  for (let attempt = 1; attempt <= LAUNCH_DELAYS_MS.length + 1; attempt++) {
     try {
-      await closer();
-    } catch {
-      // A crashed browser must not mask the case's own result.
+      return await chromium.launch({ headless: true });
+    } catch (error) {
+      if (attempt > LAUNCH_DELAYS_MS.length) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[ui-browser] chromium.launch failed (${message}) — retrying (attempt ${attempt + 1}/3)`);
+      await new Promise((resolve) => setTimeout(resolve, LAUNCH_DELAYS_MS[attempt - 1]));
     }
   }
+  throw new Error("unreachable: launchWithRetry attempts exhausted");
+}
+
+function boundedClose(promise: Promise<void>, what: string): Promise<void> {
+  return Promise.race([
+    promise.then(
+      () => undefined,
+      () => undefined,
+    ),
+    new Promise<void>((resolve) => {
+      setTimeout(() => {
+        console.error(`[ui-browser] ${what} did not finish within ${CLOSE_STEP_TIMEOUT_MS}ms — continuing`);
+        resolve();
+      }, CLOSE_STEP_TIMEOUT_MS);
+    }),
+  ]);
+}
+
+/**
+ * Boundary drain for a suite's case dispatch: closes whatever the case left
+ * open (including a browser from an enter/activation that threw before the
+ * caller could hold the handle). A no-op when every path already closed its
+ * own browser — the normal case.
+ */
+export async function closeTrackedCases(): Promise<void> {
+  const pending = Array.from(openCases);
+  openCases.clear();
+  for (const cb of pending) await closeCase(cb);
 }
 
 /** Let hydration/route transitions finish: network idle (best-effort) + a beat. */

@@ -14,7 +14,7 @@
  */
 import { defineSuite } from "../suite-kit";
 import type { CaseOutcome, CaseSpec, SuiteContext } from "../suite-kit";
-import { openCase, screenshot, settle } from "./ui-browser";
+import { closeTrackedCases, openCase, screenshot, settle } from "./ui-browser";
 import { activate, courseRow, expectDetailNot404, missingElement, PLANS } from "./ui-contract";
 import type { Page } from "playwright";
 
@@ -147,19 +147,25 @@ export default defineSuite({
     return CASES;
   },
   async run(caseId, ctx): Promise<CaseOutcome> {
-    switch (caseId) {
-      case "honesty/rmp-labels-when-unavailable":
-        return runRmpLabels(ctx, caseId);
-      case "honesty/sample-data-notice":
-        return runSampleDataNotice(ctx, caseId);
-      case "honesty/stale-rating-notice":
-        return runStaleRatingNotice(ctx, caseId);
-      case "honesty/unverified-savings-disclaimer":
-        return runUnverifiedSavings(ctx, caseId);
-      case "honesty/no-fabricated-precision":
-        return runNoFabricatedPrecision(ctx, caseId);
-      default:
-        throw new Error(`honesty: unrecognized case id ${caseId}`);
+    try {
+      switch (caseId) {
+        case "honesty/rmp-labels-when-unavailable":
+          return runRmpLabels(ctx, caseId);
+        case "honesty/sample-data-notice":
+          return runSampleDataNotice(ctx, caseId);
+        case "honesty/stale-rating-notice":
+          return runStaleRatingNotice(ctx, caseId);
+        case "honesty/unverified-savings-disclaimer":
+          return runUnverifiedSavings(ctx, caseId);
+        case "honesty/no-fabricated-precision":
+          return runNoFabricatedPrecision(ctx, caseId);
+        default:
+          throw new Error(`honesty: unrecognized case id ${caseId}`);
+      }
+    } finally {
+      // A case that throws mid-run must not leak its browser — leaked
+      // transports keep run.ts alive past its scorecard.
+      await closeTrackedCases();
     }
   },
   caseTimeoutMs: 240_000,
