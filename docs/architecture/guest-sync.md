@@ -4,33 +4,36 @@ Readers: the implementer of the follow-up to #62 and the lead. This note answers
 
 ## Guest work on sign-in
 
-A guest's work is kept in this browser under a guest identity: planner state, preferences and library entries, each in its own store. The guest id lives in a session cookie, so it ends when the browser closes; the architecture README ("Guests") covers the shared-computer guards. Every tab in the browser session shares the stores, including the tab the emailed sign-in link opens, so a new tab sees the same work. A signed-in student's local copies are kept under their own user id, never under the guest identity, and signing out deletes them from the browser (see the architecture README, "Local data belongs to one identity"). Reconciliation can only run in the browser that holds the guest stores. If the emailed link opens in another browser or an in-app mail browser, that browser signs in with no guest work to see. So the sign-in email also carries a six-digit code, and the original tab asks for it, which lets the student finish signing in where their work is. A student who finishes in another browser keeps their guest work in the original one, and it is reconciled the next time they sign in there, while it is still within guest expiry.
+A guest's work is kept in this browser in three stores: the planner state (the plan and the academic record together), preferences, and the saved-plan library. The stores outlive the browser session, so on a shared computer they can hold an earlier visitor's work. A cookie with no expiry holds a random token for the session, and each write by a guest the server confirmed stamps that store with it (`frontend/src/lib/guest-session.ts`). Signing in carries a store into the account only when its stamp matches this session; the library also moves when the plan is stamped. Work an earlier visitor left is not read and stays where it is. The cookie usually ends when the browser closes, but a browser that restores the last session (Chrome's "Continue where you left off", Safari and Firefox session restore) keeps it, and then an earlier visitor's stamped work still matches and is offered to the next student who signs in. Nothing in the code tells a restored session from a continuing one. The architecture README ("Guests") covers the shared-computer guards.
 
-Signing in compares each part of the guest's work with the matching account data, and each part gets its own outcome before its guest key is cleared:
-- **The plan** (planned courses, picks, locks, Auto's last run) against the schedule "Main", by the table below.
-- **The academic record** (course statuses for completed and in-progress work, transcript rows, manual credit, major) against the account's record. The guest's planner state holds both, so it is split first, the same way the migration splits a legacy row:
-  - If the account has no record, save the guest's, with Undo, like the second table row.
-  - If the guest's matches or is empty, load the account's.
-  - Otherwise settle it per course. A course only one side has takes that side's value. Transcript rows join by id. Manual credit is the union. A course both sides have with different values, or a different major, goes to the student in the same sheet, one line each, defaulting to the account's value. Whenever any guest value isn't chosen, the guest's whole planner state is first saved to the account's library as "From this browser, <date>", so the unchosen values are kept and can be restored.
-- **Preferences** follow the table's rows, comparing field groups.
-- **Library entries** are moved whole. Each `SavedPlanSnapshot` keeps its planner state, name, archive state, source, catalog fingerprint and restore assumptions, and is added to the account's library unless an identical entry is already there. Today the library holds that same type, so the move is lossless. When the library becomes synced documents (step 3a), that step defines a document shape that holds every one of these fields before any guest library is converted. Until it exists, guest library entries are moved, never converted to a narrower shape.
+Every tab in the browser shares the stores, including the tab the emailed sign-in link opens. Reconciliation can only run in the browser that holds the guest stores. If the emailed link opens in another browser or an in-app mail browser, that browser signs in with no guest work to see. So the sign-in email also carries a six-digit code, and the original tab asks for it, which lets the student finish signing in where their work is. A student who finishes in another browser keeps their guest work in the original one, and it is reconciled the next time they sign in there in the same browser session.
 
-| Guest plan | Account plan | What happens |
-|---|---|---|
-| empty or untouched | any | Load the account. Ask nothing. |
-| has work | empty | Save the guest work to the account. Toast "Saved your schedule to your account", with Undo. |
-| has work | has work, same | Load the account. Clear the guest key. |
-| has work | has work, different | Show one sheet (below). |
+The decisions are in `frontend/src/lib/guest-sign-in.ts`; the sign-in step that reads the stores, asks and writes is `afterFirstSync` in `frontend/src/components/planner-provider.tsx`. One tab at a time reads and writes. The question can show in every signed-in tab, and the first answer settles it for all of them.
 
-The sheet:
-- Title: "You made a schedule before signing in"
-- One line of difference, such as "3 courses differ from your saved schedule".
-- "Use this one" makes the guest plan Main. The account's previous Main stays in the library as a restore point.
-- "Keep my saved schedule" keeps the account's Main. The guest plan goes into the library as a saved copy named "From this browser, Oct 14".
+**Library entries move first,** before anything is asked. Each `SavedPlanSnapshot` is added whole to the account's library, keeping its planner state, name, archive state, source, catalog fingerprint and restore assumptions. An entry the account already has (same id, same content apart from the name) is skipped. A name already in use gets a number, and an id already in use gets a new one. The guest library is then cleared, unless it holds entries this version can't read; those stay, with the guest's recovery notice. If the add fails, sign-in stops there and every guest store is left as it was. When the library becomes synced documents, that step defines a document shape that holds every one of these fields before any guest library is converted.
 
-Escape and the scrim choose "Keep my saved schedule", so nothing is ever lost.
+**The plan, the academic record and preferences** are split out of the guest's planner state and preferences (`frontend/src/lib/planner-documents.ts`) and each is compared with the account's:
 
-After every store has its outcome, the guest stores are cleared. Signing out never copies account data into the guest key. The next guest session starts fresh.
+| Part | Guest's is empty or matches the account's | Account's is empty | Both have different work |
+|---|---|---|---|
+| Plan (planned courses, picks, locks, Auto's last run) | Keep the account's. | Carry the guest's over. | Ask: "Use this one" or "Keep my saved schedule". |
+| Academic record (course statuses, transcript rows, manual credit, major, catalog year) | Keep the account's. | Carry the guest's over. | Merge per course: a course only one side has takes that side's value. Each course, major, catalog year or transcript row the two sides have differently is one question, defaulting to the account's. With no such question, it is carried over like the middle column. |
+| Preferences | Keep the account's. | Carry the guest's over. | Ask once, for the whole set: "Your account's preferences" or "This browser's preferences". The sheet names the groups that differ, such as class hours or days off. |
+
+"Empty" means what an untouched planner holds, or default preferences.
+
+**When nothing is asked,** the parts in the middle column are saved to the account, and a toast names them ("Saved your schedule and preferences to your account") with Undo. Undo puts those parts back to the account's earlier values and leaves other edits made since. If the guest had a schedule or courses, Undo first saves the guest's planner state to the library as "From this browser, <date>". Guest preferences that Undo removes are not kept anywhere.
+
+**When anything is asked,** one sheet shows every question, with the account's values chosen until the student picks otherwise:
+- When the plan is asked, the title is "You made a schedule before signing in", with one line such as "3 courses differ from your saved schedule", and the buttons are "Keep my saved schedule" and "Use this one". Otherwise the title is "You made changes before signing in" and the one button is "Save choices".
+- "Use this one" makes the guest plan Main. The account's Main is first saved to the library as "Main from your account, <date>".
+- If any guest schedule or record value isn't chosen, or the guest's preferences aren't chosen while the guest has a schedule or courses, the guest's whole planner state is first saved to the library as "From this browser, <date>" (`dropsGuestWork` and `hasCopyableWork` in `frontend/src/lib/guest-sign-in.ts`). So declining the guest's preferences can leave that copy in Schedules even when the guest's schedule was carried into the account.
+- Preferences that aren't chosen are replaced. A saved copy holds no preferences, so keeping the account's set discards the guest's, and the sheet says "The set you don't choose is replaced."
+- Escape and the scrim choose "Keep my saved schedule" with the answers as they stand.
+
+Nothing is written or cleared until the student answers, so closing the page asks again on the next load. The library copies are saved first, then the account. If either step fails, the choice isn't applied, the guest stores stay as they were, and a toast asks the student to try again; a copy that was already saved stays in Schedules, because nothing rolls it back. Trying again on the same page reuses that copy. After a reload the page doesn't remember it, so a retry then saves a second, numbered copy (`frontend/src/components/planner-provider.tsx:1387`, `1425-1449`). If the account changes while the sheet is open in a way that changes the questions, the sheet asks again.
+
+After the account save succeeds, the guest plan and preference stores that this session stamped are cleared.
 
 ## Imports during a save conflict (replaces "re-apply imported courses")
 
@@ -49,7 +52,7 @@ This removes the import-only code path: the import page, Week and the library al
 - one strict test for each row of the sign-in table, with Undo on the auto-save;
 - a guest who only imported a transcript, with Main untouched, keeps that record: it is saved, merged or asked about, never cleared unseen;
 - a guest library entry arrives in the account with every `SavedPlanSnapshot` field intact;
-- Escape on the sheet keeps the account and saves the guest copy;
+- Escape on the sheet keeps the account's schedule and saves the guest copy;
 - the guest key is shared across two tabs and cleared after sign-in;
 - the apply function gives the same result when run twice;
 - a conflict on the import page loads the latest state and applies the approved records once;
