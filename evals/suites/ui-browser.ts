@@ -65,21 +65,26 @@ export async function closeCase(cb: CaseBrowser): Promise<void> {
 const CLOSE_STEP_TIMEOUT_MS = 10_000;
 
 /**
- * Bun 1.3.14 on this host intermittently throws `connect ENOENT` out of its
- * child_process stdio plumbing during chromium launch (diagnostic run
- * 2026-10-19, around case map-registered-desktop — the uncaught form kills
- * the whole runner). One short retry turns that transient into a recovered
- * launch instead of a dead suite.
+ * Bun 1.3.14 on this host intermittently fails out of its child_process stdio
+ * plumbing during chromium launch (`connect ENOENT`, and later "Failed to
+ * connect" — diagnostic run 2026-10-19 around map-registered-desktop, a11y run
+ * 2026-10-19 around axe-auth). Three attempts with growing delays turn those
+ * transients into recovered launches instead of dead suites.
  */
+const LAUNCH_DELAYS_MS = [2_000, 5_000];
+
 async function launchWithRetry(): Promise<Browser> {
-  try {
-    return await chromium.launch({ headless: true });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`[ui-browser] chromium.launch failed (${message}) — retrying once`);
-    await new Promise((resolve) => setTimeout(resolve, 2_000));
-    return await chromium.launch({ headless: true });
+  for (let attempt = 1; attempt <= LAUNCH_DELAYS_MS.length + 1; attempt++) {
+    try {
+      return await chromium.launch({ headless: true });
+    } catch (error) {
+      if (attempt > LAUNCH_DELAYS_MS.length) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[ui-browser] chromium.launch failed (${message}) — retrying (attempt ${attempt + 1}/3)`);
+      await new Promise((resolve) => setTimeout(resolve, LAUNCH_DELAYS_MS[attempt - 1]));
+    }
   }
+  throw new Error("unreachable: launchWithRetry attempts exhausted");
 }
 
 function boundedClose(promise: Promise<void>, what: string): Promise<void> {

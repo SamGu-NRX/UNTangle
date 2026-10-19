@@ -316,7 +316,7 @@ async function writeCrashCard(error: unknown): Promise<void> {
       target: { dir: crashCtx.targetDir, sha: crashCtx.targetSha, actualHead: crashCtx.actualHead },
       stackSteps: crashCtx.stack?.steps ?? [],
       infraError: `runner crashed after ${crashCtx.cases.length} case record(s): ${message}`,
-      brokenStep: null,
+      brokenStep: crashCtx.stack ? "case-loop" : "preflight",
       blockedRmpCount: crashCtx.stack ? readRmpBlockedCount(crashCtx.stack.blockedRmpLogPath).count : 0,
       backendStartMode: crashCtx.stack?.backendStartMode ?? "never-started",
       startedAt: crashCtx.startedAt,
@@ -344,8 +344,14 @@ async function writeCrashCard(error: unknown): Promise<void> {
 process.on("uncaughtException", (error) => {
   void writeCrashCard(error);
 });
+// An unhandled rejection means nothing in-process awaited the promise, so the
+// affected case (if any) fails on its own per-case timeout and the suite drains
+// to a scored card. Exiting here (the old behavior) let one transient
+// playwright spawn rejection ("Failed to connect", observed 2026-10-19
+// mid-a11y-run) kill a 20-minute suite after six cases had already scored.
 process.on("unhandledRejection", (reason) => {
-  void writeCrashCard(reason instanceof Error ? reason : new Error(String(reason)));
+  const message = reason instanceof Error ? reason.message : String(reason);
+  console.error(`[run] unhandledRejection (continuing): ${message}`);
 });
 
 /** Pure assembler: Scorecard from observed facts; the caller supplies runtime versions. */
