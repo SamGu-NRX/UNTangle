@@ -47,7 +47,7 @@ kills the runner if `run.log` stalls for > 720s (above every suite's
 
 ## Load log
 
-15-second samples in `pr4-5cfdc3c9-attempt1-load.log`: 1-minute load stayed
+15-second samples in `load-baseline-pr4-attempt1.log`: 1-minute load stayed
 within 0.6–2.9 for the whole run — under the gate the entire time. One
 14.5-minute sample gap (19:18:28 → 19:32:57Z) is a sandbox suspension between
 agent turns (infrastructure), distinct from and unrelated to the wedge, which
@@ -59,7 +59,7 @@ predates it.
   case-failure verdict for head #4 and MUST NOT be read as one.
 - Attempt 2 runs the identical instrument and command. Its outcome — pass,
   fail, or invalid — will be committed as head #4's scorecard of record.
-- Evidence (this directory): `pr4-5cfdc3c9-attempt1-run.log`,
-  `pr4-5cfdc3c9-attempt1-load.log`, `pr4-5cfdc3c9-attempt1-status.txt`.
+- Evidence (this directory): `run-baseline-pr4-attempt1.log`,
+  `load-baseline-pr4-attempt1.log`, `pr4-5cfdc3c9-attempt1-status.txt`.
   Stack-boot step logs remain at
   `/home/user/work/untangle-baseline-pr4/preflight-logs/` (sandbox-local).
