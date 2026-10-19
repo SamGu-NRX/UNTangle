@@ -119,12 +119,14 @@ display are institution-configured and not documented publicly; nothing here is 
 about them.
 
 **Lesson for UNTangle.** The product bet is that the schedule builder should read the
-student's degree plan, not just a hand-typed course list. Alpha encodes one UNT degree
-plan, CS BS 2026-27 (`frontend/src/lib/pathing/plans/cs-bs-2026-27.ts`), and produces
-next-term recommendations from it (`frontend/src/lib/pathing/analysis.ts`), so Auto
-could offer "build my week from my degree plan's next-term recommendations" to CS
-students. Offering it for other majors depends on the catalog-derived degree pipeline
-in PR #132 (open).
+student's degree plan, not just a hand-typed course list. When this study was written,
+alpha encoded one UNT degree plan, CS BS 2026-27
+(`frontend/src/lib/pathing/plans/cs-bs-2026-27.ts`), and produced next-term
+recommendations from it (`frontend/src/lib/pathing/analysis.ts`). Since then a degree
+audit for CS BS, CE BS and the University Core, 2026-27 catalog, has landed (#155, #165),
+and #166 lets Courses and Auto take what's left from it. Other majors still need their
+catalog requirements encoded; PR #132, which proposed a catalog-derived pipeline, was
+closed without merging.
 
 ## 3. Coursicle
 
@@ -328,6 +330,12 @@ locking, and a one-alternative-at-a-time strip; PR #61 (open backlog) covers ins
 ratings and campus calendars. The recommendations below deliberately avoid duplicating
 either, and each says where it stands relative to them.
 
+Status on `alpha` at `0acff6f` (October 19, 2026). Four of these have landed since the
+study: final-exam clashes (4, #153), Browse all (5, #149), calendar events as dated
+busy time (6, #148) and credit totals with a third plan in Compare (8, #149). For 1,
+the instructor tie-break is wired into Auto (#134) but seat status is not. 2, 3 and 7
+are open. The landed proposals stay below as written, so read their "today" as October 15.
+
 Ranked by value to a UNT student:
 
 ### 1. Break Auto's ties by seat availability
@@ -336,13 +344,13 @@ Ranked by value to a UNT student:
 the one whose sections are all open first; today a closed or waitlisted section ties
 freely because seats are only a filter (`openSeatsOnly`) and a reason warning
 (`frontend/src/lib/reasons/scheduleReasons.ts` refuses to rank a not-open section away,
-but the cost function itself is seat-blind). Auto breaks equal costs by section ids alone
+but the cost function itself is seat-blind). Auto breaks equal costs by stronger
+instructor grade-history evidence, then by section ids
 (`frontend/src/lib/optimizer/optimize.ts`, "Order and ties" in its header). PR #96 added
-an instructor-strength tie-break to alpha in `packages/core/src/instructor-tiebreak.ts`,
-but no frontend code imports it, so Auto doesn't use it. Add seat status as a tie-break
-before the section-id order (after the instructor tie-break, if that gets wired in first),
-and let Auto include a waitlisted section when it wins on cost, saying so in the
-alternative's detail line.
+that tie-break to core (`packages/core/src/instructor-tiebreak.ts`) and #134 wired it
+into Auto (`frontend/src/lib/optimizer/prepare.ts`). Add seat status as a tie-break after
+the instructor evidence and before the section-id order, and let Auto include a
+waitlisted section when it wins on cost, saying so in the alternative's detail line.
 
 **Why.** The registration-night failure students describe is a schedule that dies
 because a full section was ranked indifferently (VSB and Seneca threads in section 1).
@@ -356,8 +364,9 @@ business exists for this (section 3).
 
 **Acceptance check.** An engine test builds two schedules over the same times where one
 uses a closed section; the open-section schedule sorts first, and with statuses equal the
-existing section-id tiebreak still orders deterministically. A regression test pins that
-the seat term is 0 when every section is open, so existing pinned costs do not move.
+existing instructor and section-id tie-breaks still order deterministically. A regression
+test pins that the seat term is 0 when every section is open, so existing pinned costs do
+not move.
 
 ### 2. Historical fill-rate evidence on every section
 
