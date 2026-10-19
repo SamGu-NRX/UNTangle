@@ -37,7 +37,7 @@ const openCases = new Set<CaseBrowser>();
  * origin exactly as given.
  */
 export async function openCase(origin: string, viewport: ViewportName, pathname = "/"): Promise<CaseBrowser> {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await launchWithRetry();
   const context = await browser.newContext({
     viewport: VIEWPORTS[viewport],
     deviceScaleFactor: 1,
@@ -63,6 +63,24 @@ export async function closeCase(cb: CaseBrowser): Promise<void> {
 }
 
 const CLOSE_STEP_TIMEOUT_MS = 10_000;
+
+/**
+ * Bun 1.3.14 on this host intermittently throws `connect ENOENT` out of its
+ * child_process stdio plumbing during chromium launch (diagnostic run
+ * 2026-10-19, around case map-registered-desktop — the uncaught form kills
+ * the whole runner). One short retry turns that transient into a recovered
+ * launch instead of a dead suite.
+ */
+async function launchWithRetry(): Promise<Browser> {
+  try {
+    return await chromium.launch({ headless: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[ui-browser] chromium.launch failed (${message}) — retrying once`);
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+    return await chromium.launch({ headless: true });
+  }
+}
 
 function boundedClose(promise: Promise<void>, what: string): Promise<void> {
   return Promise.race([

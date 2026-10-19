@@ -129,6 +129,12 @@ async function runSuite(suite: string): Promise<SpawnResult> {
   const outDir = path.join(RUNS_DIR, String(Date.now()));
   mkdirSync(outDir, { recursive: true });
   runDirs.push(outDir);
+  // Bun's child_process plumbing builds per-spawn sockets under TMPDIR; the
+  // diagnostic run's fatal `connect ENOENT` points at that directory being
+  // disturbed mid-suite. Pin the runner's TMPDIR next to the run dir, where
+  // nothing else cleans up.
+  const tmpDir = path.join(outDir, "tmp");
+  mkdirSync(tmpDir, { recursive: true });
   return spawnBounded(
     process.execPath,
     [
@@ -139,7 +145,12 @@ async function runSuite(suite: string): Promise<SpawnResult> {
       "--out", path.join(outDir, "card.json"),
       "--task-id", taskId,
     ],
-    { cwd: EVALS_DIR, timeoutMs: 2_400_000 },
+    // 60 min: measured ~86 s/case on the shared 2-core host (real-stack boot
+    // + per-case browser churn where every close() races a 10 s bound), so a
+    // 28-case journey suite needs headroom past the old 40 min ceiling. A
+    // timeout is a casualty guard, not a pass signal — keep it generous.
+    // spawnBounded merges env over the inherited environment.
+    { cwd: EVALS_DIR, timeoutMs: 3_600_000, env: { TMPDIR: tmpDir } },
   );
 }
 
