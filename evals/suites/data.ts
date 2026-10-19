@@ -4,13 +4,26 @@
  * Two independent presence checks against the TARGET checkout; a missing
  * artifact is not-applicable and names the path:
  *
- *   data/catalog-certification-counts — when tools/catalog-consistency
- *     exists, the suite drives ITS interface (package.json script or
- *     entrypoint discovery; no arguments prescribed — see _optdata-lib.ts),
- *     records every numeric field it reports verbatim, and requires exit
- *     code 0. A tool whose output exposes no numeric counts is
- *     not-applicable with the reason (nothing was prescribed for it to
- *     report); a tool that fails to run, or reports failures itself, fails.
+ *   data/catalog-certification-counts — when the target carries the REAL
+ *     catalog-consistency tools (tools/catalog-consistency/{audit,verify}.mjs)
+ *     and its generated catalog (frontend/src/lib/generated/seed-data.json),
+ *     the suite drives their REAL interface (decision 685c; the CLIs are the
+ *     tools' own, read at the PR #6 head that introduced them):
+ *
+ *       node tools/catalog-consistency/audit.mjs \
+ *         --input frontend/src/lib/generated/seed-data.json --out <runDir>/catalog-audit
+ *       node tools/catalog-consistency/verify.mjs \
+ *         --results <runDir>/catalog-audit --repo-root <target-root>
+ *         (verify.mjs's parser requires --repo-root; audit.mjs's own
+ *         "verify with:" hint omits it — the parser is authoritative.)
+ *
+ *     The case passes only when the audit exits 0 with a parseable
+ *     report.json AND verify certifies the evidence chain (exit 0, final
+ *     output line `verdict: PASS` — the tool's own verdict semantics: the
+ *     committed catalog carries documented findings, and verify certifies
+ *     the chain, not zero findings). A nonzero exit, a timeout, or output
+ *     that cannot be parsed FAILS the case. Every count the audit reports
+ *     is recorded verbatim in measured and evidence.
  *
  *   data/provenance-descriptor — when frontend/src/lib/data-provenance.ts
  *     contains a statically readable `activeDataset` object literal, the
@@ -33,33 +46,46 @@ import path from "node:path";
 import { defineSuite } from "../suite-kit";
 import type { CaseOutcome, SuiteContext } from "../suite-kit";
 import {
-  artifactCommand,
+  catalogAuditCommand,
+  catalogVerifyCommand,
   collectNumericCounts,
+  DATA_AUDIT_REL,
+  DATA_VERIFY_REL,
   extractActiveDataset,
-  isDirectory,
-  isRegularFile,
   missingPathNote,
-  parseJsonObjectFromProcess,
+  parseVerifyVerdict,
+  readJsonObjectFile,
   recognizeDescriptorClaims,
   resolveBundledCatalogPath,
   resolveTargetDir,
   runCaptured,
+  SEED_DATA_REL,
   verifyDescriptorAgainstBundle,
   writeEvidence,
 } from "./_optdata-lib";
 
-const CONSISTENCY_REL = path.join("tools", "catalog-consistency");
-const PROVENANCE_REL = path.join("frontend", "src", "lib", "data-provenance.ts");
-const CONSISTENCY_TIMEOUT_MS = 60_000;
+// Two sequential real-tool steps inside one case: each step's wall-clock cap
+// leaves headroom under the case cap (the runner applies caseTimeoutMs to the
+// whole case run).
+const STEP_TIMEOUT_MS = 60_000;
+export const CATALOG_CASE_TIMEOUT_MS = 180_000;
 
-/** Count keys the data suite treats as failure signals when they exceed zero. */
-const FAILURE_COUNT_KEYS = ["failures", "inconsistencies", "errors", "violations"];
-
-function countsSummary(counts: Record<string, number>): string {
-  return Object.keys(counts)
+/** Counts the audit's report.json carries; rendered into `measured`. */
+function reportCounts(report: Record<string, unknown>): { summary: string; counts: Record<string, number> } {
+  const sections = [report.counts, report.violations].filter(
+    (section): section is Record<string, unknown> => section !== null && typeof section === "object" && !Array.isArray(section),
+  );
+  const counts: Record<string, number> = {};
+  for (const section of sections) {
+    for (const [key, value] of Object.entries(collectNumericCounts(section).counts)) {
+      counts[key] = value;
+    }
+  }
+  const summary = Object.keys(counts)
     .sort()
     .map((key) => `${key}=${counts[key]}`)
     .join(" ");
+  return { summary, counts };
 }
 
 // ---------------------------------------------------------------------------
@@ -67,89 +93,90 @@ function countsSummary(counts: Record<string, number>): string {
 // ---------------------------------------------------------------------------
 
 async function runCatalogCertification(ctx: SuiteContext, targetDir: string): Promise<CaseOutcome> {
-  const toolPath = path.join(targetDir, CONSISTENCY_REL);
-  if (!existsSync(toolPath)) {
-    return { status: "not-applicable", note: missingPathNote(targetDir, CONSISTENCY_REL) };
-  }
-  const isFile = isRegularFile(toolPath);
-  if (!isDirectory(toolPath) && !isFile) {
-    return { status: "fail", note: `${toolPath} is neither a readable file nor a directory` };
-  }
-
-  const command = artifactCommand(toolPath);
-  if (!command.ok) {
-    // Present, but no real interface could be derived from its own code —
-    // not-applicable with that reason, not a fail against an invented shape.
+  const required = [DATA_AUDIT_REL, DATA_VERIFY_REL, SEED_DATA_REL];
+  const missing = required.filter((rel) => !existsSync(path.join(targetDir, rel)));
+  if (missing.length > 0) {
+    // Not-applicable ONLY when the target files are absent (decision 685c).
     return {
       status: "not-applicable",
-      note: `catalog-consistency is present but its real interface could not be determined: ${command.reason}`.slice(0, 400),
+      note: missingPathNote(targetDir, missing[0] ?? "") + (missing.length > 1 ? ` (also missing: ${missing.slice(1).join(", ")})` : ""),
     };
   }
 
-  const run = await runCaptured({ cmd: command.cmd, args: command.args, cwd: command.cwd, timeoutMs: CONSISTENCY_TIMEOUT_MS });
-  const payload = parseJsonObjectFromProcess(run.stdout);
-  // Counts are whatever numbers the tool reports, wherever it nests them.
-  const { counts, nonNumericFields: nonNumeric } = collectNumericCounts(payload ?? {});
-  const summary = countsSummary(counts);
-  const bar = "certification counts recorded exactly as the tool reports; tool exits 0";
+  const bar = "audit exits 0 with parseable report.json, verify certifies the evidence chain (verdict PASS); certification counts recorded exactly";
+  const auditOutDir = path.join(ctx.runDir, "catalog-audit");
+  const audit = catalogAuditCommand(targetDir, auditOutDir);
+  const verify = catalogVerifyCommand(targetDir, auditOutDir);
+
+  const auditRun = await runCaptured({ cmd: audit.cmd, args: audit.args, cwd: audit.cwd, timeoutMs: STEP_TIMEOUT_MS });
+  // The audit's own output contract: report.json under --out (read even on a
+  // failing exit, so the evidence carries whatever the tool managed to write).
+  const report = auditRun.code === 0 && !auditRun.timedOut && auditRun.spawnError === undefined
+    ? readJsonObjectFile(path.join(auditOutDir, "report.json"))
+    : undefined;
+
+  const verifyRun = await runCaptured({ cmd: verify.cmd, args: verify.args, cwd: verify.cwd, timeoutMs: STEP_TIMEOUT_MS });
+  const verifyRan = verifyRun.code !== null && !verifyRun.timedOut && verifyRun.spawnError === undefined;
+  const verdict = verifyRan ? parseVerifyVerdict(verifyRun.stdout) : null;
+
+  const { summary } = report !== undefined ? reportCounts(report) : { summary: "" };
+  const measured = [summary || "no counts parsed", verdict === null ? "verdict unreadable" : `verify=${verdict}`].join("; ");
   const evidencePath = writeEvidence(ctx.runDir, "optdata-catalog-consistency-evidence.json", {
-    what: "catalog-consistency execution evidence (output recorded verbatim; interpretation is best-effort recognition)",
-    invocation: command.describe,
-    invocationSource: command.source,
-    cwd: command.cwd,
-    args: command.args,
-    exitCode: run.code,
-    timedOut: run.timedOut,
-    durationMs: run.durationMs,
-    stdoutTail: run.stdout.slice(-20_000),
-    stderrTail: run.stderr.slice(-20_000),
-    recordedCounts: counts,
-    nonNumericFields: nonNumeric,
+    what: "catalog-consistency audit + verify execution evidence (decision 685c: the real tools, their real CLIs)",
+    audit: {
+      invocation: audit.describe,
+      cwd: audit.cwd,
+      exitCode: auditRun.code,
+      timedOut: auditRun.timedOut,
+      spawnError: auditRun.spawnError ?? null,
+      durationMs: auditRun.durationMs,
+      stdoutTail: auditRun.stdout.slice(-20_000),
+      stderrTail: auditRun.stderr.slice(-20_000),
+      reportParsed: report !== undefined,
+    },
+    verify: {
+      invocation: verify.describe,
+      cwd: verify.cwd,
+      exitCode: verifyRun.code,
+      timedOut: verifyRun.timedOut,
+      spawnError: verifyRun.spawnError ?? null,
+      durationMs: verifyRun.durationMs,
+      stdoutTail: verifyRun.stdout.slice(-20_000),
+      stderrTail: verifyRun.stderr.slice(-20_000),
+      parsedVerdict: verdict,
+    },
   });
 
-  if (run.spawnError !== undefined) {
-    return { status: "fail", measured: summary || null, bar, evidencePath, note: `catalog-consistency could not be spawned: ${run.spawnError}`.slice(0, 400) };
+  const fail = (note: string): CaseOutcome => ({ status: "fail", measured, bar, evidencePath, note: note.slice(0, 400) });
+
+  if (auditRun.spawnError !== undefined) return fail(`catalog audit could not be spawned: ${auditRun.spawnError}`);
+  if (auditRun.timedOut) return fail(`catalog audit did not finish within ${STEP_TIMEOUT_MS}ms`);
+  if (auditRun.code !== 0) {
+    return fail(`catalog audit exited ${auditRun.code ?? "with a signal"}; stderr tail: ${auditRun.stderr.slice(-300)}`);
   }
-  if (run.timedOut) {
-    return { status: "fail", measured: summary || null, bar, evidencePath, note: `catalog-consistency did not finish within ${CONSISTENCY_TIMEOUT_MS}ms` };
+  if (report === undefined) {
+    return fail(`catalog audit exited 0 but its report.json is missing or unparseable at ${path.join(auditOutDir, "report.json")}`);
   }
-  if (run.code !== 0) {
-    return {
-      status: "fail",
-      measured: summary || null,
-      bar,
-      evidencePath,
-      note: `catalog-consistency exited ${run.code ?? "with a signal"}; stderr tail: ${run.stderr.slice(-300)}`.slice(0, 400),
-    };
+  if (verifyRun.spawnError !== undefined) return fail(`catalog verify could not be spawned: ${verifyRun.spawnError}`);
+  if (verifyRun.timedOut) return fail(`catalog verify did not finish within ${STEP_TIMEOUT_MS}ms`);
+  if (verifyRun.code !== 0) {
+    return fail(
+      `catalog verify exited ${verifyRun.code ?? "with a signal"}${verdict === null ? "" : ` (verdict: ${verdict})`}; stderr tail: ${verifyRun.stderr.slice(-300)}`,
+    );
   }
-  if (Object.keys(counts).length === 0) {
-    return {
-      status: "not-applicable",
-      note: `catalog-consistency ran (${command.describe}) and exited 0 but reported no numeric counts its output could be read from (non-numeric fields: ${nonNumeric.slice(0, 8).join(", ") || "none"}); stdout recorded verbatim at ${evidencePath} — nothing was prescribed for it to report`.slice(0, 400),
-    };
+  if (verdict === null) {
+    return fail(`catalog verify's output ends without a "verdict: PASS|FAIL" line (unparseable); stdout tail: ${verifyRun.stdout.slice(-300)}`);
   }
-  // Failure signals count wherever the tool nests them: "failures" and
-  // "totals.failures" are both failure counts with a positive value.
-  const reportedFailures = FAILURE_COUNT_KEYS.flatMap((key) =>
-    Object.keys(counts)
-      .filter((k) => (k === key || k.endsWith(`.${key}`)) && (counts[k] ?? 0) > 0)
-      .map((k) => `${k}=${counts[k]}`),
-  );
-  if (reportedFailures.length > 0) {
-    return {
-      status: "fail",
-      measured: summary,
-      bar,
-      evidencePath,
-      note: `the tool reports inconsistencies: ${reportedFailures.join(", ")}`,
-    };
+  if (verdict === "FAIL") {
+    return fail(`catalog verify reported verdict: FAIL — the evidence chain did not certify (stdout tail: ${verifyRun.stdout.slice(-300)})`);
   }
+
   return {
     status: "pass",
-    measured: summary,
+    measured,
     bar,
     evidencePath,
-    note: `certification counts recorded verbatim from the tool (exit 0, ${Object.keys(counts).length} numeric fields): ${summary}`,
+    note: `audit (${audit.describe}) exited 0 and verify certified the results (verdict: PASS); counts and violations recorded verbatim from report.json: ${summary}`,
   };
 }
 
@@ -162,12 +189,12 @@ function shortHash(hex: string): string {
 }
 
 async function runProvenanceDescriptor(ctx: SuiteContext, targetDir: string): Promise<CaseOutcome> {
-  const provenancePath = path.join(targetDir, PROVENANCE_REL);
+  const provenancePath = path.join(targetDir, "frontend", "src", "lib", "data-provenance.ts");
   let sourceText: string;
   try {
     sourceText = readFileSync(provenancePath, "utf8");
   } catch {
-    return { status: "not-applicable", note: missingPathNote(targetDir, PROVENANCE_REL) };
+    return { status: "not-applicable", note: missingPathNote(targetDir, "frontend/src/lib/data-provenance.ts") };
   }
   const bar = "activeDataset descriptor matches the actually-bundled catalog data (sha256 + counts)";
 
@@ -279,7 +306,7 @@ async function runProvenanceDescriptor(ctx: SuiteContext, targetDir: string): Pr
 
 export default defineSuite({
   name: "data",
-  caseTimeoutMs: 120_000,
+  caseTimeoutMs: CATALOG_CASE_TIMEOUT_MS,
 
   describe: () => [
     { id: "catalog-certification-counts", title: "catalog-consistency certification counts are recorded exactly" },

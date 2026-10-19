@@ -17,8 +17,8 @@ subprocess) against throwaway fixtures and planted defects. Two layers:
 | `runner-contract-case-accounting.test.ts` | contract | case outcomes are accounted honestly: green run **exit 0**, a failing case **exit 1** (returned fail, thrown case, crashed `describe()`), with the case record, summary line, and a validator-clean scorecard |
 | `runner-contract-infra-exit3.test.ts` | contract | a preflight/stack step failure is an honest **exit 3**: scorecard still written, `infrastructure.brokenStep` names the broken step, every declared case is `not-applicable` with the honest not-run note |
 | `runner-contract-planted-failure.test.ts` | contract | a deliberately planted data defect is **caught** by a fake suite: one mutated byte flips the same (byte-identical) detector from pass to fail |
-| `real-optimizer-planted-defect.test.ts` | real suite | the optimizer suite's boundary is the target's bench artifact: no bench → 3 × not-applicable; conforming bench → 3 × pass; a planted bench reporting 3 hard-constraint violations → `violations-zero` FAILS naming the count while `p95-8courses` still passes |
-| `real-data-planted-defect.test.ts` | real suite | the data suite's boundaries are the provenance descriptor and the catalog-consistency tool: one corrupted bundle byte → `provenance-descriptor` FAILS with `sha256 MISMATCH`; a tool reporting `failures=2` → `catalog-certification-counts` FAILS naming the count; each with the sibling case still passing |
+| `real-optimizer-planted-defect.test.ts` | real suite | the optimizer suite's boundary is the REAL bench interface (decision 685c): no bench → 3 × not-applicable; a conforming `run-bench.ts` writing the real report file → 3 × pass; planted defects → `violations-zero` / `gap-zero` / `p95-8courses` each FAILS naming its breach while siblings pass; a bench exiting 3 → all three FAIL (run-level) |
+| `real-data-planted-defect.test.ts` | real suite | the data suite's boundaries are the REAL audit→verify chain and the provenance descriptor (decision 685c): one corrupted bundle byte → `provenance-descriptor` FAILS with `sha256 MISMATCH`; one tampered seed-data byte → the audit exits 1 and `catalog-certification-counts` FAILS naming the exit; each with the sibling case still passing |
 | `real-routing-planted-defect.test.ts` | real suite | the routing suite's boundary is `/api/map/resolve` + `/api/map/route`: a fake HTTP app with legal distances → 3 × pass; a planted sub-geodesic `/api/map/route` response → `route-geodesic-floor` FAILS with a `< great-circle` violation note while `building-coverage` and `route-latency` still pass |
 | `real-persistence-faults-planted-defect.test.ts` | real suite | full real stack + real UI: a saboteur SIGKILLs Postgres the moment the playwright-launch step starts; the run must blame CASES (exit 1, `infrastructure.ok` true, all stack steps pass), with `failed-saves-never-saved` failing and "case could not complete" harness-error notes. **Heavy — env-gated**: `SELFTEST_HEAVY=1 bun test selftest/real-persistence-faults-planted-defect.test.ts`; boots the real stack, run solo, never concurrently with other Playwright work |
 | `real-ui-suites-planted-defect.test.ts` | real suite | journey/honesty/a11y-polish planted defects on the real stack (suites landed at 17dd066): the landing's "Continue as guest" link becomes a bare div → every guest journey case fails naming the element; /schedule claims "100% accurate — guaranteed optimal — perfect schedule" → `no-fabricated-precision` fails naming the phrase; /courses ships an empty-alt informative img → `image-icon-labeling` fails. **Heavy — env-gated**: `SELFTEST_HEAVY=1`, one suite at a time via `-t journey|-t honesty|-t a11y-polish`, solo on the host |
@@ -60,12 +60,17 @@ cd evals && bun x tsc --noEmit --strict --target esnext --module esnext \
   the accounting logic under test is real while no Postgres, backend,
   frontend build, or browser is ever booted. The real suites run against this
   copy and the planted target artifacts.
-- **Planted target artifacts** (`helpers.ts`) — `writeBenchArtifact` emits a
-  bench artifact whose JSON report conforms to the documented contract except
-  for one controlled field (violations count); `writeDataArtifacts` emits a
-  flat-literal provenance descriptor whose sha256 matches the bundled catalog
-  plus a conforming consistency tool, with `corruptBundle()` mutating one byte
-  and `toolFailures` controlling the tool's reported failure count.
+- **Planted target artifacts** (`helpers.ts`) — `writeBenchArtifact` plants a
+  conforming real bench (`run-bench.ts`, the bench's own
+  `--variant/--suite/--k/--repeat` CLI, results written as
+  `brute-force-all.json` in the real report shape) whose report is healthy
+  except one controlled defect (violations, gap, xl p95, or a nonzero exit);
+  `writeDataArtifacts` plants the flat-literal provenance descriptor whose
+  sha256 matches the bundled catalog, the audit's real `seed-data.json`
+  input, and REAL `audit.mjs`/`verify.mjs` node tools (rules over `--input`;
+  evidence-chain verification ending in the tool's own `verdict:` line),
+  with `corruptBundle()` mutating one bundle byte and `corruptSeedData()`
+  planting a value the audit's rules reject.
 - **Fake routing app** — a throwaway Bun HTTP server implementing the
   `/api/map/resolve` and `/api/map/route` boundary; `plantSubGeodesic` mutates
   route responses to report distances below the great-circle floor. The real
