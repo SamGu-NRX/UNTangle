@@ -14,6 +14,7 @@ import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
 import { TextField } from "@/components/ui/TextField";
 import { toast } from "@/components/ui/Toast";
 import { PHONE_QUERY, useMediaQuery } from "@/components/ui/use-media-query";
+import { useFieldError } from "@/components/use-field-error";
 import { replaceWith, undoReplace, type Replaced } from "@/lib/plan-library/versions";
 import { eventsOf, usesSampleSections, weekBlocks, weekColors, type WeekBlock } from "@/lib/plan-library/week";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
@@ -21,6 +22,7 @@ import { PLANNING_TERM } from "@/lib/terms";
 import { createSavedPlanStore, exportPlanJson, subscribeSavedPlans, type SavedPlanStoreFailure, type StoreReadResult } from "@/lib/saved-plans/store";
 import { getInitialPlannerState } from "@/lib/planner";
 import type { PlannerState } from "@/lib/types";
+import type { PlanStamp } from "@/lib/planner-transaction";
 import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
 import { saveOutcome } from "@/lib/connect/review";
 import { adoptCopy, announcementStep, noteLanded, undoAdoption, type Adoption } from "./adopt";
@@ -78,7 +80,7 @@ const currentMinute = () => Math.floor(Date.now() / 60_000);
  */
 export function SchedulesClient() {
   const planner = usePlanner();
-  const { plannerState, scheduleEvents, sectionCatalog, loadSections, transact } = planner;
+  const { plannerState, scheduleEvents, sectionCatalog, candidateFilter, evidenceHundredths, loadSections, transact } = planner;
   const phone = useMediaQuery(PHONE_QUERY);
   const store = useMemo(() => createSavedPlanStore(), []);
 
@@ -113,6 +115,7 @@ export function SchedulesClient() {
 
   // A handful of schedules, each resolved against the loaded sections: cheap enough to redo per
   // render, which also redraws a saved week as its course options arrive (catalogVersion).
+  // A copy is resolved with Main's filter and instructor evidence, so its week is the one Use in Main would give.
   const now = new Date(minute * 60_000);
   const main: Entry = {
     id: MAIN_ID,
@@ -130,13 +133,13 @@ export function SchedulesClient() {
     active: false,
     fact: whenText("Saved", plan.source.capturedAt, now),
     state: plan.state,
-    blocks: weekBlocks(eventsOf(plan.state, sectionCatalog)),
+    blocks: weekBlocks(eventsOf(plan.state, sectionCatalog, candidateFilter, evidenceHundredths)),
     snapshot: plan,
   });
   const entries = { main, live: live.map(copy), archived: archived.map(copy) };
   // Said once, on the term heading (rule 6), whenever any week drawn here uses the bundled samples.
   const samples =
-    usesSampleSections(scheduleEvents) || plans.some((plan) => usesSampleSections(eventsOf(plan.state, sectionCatalog)));
+    usesSampleSections(scheduleEvents) || plans.some((plan) => usesSampleSections(eventsOf(plan.state, sectionCatalog, candidateFilter, evidenceHundredths)));
   const all = [entries.main, ...entries.live, ...entries.archived];
   const find = (id: string | null) => all.find((entry) => entry.id === id) ?? null;
 
@@ -148,11 +151,23 @@ export function SchedulesClient() {
   const [showArchived, setShowArchived] = useState(false);
   const [naming, setNaming] = useState<{ kind: "save" } | { kind: "rename"; planId: string } | null>(null);
   const [nameValue, setNameValue] = useState("");
+  /** Why the typed name was refused ("Main", or another copy's), under the field until it changes. */
+  const [nameError, setNameError] = useState<string | null>(null);
+  const nameAnnouncer = useFieldError();
   const [importError, setImportError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement | null>(null);
   const importRef = useRef<HTMLInputElement | null>(null);
   const rowButtons = useRef(new Map<string, HTMLButtonElement>());
   const compareButton = useRef<HTMLButtonElement | null>(null);
+  const archivedToggle = useRef<HTMLButtonElement | null>(null);
+  const focusArchived = useRef(false);
+  useEffect(() => {
+    // Archiving can remove both the menu trigger and the panel's return target.
+    if (focusArchived.current && archivedToggle.current) {
+      archivedToggle.current.focus();
+      focusArchived.current = false;
+    }
+  });
   /** Phone: the button that pushes the comparison, where Back returns focus. */
   const showCompareButton = useRef<HTMLButtonElement | null>(null);
 
@@ -174,7 +189,7 @@ export function SchedulesClient() {
     setViewingCompare(false);
   };
   const focusTarget = () =>
-    comparing ? (phone ? showCompareButton.current : compareButton.current) : (selected && rowButtons.current.get(selected)) || null;
+    comparing ? (phone ? showCompareButton.current : compareButton.current) : (selected && rowButtons.current.get(selected)) || archivedToggle.current;
 
   function pickRow(entry: Entry) {
     if (comparing) {
@@ -196,6 +211,11 @@ export function SchedulesClient() {
 
   // A toast's Undo runs long after the render that made it: it reads the planner through this.
   const plannerNow = useRef(planner);
+  const announce = useRef<
+    | { kind: "adoption"; name: string; adoption: Adoption }
+    | { kind: "restore"; label: string; result: Extract<Replaced, { status: "replaced" }>; stamp: PlanStamp }
+    | null
+  >(null);
   useEffect(() => {
     plannerNow.current = planner;
   });
@@ -219,16 +239,7 @@ export function SchedulesClient() {
       toast(`${label} is no longer available.`);
       return;
     }
-    toast({
-      message: `Restored ${label}`,
-      action: {
-        label: "Undo",
-        onClick: async () => {
-          const undone = await plannerNow.current.transact(undoReplace(result), stamp);
-          if (undone.status !== "committed" || !undone.result) changedSince();
-        },
-      },
-    });
+    announce.current = { kind: "restore", label, result, stamp };
   }
 
   /** The pending "Use in Main" whose Undo is on the toast (adopt.ts). */
@@ -239,7 +250,6 @@ export function SchedulesClient() {
 
   // Success is said only once the new Main is stored (#37's honest-save rule). Until then, or
   // when the save fails or meets a newer version from another tab, the save panel shows below.
-  const announce = useRef<{ name: string; adoption: Adoption } | null>(null);
   const outcome = saveOutcome(planner.saveState.status, Boolean(planner.conflict));
   useEffect(() => {
     // Runs on every commit: the save state arriving re-renders this page.
@@ -248,8 +258,22 @@ export function SchedulesClient() {
     if (step === "wait") return;
     const pending = announce.current;
     announce.current = null;
-    // A save that failed or met a newer version isn't this adoption landing; a later save mustn't announce it.
+    // A save that failed or met a newer version didn't land; a later save mustn't announce it.
     if (step === "drop") return;
+    if (pending.kind === "restore") {
+      const { label, result, stamp } = pending;
+      toast({
+        message: `Restored ${label}`,
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const undone = await plannerNow.current.transact(undoReplace(result), stamp);
+            if (undone.status !== "committed" || !undone.result) changedSince();
+          },
+        },
+      });
+      return;
+    }
     const { name, adoption } = pending;
     toast({
       message: `Main now uses ${name}`,
@@ -272,18 +296,31 @@ export function SchedulesClient() {
     await planner.afterHydration();
     const adoption = adoptCopy(plannerNow.current, snapshot);
     pendingUndo.current = adoption;
-    announce.current = { name: entry.name, adoption };
+    announce.current = { kind: "adoption", name: entry.name, adoption };
   }
 
-  function saveCopy(name: string) {
-    const saved = store.savePlan({ state: plannerState, name: name.trim() || blankName });
+  /** Shows a "nameClash" refusal under the field and keeps the dialog open; true when it did. */
+  function refuseName(result: { ok: boolean; failure?: SavedPlanStoreFailure }): boolean {
+    if (result.ok || result.failure?.kind !== "nameClash") return false;
+    setNameError(result.failure.message);
+    nameAnnouncer.report(nameRef.current, result.failure.message);
+    bump();
+    return true;
+  }
+
+  /** Saves Main as a copy; false when the typed name was refused. A blank name saves as the placeholder's, numbered past any clash. */
+  function saveCopy(name: string): boolean {
+    const typed = name.trim();
+    const saved = typed ? store.savePlan({ state: plannerState, name: typed, onClash: "refuse" }) : store.savePlan({ state: plannerState, name: blankName });
+    if (refuseName(saved)) return false;
     if (!saved.ok) {
       toast({ message: saved.failure.message, tone: "error" });
       bump();
-      return;
+      return true;
     }
     toast(`Saved “${saved.value.name}”`);
     bump();
+    return true;
   }
 
   function report(result: { ok: boolean; failure?: SavedPlanStoreFailure }, message: string) {
@@ -310,13 +347,29 @@ export function SchedulesClient() {
 
   function submitName() {
     if (!naming) return;
-    if (naming.kind === "save") saveCopy(nameValue);
-    else {
+    if (naming.kind === "save") {
+      if (!saveCopy(nameValue)) return;
+    } else {
       const plan = plans.find((entry) => entry.planId === naming.planId);
       const value = nameValue.trim();
-      if (plan && value && value !== plan.name) report(store.renamePlan(plan.planId, value), `Renamed to “${value}”`);
+      if (plan && value && value !== plan.name) {
+        const renamed = store.renamePlan(plan.planId, value);
+        if (refuseName(renamed)) return;
+        report(renamed, `Renamed to “${value}”`);
+      }
     }
+    closeNaming();
+  }
+
+  function closeNaming() {
     setNaming(null);
+    clearNameError();
+  }
+
+  /** The field's refusal and its announcement go together, so the live region never speaks an old reason. */
+  function clearNameError() {
+    setNameError(null);
+    nameAnnouncer.clear();
   }
 
   function menuFor(entry: Entry): MenuEntry[] {
@@ -329,7 +382,7 @@ export function SchedulesClient() {
       ];
     }
     return [
-      { id: "rename", label: "Rename", onSelect: () => (setNameValue(plan.name), setNaming({ kind: "rename", planId: plan.planId })) },
+      { id: "rename", label: "Rename", onSelect: () => (setNameValue(plan.name), clearNameError(), setNaming({ kind: "rename", planId: plan.planId })) },
       { id: "duplicate", label: "Duplicate", onSelect: () => report(store.duplicatePlan(plan.planId), `Duplicated “${plan.name}”`) },
       { id: "export", label: "Export file", onSelect: () => exportPlan(plan) },
       { kind: "separator", id: "sep" },
@@ -338,8 +391,12 @@ export function SchedulesClient() {
         label: "Archive",
         destructive: true,
         onSelect: () => {
-          if (selected === plan.planId) setSelected(null);
-          report(store.setPlanArchived(plan.planId, true), `Archived “${plan.name}”`);
+          const result = store.setPlanArchived(plan.planId, true);
+          if (result.ok) {
+            focusArchived.current = true;
+            if (selected === plan.planId) setSelected(null);
+          }
+          report(result, `Archived “${plan.name}”`);
         },
       },
     ];
@@ -347,6 +404,7 @@ export function SchedulesClient() {
 
   function startSaving() {
     setNameValue("");
+    clearNameError();
     setNaming({ kind: "save" });
   }
 
@@ -368,7 +426,9 @@ export function SchedulesClient() {
     <CompareView
       sides={sides}
       colors={colors}
+      mainSaved={mainSaved}
       onUse={(entry) => void adoptEntry(entry)}
+      onSaveMain={startSaving}
       onDone={closePanel}
     />
   ) : selectedEntry ? (
@@ -522,7 +582,7 @@ export function SchedulesClient() {
 
       {entries.archived.length ? (
         <section className={styles.term}>
-          <button type="button" className={styles.groupToggle} aria-expanded={showArchived} onClick={() => setShowArchived((on) => !on)}>
+          <button ref={archivedToggle} type="button" className={styles.groupToggle} aria-expanded={showArchived} onClick={() => setShowArchived((on) => !on)}>
             Archived
             {showArchived ? null : <span className={styles.count}>{entries.archived.length}</span>}
           </button>
@@ -561,14 +621,14 @@ export function SchedulesClient() {
       <Dialog
         open={naming !== null}
         onOpenChange={(next) => {
-          if (!next) setNaming(null);
+          if (!next) closeNaming();
         }}
         title={naming?.kind === "rename" ? "Rename schedule" : "Save a copy of Main"}
         width={420}
         initialFocus={nameRef}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setNaming(null)}>
+            <Button variant="secondary" onClick={closeNaming}>
               Cancel
             </Button>
             <Button type="submit" form="schedule-name-form">
@@ -590,10 +650,17 @@ export function SchedulesClient() {
             value={nameValue}
             // The name a blank field saves, so leaving it empty holds no surprise.
             placeholder={naming?.kind === "save" ? blankName : undefined}
-            onChange={(event) => setNameValue(event.target.value)}
+            error={nameError}
+            onChange={(event) => {
+              setNameValue(event.target.value);
+              clearNameError();
+            }}
             autoComplete="off"
           />
         </form>
+        <p className="sr-only-v2" aria-live="assertive" aria-atomic="true">
+          {nameAnnouncer.announcement}
+        </p>
       </Dialog>
     </>
   );

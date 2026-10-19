@@ -75,8 +75,8 @@ export function parseSectionFilterParams(params: URLSearchParams): ParsedFilterP
   return { filters, minInstructorGpaHundredths };
 }
 
-/** Why grade evidence is what it is, so an empty result can be explained. */
-export type GradeHistoryStatus = { status: "ok" | "no-history" | "unavailable"; reason?: string };
+/** Why grade evidence is what it is, so an empty result can be explained: "not-requested" when no threshold asked for it, else the service's answer. */
+export type GradeHistoryStatus = { status: "not-requested" | "ok" | "no-history" | "unavailable"; reason?: string };
 
 export type FilterSummary = {
   applied: SectionFilter[];
@@ -90,8 +90,9 @@ export type FilteredCourse = { course: CourseSections; summary: FilterSummary };
 /**
  * Filters one course's sections. `history` is the course's history result as
  * the grades-history service returned it, or null when the caller chose not
- * to read any (no threshold requested). The returned course keeps its shape:
- * same status, provenance and diagnostic, sections replaced.
+ * to read any. Null reports "not-requested"; a service "no-history" result
+ * reports confirmed absence. The returned course keeps its shape: same
+ * status, provenance and diagnostic, sections replaced.
  */
 export function applySectionFilters(
   course: CourseSections,
@@ -101,7 +102,7 @@ export function applySectionFilters(
 ): FilteredCourse {
   const gradeHistory: GradeHistoryStatus =
     history === null
-      ? { status: "no-history" }
+      ? { status: "not-requested" }
       : history.status === "unavailable"
         ? { status: "unavailable", reason: history.error.reason }
         : { status: history.status };

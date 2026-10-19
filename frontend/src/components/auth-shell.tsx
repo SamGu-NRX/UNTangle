@@ -12,7 +12,7 @@ import "./auth.css";
  */
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <main className="auth">
+    <main id="main" tabIndex={-1} className="auth">
       <div className="auth__card">
         <Link href="/" className="auth__wordmark">
           UNTangle

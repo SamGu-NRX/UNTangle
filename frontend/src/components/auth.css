@@ -9,6 +9,8 @@
   min-height: 100dvh;
   padding: max(24px, var(--safe-t)) 16px max(24px, var(--safe-b));
   background: var(--ground);
+  /* Dialog focus returns here when the Sign in trigger leaves with the app shell. */
+  outline: none;
 }
 .auth__card {
   display: grid;

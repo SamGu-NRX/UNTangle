@@ -108,6 +108,19 @@ test("duplicate events collapse in the response", async () => {
   expect(body.events.length).toBe(1);
 });
 
+test("deduplicated events are sorted by the representative's start", async () => {
+  const first = event({ start: "2026-10-20T10:00:00.000Z" });
+  const unrelated = event({ title: "Other Meeting", start: "2026-10-20T10:03:00.000Z" });
+  const middle = event({ start: "2026-10-20T10:04:00.000Z" });
+  const preferred = event({ start: "2026-10-20T10:08:00.000Z", url: "https://calendar.unt.edu/event/club-meeting" });
+  const response = await eventsHandler(
+    request("?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z"),
+    { cache: cacheWith([first, unrelated, middle, preferred], []) },
+  );
+  const body = (await response.json()) as { events: NormalizedEvent[] };
+  expect(body.events).toEqual([unrelated, preferred]);
+});
+
 test("the event list is capped at MAX_EVENTS_IN_RESPONSE", async () => {
   // Distinct titles: the dedupe key is title + place + start, so same-title
   // fixtures would collapse before the cap ever applied.

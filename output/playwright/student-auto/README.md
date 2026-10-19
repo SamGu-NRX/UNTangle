@@ -40,8 +40,9 @@ transcript (`src/components/courses/model/sample-transcript.ts`), which the
   MATH 1720 and PHYS 1410 pair fits with Fridays off. The journey checks that
   exact reason, presses the app's own "Allow classes on Fridays", and Auto
   runs again; the solver then proves the run on the relaxed preferences.
-- Every option walked, screenshotted, axe-audited, and checked for the
-  student's own rules as the UI shows them: no conflict markers, and no
+- Then wait for the two-phase search to settle before reading the option
+  count. Every option is walked, screenshotted, axe-audited, and checked for
+  the student's own rules as the UI shows them: no conflict markers, and no
   Friday meetings while Fridays are still off. Details on option 1, then
   "Use this".
 

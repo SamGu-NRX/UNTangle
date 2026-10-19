@@ -147,7 +147,8 @@ export async function eventsHandler(request: Request, deps: EventsHandlerDeps): 
   }
   const { events: allEvents, reports } = await deps.cache.getEvents({ from: parsed.query.from, to: parsed.query.to });
   const matching = allEvents.filter(event => matchesQuery(event, parsed.query));
-  const deduped = dedupeEvents(matching);
+  // A merged event keeps its cluster's first place but its representative's start, which can be later, so sort again before the cap.
+  const deduped = dedupeEvents(matching).sort((a, b) => (a.start === b.start ? a.title.localeCompare(b.title) : a.start.localeCompare(b.start)));
   const { json } = serializeEventsResponse({
     range: { from: parsed.query.from, to: parsed.query.to },
     building: parsed.query.building,

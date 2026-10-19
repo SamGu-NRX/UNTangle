@@ -159,6 +159,11 @@ function parseClassRow(row: Row, path: string) {
   return { classNumber, sectionCode, instructor, seats: seats(row, path), meetings };
 }
 
+/** Class numbers define enrollment identity; option numbers and labels can change. */
+export function vsbSectionId(term: string, courseCode: string, classNumbers: readonly string[]): string {
+  return `vsb:${term}:${courseCode}:${[...classNumbers].sort().join("+")}`;
+}
+
 function parseSection(row: Row, path: string, term: string, courseCode: string): Section {
   // linked_sections lists every component, primary first.
   const linked = list(row, "linked_sections", path)
@@ -188,8 +193,7 @@ function parseSection(row: Row, path: string, term: string, courseCode: string):
   const meetings = components.flatMap(component => component.meetings);
   const rawStatus = text(row, "status", path);
   return {
-    // Class numbers define enrollment identity; option numbers and labels can change.
-    id: `vsb:${term}:${courseCode}:${[...classNumbers].sort().join("+")}`,
+    id: vsbSectionId(term, courseCode, classNumbers),
     term,
     courseCode,
     sectionCode: text(row, "section", path),

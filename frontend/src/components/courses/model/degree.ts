@@ -10,7 +10,7 @@
  * with the University Core, from the 2026-2027 catalog. Other majors get
  * `{ kind: "unaudited" }`, and Courses keeps its sample core lists for them.
  */
-import { auditProgram, type AuditCourse, type AuditResult, type ClaimedCourse, type NodeOutcome } from "@untangle/core/degree/audit";
+import { auditProgram, type AuditCourse, type AuditResult, type ClaimedCourse, type NodeOutcome, type Remaining } from "@untangle/core/degree/audit";
 import type { Citation, Policy, PoolNode, ProgramData, RequirementNode } from "@untangle/core/degree/types";
 import { auditInput } from "@/lib/degree/audit-input";
 import { DEGREE_DATA } from "@/lib/degree/programs.generated";
@@ -191,6 +191,30 @@ function neededCodes(outcomes: readonly NodeOutcome[], into = new Set<string>())
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
+type ChooseLeft = Extract<Remaining, { kind: "choose" }>;
+
+/**
+ * Whether a choose requirement counts selections rather than courses: some
+ * option it still offers is two or more courses (a lecture and its lab) or
+ * fills more than one pick, as BIOL 1710, 1720 and 1760 together fill both
+ * of Laboratory science's. Then "2 courses" would miscount, so the copy says
+ * selections. When every option is one course filling one pick, the two are
+ * the same and the copy says courses.
+ */
+export function countsSelections(remaining: ChooseLeft): boolean {
+  return remaining.eligible.some((slot) => slot.options.some((option) => option.courses.length > 1 || option.picks !== 1));
+}
+
+/** What one option of a selection-counted choose finishes: "Fills 1 of 2 selections", "Fills both selections". */
+export function fillsText(picks: number, needed: number): string {
+  if (picks < needed) return `Fills ${picks} of ${needed} selections`;
+  if (needed === 1) return "Fills the last selection";
+  return needed === 2 ? "Fills both selections" : `Fills all ${needed} selections`;
+}
+
+/** The unit a choose requirement's picks are counted in, for "2 selections" or "2 more courses". */
+export const chooseUnit = (remaining: ChooseLeft) => (countsSelections(remaining) ? "selection" : "course");
+
 /**
  * The credits a requirement still lacks when that is all it asks for: an
  * hours node's hours, a group's parts added up, the least of a choice's
@@ -217,7 +241,7 @@ function amountLeft(outcome: NodeOutcome): Requirement["left"] {
   return { courses: 0, credits: creditsLeft(outcome) ?? 0 };
 }
 
-/** "EENG 2710 and TECM 2700", "16 courses", "6 credits", "2 courses". */
+/** "EENG 2710 and TECM 2700", "16 courses", "6 credits", "2 selections". */
 function neededFact(outcome: NodeOutcome): string {
   const remaining = outcome.remaining;
   switch (remaining.kind) {
@@ -227,7 +251,7 @@ function neededFact(outcome: NodeOutcome): string {
       return plural(total, "course");
     }
     case "choose":
-      return plural(remaining.picks, "course");
+      return plural(remaining.picks, chooseUnit(remaining));
     default: {
       const credits = creditsLeft(outcome);
       if (credits !== null) return plural(credits, "credit");

@@ -59,7 +59,7 @@ const keyboard = (event: { detail: number }) => event.detail === 0;
 /** One alternative at a time, in one sentence (untangle-v3.md rule 5). */
 export function OptionsStrip({ browseButton, ...props }: OptionsProps) {
   return (
-    <div className={styles.strip} role="region" aria-label="Other weeks Auto found">
+    <div className={styles.strip} role="region" aria-label="Other weeks Auto found" aria-busy={props.searching ? true : undefined}>
       <span className={styles.stripCount}>
         <SwapText text={props.count} instant={props.instant} part="count" />
         {props.searching ? <i className={styles.pulse} aria-hidden="true" /> : null}
