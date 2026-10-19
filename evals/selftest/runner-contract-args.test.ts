@@ -97,4 +97,28 @@ describe("runner contract: argument validation (exit 2)", () => {
     },
     60_000,
   );
+
+  test(
+    "--only naming a case no suite declares exits 2 pre-boot — a typo must fail the run, never measure nothing",
+    async () => {
+      const out = path.join(root, "only-unknown-case", "card.json");
+      const r = await runRepoRunnerRaw([
+        "--target-dir",
+        targetDir,
+        "--target-sha",
+        FAKE_SHA_40,
+        "--suite",
+        "selfcheck",
+        "--only",
+        "selfcheck/no-such-case",
+        "--out",
+        out,
+      ]);
+      expect(r.code).toBe(2);
+      expect(r.stderr).toContain("--only: no such declared case(s): selfcheck/no-such-case");
+      expect(existsSync(out)).toBeFalse();
+      expect(existsSync(path.join(path.dirname(out), "preflight-logs"))).toBeFalse();
+    },
+    60_000,
+  );
 });

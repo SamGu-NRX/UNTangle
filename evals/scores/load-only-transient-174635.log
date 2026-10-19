@@ -1,0 +1,9 @@
+17:46:35 GATE-WAIT load1=1.78 load5=1.42
+17:46:35 GATE-PASS load1=1.78 load5=1.42
+17:46:35 RUN-START tag=transient target=d42166faca133b58eba410d0c0fd6b5a0fde38c1 out=/home/user/work/untangle-r2-only-transient-174635/journey-r2-repaired-only-transient-174635.json only=journey/discover-registered-mobile journey/map-registered-mobile journey/auth-registered-desktop
+17:46:35 load=1.78 load5=1.42 availMB=6846 runners=1 top=76MB:jupyter-server 53MB:python3.13 45MB:uvicorn 
+17:47:05 load=2.11 load5=1.52 availMB=5612 runners=1 top=591MB:node 579MB:node 113MB:bun 
+17:47:35 load=1.95 load5=1.55 availMB=6079 runners=1 top=413MB:chrome-headless 288MB:next-server 143MB:bun 
+17:48:05 load=1.24 load5=1.42 availMB=6439 runners=1 top=291MB:next-server 139MB:bun 76MB:jupyter-server 
+17:48:34 RUN-END exit=1
+17:48:34 MONITOR-STOPPED exit=1 out=/home/user/work/untangle-r2-only-transient-174635/journey-r2-repaired-only-transient-174635.json

@@ -1,0 +1,18 @@
+18:20:59 GATE-WAIT load1=1.05 load5=0.87
+18:20:59 GATE-PASS load1=1.05 load5=0.87
+18:20:59 RUN-START suite=a11y-polish target=d42166faca133b58eba410d0c0fd6b5a0fde38c1 out=/home/user/work/untangle-r2-repair-a11y-polish-182059/a11y-polish-r2-repaired-182059.json
+18:20:59 load=1.05 load5=0.87 availMB=4590 runners=0 top=76MB:jupyter-server 53MB:python3.13 45MB:uvicorn 
+18:21:30 load=1.79 load5=1.06 availMB=3382 runners=1 top=871MB:node 112MB:bun 106MB:node 
+18:22:00 load=2.67 load5=1.36 availMB=3788 runners=1 top=194MB:next-server 132MB:chrome-headless 123MB:bun 
+18:22:30 load=2.20 load5=1.38 availMB=6410 runners=1 top=233MB:next-server 147MB:bun 132MB:chrome-headless 
+18:23:00 load=1.56 load5=1.31 availMB=6462 runners=1 top=258MB:next-server 148MB:bun 79MB:node 
+18:23:30 load=0.95 load5=1.19 availMB=6489 runners=1 top=226MB:next-server 139MB:bun 79MB:node 
+18:24:00 load=0.57 load5=1.07 availMB=6509 runners=1 top=226MB:next-server 139MB:bun 79MB:node 
+18:24:30 load=0.35 load5=0.97 availMB=6509 runners=1 top=226MB:next-server 139MB:bun 79MB:node 
+18:25:00 load=0.21 load5=0.87 availMB=6509 runners=1 top=226MB:next-server 139MB:bun 79MB:node 
+18:25:30 load=0.12 load5=0.79 availMB=6510 runners=1 top=226MB:next-server 139MB:bun 79MB:node 
+18:26:00 load=0.07 load5=0.71 availMB=6529 runners=1 top=226MB:next-server 135MB:bun 79MB:node 
+18:26:30 load=0.12 load5=0.66 availMB=6452 runners=1 top=228MB:next-server 134MB:bun 108MB:chrome-headless 
+18:27:00 load=0.52 load5=0.71 availMB=5373 runners=1 top=804MB:chrome-headless 554MB:chrome-headless 237MB:next-server 
+18:27:03 RUN-END exit=1
+18:27:03 MONITOR-STOPPED exit=1 out=/home/user/work/untangle-r2-repair-a11y-polish-182059/a11y-polish-r2-repaired-182059.json

@@ -1,0 +1,7 @@
+17:48:34 GATE-WAIT load1=0.75 load5=1.28
+17:48:34 GATE-PASS load1=0.75 load5=1.28
+17:48:34 RUN-START tag=wedge target=d42166faca133b58eba410d0c0fd6b5a0fde38c1 out=/home/user/work/untangle-r2-only-wedge-174834/journey-r2-repaired-only-wedge-174834.json only=journey/build-registered-desktop journey/plan-guest-mobile
+17:48:34 load=0.75 load5=1.28 availMB=6858 runners=1 top=76MB:jupyter-server 53MB:python3.13 45MB:uvicorn 
+17:49:04 load=1.21 load5=1.33 availMB=5500 runners=1 top=644MB:node 629MB:node 114MB:bun 
+17:49:27 RUN-END exit=1
+17:49:27 MONITOR-STOPPED exit=1 out=/home/user/work/untangle-r2-only-wedge-174834/journey-r2-repaired-only-wedge-174834.json
