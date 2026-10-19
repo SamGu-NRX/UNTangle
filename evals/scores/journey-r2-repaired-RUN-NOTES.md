@@ -30,6 +30,12 @@ All runs load-gated (1- and 5-min loadavg < 4 immediately before and sampled eve
 
 Transient environment failures in the main run (3× goto/click/waitFor timeouts, 3× 480s browser-wedge case timeouts) were all re-measured cleanly by the targeted reruns; none recurred in a way that left a case unmeasured. This is the runner hardening from the selftests lane doing its job: bounded closes, launch retries, case caps, and now precise `--only` re-measurement.
 
+## a11y-polish rerun (`a11y-polish-r2-repaired-182059`)
+
+Validates the timeout fixes (defects 3+4) against the same target. All 12 cases measured in ~6 minutes with no wedge — the phase-2 240s-class case timeouts are gone (480s cap + hardened probes + one-mobile reuse never triggered). Compared to the recorded phase-2 a11y baseline (`a11y-polish-rerun-231358`): **axe-instructor now passes** (the focus timeout is fixed — the hardened contract-specific link probe finds the seeded instructor page), axe-home improved fail→pass (deterministic seeded stack), and every phase-2 pass held. No regressions.
+
+The four remaining failures match the phase-2 recorded verdicts exactly and are honest app-level results, not instrument defects: axe-courses (1 serious), axe-schedule (1 serious), axe-auth (2 serious) — axe-core serious impacts on the target pages; keyboard-core-path (focus: Timeout 10000ms — the case's own element wait, an app keyboard surface failing the requirement, bounded by the runner); no-horizontal-overflow-mobile (390x844 horizontal overflow).
+
 ## Instrument repairs this branch (vs phase-2 e566ac9b)
 
 1. **discover locator** (`cec2eafe`): accessible-name lookup for `Course grade summary` — validated by 4/4 discover passes.
