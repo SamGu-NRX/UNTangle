@@ -267,6 +267,92 @@ function collectRuntime(): ScorecardRuntime {
     os: `${os.type()} ${os.release()} ${os.arch()}`,
   };
 }
+// Crash-card salvage: an uncaught error outside the per-suite guard (observed
+// as Playwright's transport dying with `connect ENOENT` mid-journey on
+// 2026-10-19, twice) kills the process at exit 1 with no scorecard — every
+// completed case and stack step is lost evidence. main() populates this
+// context as it advances; the handlers below serialize what exists at the
+// moment of death. The suite-crash catch inside main() stays the first line
+// of defense; this only fires when even that machinery cannot run.
+const crashCtx: {
+  outPath: string | null;
+  suiteSelector: string;
+  startedAt: string;
+  cases: CaseRecord[];
+  stack: RunningStack | null;
+  hashes: { contractHash: string; barsHash: string } | null;
+  actualHead: string | null;
+  targetDir: string;
+  targetSha: string;
+} = {
+  outPath: null,
+  suiteSelector: "(unknown)",
+  startedAt: new Date().toISOString(),
+  cases: [],
+  stack: null,
+  hashes: null,
+  actualHead: null,
+  targetDir: "(unknown)",
+  targetSha: "(unknown)",
+};
+
+async function writeCrashCard(error: unknown): Promise<void> {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[run] fatal (crash card): ${error instanceof Error ? error.stack ?? error.message : message}`);
+  try {
+    const cases: CaseRecord[] = [
+      ...crashCtx.cases,
+      {
+        suite: "(runner)",
+        id: "(runner crashed outside the per-suite guard)",
+        status: "fail",
+        measured: null,
+        note: `uncaught ${error instanceof Error ? error.name : "error"}: ${message} — best-effort crash card; case records above may be partial`,
+      },
+    ];
+    const scorecard = buildScorecard({
+      suiteSelector: crashCtx.suiteSelector,
+      cases,
+      target: { dir: crashCtx.targetDir, sha: crashCtx.targetSha, actualHead: crashCtx.actualHead },
+      stackSteps: crashCtx.stack?.steps ?? [],
+      infraError: `runner crashed after ${crashCtx.cases.length} case record(s): ${message}`,
+      brokenStep: crashCtx.stack ? "case-loop" : "preflight",
+      blockedRmpCount: crashCtx.stack ? readRmpBlockedCount(crashCtx.stack.blockedRmpLogPath).count : 0,
+      backendStartMode: crashCtx.stack?.backendStartMode ?? "never-started",
+      startedAt: crashCtx.startedAt,
+      contractHash: crashCtx.hashes?.contractHash ?? "(unknown: runner crashed before hashing)",
+      barsHash: crashCtx.hashes?.barsHash ?? "(unknown: runner crashed before hashing)",
+      runtime: collectRuntime(),
+    });
+    if (crashCtx.outPath) {
+      await writeOutputs(scorecard, crashCtx.outPath);
+      console.error(`[run] crash card written: ${crashCtx.outPath}`);
+    }
+  } catch (cardError) {
+    console.error(`[run] could not write the crash card: ${(cardError as Error).message}`);
+  }
+  if (crashCtx.stack) {
+    try {
+      await Promise.race([crashCtx.stack.stop(), new Promise<void>((resolve) => setTimeout(resolve, 10_000))]);
+    } catch {
+      // best-effort stop; the port fences protect the next run either way
+    }
+  }
+  process.exit(1);
+}
+
+process.on("uncaughtException", (error) => {
+  void writeCrashCard(error);
+});
+// An unhandled rejection means nothing in-process awaited the promise, so the
+// affected case (if any) fails on its own per-case timeout and the suite drains
+// to a scored card. Exiting here (the old behavior) let one transient
+// playwright spawn rejection ("Failed to connect", observed 2026-10-19
+// mid-a11y-run) kill a 20-minute suite after six cases had already scored.
+process.on("unhandledRejection", (reason) => {
+  const message = reason instanceof Error ? reason.message : String(reason);
+  console.error(`[run] unhandledRejection (continuing): ${message}`);
+});
 
 /** Pure assembler: Scorecard from observed facts; the caller supplies runtime versions. */
 function buildScorecard(opts: BuildOptions): Scorecard {
@@ -379,6 +465,10 @@ async function main(): Promise<number> {
     return argv.length === 0 ? 2 : 0;
   }
   const args = parseRunArgs(argv);
+  crashCtx.outPath = args.out;
+  crashCtx.suiteSelector = args.suite;
+  crashCtx.targetDir = args.targetDir;
+  crashCtx.targetSha = args.targetSha;
 
   // The contract, bars, and suites belong to the HARNESS checkout, never the
   // target: baseline targets are application states that do not (and should
@@ -399,6 +489,8 @@ async function main(): Promise<number> {
   } catch (error) {
     console.error(`[run] WARNING: could not read HEAD of ${args.targetDir}: ${(error as Error).message}`);
   }
+  crashCtx.actualHead = actualHead;
+
 
   const bars = loadBars();
   const all = registeredSuites();
@@ -410,7 +502,9 @@ async function main(): Promise<number> {
   console.error(`[run] suites: ${chosen.map((d) => d.name).join(", ")}`);
 
   const startedAt = new Date().toISOString();
+  crashCtx.startedAt = startedAt;
   const hashes = await hashTargetFiles();
+  crashCtx.hashes = hashes;
 
   // Decision 685b: load every chosen suite BEFORE booting the stack. A
   // registered suite that fails to load (missing file, broken module, wrong
@@ -481,6 +575,7 @@ async function main(): Promise<number> {
   let stack: RunningStack | null = null;
   try {
     stack = await runPreflight({ ...args, runDir: path.join(path.dirname(path.resolve(args.out)), "preflight-logs") });
+    crashCtx.stack = stack;
   } catch (error) {
     const brokenStep = error instanceof StackBootError ? error.brokenStep : "(unknown step)";
     const message = error instanceof Error ? error.message : String(error);
@@ -526,7 +621,7 @@ async function main(): Promise<number> {
   }
 
   try {
-    const cases: CaseRecord[] = [];
+    const cases: CaseRecord[] = crashCtx.cases;
     for (const { suite } of loaded) {
       try {
         cases.push(...(await runSuite(suite, stack, bars)));
@@ -575,8 +670,16 @@ process.exitCode = 1;
 main()
   .then((code) => {
     process.exitCode = code;
+    // Explicit exit: every durable artifact (scorecard, step logs, case
+    // screenshots) is on disk before main() returns and the stack stop is
+    // bounded. A passive exitCode let lingering teardown handles — a
+    // bounded-out browser close whose promise never settles — keep the
+    // process alive indefinitely after the card was written (observed
+    // 2026-10-19, a11y run: card at 15:29:57Z, runner still alive at 15:35Z,
+    // recipe hung waiting on the child's exit).
+    process.exit(code);
   })
   .catch((error: unknown) => {
     console.error(`[run] fatal: ${(error as Error).stack ?? String(error)}`);
-    process.exitCode = 1;
+    process.exit(1);
   });

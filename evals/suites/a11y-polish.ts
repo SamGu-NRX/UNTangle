@@ -9,7 +9,7 @@
  */
 import { defineSuite } from "../suite-kit";
 import type { CaseOutcome, CaseSpec, SuiteContext } from "../suite-kit";
-import { closeCase, openCase, screenshot, settle } from "./ui-browser";
+import { closeCase, closeTrackedCases, openCase, screenshot, settle } from "./ui-browser";
 import type { CaseBrowser } from "./ui-browser";
 import { activate, courseRow, expectDetailNot404 } from "./ui-contract";
 import { runAxe } from "./ui-axe";
@@ -271,6 +271,10 @@ export default defineSuite({
       }
     } catch (error) {
       return { status: "fail", note: `case threw: ${error instanceof Error ? error.message : String(error)}` };
+    } finally {
+      // runAxeCase closes on its happy path; a throw before that (scan or
+      // navigation error) must not leak the browser and wedge run.ts's exit.
+      await closeTrackedCases();
     }
   },
   caseTimeoutMs: 240_000,

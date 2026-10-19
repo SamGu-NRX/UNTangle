@@ -44,8 +44,8 @@ const runDirs: string[] = [];
 beforeAll(async () => {
   if (!existsSync(path.join(TARGET_DIR, ".git"))) {
     const clone = await spawnBounded("git", [
-      "clone", "--local", "--branch", "obv/untangle-evals-f1-selftests",
-      "/home/user/work/clone-selftests", TARGET_DIR,
+      "clone", "--local", "--branch", "obv/untangle-evals-r2-selftests",
+      "/home/user/work/untangle-r2-selftests", TARGET_DIR,
     ], { timeoutMs: 300_000 });
     if (clone.code !== 0) throw new Error(`cloning the persistence target failed: ${clone.stderr.slice(-500)}`);
   }
@@ -76,9 +76,14 @@ afterAll(() => {
  */
 function sabotagePostgresOnce(runDir: string, taskId: string): Promise<boolean> {
   return (async () => {
-    const launchLog = path.join(runDir, "preflight-logs", "step-playwright-launch.log");
+    // The stack's playwright-launch step is an in-process chromium check and
+    // writes no step log, so the nearest on-disk signal for "the stack is up
+    // and the cases are about to run" is frontend-start's server log. Killing
+    // there is the same moment as the recipe's "the moment playwright-launch
+    // starts": every stack step has started succeeding, no case has run yet.
+    const launchSignal = path.join(runDir, "preflight-logs", "frontend.log");
     const deadline = Date.now() + 25 * 60_000;
-    while (!existsSync(launchLog)) {
+    while (!existsSync(launchSignal)) {
       if (Date.now() > deadline) return false;
       await new Promise((r) => setTimeout(r, 2_000));
     }
@@ -102,13 +107,12 @@ function sabotagePostgresOnce(runDir: string, taskId: string): Promise<boolean> 
 }
 
 describe("real-suite planted defect: persistence-faults (full real stack, Postgres killed after launch)", () => {
-  // Skip-guarded: the run boots the full real stack (Postgres, backend
-  // build, frontend build, a real browser) — heavy Playwright work that is
-  // deferred per the lead's steer until the host is free and the journey
-  // suites have landed. The body below is the complete recipe; enabling it
-  // is `test.skip` -> `test` and never running it concurrently with other
-  // Playwright passes.
-  test.skip(
+  // Heavy gate: the run boots the full real stack (Postgres, backend build,
+  // frontend build, a real browser). It runs only under SELFTEST_HEAVY=1 so a
+  // plain `bun test evals/selftest` never boots the stack alongside other
+  // Playwright work on the shared 2-core host — run it solo per the README.
+  const HEAVY = process.env.SELFTEST_HEAVY === "1";
+  test.skipIf(!HEAVY)(
     "dead Postgres after stack boot: exit 1 blaming CASES (infrastructure.ok true), failed-saves-never-saved failing, poisoned-run notes visible",
     async () => {
       const taskId = `selftest-persist-plant-${Date.now()}`;
@@ -131,7 +135,14 @@ describe("real-suite planted defect: persistence-faults (full real stack, Postgr
         ],
         { cwd: EVALS_DIR, timeoutMs: 1_500_000 },
       );
-      const planted = await saboteur;
+      // If the runner finished before the saboteur saw its launch signal (an
+      // early infrastructure failure aborts the stack before frontend-start),
+      // stop waiting on the saboteur — the run is over and the plant cannot
+      // fire anymore. A settled saboteur (fired during the run) still wins
+      // the race; a pending one loses to the resolved false instead of
+      // blocking for its whole deadline.
+      const planted = await Promise.race([saboteur, Promise.resolve(false)]);
+      console.warn(`[evidence] saboteur fired: ${planted}; runner exit code: ${r.code}; timed out: ${r.timedOut}`);
 
       expect(planted).toBe(true);
       expect(r.timedOut).toBe(false);
@@ -143,6 +154,7 @@ describe("real-suite planted defect: persistence-faults (full real stack, Postgr
       // the scorecard's top-level `stack` records; all passed before the kill.
       expect(card.infrastructure.ok).toBe(true);
       expect(card.stack.every((s) => s.status === "pass")).toBe(true);
+      console.warn(`[evidence] cases: ${card.cases.map((c) => `${c.id}=${c.status}`).join(", ")}`);
 
       const failedSaves = card.cases.find((c) => c.id === "failed-saves-never-saved");
       expect(failedSaves).toBeDefined();
