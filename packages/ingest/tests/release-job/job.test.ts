@@ -336,6 +336,25 @@ describe("runReleaseJob, one run at a time", () => {
     expect(readFileSync(pointerPath, "utf8")).toBe(before);
   });
 
+  test("a 304 that requests only some subjects publishes nothing over a release with no overlay record", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    files["/data/spring-2027/ACCT.json"] = { body: mathFile({ "ACCT 5120": 4 }), etag: '"a1"' };
+    expect((await job({ subjects: ["MATH", "ACCT"] })).outcome).toBe("published");
+    // A release published before records existed.
+    rmSync(path.join(outDir, "overlays"), { recursive: true });
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    const before = readFileSync(pointerPath, "utf8");
+
+    const report = await job({ subjects: ["MATH"] });
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified", "not-modified"]);
+    expect(report.outcome).toBe("error");
+    expect(report.reason).toBe("overlay-unknown");
+    expect(report.detail).toContain("has no record of the subject files it was built with");
+    expect(readFileSync(pointerPath, "utf8")).toBe(before);
+    expect(existsSync(path.join(outDir, "overlays"))).toBe(false);
+    expect(publishedCourses((JSON.parse(before) as { file: string }).file).get("ACCT 5120")).toBe(4);
+  });
+
   test("a refused run still saves the request log, including the watch's request", async () => {
     files["/data/spring-2027.json"] = { body: '{"schema_version":3}', etag: '"v4"' };
     const report = await job({ watchTerms: ["fall-2027"] });
