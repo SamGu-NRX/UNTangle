@@ -264,8 +264,12 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
   }
   // A different build over a release with unknown overlays could drop a
   // fresher subject slice the run did not request. A 200 rebuilds in full
-  // instead, since the term itself changed.
-  if (overlayUnknown) {
+  // instead, since the term itself changed. The one build allowed through is
+  // one whose own content already has a record of exactly these subjects: a
+  // release an earlier 200 accepted, whose pointer write failed.
+  const appliedSubjects = overlays.map(overlay => overlay.subject).sort();
+  const pending = overlayUnknown ? await readOverlaySubjects(outDir, next.manifest.contentSha256) : null;
+  if (overlayUnknown && (pending === null || pending.join(",") !== appliedSubjects.join(","))) {
     return {
       termId,
       outcome: "error",
@@ -298,7 +302,7 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
 
   // 4. Publish: content first, pointer last. A dry run stops here.
   if (!dryRun) {
-    await writeOverlaySubjects(outDir, next.manifest.contentSha256, overlays.map(overlay => overlay.subject).sort());
+    await writeOverlaySubjects(outDir, next.manifest.contentSha256, appliedSubjects);
     await sink.putContent(next);
     await sink.putPointer(next, new Date(now()).toISOString());
   }

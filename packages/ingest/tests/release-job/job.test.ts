@@ -355,6 +355,33 @@ describe("runReleaseJob, one run at a time", () => {
     expect(publishedCourses((JSON.parse(before) as { file: string }).file).get("ACCT 5120")).toBe(4);
   });
 
+  test("a 304 retries a release whose pointer write failed, over a release with no overlay record", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+    // A release published before records existed.
+    rmSync(path.join(outDir, "overlays"), { recursive: true });
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    const legacy = readFileSync(pointerPath, "utf8");
+
+    // A 200 with subjects whose pointer write fails: the temporary file's path is a directory.
+    files["/data/spring-2027.json"] = { body: changedBody, etag: '"v2"' };
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 9 }), etag: '"m2"' };
+    const blocker = `${pointerPath}.tmp-${process.pid}`;
+    mkdirSync(blocker, { recursive: true });
+    writeFileSync(path.join(blocker, "obstruction"), "block the pointer write");
+    await expect(job({ subjects: ["MATH"] })).rejects.toMatchObject({ syscall: "open" });
+    expect(readFileSync(pointerPath, "utf8")).toBe(legacy);
+
+    rmSync(blocker, { recursive: true });
+    const report = await job({ subjects: ["MATH"] });
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified", "not-modified"]);
+    expect(report.outcome).toBe("published");
+    const pointer = JSON.parse(readFileSync(pointerPath, "utf8")) as { releaseId: string; file: string };
+    expect(report.releaseId).toBe(pointer.releaseId);
+    expect(pointer.releaseId).not.toBe((JSON.parse(legacy) as { releaseId: string }).releaseId);
+    expect(publishedCourses(pointer.file).get("MATH 1680")).toBe(9);
+  });
+
   test("a refused run still saves the request log, including the watch's request", async () => {
     files["/data/spring-2027.json"] = { body: '{"schema_version":3}', etag: '"v4"' };
     const report = await job({ watchTerms: ["fall-2027"] });
