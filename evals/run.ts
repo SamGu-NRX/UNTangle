@@ -41,7 +41,11 @@ import { isSuiteDefinition, type CaseOutcome, type SuiteContext, type SuiteDefin
 
 const usage = [
   "usage: bun evals/run.ts --target-dir <checkout> --target-sha <40-hex sha> \\",
-  "            --suite <name|all> --out <scorecard.json> [--task-id <id>]",
+  "            --suite <name|all> --out <scorecard.json> [--task-id <id>] \\",
+  "            [--only <case-id>]...",
+  "",
+  "--only repeats; each value is an exact declared case id (e.g. journey/discover-guest-desktop).",
+  "A filtered run writes a partial scorecard — its cases array names exactly what ran.",
   "",
   "exit codes: 0 all pass · 1 case failures · 2 usage error · 3 infrastructure failure",
 ].join("\n");
@@ -55,6 +59,8 @@ interface RunArgs {
   out: string;
   suite: string;
   taskId: string;
+  /** Exact declared case ids from repeatable --only flags; empty = run all. */
+  only: string[];
 }
 
 function parseRunArgs(argv: string[]): RunArgs {
@@ -68,7 +74,7 @@ function parseRunArgs(argv: string[]): RunArgs {
     return value;
   };
 
-  const knownFlags = ["--target-dir", "--target-sha", "--suite", "--out", "--task-id"];
+  const knownFlags = ["--target-dir", "--target-sha", "--suite", "--out", "--task-id", "--only"];
   const unknown = argv.filter((arg) => arg.startsWith("--") && !knownFlags.includes(arg));
   if (unknown.length > 0) usageError(usage, `unrecognized argument(s): ${unknown.join(" ")}`);
 
@@ -89,7 +95,16 @@ function parseRunArgs(argv: string[]): RunArgs {
   const suite = get("--suite");
   if (suite === undefined) usageError(usage, "--suite is required (a suite name or 'all')");
 
-  return { ...base, suite, taskId: get("--task-id") ?? "default" };
+  // --only is repeatable; each value is an exact declared case id.
+  const only: string[] = [];
+  for (let i = 0; i < argv.length; i += 1) {
+    if (argv[i] !== "--only") continue;
+    const value = argv[i + 1];
+    if (value === undefined || value.startsWith("--")) usageError(usage, "--only needs a case id");
+    only.push(value);
+  }
+
+  return { ...base, suite, taskId: get("--task-id") ?? "default", only };
 }
 
 interface RegisteredSuite {
@@ -196,12 +211,15 @@ async function runCase(
   }
 }
 
-async function runSuite(suite: SuiteDefinition, stack: RunningStack, bars: BarsFile): Promise<CaseRecord[]> {
+async function runSuite(suite: SuiteDefinition, stack: RunningStack, bars: BarsFile, only: readonly string[]): Promise<CaseRecord[]> {
   const specs = await suite.describe();
+  // Validated pre-boot in main(); here it is a pure filter. Suites with no
+  // matching id (the --suite all path) simply contribute no cases.
+  const selected = only.length === 0 ? specs : specs.filter((s) => only.includes(s.id));
   const ctx = suiteContext(stack);
   const suiteBar = bars.bars[suite.name]?.bar;
   const records: CaseRecord[] = [];
-  for (const spec of specs) {
+  for (const spec of selected) {
     console.error(`[run] ${suite.name}/${spec.id} ...`);
     const { outcome, note } = await runCase(suite, spec.id, ctx);
     const record: CaseRecord = {
@@ -572,6 +590,22 @@ async function main(): Promise<number> {
     return 3;
   }
 
+  // Case-level selection for precise reruns: validate every --only id
+  // against the suites' declared cases BEFORE the stack boots. A typo must
+  // exit 2 here — never silently measure nothing, and never exit mid-run
+  // where the stop would leak the booted stack.
+  if (args.only.length > 0) {
+    const declaredIds = new Set<string>();
+    for (const entry of loaded) {
+      for (const spec of await entry.suite.describe()) declaredIds.add(spec.id);
+    }
+    const missing = args.only.filter((id) => !declaredIds.has(id));
+    if (missing.length > 0) {
+      usageError(usage, `--only: no such declared case(s): ${missing.join(", ")}`);
+    }
+    console.error(`[run] filter: --only ${args.only.join(", ")}`);
+  }
+
   let stack: RunningStack | null = null;
   try {
     stack = await runPreflight({ ...args, runDir: path.join(path.dirname(path.resolve(args.out)), "preflight-logs") });
@@ -624,7 +658,7 @@ async function main(): Promise<number> {
     const cases: CaseRecord[] = crashCtx.cases;
     for (const { suite } of loaded) {
       try {
-        cases.push(...(await runSuite(suite, stack, bars)));
+        cases.push(...(await runSuite(suite, stack, bars, args.only)));
       } catch (error) {
         console.error(`[run] suite ${suite.name} crashed: ${(error as Error).message}`);
         cases.push({

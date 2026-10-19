@@ -421,8 +421,13 @@ async function runInstructor(ctx: SuiteContext, caseId: string, persona: Persona
   await page.waitForURL("**/instructors/**", { timeout: 20_000 });
   await settle(page);
 
+  // Contract line 91: the grade summary is a `region`-like div whose
+  // ACCESSIBLE NAME is "Instructor grade summary" — the target exposes it as
+  // aria-label on div.detail-stats (instructors/[id]/page.tsx:45), not as
+  // text content, so a text matcher can never resolve it. Same defect class
+  // as the discover journey's course grade summary probe.
   const summary = await missingElement(
-    page.getByText("Instructor grade summary").first(),
+    page.locator('[aria-label="Instructor grade summary"]').first(),
     "'Instructor grade summary' region (contract: /instructors/[id])",
   );
   if (!summary.present) return { status: "fail", note: summary.reason };
