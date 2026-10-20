@@ -1,0 +1,668 @@
+{
+  "schemaVersion": 1,
+  "suite": "all",
+  "startedAt": "2026-10-20T00:10:24.788Z",
+  "finishedAt": "2026-10-20T00:59:07.416Z",
+  "target": {
+    "dir": "/home/user/work/untangle-baseline-target",
+    "sha": "fb741afdf7ae3480baf0eecc8c2db3ef7806bd56",
+    "actualHead": "fb741afdf7ae3480baf0eecc8c2db3ef7806bd56"
+  },
+  "runtime": {
+    "bun": "1.3.14",
+    "node": "v20.20.2",
+    "postgres": "postgres (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "playwright": "1.64.0",
+    "os": "Linux 6.1.158+ x64"
+  },
+  "stack": [
+    {
+      "step": "target-dir",
+      "status": "pass",
+      "durationMs": 1,
+      "detail": "/home/user/work/untangle-baseline-target",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-target-dir.log"
+    },
+    {
+      "step": "contract-hash",
+      "status": "pass",
+      "durationMs": 0,
+      "detail": "harness evals/CONTRACT.md sha256 86072811b2c376b5fcc0cf25035bbeb0fb050d5e7e4c7ebab7aa55f579b9ae0a (/home/user/work/untangle-baselines/evals/CONTRACT.md); the target is not required to carry evals/",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-contract-hash.log"
+    },
+    {
+      "step": "submodule-backend",
+      "status": "pass",
+      "durationMs": 536,
+      "detail": "submodule fetched at pinned SHA 0a49d4d863161c3b568f6aa6d3da4b4e68637a44",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-submodule-backend.log"
+    },
+    {
+      "step": "backend-install",
+      "status": "pass",
+      "durationMs": 402,
+      "detail": "bun install --frozen-lockfile; better-sqlite3 native binding present",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-backend-install.log"
+    },
+    {
+      "step": "backend-sqlite-build",
+      "status": "pass",
+      "durationMs": 2748,
+      "detail": "native SQLite addon loads in node (memory-db roundtrip ok); backend tsc build emitted dist/",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-backend-sqlite-build.log"
+    },
+    {
+      "step": "backend-seed",
+      "status": "pass",
+      "durationMs": 1528,
+      "detail": "backend grade catalog seeded via the backend's own seed script (tsx src/db/seed.ts)",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-backend-seed.log"
+    },
+    {
+      "step": "postgres-init",
+      "status": "pass",
+      "durationMs": 743,
+      "detail": "fresh cluster at /home/user/work/pgdata-baseline-alpha/run-1792455030565-457668",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-postgres-init.log"
+    },
+    {
+      "step": "postgres-start",
+      "status": "pass",
+      "durationMs": 170,
+      "detail": "postgres up on 127.0.0.1:54321, database untangle created",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-postgres-start.log"
+    },
+    {
+      "step": "frontend-install",
+      "status": "pass",
+      "durationMs": 790,
+      "detail": "bun install --frozen-lockfile at workspace root",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-frontend-install.log"
+    },
+    {
+      "step": "migrations-apply",
+      "status": "pass",
+      "durationMs": 580,
+      "detail": "drizzle migrations applied (frontend/node_modules/.bin/drizzle-kit) against postgres://postgres@127.0.0.1:54321/untangle",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-migrations-apply.log"
+    },
+    {
+      "step": "db-roundtrip",
+      "status": "pass",
+      "durationMs": 18,
+      "detail": "probe row roundtrip-564b0f8e407ab8f7 written and read back via DATABASE_URL (persistence gate satisfied)",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-db-roundtrip.log"
+    },
+    {
+      "step": "backend-start",
+      "status": "pass",
+      "durationMs": 1242,
+      "detail": "backend healthy on http://127.0.0.1:3950 under node/tsx (rmp-block preload via NODE_OPTIONS --require). bun --preload attempt failed: bun --preload backend: process exited early (code 1, signal none) — expected: the backend's better-sqlite3 addon crashes Bun at runtime (backend/README.md \"Bun Notes\")",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-backend-start.log"
+    },
+    {
+      "step": "frontend-build",
+      "status": "pass",
+      "durationMs": 36011,
+      "detail": "mode: production-build (next build); fonts: pinned via NEXT_FONT_GOOGLE_MOCKED_RESPONSES (vercel/next.js#99114 workaround)",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-frontend-build.log"
+    },
+    {
+      "step": "frontend-start",
+      "status": "pass",
+      "durationMs": 1065,
+      "detail": "frontend serving http://localhost:3901 (DATABASE_URL set, BETTER_AUTH_URL aligned to origin, fresh random BETTER_AUTH_SECRET)",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-frontend-start.log"
+    },
+    {
+      "step": "playwright-launch",
+      "status": "pass",
+      "durationMs": 703,
+      "detail": "chromium (headless) launched and rendered http://localhost:3901/ (body 6029 chars)",
+      "logPath": "/home/user/work/untangle-baseline-alpha/preflight-logs/step-playwright-launch.log"
+    }
+  ],
+  "infrastructure": {
+    "ok": true,
+    "brokenStep": null
+  },
+  "cases": [
+    {
+      "suite": "selfcheck",
+      "id": "preflight-all-green",
+      "status": "pass",
+      "measured": "15/15 steps green",
+      "bar": "every stack step reports pass",
+      "evidencePath": "/home/user/work/untangle-baseline-alpha/preflight-logs"
+    },
+    {
+      "suite": "selfcheck",
+      "id": "db-roundtrip-persists",
+      "status": "pass",
+      "measured": "selfcheck-470028f6d706503a",
+      "bar": "read-back equals written value"
+    },
+    {
+      "suite": "selfcheck",
+      "id": "frontend-renders",
+      "status": "pass",
+      "measured": "HTTP 200, body 6029 chars",
+      "bar": "GET / returns 200 with a non-empty rendered body",
+      "evidencePath": "/home/user/work/untangle-baseline-alpha/preflight-logs"
+    },
+    {
+      "suite": "selfcheck",
+      "id": "rmp-block-active",
+      "status": "pass",
+      "measured": 1,
+      "bar": "at least one outbound RateMyProfessors request blocked and counted"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/discover-guest-desktop",
+      "status": "pass",
+      "measured": "discovered CSCE 1030 and read its detail page",
+      "bar": "every case passes for both personas at both viewports"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/discover-guest-mobile",
+      "status": "pass",
+      "measured": "discovered CSCE 1030 and read its detail page",
+      "bar": "every case passes for both personas at both viewports"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/discover-registered-desktop",
+      "status": "pass",
+      "measured": "discovered CSCE 1030 and read its detail page",
+      "bar": "every case passes for both personas at both viewports"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/discover-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "case threw: case journey/journey/discover-registered-mobile timed out after 480000ms"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/instructor-guest-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: ratings-unavailable `status` notice naming the instructor (contract: /instructors/[id], required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/instructor-guest-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: ratings-unavailable `status` notice naming the instructor (contract: /instructors/[id], required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/instructor-registered-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: ratings-unavailable `status` notice naming the instructor (contract: /instructors/[id], required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/instructor-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: ratings-unavailable `status` notice naming the instructor (contract: /instructors/[id], required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/build-guest-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "the build leg ran through this head's exposed surfaces (marked ANTH 1010, CSCE 1030 taking; 5 options; 8 events rendered), but contract-REQUIRED build surfaces are absent: Add ANTH 1010 section {NNN}; Optimize schedule; optimization-option `aria-pressed` state (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/build-guest-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "case threw: focus: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('link', { name: 'Continue as guest' })\u001b[22m\n"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/build-registered-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "the build leg ran through this head's exposed surfaces (marked ANTH 1010, CSCE 1030 taking; 5 options; 8 events rendered), but contract-REQUIRED build surfaces are absent: Add ANTH 1010 section {NNN}; Optimize schedule; optimization-option `aria-pressed` state (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/build-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "the build leg ran through this head's exposed surfaces (marked ANTH 1010, CSCE 1030 taking; 5 options; 8 events rendered), but contract-REQUIRED build surfaces are absent: Add ANTH 1010 section {NNN}; Optimize schedule; optimization-option `aria-pressed` state (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/save-guest-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "evidencePath": "/home/user/work/untangle-baseline-alpha/preflight-logs/journey__journey_save-guest-desktop__persisted-diff.json",
+      "note": "persisted state survived the reload exactly (byte-exact), but the contract's durability/export surface is missing: Required contract surface absent: `Save state` status region (contract: /schedule, required — durability acknowledgment); Required contract surface absent: `Print schedule` button (contract: /schedule, required); Required contract surface absent: `Download .ics` button (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/save-guest-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "case threw: case journey/journey/save-guest-mobile timed out after 480000ms"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/save-registered-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "evidencePath": "/home/user/work/untangle-baseline-alpha/preflight-logs/journey__journey_save-registered-desktop__persisted-diff.json",
+      "note": "persisted state survived the reload exactly (byte-exact), but the contract's durability/export surface is missing: Required contract surface absent: `Save state` status region (contract: /schedule, required — durability acknowledgment); Required contract surface absent: `Print schedule` button (contract: /schedule, required); Required contract surface absent: `Download .ics` button (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/save-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "evidencePath": "/home/user/work/untangle-baseline-alpha/preflight-logs/journey__journey_save-registered-mobile__persisted-diff.json",
+      "note": "persisted state survived the reload exactly (byte-exact), but the contract's durability/export surface is missing: Required contract surface absent: `Save state` status region (contract: /schedule, required — durability acknowledgment); Required contract surface absent: `Print schedule` button (contract: /schedule, required); Required contract surface absent: `Download .ics` button (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/plan-guest-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "plan journey: no calendar events rendered before saving the plan — nothing to restore"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/plan-guest-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "plan journey: no calendar events rendered before saving the plan — nothing to restore"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/plan-registered-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "plan journey: no calendar events rendered before saving the plan — nothing to restore"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/plan-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "plan journey: no calendar events rendered before saving the plan — nothing to restore"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/map-guest-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "case threw: waitForURL: Timeout 30000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/courses\" until \"load\"\n============================================================"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/map-guest-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: 'Route legs' region (contract: /map) (no route legs/stops rendered for active courses CSCE 1030, CSCE 1040)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/map-registered-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: 'Route legs' region (contract: /map) (no route legs/stops rendered for active courses CSCE 1030, CSCE 1040)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/map-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: 'Route legs' region (contract: /map) (no route legs/stops rendered for active courses CSCE 1030, CSCE 1040)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/auth-guest-desktop",
+      "status": "pass",
+      "measured": "auth page rendered (h1: Sign in with your UNT email.); password mode and reset link present",
+      "bar": "every case passes for both personas at both viewports"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/auth-guest-mobile",
+      "status": "pass",
+      "measured": "auth page rendered (h1: Sign in with your UNT email.); password mode and reset link present",
+      "bar": "every case passes for both personas at both viewports"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/auth-registered-desktop",
+      "status": "pass",
+      "measured": "synthetic sign-up → auto sign-in → sign-out → sign-in all succeeded (synthetic-registered persona)",
+      "bar": "every case passes for both personas at both viewports"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/auth-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "case threw: waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Sign out' }) to be visible\u001b[22m\n"
+    },
+    {
+      "suite": "honesty",
+      "id": "honesty/rmp-labels-when-unavailable",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 violations",
+      "note": "RMP is blocked at the network boundary but no honest unavailable label was found (no 'No RateMyProfessors match yet', no 'N/A', no 'No RMP' row badge)"
+    },
+    {
+      "suite": "honesty",
+      "id": "honesty/sample-data-notice",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 violations",
+      "note": "Required contract surface absent: `status` named 'Sample data notice' with sample wording (contract: /courses, required)"
+    },
+    {
+      "suite": "honesty",
+      "id": "honesty/stale-rating-notice",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 violations",
+      "note": "Stale/unavailable-data signaling missing: Required contract surface absent: 'Grade data unavailable' / 'Grade records unavailable' status (contract: /courses/[subject]/[number]); Required contract surface absent: ratings-unavailable `status` notice (contract: /courses/[subject]/[number])"
+    },
+    {
+      "suite": "honesty",
+      "id": "honesty/unverified-savings-disclaimer",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 violations",
+      "note": "Required contract surface absent: /plans returned HTTP 404 — no plans page to assert disclaimers on (contract: /plans)"
+    },
+    {
+      "suite": "honesty",
+      "id": "honesty/no-fabricated-precision",
+      "status": "pass",
+      "measured": "no fabricated precise numbers presented as verified on /schedule",
+      "bar": "0 violations"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-home",
+      "status": "fail",
+      "measured": "1 serious+critical violations: color-contrast(seriousx5)",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "axe impact counts {\"serious\":1,\"moderate\":1}"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-courses",
+      "status": "fail",
+      "measured": "2 serious+critical violations: aria-dialog-name(seriousx1), color-contrast(seriousx1924)",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "axe impact counts {\"serious\":2}"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-detail",
+      "status": "fail",
+      "measured": "1 serious+critical violations: color-contrast(seriousx18)",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "axe impact counts {\"serious\":1}"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-instructor",
+      "status": "fail",
+      "measured": "1 serious+critical violations: color-contrast(seriousx19)",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "axe impact counts {\"serious\":1}"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-schedule",
+      "status": "fail",
+      "measured": "1 serious+critical violations: color-contrast(seriousx37)",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "axe impact counts {\"serious\":1}"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-map",
+      "status": "pass",
+      "measured": "0 serious+critical; impact counts {}",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-auth",
+      "status": "fail",
+      "measured": "2 serious+critical violations: aria-prohibited-attr(seriousx1), color-contrast(seriousx7)",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "axe impact counts {\"serious\":2}"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/keyboard-core-path",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: focus: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('link', { name: 'Schedule', exact: true }).first()\u001b[22m\n"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/focus-indicator",
+      "status": "pass",
+      "measured": "outline none 3px; boxShadow rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/reduced-motion",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: case a11y-polish/a11y/reduced-motion timed out after 480000ms"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/no-horizontal-overflow-mobile",
+      "status": "fail",
+      "measured": "/courses: scrollWidth 613 > clientWidth 390",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "horizontal overflow at 390x844"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/image-icon-labeling",
+      "status": "pass",
+      "measured": "all images have alt; icons are labelled or hidden",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored"
+    },
+    {
+      "suite": "routing",
+      "id": "building-coverage",
+      "status": "pass",
+      "measured": {
+        "bundledBuildings": 16,
+        "compDBuildings": 15,
+        "resolvedToBuildingId": 16,
+        "localResolvedInBounds": 15,
+        "offCampusIdentified": 1,
+        "problems": 0
+      },
+      "bar": "every bundled and compD building resolves to its building id; in-bounds resolve locally",
+      "note": "All 16 buildings resolve by name and mnemonic; ntdp is identified but unresolved (off main-campus bounds) by design."
+    },
+    {
+      "suite": "routing",
+      "id": "route-geodesic-floor",
+      "status": "pass",
+      "measured": {
+        "pairs": 18,
+        "violations": 0,
+        "minDistanceOverGreatCircle": 1,
+        "observedSources": "fallback:18"
+      },
+      "bar": "every 200 route response reports distanceMeters >= great-circle distance of its endpoints",
+      "evidencePath": "evals/fixtures/campus-routes.json",
+      "note": "ORS disabled in this environment; observed sources: fallback:18. No sub-geodesic distances."
+    },
+    {
+      "suite": "routing",
+      "id": "route-latency",
+      "status": "pass",
+      "measured": {
+        "coldN": 10,
+        "coldP50Ms": 3.5,
+        "coldP95Ms": 4.4,
+        "warmN": 10,
+        "warmP50Ms": 3.4,
+        "warmP95Ms": 4.5,
+        "non200Count": 0,
+        "stops": 12,
+        "pacingIntervalMs": 1050,
+        "totalRequests": 20,
+        "planBarWarmP95Ms": 200
+      },
+      "bar": "p95 warm <= 200 ms for 12-stop routes",
+      "note": "ORS disabled; fixed-interval pacing 1050 ms (~57 req/min < 60). Warm p95 4.5 ms vs bar 200 ms; n=10 warm / 10 cold."
+    },
+    {
+      "suite": "optimizer",
+      "id": "violations-zero",
+      "status": "not-applicable",
+      "measured": null,
+      "bar": "0 hard-constraint violations, optimality gap 0 on enumerable instances, p95 <=500ms at 8 courses",
+      "note": "the target checkout has no frontend/src/lib/optimizer/bench/run-bench.ts (looked at /home/user/work/untangle-baseline-target/frontend/src/lib/optimizer/bench/run-bench.ts)"
+    },
+    {
+      "suite": "optimizer",
+      "id": "gap-zero",
+      "status": "not-applicable",
+      "measured": null,
+      "bar": "0 hard-constraint violations, optimality gap 0 on enumerable instances, p95 <=500ms at 8 courses",
+      "note": "the target checkout has no frontend/src/lib/optimizer/bench/run-bench.ts (looked at /home/user/work/untangle-baseline-target/frontend/src/lib/optimizer/bench/run-bench.ts)"
+    },
+    {
+      "suite": "optimizer",
+      "id": "p95-8courses",
+      "status": "not-applicable",
+      "measured": null,
+      "bar": "0 hard-constraint violations, optimality gap 0 on enumerable instances, p95 <=500ms at 8 courses",
+      "note": "the target checkout has no frontend/src/lib/optimizer/bench/run-bench.ts (looked at /home/user/work/untangle-baseline-target/frontend/src/lib/optimizer/bench/run-bench.ts)"
+    },
+    {
+      "suite": "data",
+      "id": "catalog-certification-counts",
+      "status": "not-applicable",
+      "measured": null,
+      "bar": "exact certification counts, real-term bundle present",
+      "note": "the target checkout has no tools/catalog-consistency/audit.mjs (looked at /home/user/work/untangle-baseline-target/tools/catalog-consistency/audit.mjs) (also missing: tools/catalog-consistency/verify.mjs)"
+    },
+    {
+      "suite": "data",
+      "id": "provenance-descriptor",
+      "status": "not-applicable",
+      "measured": null,
+      "bar": "exact certification counts, real-term bundle present",
+      "note": "the activeDataset literal (recorded verbatim at /home/user/work/untangle-baseline-alpha/preflight-logs/optdata-provenance-evidence.json) names no bundled file the suite could recognize (no file-like field or .json reference), so there is nothing to verify it against"
+    },
+    {
+      "suite": "persistence-faults",
+      "id": "acknowledged-saves-survive",
+      "status": "fail",
+      "measured": null,
+      "bar": "each durability rule holds in every injected case",
+      "evidencePath": "/home/user/work/untangle-baseline-alpha/preflight-logs/persistence-faults__acknowledged-saves-survive.json",
+      "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
+    },
+    {
+      "suite": "persistence-faults",
+      "id": "failed-saves-never-saved",
+      "status": "fail",
+      "measured": null,
+      "bar": "each durability rule holds in every injected case",
+      "evidencePath": "/home/user/work/untangle-baseline-alpha/preflight-logs/persistence-faults__failed-saves-never-saved.json",
+      "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
+    },
+    {
+      "suite": "persistence-faults",
+      "id": "denied-storage-degrades-honestly",
+      "status": "fail",
+      "measured": null,
+      "bar": "each durability rule holds in every injected case",
+      "evidencePath": "/home/user/work/untangle-baseline-alpha/preflight-logs/persistence-faults__denied-storage-degrades-honestly.json",
+      "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
+    },
+    {
+      "suite": "persistence-faults",
+      "id": "corrupt-bytes-quarantined",
+      "status": "fail",
+      "measured": null,
+      "bar": "each durability rule holds in every injected case",
+      "evidencePath": "/home/user/work/untangle-baseline-alpha/preflight-logs/persistence-faults__corrupt-bytes-quarantined.json",
+      "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
+    },
+    {
+      "suite": "persistence-faults",
+      "id": "cross-tab-conflict-visible",
+      "status": "fail",
+      "measured": null,
+      "bar": "each durability rule holds in every injected case",
+      "evidencePath": "/home/user/work/untangle-baseline-alpha/preflight-logs/persistence-faults__cross-tab-conflict-visible.json",
+      "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
+    },
+    {
+      "suite": "persistence-faults",
+      "id": "clean-tab-adopts-newer",
+      "status": "fail",
+      "measured": null,
+      "bar": "each durability rule holds in every injected case",
+      "evidencePath": "/home/user/work/untangle-baseline-alpha/preflight-logs/persistence-faults__clean-tab-adopts-newer.json",
+      "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
+    }
+  ],
+  "blockedRmpRequests": 110,
+  "stubs": [
+    {
+      "label": "backend-runtime-fallback",
+      "reason": "the pinned backend's better-sqlite3 native addon crashes Bun (NAPI panic), so the backend ran under its documented Node/tsx runtime with the same rmp-block preload injected via NODE_OPTIONS"
+    }
+  ],
+  "hashes": {
+    "contractMd": "86072811b2c376b5fcc0cf25035bbeb0fb050d5e7e4c7ebab7aa55f579b9ae0a",
+    "barsJson": "c23e2119dec43debb2381a5aed70fabc3d0b173dc1e4a3923db3ffbc2aa0ae7a"
+  }
+}
