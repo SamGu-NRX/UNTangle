@@ -1,0 +1,28 @@
+MONITOR-START 2026-10-19T18:49:40Z
+18:49:41 load=0.92 load5=0.88 load15=0.85 availMB=5971 top=76MB:jupyter-server 53MB:python3.13 45MB:uvicorn 
+18:49:56 load=1.09 load5=0.92 load15=0.87 availMB=5223 top=498MB:node 155MB:bun 93MB:node 
+18:50:11 load=1.73 load5=1.07 load15=0.92 availMB=4725 top=890MB:node 155MB:bun 102MB:node 
+18:50:26 load=2.08 load5=1.18 load15=0.96 availMB=4234 top=665MB:node 613MB:node 155MB:bun 
+18:50:41 load=2.87 load5=1.40 load15=1.03 availMB=5026 top=253MB:next-server 169MB:bun 131MB:chrome-headless 
+18:50:56 load=2.82 load5=1.46 load15=1.06 availMB=4557 top=433MB:chrome-headless 256MB:next-server 178MB:bun 
+19:02:26 load=2.65 load5=1.49 load15=1.08 availMB=4481 top=407MB:chrome-headless 291MB:next-server 184MB:bun 
+19:02:41 load=2.69 load5=1.56 load15=1.11 availMB=4721 top=292MB:next-server 171MB:bun 83MB:node 
+19:02:56 load=2.31 load5=1.54 load15=1.10 availMB=4584 top=292MB:next-server 171MB:bun 83MB:node 
+19:03:11 load=2.02 load5=1.51 load15=1.10 availMB=4445 top=292MB:next-server 171MB:bun 83MB:node 
+19:17:43 load=1.88 load5=1.50 load15=1.10 availMB=4369 top=292MB:next-server 171MB:bun 83MB:node 
+19:17:58 load=1.68 load5=1.47 load15=1.10 availMB=4223 top=292MB:next-server 171MB:bun 83MB:node 
+19:18:13 load=1.53 load5=1.45 load15=1.10 availMB=4068 top=292MB:next-server 171MB:bun 83MB:node 
+19:18:28 load=1.41 load5=1.43 load15=1.10 availMB=4000 top=218MB:next-server 171MB:bun 84MB:node 
+19:32:57 load=1.47 load5=1.44 load15=1.10 availMB=3867 top=218MB:next-server 171MB:bun 84MB:node 
+19:33:12 load=1.36 load5=1.42 load15=1.10 availMB=6459 top=218MB:next-server 171MB:bun 84MB:node 
+19:33:27 load=1.06 load5=1.35 load15=1.08 availMB=6459 top=218MB:next-server 171MB:bun 83MB:node 
+19:33:42 load=0.83 load5=1.28 load15=1.06 availMB=6459 top=218MB:next-server 171MB:bun 83MB:node 
+19:33:57 load=0.64 load5=1.22 load15=1.05 availMB=6465 top=218MB:next-server 171MB:bun 83MB:node 
+19:34:12 load=0.80 load5=1.22 load15=1.05 availMB=6212 top=218MB:next-server 171MB:bun 83MB:node 
+19:34:27 load=0.85 load5=1.21 load15=1.05 availMB=6080 top=218MB:next-server 171MB:bun 83MB:node 
+19:34:42 load=0.88 load5=1.20 load15=1.05 availMB=5952 top=218MB:next-server 171MB:bun 83MB:node 
+19:34:57 load=0.91 load5=1.19 load15=1.05 availMB=5780 top=218MB:next-server 171MB:bun 83MB:node 
+19:35:12 load=1.07 load5=1.21 load15=1.06 availMB=5645 top=218MB:next-server 171MB:bun 83MB:node 
+19:35:27 load=1.37 load5=1.27 load15=1.08 availMB=5544 top=218MB:next-server 171MB:bun 84MB:node 
+19:35:42 load=1.92 load5=1.40 load15=1.13 availMB=5401 top=218MB:next-server 171MB:bun 84MB:node 
+RUN-END exit=137
