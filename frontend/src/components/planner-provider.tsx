@@ -59,7 +59,7 @@ import type { PlannerStoreIncoming } from "@/lib/planner-store";
 import type { AcademicRecordBody } from "../../../packages/contracts/src/documents";
 import { createSavedPlanStore } from "@/lib/saved-plans/store";
 import { previewCourseCodes } from "@/lib/plan-library/week";
-import { forgetGuestWork, guestWorkIsThisSession, stampGuestWork, STAMP_PREFIX } from "@/lib/guest-session";
+import { forgetGuestWork, guestWorkHandover, guestWorkIsThisSession, stampGuestWork, STAMP_PREFIX } from "@/lib/guest-session";
 import { joinPlanner, splitPlanner } from "@/lib/planner-documents";
 import {
   applyGuestSignIn,
@@ -289,6 +289,9 @@ type PlannerContextValue = {
    * (docs/architecture/guest-sync.md), and the student chooses what to keep.
    */
   guestSignIn: GuestSignIn | null;
+  /** A restored browser session may contain another visitor's guest work. */
+  guestHandover: { writtenAt: number | null } | null;
+  settleGuestHandover: (choice: "bring" | "leave") => void;
   /** Answers `guestSignIn`. Escape and the scrim pass the account-keeping choice. */
   settleGuestSignIn: (choice: GuestChoice) => void;
   /** Signed in: the server holds documents this copy of the app can't read, so it stopped saving until a reload. */
@@ -657,8 +660,10 @@ function IdentityPlannerProvider({
   // can't store them, or the last edit couldn't be stored (a bug, shown rather than only logged).
   const [syncProblem, setSyncProblem] = useState<"offline" | "signed-out" | "outdated" | "storage" | "save-failed" | null>(null);
   const [guestSignIn, setGuestSignIn] = useState<GuestSignIn | null>(null);
+  const [guestHandover, setGuestHandover] = useState<{ writtenAt: number | null } | null>(null);
   // Resolves the open guest sign-in question; null means the instance retired before an answer.
   const guestAnswer = useRef<((choice: GuestChoice | "recheck" | null) => void) | null>(null);
+  const guestHandoverAnswer = useRef<((choice: "bring" | "leave" | null) => void) | null>(null);
   // An answer waiting for the lock, applied only if the account still asks the same questions.
   const pendingChoice = useRef<GuestChoice | null>(null);
   const syncProblemRef = useRef(syncProblem);
@@ -1367,6 +1372,21 @@ function IdentityPlannerProvider({
       const storage = browserStorage();
       if (!storage || !userId) return;
 
+      // A matching old or legacy stamp is not enough to identify the current visitor. Ask before reading or
+      // moving any guest store; choosing "Bring it in" only unlocks this sign-in attempt.
+      let handoverAllowed = false;
+      const handover = guestWorkHandover();
+      if (handover.needsConfirmation) {
+        setGuestHandover({ writtenAt: handover.writtenAt });
+        const choice = await new Promise<"bring" | "leave" | null>((resolve) => {
+          guestHandoverAnswer.current = resolve;
+        });
+        guestHandoverAnswer.current = null;
+        setGuestHandover(null);
+        if (choice !== "bring" || !current()) return;
+        handoverAllowed = true;
+      }
+
       // Step 4 of the migration: settings this browser kept for this account (#77 keys them by account) are
       // offered once, as an ordinary preferences write, while the account's are still the defaults the
       // migration started them with. Settings saved since, on any device, win.
@@ -1381,7 +1401,7 @@ function IdentityPlannerProvider({
       if (!current()) return;
 
       // Only work a guest wrote in this browser session (lib/guest-session.ts): older work may be someone else's.
-      if (!guestWorkIsThisSession()) return;
+      if (!guestWorkIsThisSession() || (!handoverAllowed && guestWorkHandover().needsConfirmation)) return;
       const library = createSavedPlanStore(storage, userId);
       const stamp = shortDate(new Date());
       const copies: { guest?: ReturnType<typeof library.savePlan>; account?: ReturnType<typeof library.savePlan> } = {};
@@ -1575,6 +1595,7 @@ function IdentityPlannerProvider({
     });
   }, [prepared, userId]);
 
+  const settleGuestHandover = useCallback((choice: "bring" | "leave") => guestHandoverAnswer.current?.(choice), []);
   const settleGuestSignIn = useCallback((choice: GuestChoice) => guestAnswer.current?.(choice), []);
 
   // Another tab settled or cleared the guest work: this tab's open question is stale, so it checks again.
@@ -1870,6 +1891,8 @@ function IdentityPlannerProvider({
       settleSyncConflict,
       clientOutdated: syncProblem === "outdated",
       guestSignIn,
+      guestHandover,
+      settleGuestHandover,
       settleGuestSignIn,
       prepareSignOut,
       conflict,
@@ -1925,6 +1948,8 @@ function IdentityPlannerProvider({
     syncView,
     syncProblem,
     guestSignIn,
+    guestHandover,
+    settleGuestHandover,
     settleGuestSignIn,
     settleSyncConflict,
     prepareSignOut,

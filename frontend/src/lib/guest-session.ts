@@ -12,6 +12,8 @@
  * guest guards' job, docs/architecture/README.md, "Guests".)
  */
 const COOKIE = "untangle_guest_session";
+/** An unmeasured starting value matching the README's 30-minute idle lock. */
+export const GUEST_HANDOVER_MS = 30 * 60 * 1000;
 /** Followed by the part: "untangle.guest-session.v1:plan". */
 export const STAMP_PREFIX = "untangle.guest-session.v1:";
 
@@ -38,17 +40,44 @@ const stampKey = (part: GuestPart) => `${STAMP_PREFIX}${part}`;
 export function stampGuestWork(part: GuestPart): void {
   const token = sessionToken(true);
   try {
-    if (token) window.localStorage.setItem(stampKey(part), token);
+    if (token) window.localStorage.setItem(stampKey(part), `${token}.${Date.now()}`);
   } catch {
     // Without storage there is no guest work to stamp.
   }
+}
+
+type GuestStamp = { token: string; writtenAt: number | null };
+
+function readStamp(part: GuestPart): GuestStamp | null {
+  try {
+    const value = window.localStorage.getItem(stampKey(part));
+    if (!value) return null;
+    const separator = value.lastIndexOf(".");
+    if (separator < 1) return { token: value, writtenAt: null };
+    const writtenAt = Number(value.slice(separator + 1));
+    return { token: value.slice(0, separator), writtenAt: Number.isFinite(writtenAt) ? writtenAt : null };
+  } catch {
+    return null;
+  }
+}
+
+/** The matching stamp's age, without reading the guest stores themselves. */
+export function guestWorkHandover(part?: GuestPart, now = Date.now()): { needsConfirmation: boolean; writtenAt: number | null } {
+  const token = sessionToken(false);
+  if (!token) return { needsConfirmation: false, writtenAt: null };
+  const matching = (part ? [part] : PARTS).map(readStamp).filter((stamp): stamp is GuestStamp => stamp?.token === token);
+  if (matching.length === 0) return { needsConfirmation: false, writtenAt: null };
+  const hasUnknownTime = matching.some((stamp) => stamp.writtenAt === null);
+  const knownTimes = matching.flatMap((stamp) => (stamp.writtenAt === null ? [] : [stamp.writtenAt]));
+  const oldest = knownTimes.length > 0 ? Math.min(...knownTimes) : null;
+  return { needsConfirmation: hasUnknownTime || oldest === null || now - oldest > GUEST_HANDOVER_MS, writtenAt: hasUnknownTime ? null : oldest };
 }
 
 /** True when this part (or, with none named, any part) was last written in this browser session. */
 export function guestWorkIsThisSession(part?: GuestPart): boolean {
   const token = sessionToken(false);
   try {
-    return token !== null && (part ? [part] : PARTS).some((each) => window.localStorage.getItem(stampKey(each)) === token);
+    return token !== null && (part ? [part] : PARTS).some((each) => readStamp(each)?.token === token);
   } catch {
     return false;
   }
