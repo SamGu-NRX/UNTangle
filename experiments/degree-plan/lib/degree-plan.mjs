@@ -77,39 +77,65 @@ export function buildProblem({
   // dependent immediately after dropping the unplannable prerequisite. Only
   // an explicitly Done or Taking status may satisfy an omitted prerequisite;
   // the assume mode is the deliberate escape hatch for unknown equivalences.
+  //
+  // Co-requisites (catalog pairs flattened into mutual prereq edges, kept as
+  // "cyclic" gaps) carry no ordering, but each still requires the other: if
+  // one member can never be planned, neither can its partner.
   const candidateCodes = new Set(candidateRemaining.map((course) => course.code));
-  const blocked = new Map();
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const course of candidateRemaining) {
-      if (blocked.has(course.code)) continue;
-      const blockers = course.prereqs.filter((prereq) => {
-        if (done.has(prereq) || planned.has(prereq)) return false;
-        return !candidateCodes.has(prereq) || blocked.has(prereq);
-      });
-      if (blockers.length > 0) {
-        blocked.set(course.code, blockers);
-        changed = true;
+  const blocked = new Set();
+  const isUnplannable = (code) =>
+    !done.has(code) && !planned.has(code) && (!candidateCodes.has(code) || blocked.has(code));
+  const prereqBlockers = (course) => course.prereqs.filter(isUnplannable);
+  const corequisiteBlockers = (course) =>
+    course.gapPrereqRefs.filter((gap) => gap.kind === "cyclic").map((gap) => gap.code).filter(isUnplannable);
+
+  if (equivalence === "strict") {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const course of candidateRemaining) {
+        if (blocked.has(course.code)) continue;
+        if (prereqBlockers(course).length > 0 || corequisiteBlockers(course).length > 0) {
+          blocked.add(course.code);
+          changed = true;
+        }
       }
     }
   }
+
+  // Causes are read only after the blocked set stops growing, so every
+  // blocker's own causes exist. A course names its blocked prerequisites; it
+  // names its co-requisite partner only when no prerequisite blocks it, which
+  // keeps a pair blocked by the same prerequisite from citing each other.
   const directByCode = new Map(unplannable.map((entry) => [entry.code, entry]));
+  const blockedByCode = new Map();
   for (const course of candidateRemaining) {
-    const blockers = blocked.get(course.code);
-    if (!blockers) continue;
-    const inheritedGaps = blockers.flatMap((code) => {
-      const entry = directByCode.get(code) ?? unplannable.find((item) => item.code === code);
-      return entry?.uncatalogedPrereqs ?? [];
-    });
-    const entry = {
-      code: course.code,
-      blockedBy: blockers,
-      uncatalogedPrereqs: [...new Set(inheritedGaps)],
-      selfRefs: [],
+    if (!blocked.has(course.code)) continue;
+    const viaPrereqs = prereqBlockers(course);
+    blockedByCode.set(course.code, viaPrereqs.length > 0 ? viaPrereqs : corequisiteBlockers(course));
+  }
+  const rootGaps = (code) => {
+    const gaps = new Set();
+    const seen = new Set();
+    const visit = (current) => {
+      if (seen.has(current)) return;
+      seen.add(current);
+      const direct = directByCode.get(current);
+      if (direct) {
+        direct.uncatalogedPrereqs.forEach((gap) => gaps.add(gap));
+        return;
+      }
+      const next = blockedByCode.get(current);
+      if (!next) throw new Error(`strict blocking for ${code} reached ${current}, which is not a course in the universe`);
+      next.forEach(visit);
     };
-    unplannable.push(entry);
-    directByCode.set(course.code, entry);
+    visit(code);
+    return [...gaps];
+  };
+  for (const course of candidateRemaining) {
+    const blockedBy = blockedByCode.get(course.code);
+    if (!blockedBy) continue;
+    unplannable.push({ code: course.code, blockedBy, uncatalogedPrereqs: rootGaps(course.code), selfRefs: [] });
   }
   const remaining = candidateRemaining.filter((course) => !blocked.has(course.code));
   remaining.sort((a, b) => a.code.localeCompare(b.code));
@@ -233,9 +259,12 @@ export function enumerate(problem, { mode, topK = 200, nodeBudget = EXHAUSTIVE_N
   // every such core course. Assume mode covers them via the equivalence
   // assumption, so only strict hits this path.
   if (problem.equivalence === "strict" && problem.unplannable.length > 0) {
-    const coreUnplannable = problem.unplannable.filter((entry) =>
-      (problem.coreCodes ?? new Set()).has(entry.code),
-    );
+    // Without the core list an unplannable core course would be skipped and
+    // the search would report a feasible plan that leaves it out.
+    if (!(problem.coreCodes instanceof Set)) {
+      throw new Error("enumerate: strict mode needs problem.coreCodes (a Set of the major's core codes) to tell whether an unplannable course blocks the degree; set it after buildProblem()");
+    }
+    const coreUnplannable = problem.unplannable.filter((entry) => problem.coreCodes.has(entry.code));
     if (coreUnplannable.length > 0) {
       return {
         feasible: false,
@@ -396,7 +425,7 @@ export function infeasibilityWitness(problem) {
         ...(unplannable.blockedBy ? { blockedBy: unplannable.blockedBy } : {}),
         uncatalogedPrereqs: refs,
         detail: unplannable.blockedBy
-          ? `Depends on ${unplannable.blockedBy.join(", ")}, which cannot be planned in strict mode because ${refs.join(", ")} ${refs.length === 1 ? "is" : "are"} not catalog courses.`
+          ? `Depends on ${unplannable.blockedBy.join(", ")}, which cannot be planned in strict mode because ${refs.join(", ")} ${refs.length === 1 ? "is not a catalog course" : "are not catalog courses"}.`
           : `Requires ${refs.join(", ")}, which ${refs.length === 1 ? "is not a catalog course" : "are not catalog courses"}. The planner drops statuses for non-catalog codes (planner.ts normalizePlannerState), so the app can never mark this prerequisite completed.`,
       });
       continue;

@@ -229,6 +229,65 @@
             "detail": "Requires CSCE 1015, which is not a catalog course. The planner drops statuses for non-catalog codes (planner.ts normalizePlannerState), so the app can never mark this prerequisite completed."
           },
           {
+            "code": "CSCE 1040",
+            "kind": "blocked-prereq",
+            "blockedBy": [
+              "CSCE 1030",
+              "MATH 1650",
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "CSCE 1015",
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "detail": "Depends on CSCE 1030, MATH 1650, MATH 1710, which cannot be planned in strict mode because CSCE 1015, MATH 1600, MATH 1610 are not catalog courses."
+          },
+          {
+            "code": "CSCE 1045",
+            "kind": "blocked-prereq",
+            "blockedBy": [
+              "CSCE 1035",
+              "MATH 1650",
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "CSCE 1015",
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "detail": "Depends on CSCE 1035, MATH 1650, MATH 1710, which cannot be planned in strict mode because CSCE 1015, MATH 1600, MATH 1610 are not catalog courses."
+          },
+          {
+            "code": "CSCE 2100",
+            "kind": "blocked-prereq",
+            "blockedBy": [
+              "CSCE 1040",
+              "CSCE 1045",
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "CSCE 1015",
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "detail": "Depends on CSCE 1040, CSCE 1045, MATH 1710, which cannot be planned in strict mode because CSCE 1015, MATH 1600, MATH 1610 are not catalog courses."
+          },
+          {
+            "code": "CSCE 2110",
+            "kind": "blocked-prereq",
+            "blockedBy": [
+              "CSCE 1040",
+              "CSCE 1045"
+            ],
+            "uncatalogedPrereqs": [
+              "CSCE 1015",
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "detail": "Depends on CSCE 1040, CSCE 1045, which cannot be planned in strict mode because CSCE 1015, MATH 1600, MATH 1610 are not catalog courses."
+          },
+          {
             "code": "MATH 1650",
             "kind": "uncataloged-prereq",
             "uncatalogedPrereqs": [
@@ -245,6 +304,18 @@
               "MATH 1610"
             ],
             "detail": "Requires MATH 1600, MATH 1610, which are not catalog courses. The planner drops statuses for non-catalog codes (planner.ts normalizePlannerState), so the app can never mark this prerequisite completed."
+          },
+          {
+            "code": "MATH 1720",
+            "kind": "blocked-prereq",
+            "blockedBy": [
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "detail": "Depends on MATH 1710, which cannot be planned in strict mode because MATH 1600, MATH 1610 are not catalog courses."
           }
         ],
         "unplannable": [
@@ -274,6 +345,72 @@
           },
           {
             "code": "MATH 1710",
+            "uncatalogedPrereqs": [
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "selfRefs": []
+          },
+          {
+            "code": "CSCE 1040",
+            "blockedBy": [
+              "CSCE 1030",
+              "MATH 1650",
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "CSCE 1015",
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "selfRefs": []
+          },
+          {
+            "code": "CSCE 1045",
+            "blockedBy": [
+              "CSCE 1035",
+              "MATH 1650",
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "CSCE 1015",
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "selfRefs": []
+          },
+          {
+            "code": "CSCE 2100",
+            "blockedBy": [
+              "CSCE 1040",
+              "CSCE 1045",
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "CSCE 1015",
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "selfRefs": []
+          },
+          {
+            "code": "CSCE 2110",
+            "blockedBy": [
+              "CSCE 1040",
+              "CSCE 1045"
+            ],
+            "uncatalogedPrereqs": [
+              "CSCE 1015",
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "selfRefs": []
+          },
+          {
+            "code": "MATH 1720",
+            "blockedBy": [
+              "MATH 1710"
+            ],
             "uncatalogedPrereqs": [
               "MATH 1600",
               "MATH 1610"
@@ -376,6 +513,21 @@
             "detail": "Requires CSCE 1015, which is not a catalog course. The planner drops statuses for non-catalog codes (planner.ts normalizePlannerState), so the app can never mark this prerequisite completed."
           },
           {
+            "code": "CSCE 1040",
+            "kind": "blocked-prereq",
+            "blockedBy": [
+              "CSCE 1030",
+              "MATH 1650",
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "CSCE 1015",
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "detail": "Depends on CSCE 1030, MATH 1650, MATH 1710, which cannot be planned in strict mode because CSCE 1015, MATH 1600, MATH 1610 are not catalog courses."
+          },
+          {
             "code": "MATH 1650",
             "kind": "uncataloged-prereq",
             "uncatalogedPrereqs": [
@@ -392,6 +544,18 @@
               "MATH 1610"
             ],
             "detail": "Requires MATH 1600, MATH 1610, which are not catalog courses. The planner drops statuses for non-catalog codes (planner.ts normalizePlannerState), so the app can never mark this prerequisite completed."
+          },
+          {
+            "code": "MATH 1720",
+            "kind": "blocked-prereq",
+            "blockedBy": [
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "detail": "Depends on MATH 1710, which cannot be planned in strict mode because MATH 1600, MATH 1610 are not catalog courses."
           },
           {
             "code": "PHYS 1420",
@@ -485,6 +649,31 @@
               "PHYS 2240"
             ],
             "selfRefs": []
+          },
+          {
+            "code": "CSCE 1040",
+            "blockedBy": [
+              "CSCE 1030",
+              "MATH 1650",
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "CSCE 1015",
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "selfRefs": []
+          },
+          {
+            "code": "MATH 1720",
+            "blockedBy": [
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "selfRefs": []
           }
         ]
       },
@@ -556,6 +745,30 @@
               "MATH 1610"
             ],
             "detail": "Requires MATH 1600, MATH 1610, which are not catalog courses. The planner drops statuses for non-catalog codes (planner.ts normalizePlannerState), so the app can never mark this prerequisite completed."
+          },
+          {
+            "code": "MATH 1720",
+            "kind": "blocked-prereq",
+            "blockedBy": [
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "detail": "Depends on MATH 1710, which cannot be planned in strict mode because MATH 1600, MATH 1610 are not catalog courses."
+          },
+          {
+            "code": "MATH 2700",
+            "kind": "blocked-prereq",
+            "blockedBy": [
+              "MATH 1720"
+            ],
+            "uncatalogedPrereqs": [
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "detail": "Depends on MATH 1720, which cannot be planned in strict mode because MATH 1600, MATH 1610 are not catalog courses."
           }
         ],
         "unplannable": [
@@ -571,6 +784,28 @@
           },
           {
             "code": "MATH 1710",
+            "uncatalogedPrereqs": [
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "selfRefs": []
+          },
+          {
+            "code": "MATH 1720",
+            "blockedBy": [
+              "MATH 1710"
+            ],
+            "uncatalogedPrereqs": [
+              "MATH 1600",
+              "MATH 1610"
+            ],
+            "selfRefs": []
+          },
+          {
+            "code": "MATH 2700",
+            "blockedBy": [
+              "MATH 1720"
+            ],
             "uncatalogedPrereqs": [
               "MATH 1600",
               "MATH 1610"
