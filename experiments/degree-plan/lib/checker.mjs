@@ -7,7 +7,7 @@ import { STATUS } from "./semantics.mjs";
 
 export function validatePlan(problem, assignment, { termLabels } = {}) {
   const errors = [];
-  const { byCode, remaining, termCap, horizon, anchor, equivalence } = problem;
+  const { byCode, remaining, termCap, horizon, anchor, equivalence, done, planned } = problem;
 
   // 1. Every remaining course placed exactly once, within 1..H.
   for (const course of remaining) {
@@ -35,11 +35,26 @@ export function validatePlan(problem, assignment, { termLabels } = {}) {
   // 3. Prerequisites strictly earlier.
   for (const course of remaining) {
     for (const p of course.prereqs) {
-      if (!remaining.some((r) => r.code === p)) continue;
+      if (!remaining.some((r) => r.code === p)) {
+        if (equivalence === "strict" && !done.has(p) && !planned.has(p)) {
+          errors.push(`${course.code}: prerequisite ${p} is neither explicitly completed nor current-term; strict mode cannot omit it`);
+        }
+        continue;
+      }
       const pTerm = assignment[p];
       const term = assignment[course.code];
       if (pTerm === undefined || term === undefined) continue; // covered by error 1
       if (pTerm >= term) errors.push(`${course.code} (term ${term}) takes its prereq ${p} in the same or a later term (${pTerm})`);
+    }
+    // Co-requisites carry no ordering, but strict mode still needs the
+    // partner completed, current-term, or planned too.
+    if (equivalence !== "strict") continue;
+    for (const gap of course.gapPrereqRefs) {
+      if (gap.kind !== "cyclic") continue;
+      const partner = gap.code;
+      if (!remaining.some((r) => r.code === partner) && !done.has(partner) && !planned.has(partner)) {
+        errors.push(`${course.code}: co-requisite ${partner} is neither planned, completed, nor current-term; strict mode cannot omit it`);
+      }
     }
   }
 
