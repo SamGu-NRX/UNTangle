@@ -50,13 +50,15 @@ describe("ci.yml", () => {
 });
 
 describe("pr-rules.yml", () => {
-  const BASES = "contains(fromJSON('[\"alpha\", \"main\", \"edge\"]'), github.event.pull_request.base.ref)";
+  const BASES = "contains(fromJSON('[\"alpha\", \"main\", \"edge\"]'), needs.pr.outputs.base-ref)";
 
-  test("runs from the default branch on PR changes, and again on each review", async () => {
+  // pull_request_review would run the PR's own copy of this file, so a review reaches it only through
+  // pr-review.yml's completion, and workflow_run runs the default branch's copy.
+  test("runs from the default branch on PR changes, and again after each review's signal", async () => {
     const { on, permissions } = await workflow("pr-rules.yml");
     expect(on).toEqual({
       pull_request_target: { types: ["opened", "synchronize", "reopened", "edited"], branches: ["alpha", "main", "edge"] },
-      pull_request_review: { types: ["submitted", "dismissed"] },
+      workflow_run: { workflows: ["PR review"], types: ["completed"] },
     });
     expect(permissions).toEqual({ contents: "read" });
   });
@@ -64,15 +66,19 @@ describe("pr-rules.yml", () => {
   // Each run reads the reviews when it reports, so the newest run has the latest answer.
   test("lets the newest event's run replace older ones", async () => {
     const { concurrency } = await workflow("pr-rules.yml");
-    expect(concurrency).toEqual({ group: "pr-rules-${{ github.event.pull_request.number }}", "cancel-in-progress": true });
+    expect(concurrency).toEqual({
+      group: "pr-rules-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.run_id }}",
+      "cancel-in-progress": true,
+    });
   });
 
-  test("runs both checks, then Report, for PRs into alpha, main and edge", async () => {
+  test("finds the PR, runs both checks, then Report, for PRs into alpha, main and edge", async () => {
     const { jobs } = await workflow("pr-rules.yml");
     expect(Object.entries(jobs).map(([id, job]) => [id, job.name, job.needs, job.if])).toEqual([
-      ["task-rule", "Check the task rule", undefined, BASES],
-      ["path-ownership", "Check path ownership", undefined, BASES],
-      ["report", "Report", ["task-rule", "path-ownership"], `\${{ !cancelled() && ${BASES} }}`],
+      ["pr", "Find the PR", undefined, undefined],
+      ["task-rule", "Check the task rule", "pr", BASES],
+      ["path-ownership", "Check path ownership", "pr", BASES],
+      ["report", "Report", ["pr", "task-rule", "path-ownership"], `\${{ !cancelled() && ${BASES} }}`],
     ]);
   });
 
@@ -87,6 +93,7 @@ describe("pr-rules.yml", () => {
   test("gives write access to Report alone, and only to statuses", async () => {
     const { jobs } = await workflow("pr-rules.yml");
     expect(jobs.report.permissions).toEqual({ statuses: "write", "pull-requests": "read" });
+    expect(jobs.pr.permissions).toEqual({ "pull-requests": "read" });
     expect(jobs["task-rule"].permissions).toBeUndefined();
     expect(jobs["path-ownership"].permissions).toBeUndefined();
   });
@@ -112,6 +119,8 @@ describe("pr-rules.yml", () => {
       TASK_RULE_CHECKED: "${{ needs.task-rule.outputs.checked }}",
       PATH_OWNERSHIP_RESULT: "${{ needs.path-ownership.result }}",
       PATH_OWNERSHIP_CHECKED: "${{ needs.path-ownership.outputs.checked }}",
+      PR_NUMBER: "${{ needs.pr.outputs.number }}",
+      HEAD_SHA: "${{ needs.pr.outputs.head-sha }}",
     });
   });
 
@@ -129,18 +138,20 @@ describe("pr-rules.yml", () => {
     const { jobs } = await workflow("pr-rules.yml");
     for (const id of ["task-rule", "path-ownership"]) {
       const check = jobs[id].steps.find((step) => step.run?.startsWith("bun "));
-      expect(check?.env?.BASE_SHA).toBe("${{ github.event.pull_request.base.sha }}");
+      expect(check?.env?.BASE_SHA).toBe("${{ needs.pr.outputs.base-sha }}");
     }
   });
 
   // pull_request_target has the base branch's access, so running the PR's code here would hand it that access.
   test("never checks out or runs the PR's code", async () => {
     const { jobs } = await workflow("pr-rules.yml");
-    expect(jobs.report.steps.every((step) => step.run === undefined && !step.uses?.startsWith("actions/checkout@"))).toBe(true);
+    for (const id of ["pr", "report"]) {
+      expect(jobs[id].steps.every((step) => step.run === undefined && !step.uses?.startsWith("actions/checkout@"))).toBe(true);
+    }
     for (const id of ["task-rule", "path-ownership"]) {
       const [checkout, presence, ...rest] = jobs[id].steps;
       expect(checkout.uses).toStartWith("actions/checkout@");
-      expect(checkout.with?.ref).toBe("${{ github.event.pull_request.base.sha }}");
+      expect(checkout.with?.ref).toBe("${{ needs.pr.outputs.base-sha }}");
       expect(presence.id).toBe("tools");
       expect(presence.run).not.toContain("bun");
       expect(presence.run).not.toContain("pr/head");
@@ -185,6 +196,27 @@ describe("pr-rules.yml", () => {
       expect(result.output).toBe("");
       expect(result.written).toBe("present=true\n");
     });
+  });
+});
+
+describe("pr-review.yml", () => {
+  // It runs the PR's own copy, so it must be worth nothing to a PR that edits it.
+  test("signals each review with no permissions and nothing but an echo", async () => {
+    const { on, permissions, jobs } = await workflow("pr-review.yml");
+    expect(on).toEqual({ pull_request_review: { types: ["submitted", "dismissed"] } });
+    expect(permissions).toEqual({});
+    expect(Object.keys(jobs)).toEqual(["signal"]);
+    expect(jobs.signal.permissions).toBeUndefined();
+    expect(jobs.signal.steps).toHaveLength(1);
+    const [step] = jobs.signal.steps;
+    expect(step.uses).toBeUndefined();
+    expect(step.run).toStartWith("echo ");
+  });
+
+  test("is the workflow pr-rules.yml waits for", async () => {
+    const review = Bun.YAML.parse(await Bun.file(path.join(repoRoot, ".github/workflows/pr-review.yml")).text()) as { name: string };
+    const { on } = await workflow("pr-rules.yml");
+    expect((on.workflow_run as { workflows: string[] }).workflows).toEqual([review.name]);
   });
 });
 

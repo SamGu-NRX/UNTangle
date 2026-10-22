@@ -25,7 +25,7 @@ function reportStep(): { script: string; env: Record<string, string> } {
 const SAM = "SamGu-NRX";
 const OWNER = "SamGu-NRX";
 const REPO = "UNTangle";
-const HEAD = "b2";
+const HEAD = "b2".repeat(20);
 
 type ReviewState = "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "DISMISSED" | "PENDING";
 type Review = { id: number; user: { login: string }; state: ReviewState; commit_id: string; submitted_at: string };
@@ -90,7 +90,8 @@ async function report(
     repo: { owner: OWNER, repo: REPO },
     serverUrl: "https://github.com",
     runId: 42,
-    payload: { pull_request: { number, head: { sha: HEAD } } },
+    // The PR comes from the pr job's outputs, not the event, which may be a workflow_run.
+    payload: {},
   };
   const core = { notice: () => {} };
   const stepEnv = {
@@ -99,6 +100,8 @@ async function report(
     TASK_RULE_CHECKED: taskRule.checked ?? "",
     PATH_OWNERSHIP_RESULT: pathOwnership.result,
     PATH_OWNERSHIP_CHECKED: pathOwnership.checked ?? "",
+    PR_NUMBER: String(number),
+    HEAD_SHA: HEAD,
     ...options.env,
   };
   // github-script builds the same function: new AsyncFunction(...argument names, script).
@@ -245,6 +248,13 @@ describe("the Report job", () => {
     await expect(report(new Reviews().add(SAM, "APPROVED"), {}, { env: { APPROVERS: approvers } })).rejects.toThrow(
       `APPROVERS must be a non-empty JSON array of GitHub logins, got ${approvers}`,
     );
+  });
+
+  test.each([
+    ["no PR number", { PR_NUMBER: "" }],
+    ["a head that isn't a commit", { HEAD_SHA: "main" }],
+  ])("fails loudly, posting nothing, given %s", async (_case, env) => {
+    await expect(report(new Reviews().add(SAM, "APPROVED"), {}, { env })).rejects.toThrow("The pr job gave no pull request with a head commit");
   });
 
   test("takes its approver list from the workflow: SamGu-NRX alone", () => {
