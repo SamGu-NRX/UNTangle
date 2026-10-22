@@ -8,7 +8,7 @@ import { SectionsProxy } from "@/lib/sections/proxy";
 import { ttlMs } from "@/lib/sections/config";
 import { createV1Auth } from "@/server/auth/v1-auth";
 import { createDeviceGrants, pkceChallenge } from "@/server/auth/device-grants";
-import { createUserLimit } from "@/lib/rate-limit/wrapper";
+import { createRateLimitWrapper, createUserLimit } from "@/lib/rate-limit/wrapper";
 import { memoryStore } from "@/lib/rate-limit/store";
 import { MemoryDeviceStore } from "../device-grants/memory-store";
 import fixture from "../sections/fixtures/spring-2027.json";
@@ -25,7 +25,7 @@ const realRateLimitServer = { ...(await import("@/lib/rate-limit/server")) };
 // that wraps a handler gets a fresh store, so a later file never inherits this
 // file's request counts (CI run 39764102800).
 const isolatedRateLimit: typeof realRateLimitServer.withRateLimit = (route, handler) =>
-  realRateLimitServer.createRateLimitWrapper({
+  createRateLimitWrapper({
     store: memoryStore(),
     secret: "isolated test rate limit",
     session: async () => ((await import("@/lib/auth-server")) as { getServerSession: () => Promise<never> }).getServerSession(),

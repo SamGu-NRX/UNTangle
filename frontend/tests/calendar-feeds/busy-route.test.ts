@@ -28,7 +28,7 @@ const realRateLimitServer = { ...(await import("@/lib/rate-limit/server")) };
 // doesn't test get a fresh store each time a route module wraps a handler, so
 // a later file never inherits this file's request counts (CI run 39764102800).
 const isolatedRateLimit: typeof realRateLimitServer.withRateLimit = (route, handler) =>
-  realRateLimitServer.createRateLimitWrapper({
+  createRateLimitWrapper({
     store: memoryStore(),
     secret: "isolated test rate limit",
     session: async () => ((await import("@/lib/auth-server")) as { getServerSession: () => Promise<never> }).getServerSession(),
