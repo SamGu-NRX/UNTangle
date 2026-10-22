@@ -4,6 +4,8 @@ import { ACCOUNT_HEADER } from "../../../../packages/contracts/src/sync";
 import { DeviceGrantError } from "@/server/auth/device-grants";
 import { SyncError } from "./decision";
 import type { DocumentRepository } from "./repository";
+import { checkScheduleAvailability, type ReadCourseSections } from "../schedule-availability";
+import { clientTimeoutMs, supportedTerms } from "../sections/config";
 
 export type DocumentContext = { params: Promise<{ id: string }> };
 type Identity = { userId: string; source: "device" | "browser" };
@@ -128,6 +130,27 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
     }),
     get: (request: Request, context: DocumentContext) => handle(request, "documents:read", async ({ userId }) =>
       repository.get(userId, documentId((await context.params).id))),
+    availability: (readSections: ReadCourseSections) => (request: Request, context: DocumentContext) => handle(request, "documents:read", async ({ userId }) => {
+      const document = await repository.get(userId, documentId((await context.params).id));
+      if (document.kind !== "schedule") throw new SyncError(400, "NOT_A_SCHEDULE", "Availability checks require a schedule document.");
+      const schedule = document.body;
+      if (schedule.institutionId !== "unt" || !supportedTerms.some((term) => term.id === schedule.termId)) {
+        throw new SyncError(422, "UNSUPPORTED_SCHEDULE", "Section availability is not available for this institution and term.");
+      }
+      // A protective limit on upstream work, not a measured student course maximum.
+      if (schedule.courses.length > 30) throw new SyncError(422, "SCHEDULE_TOO_LARGE", "Check a schedule with at most 30 courses.");
+      // Use the section client's existing cold-read allowance for the entire
+      // check, so many subjects cannot multiply the upstream timeout. A
+      // timed-out read is unknown; it never becomes missing or open.
+      const signal = AbortSignal.any([request.signal, AbortSignal.timeout(clientTimeoutMs)]);
+      return {
+        documentId: document.documentId,
+        revision: document.revision,
+        institutionId: schedule.institutionId,
+        termId: schedule.termId,
+        ...await checkScheduleAvailability(schedule, readSections, signal),
+      };
+    }),
     pull: (request: Request) => handle(request, "documents:read", ({ userId }) => repository.pull(userId)),
     versions: (request: Request) => handle(request, "documents:read", async ({ userId }) => {
       const params = new URL(request.url).searchParams;
