@@ -35,6 +35,21 @@ Save the term, option id, provenance kind and class numbers. On restore, look th
 
 Old saved plans hold synthetic ids with no real enrollment identity. Keep them as labeled samples and ask the user to pick real options when they move the plan to a term. Don't map a synthetic id to a real class by title, professor or weekly time.
 
+## Check a saved schedule
+
+`GET /api/v1/documents/<id>/availability` checks every saved choice in an owned schedule against this proxy. It accepts a browser session or a mobile token with `documents:read`; extension tokens do not have that scope. The response carries `documentId`, `revision`, `institutionId`, `termId`, a `summary`, and `courses` in the saved order. A client must discard a response if its displayed schedule has moved to another revision.
+
+Each course carries its saved `selectedSectionId`, a `state`, and either the exact matching `section` or null. A matching section includes all class numbers, component seat counts, and a `seats` assessment. The check never substitutes another option or writes the schedule.
+
+- `open` requires an open status and known positive seats in every component. `full`, `closed`, `waitlist`, and `cancelled` need attention; `unknown` cannot confirm seats.
+- `missing` means current real data no longer contains the saved option. `unselected` means the schedule has no pick for that course.
+- `stale` retains the last matching section if present but makes no current availability claim. `sample`, `unavailable`, and `unsupported-course` also cannot confirm availability.
+- Real results include `evidence.checkedAt` and `evidence.provenance`, including the source's `updatedAt`. These dates describe different things: when UNTangle checked the file and when the source updated it.
+
+The summary is `empty` for no courses, `needs-attention` if any course has a known blocker or no selection, `open` if all courses are confirmed open in current cached data, and `unknown` otherwise. Open seats do not establish registration eligibility, resolve holds or prerequisites, reserve a place, or guarantee live availability. This endpoint uses the same 15-minute cache as course search; it does not force an upstream refresh.
+
+The route returns 404 for a missing, deleted, or unowned document, 400 for a non-schedule, and 422 for an unsupported institution or term. It also rejects schedules over 30 courses before fetching anything, a protective work limit rather than a measured student maximum. The whole section check uses the existing 35-second section-client deadline. When the deadline or request cancellation ends the check, completed results remain and unfinished courses report `unavailable`; no further lookups start. Shared proxy reads already in flight can finish for other callers. Authentication, account-change checks, throttling, and `Cache-Control: no-store` follow the document routes. The current implementation supports UNT Spring 2027. The response schema is `@untangle/contracts/schedule-availability`.
+
 ## How the proxy works
 
 `proxy.ts` holds vsb's files in memory only. Each Node process keeps one cache, with a 15-minute TTL, ETag and Last-Modified revalidation, a one-minute backoff after a failure, a 15-second request timeout and a 64 MiB size cap. These are policy defaults, not measured tuning. Requests for the same file share one fetch. A stale file is served at once while one background refresh runs; Next's `after()` keeps that refresh alive past the response. A failed refresh or a file with a new `schema_version` keeps the last good data and reports the failure in `diagnostic`. Separate processes do not share a cache.
