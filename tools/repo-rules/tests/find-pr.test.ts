@@ -23,13 +23,21 @@ const REPO = "UNTangle";
 type Pr = { number: number; state: string; base: { ref: string; sha: string }; head: { ref: string; sha: string } };
 const open7: Pr = { number: 7, state: "open", base: { ref: "alpha", sha: "a".repeat(40) }, head: { ref: "lead/x", sha: "c".repeat(40) } };
 
-async function find(payload: Record<string, unknown>, pr: Pr = open7) {
+type ForkPr = { number: number; owner: string; head: { ref: string; sha: string } };
+
+async function find(payload: Record<string, unknown>, pr: Pr = open7, forks: ForkPr[] = []) {
+  const listed: string[] = [];
   const outputs: Record<string, string> = {};
   const notices: string[] = [];
   const asked: number[] = [];
   const github = {
     rest: {
       pulls: {
+        list: async (params: { owner: string; repo: string; state: string; head: string }) => {
+          if (params.owner !== OWNER || params.repo !== REPO || params.state !== "open") throw new Error("Listed the wrong PRs.");
+          listed.push(params.head);
+          return { data: forks.filter((candidate) => `${candidate.owner}:${candidate.head.ref}` === params.head) };
+        },
         get: async (params: { owner: string; repo: string; pull_number: number }) => {
           if (params.owner !== OWNER || params.repo !== REPO) throw new Error("Asked the wrong repository.");
           asked.push(params.pull_number);
@@ -44,7 +52,7 @@ async function find(payload: Record<string, unknown>, pr: Pr = open7) {
     async () => {},
   ).constructor;
   await new AsyncFunction("github", "context", "core", findStep())(github, context, core);
-  return { outputs, notices, asked };
+  return { outputs, notices, asked, listed };
 }
 
 describe("pr-rules.yml's pr job", () => {
@@ -60,12 +68,25 @@ describe("pr-rules.yml's pr job", () => {
     expect(outputs.number).toBe("12");
   });
 
-  // A fork's PR leaves pull_requests empty; pull_request_target already covers it.
-  test("reports nothing when the review's run names no PR", async () => {
-    const { outputs, notices, asked } = await find({ workflow_run: { pull_requests: [] } });
+  // A fork's PR leaves pull_requests empty, so the job finds it by the run's head.
+  test("finds a fork's PR by the review run's head repository, branch and commit", async () => {
+    const forks: ForkPr[] = [
+      { number: 30, owner: "someone", head: { ref: "fix", sha: "e".repeat(40) } },
+      { number: 31, owner: "someone", head: { ref: "fix", sha: "f".repeat(40) } },
+    ];
+    const run = { pull_requests: [], head_repository: { owner: { login: "someone" } }, head_branch: "fix", head_sha: "f".repeat(40) };
+    const { outputs, asked, listed } = await find({ workflow_run: run }, open7, forks);
+    expect(listed).toEqual(["someone:fix"]);
+    expect(asked).toEqual([31]);
+    expect(outputs.number).toBe("31");
+  });
+
+  test("reports nothing when no open PR has the review run's head", async () => {
+    const run = { pull_requests: [], head_repository: { owner: { login: "someone" } }, head_branch: "gone", head_sha: "f".repeat(40) };
+    const { outputs, notices, asked } = await find({ workflow_run: run });
     expect(asked).toEqual([]);
     expect(outputs).toEqual({});
-    expect(notices).toEqual(["The review's run names no pull request in this repository, so there is nothing to report."]);
+    expect(notices).toEqual(["The review's run names no open pull request, so there is nothing to report."]);
   });
 
   test("reports nothing for a closed PR", async () => {

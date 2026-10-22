@@ -19,7 +19,11 @@ name: PR rules
 # commit, so a same-repository PR that edited this file could post any status
 # it liked once anyone reviewed it. So a review triggers pr-review.yml, which
 # has no permissions and does nothing, and its completion (workflow_run)
-# triggers this file. The pr job then reads the PR from the API.
+# triggers this file. The pr job then reads the PR from the API. A PR that
+# edits or deletes pr-review.yml only stops its own reviews from re-running
+# this, so its statuses stay as they were (failing closed). Editing the PR's
+# title or base re-runs it from the default branch through pull_request_target,
+# which reads the reviews then.
 on:
   pull_request_target:
     # edited covers a change of base branch; a title edit re-runs harmlessly.
@@ -60,12 +64,19 @@ jobs:
           script: |
             let number = context.payload.pull_request?.number;
             if (number === undefined) {
-              // A review's run. Its pull_requests come from GitHub, not from the
-              // reviewed PR, so a PR can't point this at another one. A fork's PR
-              // has none; pull_request_target covers forks.
-              number = context.payload.workflow_run?.pull_requests?.[0]?.number;
+              // A review's run. GitHub fills in its pull_requests and head fields,
+              // so a PR can't point this at another one. A fork's PR has no
+              // pull_requests entry, so find it by the run's head instead.
+              const run = context.payload.workflow_run;
+              number = run?.pull_requests?.[0]?.number;
+              if (number === undefined && run?.head_repository?.owner?.login && run.head_branch) {
+                const { data: open } = await github.rest.pulls.list({
+                  ...context.repo, state: "open", head: `${run.head_repository.owner.login}:${run.head_branch}`, per_page: 100,
+                });
+                number = open.find((candidate) => candidate.head.sha === run.head_sha)?.number;
+              }
               if (number === undefined) {
-                core.notice("The review's run names no pull request in this repository, so there is nothing to report.");
+                core.notice("The review's run names no open pull request, so there is nothing to report.");
                 return;
               }
             }
