@@ -33,7 +33,7 @@
       },
       "planCount": 114,
       "nodes": 3633,
-      "runtimeMs": 20.705,
+      "runtimeMs": 42.636,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -52,7 +52,7 @@
       },
       "planCount": 114,
       "nodes": 3633,
-      "runtimeMs": 6.508,
+      "runtimeMs": 18.795,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -96,7 +96,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 505,
-      "runtimeMs": 0.801,
+      "runtimeMs": 0.464,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -106,7 +106,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 505,
-      "runtimeMs": 0.371,
+      "runtimeMs": 0.665,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -190,7 +190,7 @@
       },
       "planCount": 9,
       "nodes": 2370,
-      "runtimeMs": 1.874,
+      "runtimeMs": 3.042,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -212,7 +212,7 @@
       },
       "planCount": 9,
       "nodes": 2370,
-      "runtimeMs": 1.392,
+      "runtimeMs": 9.611,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -239,7 +239,7 @@
     "horizon": 6,
     "equivalence": "strict",
     "universeSize": 11,
-    "remainingCount": 7,
+    "remainingCount": 2,
     "initial": {
       "done": [],
       "planned": [],
@@ -275,6 +275,72 @@
             "MATH 1610"
           ],
           "selfRefs": []
+        },
+        {
+          "code": "CSCE 1040",
+          "blockedBy": [
+            "CSCE 1030",
+            "MATH 1650",
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "CSCE 1045",
+          "blockedBy": [
+            "CSCE 1035",
+            "MATH 1650",
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "CSCE 2100",
+          "blockedBy": [
+            "CSCE 1040",
+            "CSCE 1045",
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "CSCE 2110",
+          "blockedBy": [
+            "CSCE 1040",
+            "CSCE 1045"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "MATH 1720",
+          "blockedBy": [
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
         }
       ]
     },
@@ -284,7 +350,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 0,
-      "runtimeMs": 0.076,
+      "runtimeMs": 0.209,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -294,7 +360,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 0,
-      "runtimeMs": 0.116,
+      "runtimeMs": 0.046,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -323,6 +389,65 @@
           "detail": "Requires CSCE 1015, which is not a catalog course. The planner drops statuses for non-catalog codes (planner.ts normalizePlannerState), so the app can never mark this prerequisite completed."
         },
         {
+          "code": "CSCE 1040",
+          "kind": "blocked-prereq",
+          "blockedBy": [
+            "CSCE 1030",
+            "MATH 1650",
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "detail": "Depends on CSCE 1030, MATH 1650, MATH 1710, which cannot be planned in strict mode because CSCE 1015, MATH 1600, MATH 1610 are not catalog courses."
+        },
+        {
+          "code": "CSCE 1045",
+          "kind": "blocked-prereq",
+          "blockedBy": [
+            "CSCE 1035",
+            "MATH 1650",
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "detail": "Depends on CSCE 1035, MATH 1650, MATH 1710, which cannot be planned in strict mode because CSCE 1015, MATH 1600, MATH 1610 are not catalog courses."
+        },
+        {
+          "code": "CSCE 2100",
+          "kind": "blocked-prereq",
+          "blockedBy": [
+            "CSCE 1040",
+            "CSCE 1045",
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "detail": "Depends on CSCE 1040, CSCE 1045, MATH 1710, which cannot be planned in strict mode because CSCE 1015, MATH 1600, MATH 1610 are not catalog courses."
+        },
+        {
+          "code": "CSCE 2110",
+          "kind": "blocked-prereq",
+          "blockedBy": [
+            "CSCE 1040",
+            "CSCE 1045"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "detail": "Depends on CSCE 1040, CSCE 1045, which cannot be planned in strict mode because CSCE 1015, MATH 1600, MATH 1610 are not catalog courses."
+        },
+        {
           "code": "MATH 1650",
           "kind": "uncataloged-prereq",
           "uncatalogedPrereqs": [
@@ -339,6 +464,18 @@
             "MATH 1610"
           ],
           "detail": "Requires MATH 1600, MATH 1610, which are not catalog courses. The planner drops statuses for non-catalog codes (planner.ts normalizePlannerState), so the app can never mark this prerequisite completed."
+        },
+        {
+          "code": "MATH 1720",
+          "kind": "blocked-prereq",
+          "blockedBy": [
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "detail": "Depends on MATH 1710, which cannot be planned in strict mode because MATH 1600, MATH 1610 are not catalog courses."
         }
       ],
       "unplannable": [
@@ -368,6 +505,72 @@
         },
         {
           "code": "MATH 1710",
+          "uncatalogedPrereqs": [
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "CSCE 1040",
+          "blockedBy": [
+            "CSCE 1030",
+            "MATH 1650",
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "CSCE 1045",
+          "blockedBy": [
+            "CSCE 1035",
+            "MATH 1650",
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "CSCE 2100",
+          "blockedBy": [
+            "CSCE 1040",
+            "CSCE 1045",
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "CSCE 2110",
+          "blockedBy": [
+            "CSCE 1040",
+            "CSCE 1045"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "MATH 1720",
+          "blockedBy": [
+            "MATH 1710"
+          ],
           "uncatalogedPrereqs": [
             "MATH 1600",
             "MATH 1610"
@@ -410,7 +613,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 490,
-      "runtimeMs": 0.268,
+      "runtimeMs": 0.435,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -420,7 +623,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 490,
-      "runtimeMs": 0.25,
+      "runtimeMs": 0.383,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -483,7 +686,7 @@
       },
       "planCount": 200,
       "nodes": 8922,
-      "runtimeMs": 26.48,
+      "runtimeMs": 71.426,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -506,7 +709,7 @@
       },
       "planCount": 980,
       "nodes": 110883,
-      "runtimeMs": 34.803,
+      "runtimeMs": 90.087,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -539,7 +742,7 @@
     "horizon": 6,
     "equivalence": "strict",
     "universeSize": 12,
-    "remainingCount": 5,
+    "remainingCount": 3,
     "initial": {
       "done": [],
       "planned": [],
@@ -599,6 +802,31 @@
             "PHYS 2240"
           ],
           "selfRefs": []
+        },
+        {
+          "code": "CSCE 1040",
+          "blockedBy": [
+            "CSCE 1030",
+            "MATH 1650",
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "MATH 1720",
+          "blockedBy": [
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
         }
       ]
     },
@@ -608,7 +836,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 0,
-      "runtimeMs": 0.03,
+      "runtimeMs": 0.053,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -618,7 +846,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 0,
-      "runtimeMs": 0.012,
+      "runtimeMs": 0.021,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -639,6 +867,21 @@
           "detail": "Requires CSCE 1015, which is not a catalog course. The planner drops statuses for non-catalog codes (planner.ts normalizePlannerState), so the app can never mark this prerequisite completed."
         },
         {
+          "code": "CSCE 1040",
+          "kind": "blocked-prereq",
+          "blockedBy": [
+            "CSCE 1030",
+            "MATH 1650",
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "detail": "Depends on CSCE 1030, MATH 1650, MATH 1710, which cannot be planned in strict mode because CSCE 1015, MATH 1600, MATH 1610 are not catalog courses."
+        },
+        {
           "code": "MATH 1650",
           "kind": "uncataloged-prereq",
           "uncatalogedPrereqs": [
@@ -655,6 +898,18 @@
             "MATH 1610"
           ],
           "detail": "Requires MATH 1600, MATH 1610, which are not catalog courses. The planner drops statuses for non-catalog codes (planner.ts normalizePlannerState), so the app can never mark this prerequisite completed."
+        },
+        {
+          "code": "MATH 1720",
+          "kind": "blocked-prereq",
+          "blockedBy": [
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "detail": "Depends on MATH 1710, which cannot be planned in strict mode because MATH 1600, MATH 1610 are not catalog courses."
         },
         {
           "code": "PHYS 1420",
@@ -748,6 +1003,31 @@
             "PHYS 2240"
           ],
           "selfRefs": []
+        },
+        {
+          "code": "CSCE 1040",
+          "blockedBy": [
+            "CSCE 1030",
+            "MATH 1650",
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "CSCE 1015",
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "MATH 1720",
+          "blockedBy": [
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
         }
       ]
     },
@@ -792,7 +1072,7 @@
       },
       "planCount": 6,
       "nodes": 119,
-      "runtimeMs": 0.065,
+      "runtimeMs": 0.082,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -808,7 +1088,7 @@
       },
       "planCount": 6,
       "nodes": 119,
-      "runtimeMs": 0.045,
+      "runtimeMs": 0.051,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -833,7 +1113,7 @@
     "horizon": 6,
     "equivalence": "strict",
     "universeSize": 5,
-    "remainingCount": 3,
+    "remainingCount": 1,
     "initial": {
       "done": [],
       "planned": [],
@@ -855,6 +1135,28 @@
             "MATH 1610"
           ],
           "selfRefs": []
+        },
+        {
+          "code": "MATH 1720",
+          "blockedBy": [
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "MATH 2700",
+          "blockedBy": [
+            "MATH 1720"
+          ],
+          "uncatalogedPrereqs": [
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
         }
       ]
     },
@@ -864,7 +1166,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 0,
-      "runtimeMs": 0.016,
+      "runtimeMs": 0.024,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -874,7 +1176,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 0,
-      "runtimeMs": 0.007,
+      "runtimeMs": 0.008,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -903,6 +1205,30 @@
             "MATH 1610"
           ],
           "detail": "Requires MATH 1600, MATH 1610, which are not catalog courses. The planner drops statuses for non-catalog codes (planner.ts normalizePlannerState), so the app can never mark this prerequisite completed."
+        },
+        {
+          "code": "MATH 1720",
+          "kind": "blocked-prereq",
+          "blockedBy": [
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "detail": "Depends on MATH 1710, which cannot be planned in strict mode because MATH 1600, MATH 1610 are not catalog courses."
+        },
+        {
+          "code": "MATH 2700",
+          "kind": "blocked-prereq",
+          "blockedBy": [
+            "MATH 1720"
+          ],
+          "uncatalogedPrereqs": [
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "detail": "Depends on MATH 1720, which cannot be planned in strict mode because MATH 1600, MATH 1610 are not catalog courses."
         }
       ],
       "unplannable": [
@@ -918,6 +1244,28 @@
         },
         {
           "code": "MATH 1710",
+          "uncatalogedPrereqs": [
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "MATH 1720",
+          "blockedBy": [
+            "MATH 1710"
+          ],
+          "uncatalogedPrereqs": [
+            "MATH 1600",
+            "MATH 1610"
+          ],
+          "selfRefs": []
+        },
+        {
+          "code": "MATH 2700",
+          "blockedBy": [
+            "MATH 1720"
+          ],
           "uncatalogedPrereqs": [
             "MATH 1600",
             "MATH 1610"
@@ -965,7 +1313,7 @@
       "best": {},
       "planCount": 1,
       "nodes": 1,
-      "runtimeMs": 0.025,
+      "runtimeMs": 0.07,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -975,7 +1323,7 @@
       "best": {},
       "planCount": 1,
       "nodes": 1,
-      "runtimeMs": 0.002,
+      "runtimeMs": 0.003,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1016,7 +1364,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 151,
-      "runtimeMs": 0.068,
+      "runtimeMs": 0.095,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1026,7 +1374,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 151,
-      "runtimeMs": 0.05,
+      "runtimeMs": 0.07,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1119,7 +1467,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 33,
-      "runtimeMs": 0.015,
+      "runtimeMs": 0.022,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1129,7 +1477,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 33,
-      "runtimeMs": 0.011,
+      "runtimeMs": 0.028,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1231,7 +1579,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.093,
+      "runtimeMs": 0.129,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1244,7 +1592,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.023,
+      "runtimeMs": 0.031,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1296,7 +1644,7 @@
       },
       "planCount": 18,
       "nodes": 2117,
-      "runtimeMs": 1.469,
+      "runtimeMs": 2.601,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1317,7 +1665,7 @@
       },
       "planCount": 18,
       "nodes": 2117,
-      "runtimeMs": 0.661,
+      "runtimeMs": 0.943,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1370,7 +1718,7 @@
       },
       "planCount": 3,
       "nodes": 208,
-      "runtimeMs": 0.091,
+      "runtimeMs": 0.174,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1389,7 +1737,7 @@
       },
       "planCount": 3,
       "nodes": 208,
-      "runtimeMs": 0.065,
+      "runtimeMs": 1.18,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1442,7 +1790,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.379,
+      "runtimeMs": 0.399,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1455,7 +1803,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.049,
+      "runtimeMs": 0.183,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1496,7 +1844,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 151,
-      "runtimeMs": 0.054,
+      "runtimeMs": 0.078,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1506,7 +1854,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 151,
-      "runtimeMs": 0.043,
+      "runtimeMs": 0.063,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1599,7 +1947,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 33,
-      "runtimeMs": 0.013,
+      "runtimeMs": 0.042,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1609,7 +1957,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 33,
-      "runtimeMs": 0.01,
+      "runtimeMs": 0.015,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1711,7 +2059,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.081,
+      "runtimeMs": 0.169,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1724,7 +2072,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.023,
+      "runtimeMs": 0.036,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1776,7 +2124,7 @@
       },
       "planCount": 18,
       "nodes": 2117,
-      "runtimeMs": 0.774,
+      "runtimeMs": 3.668,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1797,7 +2145,7 @@
       },
       "planCount": 18,
       "nodes": 2117,
-      "runtimeMs": 1.277,
+      "runtimeMs": 1.574,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1850,7 +2198,7 @@
       },
       "planCount": 3,
       "nodes": 208,
-      "runtimeMs": 0.083,
+      "runtimeMs": 0.124,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1869,7 +2217,7 @@
       },
       "planCount": 3,
       "nodes": 208,
-      "runtimeMs": 0.065,
+      "runtimeMs": 0.092,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1922,7 +2270,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.297,
+      "runtimeMs": 0.499,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1935,7 +2283,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.056,
+      "runtimeMs": 0.072,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -1988,7 +2336,7 @@
       },
       "planCount": 81,
       "nodes": 104986,
-      "runtimeMs": 30.614,
+      "runtimeMs": 62.195,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2010,7 +2358,7 @@
       },
       "planCount": 81,
       "nodes": 104986,
-      "runtimeMs": 26.44,
+      "runtimeMs": 52.687,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2070,7 +2418,7 @@
       },
       "planCount": 6,
       "nodes": 313,
-      "runtimeMs": 0.155,
+      "runtimeMs": 0.359,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2089,7 +2437,7 @@
       },
       "planCount": 6,
       "nodes": 313,
-      "runtimeMs": 0.086,
+      "runtimeMs": 0.157,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2149,7 +2497,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.107,
+      "runtimeMs": 0.122,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2162,7 +2510,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.022,
+      "runtimeMs": 0.026,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2221,7 +2569,7 @@
       },
       "planCount": 200,
       "nodes": 974,
-      "runtimeMs": 20.751,
+      "runtimeMs": 52.748,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -2243,7 +2591,7 @@
       },
       "planCount": 69301,
       "nodes": 3088078,
-      "runtimeMs": 1295.309,
+      "runtimeMs": 2714.412,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2303,7 +2651,7 @@
       },
       "planCount": 200,
       "nodes": 726,
-      "runtimeMs": 17.992,
+      "runtimeMs": 38.848,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -2322,7 +2670,7 @@
       },
       "planCount": 855,
       "nodes": 5466,
-      "runtimeMs": 3.681,
+      "runtimeMs": 10.212,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2382,7 +2730,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.303,
+      "runtimeMs": 0.707,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2395,7 +2743,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.045,
+      "runtimeMs": 0.077,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2454,7 +2802,7 @@
       },
       "planCount": 153,
       "nodes": 113147,
-      "runtimeMs": 43.4,
+      "runtimeMs": 84.071,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2476,7 +2824,7 @@
       },
       "planCount": 153,
       "nodes": 113147,
-      "runtimeMs": 30.287,
+      "runtimeMs": 65.016,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2536,7 +2884,7 @@
       },
       "planCount": 6,
       "nodes": 313,
-      "runtimeMs": 0.15,
+      "runtimeMs": 2.827,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2555,7 +2903,7 @@
       },
       "planCount": 6,
       "nodes": 313,
-      "runtimeMs": 0.134,
+      "runtimeMs": 0.231,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2615,7 +2963,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.092,
+      "runtimeMs": 0.137,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2628,7 +2976,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.025,
+      "runtimeMs": 0.035,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2687,7 +3035,7 @@
       },
       "planCount": 200,
       "nodes": 994,
-      "runtimeMs": 20.676,
+      "runtimeMs": 49.092,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -2709,7 +3057,7 @@
       },
       "planCount": 80697,
       "nodes": 3234490,
-      "runtimeMs": 1309.546,
+      "runtimeMs": 3346.051,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2769,7 +3117,7 @@
       },
       "planCount": 200,
       "nodes": 726,
-      "runtimeMs": 17.416,
+      "runtimeMs": 49.04,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -2788,7 +3136,7 @@
       },
       "planCount": 855,
       "nodes": 5466,
-      "runtimeMs": 3.607,
+      "runtimeMs": 5.051,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2848,7 +3196,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.307,
+      "runtimeMs": 0.404,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2861,7 +3209,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.046,
+      "runtimeMs": 11.069,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2913,7 +3261,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.131,
+      "runtimeMs": 0.234,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2928,7 +3276,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.056,
+      "runtimeMs": 0.069,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2973,7 +3321,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.141,
+      "runtimeMs": 0.115,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -2986,7 +3334,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.022,
+      "runtimeMs": 0.068,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3031,7 +3379,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.011,
+      "runtimeMs": 0.017,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3043,7 +3391,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.007,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3087,7 +3435,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 4.09,
+      "runtimeMs": 7.274,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3102,7 +3450,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 0.278,
+      "runtimeMs": 0.355,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3147,7 +3495,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.354,
+      "runtimeMs": 0.419,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3160,7 +3508,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.047,
+      "runtimeMs": 0.07,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3205,7 +3553,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.015,
+      "runtimeMs": 0.032,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3217,7 +3565,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.006,
+      "runtimeMs": 0.008,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3261,7 +3609,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.111,
+      "runtimeMs": 0.16,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3276,7 +3624,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.04,
+      "runtimeMs": 0.059,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3321,7 +3669,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.072,
+      "runtimeMs": 0.105,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3334,7 +3682,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.021,
+      "runtimeMs": 0.028,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3379,7 +3727,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.008,
+      "runtimeMs": 0.021,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3391,7 +3739,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.006,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3435,7 +3783,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 4.401,
+      "runtimeMs": 16.139,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3450,7 +3798,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 0.258,
+      "runtimeMs": 0.384,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3495,7 +3843,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.299,
+      "runtimeMs": 0.399,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3508,7 +3856,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.043,
+      "runtimeMs": 0.06,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3553,7 +3901,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.012,
+      "runtimeMs": 0.024,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3565,7 +3913,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.006,
+      "runtimeMs": 0.008,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3604,7 +3952,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 147,
-      "runtimeMs": 0.094,
+      "runtimeMs": 0.079,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3614,7 +3962,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 147,
-      "runtimeMs": 0.047,
+      "runtimeMs": 0.079,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3715,7 +4063,7 @@
       },
       "planCount": 172,
       "nodes": 2051,
-      "runtimeMs": 11.282,
+      "runtimeMs": 35.581,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3732,7 +4080,7 @@
       },
       "planCount": 172,
       "nodes": 2051,
-      "runtimeMs": 0.856,
+      "runtimeMs": 1.174,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3785,7 +4133,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.083,
+      "runtimeMs": 0.117,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3798,7 +4146,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.022,
+      "runtimeMs": 0.026,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3850,7 +4198,7 @@
       },
       "planCount": 9,
       "nodes": 2346,
-      "runtimeMs": 0.845,
+      "runtimeMs": 1.039,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3871,7 +4219,7 @@
       },
       "planCount": 9,
       "nodes": 2346,
-      "runtimeMs": 0.7,
+      "runtimeMs": 0.883,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3924,7 +4272,7 @@
       },
       "planCount": 200,
       "nodes": 548,
-      "runtimeMs": 13.695,
+      "runtimeMs": 32.881,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -3941,7 +4289,7 @@
       },
       "planCount": 3040,
       "nodes": 14518,
-      "runtimeMs": 9.993,
+      "runtimeMs": 23.651,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -3994,7 +4342,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.302,
+      "runtimeMs": 0.455,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4007,7 +4355,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.048,
+      "runtimeMs": 0.07,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4048,7 +4396,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 147,
-      "runtimeMs": 0.063,
+      "runtimeMs": 0.084,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4058,7 +4406,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 147,
-      "runtimeMs": 0.052,
+      "runtimeMs": 0.072,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4159,7 +4507,7 @@
       },
       "planCount": 176,
       "nodes": 2061,
-      "runtimeMs": 11.592,
+      "runtimeMs": 33.248,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4176,7 +4524,7 @@
       },
       "planCount": 176,
       "nodes": 2061,
-      "runtimeMs": 0.855,
+      "runtimeMs": 1.698,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4229,7 +4577,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.084,
+      "runtimeMs": 0.136,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4242,7 +4590,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.021,
+      "runtimeMs": 0.027,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4294,7 +4642,7 @@
       },
       "planCount": 9,
       "nodes": 2346,
-      "runtimeMs": 0.709,
+      "runtimeMs": 2.079,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4315,7 +4663,7 @@
       },
       "planCount": 9,
       "nodes": 2346,
-      "runtimeMs": 0.695,
+      "runtimeMs": 0.899,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4368,7 +4716,7 @@
       },
       "planCount": 200,
       "nodes": 548,
-      "runtimeMs": 13.265,
+      "runtimeMs": 45.014,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -4385,7 +4733,7 @@
       },
       "planCount": 3060,
       "nodes": 14553,
-      "runtimeMs": 10.143,
+      "runtimeMs": 44.948,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4438,7 +4786,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.303,
+      "runtimeMs": 1.177,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4451,7 +4799,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.045,
+      "runtimeMs": 0.072,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4504,7 +4852,7 @@
       },
       "planCount": 81,
       "nodes": 104986,
-      "runtimeMs": 31.43,
+      "runtimeMs": 129.79,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4526,7 +4874,7 @@
       },
       "planCount": 81,
       "nodes": 104986,
-      "runtimeMs": 29.094,
+      "runtimeMs": 88.673,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4586,7 +4934,7 @@
       },
       "planCount": 108,
       "nodes": 2289,
-      "runtimeMs": 5.384,
+      "runtimeMs": 13.573,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4604,7 +4952,7 @@
       },
       "planCount": 108,
       "nodes": 2289,
-      "runtimeMs": 0.888,
+      "runtimeMs": 1.143,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4664,7 +5012,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.089,
+      "runtimeMs": 0.12,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4677,7 +5025,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.021,
+      "runtimeMs": 0.026,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4736,7 +5084,7 @@
       },
       "planCount": 200,
       "nodes": 974,
-      "runtimeMs": 22.593,
+      "runtimeMs": 57.692,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -4758,7 +5106,7 @@
       },
       "planCount": 69301,
       "nodes": 3088078,
-      "runtimeMs": 1286.398,
+      "runtimeMs": 3259.647,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4818,7 +5166,7 @@
       },
       "planCount": 200,
       "nodes": 716,
-      "runtimeMs": 15.204,
+      "runtimeMs": 63.491,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -4836,7 +5184,7 @@
       },
       "planCount": 3618,
       "nodes": 23891,
-      "runtimeMs": 15.669,
+      "runtimeMs": 29.787,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4896,7 +5244,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.356,
+      "runtimeMs": 0.452,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4909,7 +5257,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.056,
+      "runtimeMs": 0.072,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4968,7 +5316,7 @@
       },
       "planCount": 153,
       "nodes": 113147,
-      "runtimeMs": 42.879,
+      "runtimeMs": 89.154,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -4990,7 +5338,7 @@
       },
       "planCount": 153,
       "nodes": 113147,
-      "runtimeMs": 30.898,
+      "runtimeMs": 59.668,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5050,7 +5398,7 @@
       },
       "planCount": 108,
       "nodes": 2289,
-      "runtimeMs": 5.199,
+      "runtimeMs": 12.387,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5068,7 +5416,7 @@
       },
       "planCount": 108,
       "nodes": 2289,
-      "runtimeMs": 0.857,
+      "runtimeMs": 1.165,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5128,7 +5476,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.087,
+      "runtimeMs": 0.104,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5141,7 +5489,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.022,
+      "runtimeMs": 0.026,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5200,7 +5548,7 @@
       },
       "planCount": 200,
       "nodes": 994,
-      "runtimeMs": 20.2,
+      "runtimeMs": 45.416,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -5222,7 +5570,7 @@
       },
       "planCount": 80697,
       "nodes": 3234490,
-      "runtimeMs": 1210.494,
+      "runtimeMs": 2422.914,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5282,7 +5630,7 @@
       },
       "planCount": 200,
       "nodes": 716,
-      "runtimeMs": 14.878,
+      "runtimeMs": 37.132,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -5300,7 +5648,7 @@
       },
       "planCount": 3618,
       "nodes": 23891,
-      "runtimeMs": 14.892,
+      "runtimeMs": 31.649,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5360,7 +5708,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.341,
+      "runtimeMs": 0.393,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5373,7 +5721,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.046,
+      "runtimeMs": 0.066,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5425,7 +5773,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.145,
+      "runtimeMs": 0.173,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5440,7 +5788,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.049,
+      "runtimeMs": 0.062,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5485,7 +5833,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.009,
+      "runtimeMs": 0.015,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5497,7 +5845,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.006,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5542,7 +5890,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.015,
+      "runtimeMs": 0.02,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5554,7 +5902,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.005,
+      "runtimeMs": 0.007,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5598,7 +5946,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 3.843,
+      "runtimeMs": 5.633,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5613,7 +5961,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 0.276,
+      "runtimeMs": 3.846,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5658,7 +6006,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.017,
+      "runtimeMs": 0.061,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5670,7 +6018,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.006,
+      "runtimeMs": 0.01,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5715,7 +6063,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.012,
+      "runtimeMs": 0.043,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5727,7 +6075,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.006,
+      "runtimeMs": 0.019,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5771,7 +6119,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.105,
+      "runtimeMs": 0.162,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5786,7 +6134,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.041,
+      "runtimeMs": 0.057,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5831,7 +6179,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.008,
+      "runtimeMs": 0.054,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5843,7 +6191,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.007,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5888,7 +6236,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.008,
+      "runtimeMs": 0.011,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5900,7 +6248,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.006,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5944,7 +6292,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 3.926,
+      "runtimeMs": 7.705,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -5959,7 +6307,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 0.256,
+      "runtimeMs": 0.354,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6004,7 +6352,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.015,
+      "runtimeMs": 0.028,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6016,7 +6364,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.005,
+      "runtimeMs": 0.009,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6061,7 +6409,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.012,
+      "runtimeMs": 0.02,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6073,7 +6421,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.006,
+      "runtimeMs": 0.008,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6123,7 +6471,7 @@
       },
       "planCount": 3,
       "nodes": 1254,
-      "runtimeMs": 0.422,
+      "runtimeMs": 0.505,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6144,7 +6492,7 @@
       },
       "planCount": 3,
       "nodes": 1254,
-      "runtimeMs": 0.456,
+      "runtimeMs": 0.598,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6197,7 +6545,7 @@
       },
       "planCount": 12,
       "nodes": 333,
-      "runtimeMs": 0.214,
+      "runtimeMs": 0.272,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6214,7 +6562,7 @@
       },
       "planCount": 12,
       "nodes": 333,
-      "runtimeMs": 0.097,
+      "runtimeMs": 0.19,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6267,7 +6615,7 @@
       },
       "planCount": 44,
       "nodes": 275,
-      "runtimeMs": 0.794,
+      "runtimeMs": 1.157,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6283,7 +6631,7 @@
       },
       "planCount": 44,
       "nodes": 275,
-      "runtimeMs": 0.146,
+      "runtimeMs": 0.253,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6335,7 +6683,7 @@
       },
       "planCount": 200,
       "nodes": 1071,
-      "runtimeMs": 20.329,
+      "runtimeMs": 43.84,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -6356,7 +6704,7 @@
       },
       "planCount": 784,
       "nodes": 21659,
-      "runtimeMs": 9.981,
+      "runtimeMs": 16.751,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6409,7 +6757,7 @@
       },
       "planCount": 200,
       "nodes": 682,
-      "runtimeMs": 15.002,
+      "runtimeMs": 30.315,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -6426,7 +6774,7 @@
       },
       "planCount": 414,
       "nodes": 2541,
-      "runtimeMs": 1.461,
+      "runtimeMs": 2.203,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6479,7 +6827,7 @@
       },
       "planCount": 200,
       "nodes": 416,
-      "runtimeMs": 12.644,
+      "runtimeMs": 35.124,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -6495,7 +6843,7 @@
       },
       "planCount": 510,
       "nodes": 1575,
-      "runtimeMs": 1.304,
+      "runtimeMs": 1.844,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6547,7 +6895,7 @@
       },
       "planCount": 3,
       "nodes": 1254,
-      "runtimeMs": 0.397,
+      "runtimeMs": 0.571,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6568,7 +6916,7 @@
       },
       "planCount": 3,
       "nodes": 1254,
-      "runtimeMs": 0.358,
+      "runtimeMs": 0.437,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6621,7 +6969,7 @@
       },
       "planCount": 12,
       "nodes": 333,
-      "runtimeMs": 0.172,
+      "runtimeMs": 0.257,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6638,7 +6986,7 @@
       },
       "planCount": 12,
       "nodes": 333,
-      "runtimeMs": 0.093,
+      "runtimeMs": 0.143,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6691,7 +7039,7 @@
       },
       "planCount": 44,
       "nodes": 275,
-      "runtimeMs": 0.757,
+      "runtimeMs": 0.98,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6707,7 +7055,7 @@
       },
       "planCount": 44,
       "nodes": 275,
-      "runtimeMs": 0.147,
+      "runtimeMs": 0.207,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6759,7 +7107,7 @@
       },
       "planCount": 200,
       "nodes": 1071,
-      "runtimeMs": 19.225,
+      "runtimeMs": 41.242,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -6780,7 +7128,7 @@
       },
       "planCount": 784,
       "nodes": 21659,
-      "runtimeMs": 9.284,
+      "runtimeMs": 15.935,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6833,7 +7181,7 @@
       },
       "planCount": 200,
       "nodes": 682,
-      "runtimeMs": 14.062,
+      "runtimeMs": 32.498,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -6850,7 +7198,7 @@
       },
       "planCount": 414,
       "nodes": 2541,
-      "runtimeMs": 1.435,
+      "runtimeMs": 2.091,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6903,7 +7251,7 @@
       },
       "planCount": 200,
       "nodes": 416,
-      "runtimeMs": 12.692,
+      "runtimeMs": 35.767,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -6919,7 +7267,7 @@
       },
       "planCount": 510,
       "nodes": 1575,
-      "runtimeMs": 1.329,
+      "runtimeMs": 5.855,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6960,7 +7308,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 839,
-      "runtimeMs": 0.282,
+      "runtimeMs": 0.294,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -6970,7 +7318,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 839,
-      "runtimeMs": 0.246,
+      "runtimeMs": 0.261,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7081,7 +7429,7 @@
       },
       "planCount": 3,
       "nodes": 206,
-      "runtimeMs": 0.066,
+      "runtimeMs": 0.068,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7141,7 +7489,7 @@
       },
       "planCount": 56,
       "nodes": 741,
-      "runtimeMs": 1.457,
+      "runtimeMs": 1.717,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7158,7 +7506,7 @@
       },
       "planCount": 56,
       "nodes": 741,
-      "runtimeMs": 0.363,
+      "runtimeMs": 0.406,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7217,7 +7565,7 @@
       },
       "planCount": 200,
       "nodes": 8657,
-      "runtimeMs": 23.955,
+      "runtimeMs": 50.936,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -7239,7 +7587,7 @@
       },
       "planCount": 579,
       "nodes": 37104,
-      "runtimeMs": 13.937,
+      "runtimeMs": 28.867,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7299,7 +7647,7 @@
       },
       "planCount": 200,
       "nodes": 1195,
-      "runtimeMs": 15.98,
+      "runtimeMs": 39.416,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -7317,7 +7665,7 @@
       },
       "planCount": 255,
       "nodes": 2230,
-      "runtimeMs": 1.196,
+      "runtimeMs": 1.736,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7377,7 +7725,7 @@
       },
       "planCount": 200,
       "nodes": 518,
-      "runtimeMs": 13.919,
+      "runtimeMs": 32.459,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -7394,7 +7742,7 @@
       },
       "planCount": 1100,
       "nodes": 5425,
-      "runtimeMs": 3.665,
+      "runtimeMs": 4.902,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7441,7 +7789,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 843,
-      "runtimeMs": 0.303,
+      "runtimeMs": 0.34,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7451,7 +7799,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 843,
-      "runtimeMs": 0.259,
+      "runtimeMs": 0.298,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7544,7 +7892,7 @@
       },
       "planCount": 3,
       "nodes": 206,
-      "runtimeMs": 0.078,
+      "runtimeMs": 0.148,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7562,7 +7910,7 @@
       },
       "planCount": 3,
       "nodes": 206,
-      "runtimeMs": 0.053,
+      "runtimeMs": 0.061,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7622,7 +7970,7 @@
       },
       "planCount": 56,
       "nodes": 741,
-      "runtimeMs": 1.402,
+      "runtimeMs": 4.357,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7639,7 +7987,7 @@
       },
       "planCount": 56,
       "nodes": 741,
-      "runtimeMs": 0.274,
+      "runtimeMs": 0.634,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7698,7 +8046,7 @@
       },
       "planCount": 200,
       "nodes": 8202,
-      "runtimeMs": 23.126,
+      "runtimeMs": 48.162,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -7720,7 +8068,7 @@
       },
       "planCount": 612,
       "nodes": 37315,
-      "runtimeMs": 12.783,
+      "runtimeMs": 26.158,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7780,7 +8128,7 @@
       },
       "planCount": 200,
       "nodes": 1195,
-      "runtimeMs": 15.998,
+      "runtimeMs": 23.81,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -7798,7 +8146,7 @@
       },
       "planCount": 255,
       "nodes": 2230,
-      "runtimeMs": 1.135,
+      "runtimeMs": 4.496,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7858,7 +8206,7 @@
       },
       "planCount": 200,
       "nodes": 518,
-      "runtimeMs": 14.243,
+      "runtimeMs": 22.064,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -7875,7 +8223,7 @@
       },
       "planCount": 1100,
       "nodes": 5425,
-      "runtimeMs": 3.536,
+      "runtimeMs": 5.184,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7927,7 +8275,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.132,
+      "runtimeMs": 0.173,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7942,7 +8290,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.044,
+      "runtimeMs": 0.061,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -7987,7 +8335,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.085,
+      "runtimeMs": 0.147,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8000,7 +8348,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.023,
+      "runtimeMs": 0.029,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8045,7 +8393,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.077,
+      "runtimeMs": 0.112,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8058,7 +8406,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.019,
+      "runtimeMs": 0.025,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8102,7 +8450,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 4.429,
+      "runtimeMs": 9.02,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8117,7 +8465,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 0.269,
+      "runtimeMs": 0.557,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8162,7 +8510,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.3,
+      "runtimeMs": 1.041,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8175,7 +8523,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.058,
+      "runtimeMs": 0.066,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8220,7 +8568,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.338,
+      "runtimeMs": 1.992,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8233,7 +8581,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.045,
+      "runtimeMs": 0.107,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8277,7 +8625,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.121,
+      "runtimeMs": 0.164,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8292,7 +8640,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.043,
+      "runtimeMs": 0.058,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8337,7 +8685,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.072,
+      "runtimeMs": 0.103,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8350,7 +8698,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.022,
+      "runtimeMs": 0.024,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8395,7 +8743,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.069,
+      "runtimeMs": 0.089,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8408,7 +8756,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.02,
+      "runtimeMs": 0.022,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8452,7 +8800,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 3.895,
+      "runtimeMs": 4.605,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8467,7 +8815,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 0.28,
+      "runtimeMs": 0.326,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8512,7 +8860,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.303,
+      "runtimeMs": 0.423,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8525,7 +8873,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.043,
+      "runtimeMs": 0.052,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8570,7 +8918,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.301,
+      "runtimeMs": 7.484,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8583,7 +8931,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.043,
+      "runtimeMs": 0.09,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8622,7 +8970,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 37,
-      "runtimeMs": 0.022,
+      "runtimeMs": 0.036,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8632,7 +8980,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 37,
-      "runtimeMs": 0.015,
+      "runtimeMs": 0.024,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8739,7 +9087,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 37,
-      "runtimeMs": 0.015,
+      "runtimeMs": 0.024,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8836,7 +9184,7 @@
       },
       "planCount": 6,
       "nodes": 75,
-      "runtimeMs": 0.063,
+      "runtimeMs": 0.073,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8851,7 +9199,7 @@
       },
       "planCount": 6,
       "nodes": 75,
-      "runtimeMs": 0.028,
+      "runtimeMs": 0.029,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8903,7 +9251,7 @@
       },
       "planCount": 3,
       "nodes": 560,
-      "runtimeMs": 0.213,
+      "runtimeMs": 0.321,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8924,7 +9272,7 @@
       },
       "planCount": 3,
       "nodes": 560,
-      "runtimeMs": 0.204,
+      "runtimeMs": 0.223,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8977,7 +9325,7 @@
       },
       "planCount": 9,
       "nodes": 426,
-      "runtimeMs": 0.188,
+      "runtimeMs": 0.241,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -8996,7 +9344,7 @@
       },
       "planCount": 9,
       "nodes": 426,
-      "runtimeMs": 0.119,
+      "runtimeMs": 0.155,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9049,7 +9397,7 @@
       },
       "planCount": 50,
       "nodes": 245,
-      "runtimeMs": 0.871,
+      "runtimeMs": 0.973,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9064,7 +9412,7 @@
       },
       "planCount": 50,
       "nodes": 245,
-      "runtimeMs": 0.135,
+      "runtimeMs": 0.157,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9105,7 +9453,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 37,
-      "runtimeMs": 0.016,
+      "runtimeMs": 0.026,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9115,7 +9463,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 37,
-      "runtimeMs": 0.015,
+      "runtimeMs": 0.019,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9222,7 +9570,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 37,
-      "runtimeMs": 0.014,
+      "runtimeMs": 0.019,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9232,7 +9580,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 37,
-      "runtimeMs": 0.011,
+      "runtimeMs": 0.014,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9319,7 +9667,7 @@
       },
       "planCount": 6,
       "nodes": 75,
-      "runtimeMs": 0.035,
+      "runtimeMs": 0.069,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9334,7 +9682,7 @@
       },
       "planCount": 6,
       "nodes": 75,
-      "runtimeMs": 0.022,
+      "runtimeMs": 0.034,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9386,7 +9734,7 @@
       },
       "planCount": 3,
       "nodes": 560,
-      "runtimeMs": 0.197,
+      "runtimeMs": 0.294,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9407,7 +9755,7 @@
       },
       "planCount": 3,
       "nodes": 560,
-      "runtimeMs": 0.166,
+      "runtimeMs": 0.216,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9460,7 +9808,7 @@
       },
       "planCount": 9,
       "nodes": 426,
-      "runtimeMs": 0.206,
+      "runtimeMs": 0.238,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9479,7 +9827,7 @@
       },
       "planCount": 9,
       "nodes": 426,
-      "runtimeMs": 0.121,
+      "runtimeMs": 0.15,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9532,7 +9880,7 @@
       },
       "planCount": 50,
       "nodes": 245,
-      "runtimeMs": 1.313,
+      "runtimeMs": 1.001,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9547,7 +9895,7 @@
       },
       "planCount": 50,
       "nodes": 245,
-      "runtimeMs": 0.141,
+      "runtimeMs": 0.147,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9588,7 +9936,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 1403,
-      "runtimeMs": 0.443,
+      "runtimeMs": 0.565,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9598,7 +9946,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 1403,
-      "runtimeMs": 0.42,
+      "runtimeMs": 0.457,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9691,7 +10039,7 @@
       },
       "planCount": 156,
       "nodes": 5637,
-      "runtimeMs": 11.344,
+      "runtimeMs": 22.457,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9710,7 +10058,7 @@
       },
       "planCount": 156,
       "nodes": 5637,
-      "runtimeMs": 1.993,
+      "runtimeMs": 6.568,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9770,7 +10118,7 @@
       },
       "planCount": 56,
       "nodes": 245,
-      "runtimeMs": 0.977,
+      "runtimeMs": 1.28,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9785,7 +10133,7 @@
       },
       "planCount": 56,
       "nodes": 245,
-      "runtimeMs": 0.157,
+      "runtimeMs": 0.174,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9844,7 +10192,7 @@
       },
       "planCount": 200,
       "nodes": 8950,
-      "runtimeMs": 23.624,
+      "runtimeMs": 60.395,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -9866,7 +10214,7 @@
       },
       "planCount": 580,
       "nodes": 42523,
-      "runtimeMs": 15.254,
+      "runtimeMs": 27.29,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -9926,7 +10274,7 @@
       },
       "planCount": 200,
       "nodes": 413,
-      "runtimeMs": 16.392,
+      "runtimeMs": 39.478,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -9945,7 +10293,7 @@
       },
       "planCount": 8520,
       "nodes": 74761,
-      "runtimeMs": 45.47,
+      "runtimeMs": 93.981,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10005,7 +10353,7 @@
       },
       "planCount": 200,
       "nodes": 426,
-      "runtimeMs": 11.777,
+      "runtimeMs": 17.81,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -10020,7 +10368,7 @@
       },
       "planCount": 330,
       "nodes": 889,
-      "runtimeMs": 0.748,
+      "runtimeMs": 1.165,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10067,7 +10415,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 1403,
-      "runtimeMs": 0.461,
+      "runtimeMs": 0.869,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10077,7 +10425,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 1403,
-      "runtimeMs": 0.446,
+      "runtimeMs": 2.131,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10170,7 +10518,7 @@
       },
       "planCount": 156,
       "nodes": 5637,
-      "runtimeMs": 11.522,
+      "runtimeMs": 25.995,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10189,7 +10537,7 @@
       },
       "planCount": 156,
       "nodes": 5637,
-      "runtimeMs": 1.972,
+      "runtimeMs": 2.25,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10249,7 +10597,7 @@
       },
       "planCount": 56,
       "nodes": 245,
-      "runtimeMs": 0.97,
+      "runtimeMs": 1.307,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10264,7 +10612,7 @@
       },
       "planCount": 56,
       "nodes": 245,
-      "runtimeMs": 0.145,
+      "runtimeMs": 0.185,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10323,7 +10671,7 @@
       },
       "planCount": 200,
       "nodes": 8950,
-      "runtimeMs": 23.401,
+      "runtimeMs": 54.199,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -10345,7 +10693,7 @@
       },
       "planCount": 580,
       "nodes": 42523,
-      "runtimeMs": 15.012,
+      "runtimeMs": 34.439,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10405,7 +10753,7 @@
       },
       "planCount": 200,
       "nodes": 413,
-      "runtimeMs": 16.488,
+      "runtimeMs": 33.758,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -10424,7 +10772,7 @@
       },
       "planCount": 8520,
       "nodes": 74761,
-      "runtimeMs": 44.847,
+      "runtimeMs": 88.67,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10484,7 +10832,7 @@
       },
       "planCount": 200,
       "nodes": 426,
-      "runtimeMs": 10.582,
+      "runtimeMs": 18.717,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -10499,7 +10847,7 @@
       },
       "planCount": 330,
       "nodes": 889,
-      "runtimeMs": 0.698,
+      "runtimeMs": 0.993,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10551,7 +10899,7 @@
       },
       "planCount": 1,
       "nodes": 30,
-      "runtimeMs": 0.015,
+      "runtimeMs": 0.023,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10566,7 +10914,7 @@
       },
       "planCount": 1,
       "nodes": 30,
-      "runtimeMs": 0.009,
+      "runtimeMs": 0.014,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10611,7 +10959,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.017,
+      "runtimeMs": 0.038,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10625,7 +10973,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.01,
+      "runtimeMs": 0.015,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10670,7 +11018,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.01,
+      "runtimeMs": 0.017,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10682,7 +11030,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.006,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10726,7 +11074,7 @@
       },
       "planCount": 15,
       "nodes": 98,
-      "runtimeMs": 0.097,
+      "runtimeMs": 0.131,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10741,7 +11089,7 @@
       },
       "planCount": 15,
       "nodes": 98,
-      "runtimeMs": 0.039,
+      "runtimeMs": 0.046,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10786,7 +11134,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.137,
+      "runtimeMs": 0.177,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10800,7 +11148,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.036,
+      "runtimeMs": 0.048,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10845,7 +11193,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.012,
+      "runtimeMs": 0.021,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10857,7 +11205,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.006,
+      "runtimeMs": 0.009,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10901,7 +11249,7 @@
       },
       "planCount": 1,
       "nodes": 30,
-      "runtimeMs": 0.008,
+      "runtimeMs": 0.018,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10916,7 +11264,7 @@
       },
       "planCount": 1,
       "nodes": 30,
-      "runtimeMs": 0.007,
+      "runtimeMs": 0.031,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10961,7 +11309,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.013,
+      "runtimeMs": 0.054,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -10975,7 +11323,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.009,
+      "runtimeMs": 0.031,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11020,7 +11368,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.01,
+      "runtimeMs": 2.64,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11032,7 +11380,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.006,
+      "runtimeMs": 0.034,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11076,7 +11424,7 @@
       },
       "planCount": 15,
       "nodes": 98,
-      "runtimeMs": 0.13,
+      "runtimeMs": 3.094,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11091,7 +11439,7 @@
       },
       "planCount": 15,
       "nodes": 98,
-      "runtimeMs": 0.048,
+      "runtimeMs": 0.07,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11136,7 +11484,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.141,
+      "runtimeMs": 0.165,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11150,7 +11498,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.036,
+      "runtimeMs": 0.144,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11195,7 +11543,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.014,
+      "runtimeMs": 0.028,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11207,7 +11555,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.007,
+      "runtimeMs": 0.008,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11246,7 +11594,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 147,
-      "runtimeMs": 0.065,
+      "runtimeMs": 0.081,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11256,7 +11604,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 147,
-      "runtimeMs": 0.055,
+      "runtimeMs": 0.072,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11351,7 +11699,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 45,
-      "runtimeMs": 0.016,
+      "runtimeMs": 0.022,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11361,7 +11709,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 45,
-      "runtimeMs": 0.014,
+      "runtimeMs": 0.017,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11433,7 +11781,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.024,
+      "runtimeMs": 0.06,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11447,7 +11795,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.009,
+      "runtimeMs": 0.013,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11499,7 +11847,7 @@
       },
       "planCount": 27,
       "nodes": 2012,
-      "runtimeMs": 1.17,
+      "runtimeMs": 1.357,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11520,7 +11868,7 @@
       },
       "planCount": 27,
       "nodes": 2012,
-      "runtimeMs": 0.704,
+      "runtimeMs": 0.875,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11573,7 +11921,7 @@
       },
       "planCount": 22,
       "nodes": 301,
-      "runtimeMs": 0.31,
+      "runtimeMs": 0.377,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11590,7 +11938,7 @@
       },
       "planCount": 22,
       "nodes": 301,
-      "runtimeMs": 0.11,
+      "runtimeMs": 0.148,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11643,7 +11991,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.175,
+      "runtimeMs": 0.225,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11657,7 +12005,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.04,
+      "runtimeMs": 0.046,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11698,7 +12046,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 147,
-      "runtimeMs": 0.058,
+      "runtimeMs": 0.099,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11708,7 +12056,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 147,
-      "runtimeMs": 0.045,
+      "runtimeMs": 0.115,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11803,7 +12151,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 45,
-      "runtimeMs": 0.012,
+      "runtimeMs": 0.027,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11813,7 +12161,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 45,
-      "runtimeMs": 0.012,
+      "runtimeMs": 0.02,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11885,7 +12233,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.015,
+      "runtimeMs": 0.049,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11899,7 +12247,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.009,
+      "runtimeMs": 0.013,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11951,7 +12299,7 @@
       },
       "planCount": 27,
       "nodes": 2012,
-      "runtimeMs": 1.129,
+      "runtimeMs": 1.937,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -11972,7 +12320,7 @@
       },
       "planCount": 27,
       "nodes": 2012,
-      "runtimeMs": 0.696,
+      "runtimeMs": 2.072,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12025,7 +12373,7 @@
       },
       "planCount": 22,
       "nodes": 301,
-      "runtimeMs": 0.297,
+      "runtimeMs": 0.848,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12042,7 +12390,7 @@
       },
       "planCount": 22,
       "nodes": 301,
-      "runtimeMs": 0.121,
+      "runtimeMs": 1.62,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12095,7 +12443,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.17,
+      "runtimeMs": 0.452,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12109,7 +12457,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.043,
+      "runtimeMs": 0.234,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12150,7 +12498,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 1403,
-      "runtimeMs": 0.447,
+      "runtimeMs": 0.468,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12160,7 +12508,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 1403,
-      "runtimeMs": 0.518,
+      "runtimeMs": 1.041,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12253,7 +12601,7 @@
       },
       "planCount": 14,
       "nodes": 827,
-      "runtimeMs": 0.376,
+      "runtimeMs": 0.494,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12271,7 +12619,7 @@
       },
       "planCount": 14,
       "nodes": 827,
-      "runtimeMs": 0.243,
+      "runtimeMs": 0.253,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12331,7 +12679,7 @@
       },
       "planCount": 24,
       "nodes": 65,
-      "runtimeMs": 0.2,
+      "runtimeMs": 0.367,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12345,7 +12693,7 @@
       },
       "planCount": 24,
       "nodes": 65,
-      "runtimeMs": 0.041,
+      "runtimeMs": 0.055,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12404,7 +12752,7 @@
       },
       "planCount": 200,
       "nodes": 8950,
-      "runtimeMs": 23.146,
+      "runtimeMs": 48.644,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -12426,7 +12774,7 @@
       },
       "planCount": 580,
       "nodes": 42523,
-      "runtimeMs": 15,
+      "runtimeMs": 27.003,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12486,7 +12834,7 @@
       },
       "planCount": 200,
       "nodes": 881,
-      "runtimeMs": 15.73,
+      "runtimeMs": 34.947,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -12504,7 +12852,7 @@
       },
       "planCount": 825,
       "nodes": 7826,
-      "runtimeMs": 4.062,
+      "runtimeMs": 6.309,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12564,7 +12912,7 @@
       },
       "planCount": 90,
       "nodes": 175,
-      "runtimeMs": 2.508,
+      "runtimeMs": 5.662,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12578,7 +12926,7 @@
       },
       "planCount": 90,
       "nodes": 175,
-      "runtimeMs": 0.161,
+      "runtimeMs": 1.279,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12625,7 +12973,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 1403,
-      "runtimeMs": 0.466,
+      "runtimeMs": 2.58,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12635,7 +12983,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 1403,
-      "runtimeMs": 0.391,
+      "runtimeMs": 0.646,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12728,7 +13076,7 @@
       },
       "planCount": 14,
       "nodes": 827,
-      "runtimeMs": 0.329,
+      "runtimeMs": 0.467,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12746,7 +13094,7 @@
       },
       "planCount": 14,
       "nodes": 827,
-      "runtimeMs": 0.285,
+      "runtimeMs": 0.279,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12806,7 +13154,7 @@
       },
       "planCount": 24,
       "nodes": 65,
-      "runtimeMs": 0.186,
+      "runtimeMs": 0.272,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12820,7 +13168,7 @@
       },
       "planCount": 24,
       "nodes": 65,
-      "runtimeMs": 0.042,
+      "runtimeMs": 0.051,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12879,7 +13227,7 @@
       },
       "planCount": 200,
       "nodes": 8950,
-      "runtimeMs": 23.919,
+      "runtimeMs": 46.71,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -12901,7 +13249,7 @@
       },
       "planCount": 580,
       "nodes": 42523,
-      "runtimeMs": 14.936,
+      "runtimeMs": 30.231,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -12961,7 +13309,7 @@
       },
       "planCount": 200,
       "nodes": 881,
-      "runtimeMs": 15.245,
+      "runtimeMs": 32.659,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -12979,7 +13327,7 @@
       },
       "planCount": 825,
       "nodes": 7826,
-      "runtimeMs": 3.795,
+      "runtimeMs": 5.405,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13039,7 +13387,7 @@
       },
       "planCount": 90,
       "nodes": 175,
-      "runtimeMs": 2.01,
+      "runtimeMs": 13.2,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13053,7 +13401,7 @@
       },
       "planCount": 90,
       "nodes": 175,
-      "runtimeMs": 0.17,
+      "runtimeMs": 0.235,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13105,7 +13453,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.137,
+      "runtimeMs": 0.148,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13120,7 +13468,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.042,
+      "runtimeMs": 0.062,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13165,7 +13513,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.017,
+      "runtimeMs": 0.026,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13179,7 +13527,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.011,
+      "runtimeMs": 0.012,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13224,7 +13572,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.008,
+      "runtimeMs": 0.01,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13236,7 +13584,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.005,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13280,7 +13628,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 3.898,
+      "runtimeMs": 14.924,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13295,7 +13643,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 0.676,
+      "runtimeMs": 0.39,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13340,7 +13688,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.137,
+      "runtimeMs": 0.162,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13354,7 +13702,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.036,
+      "runtimeMs": 0.046,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13399,7 +13747,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.013,
+      "runtimeMs": 0.019,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13411,7 +13759,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.007,
+      "runtimeMs": 0.008,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13455,7 +13803,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.112,
+      "runtimeMs": 0.149,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13470,7 +13818,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.04,
+      "runtimeMs": 0.053,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13515,7 +13863,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.014,
+      "runtimeMs": 0.018,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13529,7 +13877,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.009,
+      "runtimeMs": 0.011,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13574,7 +13922,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.007,
+      "runtimeMs": 0.012,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13586,7 +13934,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.005,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13630,7 +13978,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 3.919,
+      "runtimeMs": 5.257,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13645,7 +13993,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 0.257,
+      "runtimeMs": 0.356,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13690,7 +14038,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.163,
+      "runtimeMs": 0.25,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13704,7 +14052,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.041,
+      "runtimeMs": 0.053,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13749,7 +14097,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.015,
+      "runtimeMs": 0.24,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13761,7 +14109,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.008,
+      "runtimeMs": 0.011,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13800,7 +14148,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 133,
-      "runtimeMs": 0.061,
+      "runtimeMs": 0.818,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13810,7 +14158,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 133,
-      "runtimeMs": 0.043,
+      "runtimeMs": 0.071,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13917,7 +14265,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 149,
-      "runtimeMs": 0.05,
+      "runtimeMs": 0.098,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -13927,7 +14275,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 149,
-      "runtimeMs": 0.045,
+      "runtimeMs": 0.053,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14013,7 +14361,7 @@
       },
       "planCount": 1,
       "nodes": 84,
-      "runtimeMs": 0.038,
+      "runtimeMs": 0.076,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14030,7 +14378,7 @@
       },
       "planCount": 1,
       "nodes": 84,
-      "runtimeMs": 0.023,
+      "runtimeMs": 0.032,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14082,7 +14430,7 @@
       },
       "planCount": 3,
       "nodes": 1114,
-      "runtimeMs": 0.473,
+      "runtimeMs": 2.197,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14103,7 +14451,7 @@
       },
       "planCount": 3,
       "nodes": 1114,
-      "runtimeMs": 0.355,
+      "runtimeMs": 0.833,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14156,7 +14504,7 @@
       },
       "planCount": 69,
       "nodes": 1288,
-      "runtimeMs": 2.498,
+      "runtimeMs": 5.645,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14175,7 +14523,7 @@
       },
       "planCount": 69,
       "nodes": 1288,
-      "runtimeMs": 0.513,
+      "runtimeMs": 0.664,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14228,7 +14576,7 @@
       },
       "planCount": 43,
       "nodes": 392,
-      "runtimeMs": 0.8,
+      "runtimeMs": 1.235,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14245,7 +14593,7 @@
       },
       "planCount": 43,
       "nodes": 392,
-      "runtimeMs": 0.198,
+      "runtimeMs": 0.272,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14286,7 +14634,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 133,
-      "runtimeMs": 0.056,
+      "runtimeMs": 0.077,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14296,7 +14644,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 133,
-      "runtimeMs": 0.099,
+      "runtimeMs": 0.059,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14403,7 +14751,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 149,
-      "runtimeMs": 0.049,
+      "runtimeMs": 0.072,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14413,7 +14761,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 149,
-      "runtimeMs": 0.047,
+      "runtimeMs": 0.064,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14499,7 +14847,7 @@
       },
       "planCount": 1,
       "nodes": 84,
-      "runtimeMs": 0.024,
+      "runtimeMs": 0.048,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14516,7 +14864,7 @@
       },
       "planCount": 1,
       "nodes": 84,
-      "runtimeMs": 0.021,
+      "runtimeMs": 0.032,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14568,7 +14916,7 @@
       },
       "planCount": 3,
       "nodes": 1114,
-      "runtimeMs": 0.424,
+      "runtimeMs": 0.531,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14589,7 +14937,7 @@
       },
       "planCount": 3,
       "nodes": 1114,
-      "runtimeMs": 0.422,
+      "runtimeMs": 0.677,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14642,7 +14990,7 @@
       },
       "planCount": 69,
       "nodes": 1288,
-      "runtimeMs": 2.392,
+      "runtimeMs": 3.398,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14661,7 +15009,7 @@
       },
       "planCount": 69,
       "nodes": 1288,
-      "runtimeMs": 1.195,
+      "runtimeMs": 9.429,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14714,7 +15062,7 @@
       },
       "planCount": 43,
       "nodes": 392,
-      "runtimeMs": 0.744,
+      "runtimeMs": 1.253,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14731,7 +15079,7 @@
       },
       "planCount": 43,
       "nodes": 392,
-      "runtimeMs": 0.225,
+      "runtimeMs": 0.24,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14772,7 +15120,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 403,
-      "runtimeMs": 0.139,
+      "runtimeMs": 0.153,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14782,7 +15130,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 403,
-      "runtimeMs": 0.12,
+      "runtimeMs": 0.155,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14875,7 +15223,7 @@
       },
       "planCount": 2,
       "nodes": 846,
-      "runtimeMs": 0.267,
+      "runtimeMs": 0.282,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14895,7 +15243,7 @@
       },
       "planCount": 2,
       "nodes": 846,
-      "runtimeMs": 0.257,
+      "runtimeMs": 0.252,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14955,7 +15303,7 @@
       },
       "planCount": 6,
       "nodes": 331,
-      "runtimeMs": 0.132,
+      "runtimeMs": 0.16,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -14973,7 +15321,7 @@
       },
       "planCount": 6,
       "nodes": 331,
-      "runtimeMs": 0.083,
+      "runtimeMs": 0.122,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15032,7 +15380,7 @@
       },
       "planCount": 200,
       "nodes": 9194,
-      "runtimeMs": 24.179,
+      "runtimeMs": 58.421,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -15054,7 +15402,7 @@
       },
       "planCount": 254,
       "nodes": 23280,
-      "runtimeMs": 6.806,
+      "runtimeMs": 22.396,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15114,7 +15462,7 @@
       },
       "planCount": 200,
       "nodes": 1636,
-      "runtimeMs": 23.683,
+      "runtimeMs": 43.784,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -15134,7 +15482,7 @@
       },
       "planCount": 1266,
       "nodes": 25196,
-      "runtimeMs": 11.24,
+      "runtimeMs": 32.4,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15194,7 +15542,7 @@
       },
       "planCount": 200,
       "nodes": 994,
-      "runtimeMs": 22.19,
+      "runtimeMs": 35.775,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -15212,7 +15560,7 @@
       },
       "planCount": 430,
       "nodes": 4043,
-      "runtimeMs": 3.247,
+      "runtimeMs": 2.893,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15259,7 +15607,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 407,
-      "runtimeMs": 0.223,
+      "runtimeMs": 0.204,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15269,7 +15617,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 407,
-      "runtimeMs": 0.195,
+      "runtimeMs": 0.237,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15362,7 +15710,7 @@
       },
       "planCount": 3,
       "nodes": 854,
-      "runtimeMs": 0.417,
+      "runtimeMs": 0.41,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15382,7 +15730,7 @@
       },
       "planCount": 3,
       "nodes": 854,
-      "runtimeMs": 0.343,
+      "runtimeMs": 0.259,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15442,7 +15790,7 @@
       },
       "planCount": 6,
       "nodes": 331,
-      "runtimeMs": 0.22,
+      "runtimeMs": 0.15,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15460,7 +15808,7 @@
       },
       "planCount": 6,
       "nodes": 331,
-      "runtimeMs": 0.145,
+      "runtimeMs": 0.174,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15519,7 +15867,7 @@
       },
       "planCount": 200,
       "nodes": 8922,
-      "runtimeMs": 36.788,
+      "runtimeMs": 56.188,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -15541,7 +15889,7 @@
       },
       "planCount": 288,
       "nodes": 23507,
-      "runtimeMs": 11.197,
+      "runtimeMs": 10.789,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15601,7 +15949,7 @@
       },
       "planCount": 200,
       "nodes": 1636,
-      "runtimeMs": 18.876,
+      "runtimeMs": 64.132,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -15621,7 +15969,7 @@
       },
       "planCount": 1299,
       "nodes": 25294,
-      "runtimeMs": 10.247,
+      "runtimeMs": 22.111,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15681,7 +16029,7 @@
       },
       "planCount": 200,
       "nodes": 994,
-      "runtimeMs": 15.592,
+      "runtimeMs": 51.673,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -15699,7 +16047,7 @@
       },
       "planCount": 430,
       "nodes": 4043,
-      "runtimeMs": 2.554,
+      "runtimeMs": 2.988,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15751,7 +16099,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.138,
+      "runtimeMs": 0.191,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15766,7 +16114,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.046,
+      "runtimeMs": 0.063,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15811,7 +16159,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.015,
+      "runtimeMs": 0.022,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15825,7 +16173,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.009,
+      "runtimeMs": 0.01,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15870,7 +16218,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.074,
+      "runtimeMs": 0.092,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15883,7 +16231,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.021,
+      "runtimeMs": 0.039,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15927,7 +16275,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 4.153,
+      "runtimeMs": 18.13,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15942,7 +16290,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 0.301,
+      "runtimeMs": 0.432,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -15987,7 +16335,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.144,
+      "runtimeMs": 0.212,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16001,7 +16349,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.034,
+      "runtimeMs": 0.052,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16046,7 +16394,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.353,
+      "runtimeMs": 0.336,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16059,7 +16407,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.049,
+      "runtimeMs": 0.065,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16103,7 +16451,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.131,
+      "runtimeMs": 0.19,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16118,7 +16466,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.057,
+      "runtimeMs": 0.062,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16163,7 +16511,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.013,
+      "runtimeMs": 0.02,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16177,7 +16525,7 @@
       },
       "planCount": 4,
       "nodes": 25,
-      "runtimeMs": 0.009,
+      "runtimeMs": 0.011,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16222,7 +16570,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.073,
+      "runtimeMs": 0.097,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16235,7 +16583,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.026,
+      "runtimeMs": 0.027,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16279,7 +16627,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 4.04,
+      "runtimeMs": 16.513,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16294,7 +16642,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 0.276,
+      "runtimeMs": 0.308,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16339,7 +16687,7 @@
       },
       "planCount": 20,
       "nodes": 63,
-      "runtimeMs": 0.15,
+      "runtimeMs": 0.159,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16398,7 +16746,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.295,
+      "runtimeMs": 0.375,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16411,7 +16759,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.046,
+      "runtimeMs": 0.112,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16450,7 +16798,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 711,
-      "runtimeMs": 0.287,
+      "runtimeMs": 0.308,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16460,7 +16808,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 711,
-      "runtimeMs": 0.221,
+      "runtimeMs": 0.285,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16546,7 +16894,7 @@
       },
       "planCount": 77,
       "nodes": 478,
-      "runtimeMs": 2.849,
+      "runtimeMs": 3.74,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16562,7 +16910,7 @@
       },
       "planCount": 77,
       "nodes": 478,
-      "runtimeMs": 0.289,
+      "runtimeMs": 0.386,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16615,7 +16963,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.012,
+      "runtimeMs": 0.025,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16627,7 +16975,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.008,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16679,7 +17027,7 @@
       },
       "planCount": 186,
       "nodes": 10429,
-      "runtimeMs": 23.432,
+      "runtimeMs": 70.942,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16700,7 +17048,7 @@
       },
       "planCount": 186,
       "nodes": 10429,
-      "runtimeMs": 4.589,
+      "runtimeMs": 12.439,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16753,7 +17101,7 @@
       },
       "planCount": 200,
       "nodes": 468,
-      "runtimeMs": 21.479,
+      "runtimeMs": 37.688,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -16769,7 +17117,7 @@
       },
       "planCount": 748,
       "nodes": 2457,
-      "runtimeMs": 3.446,
+      "runtimeMs": 6.513,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16822,7 +17170,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.03,
+      "runtimeMs": 0.027,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16834,7 +17182,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.01,
+      "runtimeMs": 0.008,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16875,7 +17223,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 711,
-      "runtimeMs": 0.365,
+      "runtimeMs": 0.67,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16885,7 +17233,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 711,
-      "runtimeMs": 0.413,
+      "runtimeMs": 0.344,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16971,7 +17319,7 @@
       },
       "planCount": 77,
       "nodes": 478,
-      "runtimeMs": 3.617,
+      "runtimeMs": 3.273,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -16987,7 +17335,7 @@
       },
       "planCount": 77,
       "nodes": 478,
-      "runtimeMs": 0.259,
+      "runtimeMs": 0.422,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17040,7 +17388,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.01,
+      "runtimeMs": 0.029,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17052,7 +17400,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.005,
+      "runtimeMs": 0.012,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17104,7 +17452,7 @@
       },
       "planCount": 186,
       "nodes": 10429,
-      "runtimeMs": 30.011,
+      "runtimeMs": 65.6,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17125,7 +17473,7 @@
       },
       "planCount": 186,
       "nodes": 10429,
-      "runtimeMs": 6.353,
+      "runtimeMs": 7.439,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17178,7 +17526,7 @@
       },
       "planCount": 200,
       "nodes": 468,
-      "runtimeMs": 22.421,
+      "runtimeMs": 31.817,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -17194,7 +17542,7 @@
       },
       "planCount": 748,
       "nodes": 2457,
-      "runtimeMs": 3.053,
+      "runtimeMs": 4.47,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17247,7 +17595,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.017,
+      "runtimeMs": 2.782,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17259,7 +17607,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.006,
+      "runtimeMs": 0.021,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17300,7 +17648,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 403,
-      "runtimeMs": 0.178,
+      "runtimeMs": 0.239,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17310,7 +17658,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 403,
-      "runtimeMs": 0.643,
+      "runtimeMs": 0.139,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17403,7 +17751,7 @@
       },
       "planCount": 68,
       "nodes": 741,
-      "runtimeMs": 3.177,
+      "runtimeMs": 3.052,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17420,7 +17768,7 @@
       },
       "planCount": 68,
       "nodes": 741,
-      "runtimeMs": 0.495,
+      "runtimeMs": 0.441,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17480,7 +17828,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.132,
+      "runtimeMs": 0.114,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17493,7 +17841,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.061,
+      "runtimeMs": 0.026,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17552,7 +17900,7 @@
       },
       "planCount": 200,
       "nodes": 9194,
-      "runtimeMs": 37.36,
+      "runtimeMs": 60.833,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -17574,7 +17922,7 @@
       },
       "planCount": 254,
       "nodes": 23280,
-      "runtimeMs": 10.052,
+      "runtimeMs": 13.351,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17634,7 +17982,7 @@
       },
       "planCount": 200,
       "nodes": 615,
-      "runtimeMs": 16.799,
+      "runtimeMs": 43.814,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -17651,7 +17999,7 @@
       },
       "planCount": 1338,
       "nodes": 5957,
-      "runtimeMs": 4.538,
+      "runtimeMs": 6.106,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17711,7 +18059,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.654,
+      "runtimeMs": 0.515,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17724,7 +18072,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.087,
+      "runtimeMs": 0.085,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17771,7 +18119,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 407,
-      "runtimeMs": 0.142,
+      "runtimeMs": 0.179,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17781,7 +18129,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 407,
-      "runtimeMs": 0.117,
+      "runtimeMs": 0.156,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17874,7 +18222,7 @@
       },
       "planCount": 68,
       "nodes": 741,
-      "runtimeMs": 1.871,
+      "runtimeMs": 9.264,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17891,7 +18239,7 @@
       },
       "planCount": 68,
       "nodes": 741,
-      "runtimeMs": 0.322,
+      "runtimeMs": 0.376,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -17951,7 +18299,7 @@
       },
       "planCount": 16,
       "nodes": 25,
-      "runtimeMs": 0.084,
+      "runtimeMs": 0.101,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18023,7 +18371,7 @@
       },
       "planCount": 200,
       "nodes": 8922,
-      "runtimeMs": 23.208,
+      "runtimeMs": 90.77,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -18045,7 +18393,7 @@
       },
       "planCount": 288,
       "nodes": 23507,
-      "runtimeMs": 6.673,
+      "runtimeMs": 20.523,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18105,7 +18453,7 @@
       },
       "planCount": 200,
       "nodes": 615,
-      "runtimeMs": 14.057,
+      "runtimeMs": 29.159,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -18122,7 +18470,7 @@
       },
       "planCount": 1338,
       "nodes": 5957,
-      "runtimeMs": 4.736,
+      "runtimeMs": 8.502,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18182,7 +18530,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.306,
+      "runtimeMs": 1.08,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18195,7 +18543,7 @@
       },
       "planCount": 36,
       "nodes": 49,
-      "runtimeMs": 0.046,
+      "runtimeMs": 0.139,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18247,7 +18595,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.125,
+      "runtimeMs": 0.67,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18262,7 +18610,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.043,
+      "runtimeMs": 0.067,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18307,7 +18655,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.018,
+      "runtimeMs": 0.128,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18319,7 +18667,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.36,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18364,7 +18712,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.011,
+      "runtimeMs": 0.016,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18376,7 +18724,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.005,
+      "runtimeMs": 0.006,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18420,7 +18768,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 3.825,
+      "runtimeMs": 8.132,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18435,7 +18783,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 0.337,
+      "runtimeMs": 0.385,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18480,7 +18828,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.021,
+      "runtimeMs": 0.032,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18492,7 +18840,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.007,
+      "runtimeMs": 0.136,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18537,7 +18885,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.011,
+      "runtimeMs": 0.019,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18549,7 +18897,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.006,
+      "runtimeMs": 0.008,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18593,7 +18941,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.108,
+      "runtimeMs": 1.663,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18608,7 +18956,7 @@
       },
       "planCount": 16,
       "nodes": 105,
-      "runtimeMs": 0.04,
+      "runtimeMs": 0.078,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18653,7 +19001,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.007,
+      "runtimeMs": 0.042,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18665,7 +19013,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.006,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18710,7 +19058,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.007,
+      "runtimeMs": 0.057,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18722,7 +19070,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.009,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18766,7 +19114,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 3.896,
+      "runtimeMs": 4.961,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18781,7 +19129,7 @@
       },
       "planCount": 120,
       "nodes": 385,
-      "runtimeMs": 0.253,
+      "runtimeMs": 0.351,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18826,7 +19174,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.014,
+      "runtimeMs": 0.034,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18838,7 +19186,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.008,
+      "runtimeMs": 0.007,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18883,7 +19231,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.048,
+      "runtimeMs": 0.015,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18934,7 +19282,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 147,
-      "runtimeMs": 0.063,
+      "runtimeMs": 0.105,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -18944,7 +19292,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 147,
-      "runtimeMs": 0.048,
+      "runtimeMs": 0.238,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19045,7 +19393,7 @@
       },
       "planCount": 26,
       "nodes": 231,
-      "runtimeMs": 0.36,
+      "runtimeMs": 2.487,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19062,7 +19410,7 @@
       },
       "planCount": 26,
       "nodes": 231,
-      "runtimeMs": 0.098,
+      "runtimeMs": 0.233,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19115,7 +19463,7 @@
       },
       "planCount": 24,
       "nodes": 65,
-      "runtimeMs": 0.235,
+      "runtimeMs": 0.286,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19129,7 +19477,7 @@
       },
       "planCount": 24,
       "nodes": 65,
-      "runtimeMs": 0.044,
+      "runtimeMs": 0.281,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19181,7 +19529,7 @@
       },
       "planCount": 9,
       "nodes": 2346,
-      "runtimeMs": 0.758,
+      "runtimeMs": 1.001,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19202,7 +19550,7 @@
       },
       "planCount": 9,
       "nodes": 2346,
-      "runtimeMs": 1.255,
+      "runtimeMs": 1.317,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19255,7 +19603,7 @@
       },
       "planCount": 200,
       "nodes": 491,
-      "runtimeMs": 13.349,
+      "runtimeMs": 29.391,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -19272,7 +19620,7 @@
       },
       "planCount": 568,
       "nodes": 2009,
-      "runtimeMs": 2.06,
+      "runtimeMs": 3.63,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19325,7 +19673,7 @@
       },
       "planCount": 90,
       "nodes": 175,
-      "runtimeMs": 2.029,
+      "runtimeMs": 7.558,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19339,7 +19687,7 @@
       },
       "planCount": 90,
       "nodes": 175,
-      "runtimeMs": 0.192,
+      "runtimeMs": 0.194,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19380,7 +19728,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 147,
-      "runtimeMs": 0.064,
+      "runtimeMs": 0.112,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19390,7 +19738,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 147,
-      "runtimeMs": 0.047,
+      "runtimeMs": 0.085,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19491,7 +19839,7 @@
       },
       "planCount": 26,
       "nodes": 231,
-      "runtimeMs": 0.321,
+      "runtimeMs": 0.516,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19508,7 +19856,7 @@
       },
       "planCount": 26,
       "nodes": 231,
-      "runtimeMs": 0.097,
+      "runtimeMs": 0.147,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19561,7 +19909,7 @@
       },
       "planCount": 24,
       "nodes": 65,
-      "runtimeMs": 0.221,
+      "runtimeMs": 0.252,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19575,7 +19923,7 @@
       },
       "planCount": 24,
       "nodes": 65,
-      "runtimeMs": 0.047,
+      "runtimeMs": 0.062,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19627,7 +19975,7 @@
       },
       "planCount": 9,
       "nodes": 2346,
-      "runtimeMs": 0.764,
+      "runtimeMs": 3.8,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19648,7 +19996,7 @@
       },
       "planCount": 9,
       "nodes": 2346,
-      "runtimeMs": 0.734,
+      "runtimeMs": 1.367,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19701,7 +20049,7 @@
       },
       "planCount": 200,
       "nodes": 491,
-      "runtimeMs": 13.742,
+      "runtimeMs": 47.842,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -19718,7 +20066,7 @@
       },
       "planCount": 568,
       "nodes": 2009,
-      "runtimeMs": 1.68,
+      "runtimeMs": 6.65,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19771,7 +20119,7 @@
       },
       "planCount": 90,
       "nodes": 175,
-      "runtimeMs": 1.998,
+      "runtimeMs": 6.787,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19785,7 +20133,7 @@
       },
       "planCount": 90,
       "nodes": 175,
-      "runtimeMs": 0.163,
+      "runtimeMs": 19.094,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19826,7 +20174,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 1739,
-      "runtimeMs": 0.548,
+      "runtimeMs": 1.177,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19836,7 +20184,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 1739,
-      "runtimeMs": 0.464,
+      "runtimeMs": 1.576,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19915,7 +20263,7 @@
       },
       "planCount": 200,
       "nodes": 625,
-      "runtimeMs": 15.857,
+      "runtimeMs": 34.51,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -19933,7 +20281,7 @@
       },
       "planCount": 1494,
       "nodes": 8845,
-      "runtimeMs": 6.38,
+      "runtimeMs": 16.512,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -19993,7 +20341,7 @@
       },
       "planCount": 24,
       "nodes": 65,
-      "runtimeMs": 0.198,
+      "runtimeMs": 0.236,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20007,7 +20355,7 @@
       },
       "planCount": 24,
       "nodes": 65,
-      "runtimeMs": 0.054,
+      "runtimeMs": 0.063,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20066,7 +20414,7 @@
       },
       "planCount": 200,
       "nodes": 1195,
-      "runtimeMs": 21.11,
+      "runtimeMs": 51.451,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -20088,7 +20436,7 @@
       },
       "planCount": 5265,
       "nodes": 102229,
-      "runtimeMs": 48.895,
+      "runtimeMs": 97.556,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20148,7 +20496,7 @@
       },
       "planCount": 200,
       "nodes": 335,
-      "runtimeMs": 15.24,
+      "runtimeMs": 48.778,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -20166,7 +20514,7 @@
       },
       "planCount": 34919,
       "nodes": 111405,
-      "runtimeMs": 108.584,
+      "runtimeMs": 238.702,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20226,7 +20574,7 @@
       },
       "planCount": 90,
       "nodes": 175,
-      "runtimeMs": 1.991,
+      "runtimeMs": 6.682,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20240,7 +20588,7 @@
       },
       "planCount": 90,
       "nodes": 175,
-      "runtimeMs": 0.158,
+      "runtimeMs": 0.436,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20287,7 +20635,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 1755,
-      "runtimeMs": 0.898,
+      "runtimeMs": 0.57,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20297,7 +20645,7 @@
       "best": null,
       "planCount": 0,
       "nodes": 1755,
-      "runtimeMs": 0.54,
+      "runtimeMs": 0.593,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20376,7 +20724,7 @@
       },
       "planCount": 200,
       "nodes": 617,
-      "runtimeMs": 15.046,
+      "runtimeMs": 33.984,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -20394,7 +20742,7 @@
       },
       "planCount": 1562,
       "nodes": 8905,
-      "runtimeMs": 6.183,
+      "runtimeMs": 9.661,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20454,7 +20802,7 @@
       },
       "planCount": 24,
       "nodes": 65,
-      "runtimeMs": 0.223,
+      "runtimeMs": 0.311,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20468,7 +20816,7 @@
       },
       "planCount": 24,
       "nodes": 65,
-      "runtimeMs": 0.048,
+      "runtimeMs": 0.054,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20527,7 +20875,7 @@
       },
       "planCount": 200,
       "nodes": 1189,
-      "runtimeMs": 20.616,
+      "runtimeMs": 54.794,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -20549,7 +20897,7 @@
       },
       "planCount": 5490,
       "nodes": 102961,
-      "runtimeMs": 44.761,
+      "runtimeMs": 129.759,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20609,7 +20957,7 @@
       },
       "planCount": 200,
       "nodes": 335,
-      "runtimeMs": 14.883,
+      "runtimeMs": 39.184,
       "exhaustiveComplete": false,
       "note": "bounded mode stopped after 200 plans"
     },
@@ -20627,7 +20975,7 @@
       },
       "planCount": 35229,
       "nodes": 111615,
-      "runtimeMs": 109.562,
+      "runtimeMs": 247.88,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20687,7 +21035,7 @@
       },
       "planCount": 90,
       "nodes": 175,
-      "runtimeMs": 1.971,
+      "runtimeMs": 17.355,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20701,7 +21049,7 @@
       },
       "planCount": 90,
       "nodes": 175,
-      "runtimeMs": 0.163,
+      "runtimeMs": 1.108,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20753,7 +21101,7 @@
       },
       "planCount": 1,
       "nodes": 30,
-      "runtimeMs": 0.013,
+      "runtimeMs": 0.021,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20768,7 +21116,7 @@
       },
       "planCount": 1,
       "nodes": 30,
-      "runtimeMs": 0.008,
+      "runtimeMs": 0.01,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20813,7 +21161,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.008,
+      "runtimeMs": 0.016,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20825,7 +21173,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.006,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20868,7 +21216,7 @@
       "best": {},
       "planCount": 1,
       "nodes": 1,
-      "runtimeMs": 0.001,
+      "runtimeMs": 0.002,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20878,7 +21226,7 @@
       "best": {},
       "planCount": 1,
       "nodes": 1,
-      "runtimeMs": 0,
+      "runtimeMs": 0.001,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20922,7 +21270,7 @@
       },
       "planCount": 15,
       "nodes": 98,
-      "runtimeMs": 0.093,
+      "runtimeMs": 0.122,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20937,7 +21285,7 @@
       },
       "planCount": 15,
       "nodes": 98,
-      "runtimeMs": 0.038,
+      "runtimeMs": 0.052,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20982,7 +21330,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.012,
+      "runtimeMs": 0.019,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -20994,7 +21342,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.005,
+      "runtimeMs": 0.007,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -21091,7 +21439,7 @@
       },
       "planCount": 1,
       "nodes": 30,
-      "runtimeMs": 0.009,
+      "runtimeMs": 0.038,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -21106,7 +21454,7 @@
       },
       "planCount": 1,
       "nodes": 30,
-      "runtimeMs": 0.008,
+      "runtimeMs": 0.01,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -21151,7 +21499,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.007,
+      "runtimeMs": 0.02,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -21163,7 +21511,7 @@
       },
       "planCount": 4,
       "nodes": 5,
-      "runtimeMs": 0.004,
+      "runtimeMs": 0.007,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -21206,7 +21554,7 @@
       "best": {},
       "planCount": 1,
       "nodes": 1,
-      "runtimeMs": 0.001,
+      "runtimeMs": 0.002,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -21260,7 +21608,7 @@
       },
       "planCount": 15,
       "nodes": 98,
-      "runtimeMs": 0.097,
+      "runtimeMs": 0.922,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -21275,7 +21623,7 @@
       },
       "planCount": 15,
       "nodes": 98,
-      "runtimeMs": 0.038,
+      "runtimeMs": 0.234,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -21320,7 +21668,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.011,
+      "runtimeMs": 0.022,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -21332,7 +21680,7 @@
       },
       "planCount": 6,
       "nodes": 7,
-      "runtimeMs": 0.006,
+      "runtimeMs": 0.008,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -21375,7 +21723,7 @@
       "best": {},
       "planCount": 1,
       "nodes": 1,
-      "runtimeMs": 0.001,
+      "runtimeMs": 0.002,
       "exhaustiveComplete": true,
       "note": null
     },
@@ -21385,7 +21733,7 @@
       "best": {},
       "planCount": 1,
       "nodes": 1,
-      "runtimeMs": 0,
+      "runtimeMs": 0.001,
       "exhaustiveComplete": true,
       "note": null
     },

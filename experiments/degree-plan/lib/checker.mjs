@@ -46,6 +46,16 @@ export function validatePlan(problem, assignment, { termLabels } = {}) {
       if (pTerm === undefined || term === undefined) continue; // covered by error 1
       if (pTerm >= term) errors.push(`${course.code} (term ${term}) takes its prereq ${p} in the same or a later term (${pTerm})`);
     }
+    // Co-requisites carry no ordering, but strict mode still needs the
+    // partner completed, current-term, or planned too.
+    if (equivalence !== "strict") continue;
+    for (const gap of course.gapPrereqRefs) {
+      if (gap.kind !== "cyclic") continue;
+      const partner = gap.code;
+      if (!remaining.some((r) => r.code === partner) && !done.has(partner) && !planned.has(partner)) {
+        errors.push(`${course.code}: co-requisite ${partner} is neither planned, completed, nor current-term; strict mode cannot omit it`);
+      }
+    }
   }
 
   // 4. Offering assumption per term kind.
