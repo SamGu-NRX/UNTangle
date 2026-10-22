@@ -181,8 +181,9 @@ describe("a copy that holds preferences (guest-sync.md: kept when signing in rep
     plannerValue.setSchedulePreferences = (update: (current: typeof own) => typeof own) => {
       plannerValue.schedulePreferences = update(plannerValue.schedulePreferences as typeof own);
     };
-    plannerValue.setOptimization = (optimization: PlannerState["optimization"]) => {
-      plannerValue.plannerState = { ...(plannerValue.plannerState as PlannerState), optimization };
+    // "Use these preferences" sets the goal through applySchedule, which moves no section (adopt.ts).
+    plannerValue.applySchedule = (_byCourse: Record<string, string>, goal?: PlannerState["optimization"] | null) => {
+      if (goal) plannerValue.plannerState = { ...(plannerValue.plannerState as PlannerState), optimization: goal };
     };
     const kept = { goal: "clusterNight" as const, constraints: { ...own.constraints, daysOff: ["Fri" as const] }, weights: own.weights };
     expect(createSavedPlanStore().savePlan({ state: main, name: "From this browser, Oct 22", preferences: kept }).ok).toBe(true);

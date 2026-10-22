@@ -157,6 +157,34 @@ describe("Use these preferences, then Undo", () => {
   });
 });
 
+// setOptimization releases Main's unlocked picks so a new goal re-plans them; "Use these preferences" only
+// replaces preferences, so it must never go through it (Codex on #202).
+describe("Use these preferences, against the planner contract", () => {
+  test("sets a different goal without releasing picks, and so does Undo", async () => {
+    const { applyCopyPreferences, undoCopyPreferences } = await import("@/components/schedules-library/adopt");
+    const calls: string[] = [];
+    const constraints = { daysOff: [] } as never;
+    const planner = {
+      plannerState: { optimization: "balanced" } as never,
+      schedulePreferences: { constraints, weights: {} } as never,
+      setSchedulePreferences: (update: (current: never) => never) => {
+        planner.schedulePreferences = update(planner.schedulePreferences);
+        calls.push("setSchedulePreferences");
+      },
+      applySchedule: (byCourse: Record<string, string>, goal?: string | null) => {
+        calls.push(`applySchedule(${JSON.stringify(byCourse)}, ${goal})`);
+        (planner.plannerState as { optimization: string }).optimization = goal ?? "balanced";
+      },
+      setOptimization: () => calls.push("setOptimization"),
+    };
+    const used = applyCopyPreferences(planner as never, { goal: "clusterNight", constraints, weights: {} } as never);
+    expect(calls).toEqual(["applySchedule({}, clusterNight)", "setSchedulePreferences"]);
+    calls.length = 0;
+    expect(undoCopyPreferences(planner as never, used)).toBe(true);
+    expect(calls).toEqual(["applySchedule({}, balanced)", "setSchedulePreferences"]);
+  });
+});
+
 describe("the Use in Main announcement", () => {
   test("is said once stored, waits while saving, and is dropped when the save fails or conflicts", async () => {
     const { announcementStep } = await import("@/components/schedules-library/adopt");

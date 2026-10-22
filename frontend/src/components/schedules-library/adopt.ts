@@ -61,7 +61,10 @@ export function undoAdoption(planner: AdoptPlanner, adoption: Adoption): boolean
 }
 
 /** What "Use these preferences" and its Undo read and write. */
-export type PreferencesPlanner = Pick<AdoptPlanner, "plannerState" | "schedulePreferences" | "setSchedulePreferences" | "setOptimization">;
+export type PreferencesPlanner = Pick<AdoptPlanner, "plannerState" | "schedulePreferences" | "setSchedulePreferences"> & {
+  /** The provider's: sets the given sections and goal, and releases no pick. */
+  applySchedule: (byCourse: Record<string, string>, goal?: AdoptPlanner["plannerState"]["optimization"] | null) => void;
+};
 
 /** One "Use these preferences": the set it replaced, and the set it left, which Undo checks is still there. */
 export type PreferencesUse = { before: SavedPlanPreferences; after: SavedPlanPreferences };
@@ -73,8 +76,10 @@ function preferencesOf(planner: Pick<PreferencesPlanner, "plannerState" | "sched
 }
 
 function setPreferences(planner: PreferencesPlanner, next: SavedPlanPreferences) {
-  // A new goal brings its preset weights (setOptimization), so the set's own weights are written after it.
-  if (planner.plannerState.optimization !== next.goal) planner.setOptimization(next.goal);
+  // setOptimization would release Main's unlocked picks so the new goal re-plans them, and Undo couldn't bring
+  // them back. This only replaces preferences, so the goal goes in through applySchedule with no section
+  // changes, which leaves every pick as it is. The set's own weights are written right after.
+  if (planner.plannerState.optimization !== next.goal) planner.applySchedule({}, next.goal);
   const { constraints, weights, calendars } = next;
   planner.setSchedulePreferences(() => ({ constraints, weights, ...(calendars ? { calendars } : {}) }));
 }
