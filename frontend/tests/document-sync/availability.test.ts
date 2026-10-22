@@ -20,6 +20,8 @@ const context = { params: Promise.resolve({ id }) };
 const path = `${origin}/api/v1/documents/${id}/availability`;
 const picked = { ...schedule, courses: ["MATH 1680"], selectedSections: { "MATH 1680": "vsb:spring-2027:MATH 1680:6862+6863" } };
 
+const realRateLimitServer = { ...(await import("@/lib/rate-limit/server")) };
+
 function setup() {
   let userId: string | null = "alice";
   let document = DocumentSchema.parse({ documentId: id, kind: "schedule", revision: 7, schemaVersion: 1, body: picked });
@@ -190,7 +192,11 @@ describe("availability HTTP and data integration", () => {
     const wrapper = createRateLimitWrapper({ store: memoryStore(), session: async () => null, secret: "test-only", now: () => 1_000 });
     mock.module("@/lib/document-sync/server", () => ({ syncHandlers: api.handlers }));
     mock.module("@/lib/sections/server", () => ({ sectionsProxy: api.proxy }));
-    mock.module("@/lib/rate-limit/server", () => ({ withRateLimit: wrapper }));
+    mock.module("@/lib/rate-limit/server", () => ({
+      ...realRateLimitServer,
+      withRateLimit: ((route: Parameters<typeof realRateLimitServer.withRateLimit>[0], handler: Parameters<typeof realRateLimitServer.withRateLimit>[1]) =>
+        (route === "documentFlood" ? wrapper : realRateLimitServer.withRateLimit)(route, handler)) as typeof realRateLimitServer.withRateLimit,
+    }));
     const { GET } = await import("@/app/api/v1/documents/[id]/availability/route");
     const response = await GET(api.request(), context);
     expect(response.status).toBe(200);

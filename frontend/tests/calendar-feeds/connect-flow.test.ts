@@ -40,12 +40,20 @@ mock.module("node:https", () => ({
 }));
 // As in the route tests: the wrapper resolves the session through the auth-server registry at call
 // time, so whichever test file registered last, every file's own session mock is the one asked.
-mock.module("@/lib/rate-limit/server", () => ({
-  withRateLimit: createRateLimitWrapper({
+const realRateLimitServer = { ...(await import("@/lib/rate-limit/server")) };
+
+const fakeRateLimit = createRateLimitWrapper({
     store: memoryStore(),
     secret: "calendar connect flow tests",
     session: async () => ((await import("@/lib/auth-server")) as { getServerSession: () => Promise<Session> }).getServerSession(),
-  }),
+  });
+
+mock.module("@/lib/rate-limit/server", () => ({
+  ...realRateLimitServer,
+  withRateLimit: ((route: Parameters<typeof realRateLimitServer.withRateLimit>[0], handler: Parameters<typeof realRateLimitServer.withRateLimit>[1]) =>
+    (route === "calendarFeedPreview" || route === "calendarFeedBusy"
+      ? fakeRateLimit
+      : realRateLimitServer.withRateLimit)(route, handler)) as typeof realRateLimitServer.withRateLimit,
 }));
 
 const TERM = { id: "spring-2027", label: "Spring 2027", start: "2027-01-11", end: "2027-05-07" };
@@ -82,6 +90,7 @@ beforeAll(async () => {
     busy: (await import("@/app/api/v1/calendar-feeds/busy/route")).POST,
   };
 });
+
 beforeEach(() => {
   process.env.CALENDAR_FEED_KEY = Buffer.alloc(32, 11).toString("base64");
   signIn({ user: { id: "student-1" } });
