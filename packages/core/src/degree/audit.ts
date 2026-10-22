@@ -135,6 +135,12 @@ export type NodeOutcome = {
   remaining: Remaining;
   /** A group's parts, or every branch of a choice. */
   children?: NodeOutcome[];
+  /**
+   * On a choice, the index in `children` of the branch its `name` gives:
+   * the met branch, or the closest one. Code that follows the student's
+   * branch reads this, never the name, which is display text.
+   */
+  shownBranch?: number;
 };
 
 /**
@@ -312,6 +318,8 @@ type Evaluation = {
   /** What this evaluation still lacks: none when met, an advisor's call when undecided. */
   need: Remaining;
   children?: Evaluation[];
+  /** On a choice, the index in `children` of the branch its name gives. */
+  shownBranch?: number;
 };
 
 const NOTHING: Remaining = { kind: "none" };
@@ -556,6 +564,7 @@ function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
         detail: met ? shown.evaluation.detail : `No branch met. ${shown.branch}: ${shown.evaluation.detail}`,
         need: met ? NOTHING : { kind: "branch" },
         children: tried.map((entry) => entry.evaluation),
+        shownBranch: tried.indexOf(shown),
       };
     }
     case "group": {
@@ -656,7 +665,16 @@ function combine(now: Evaluation, projected: Evaluation, fullest: Evaluation, ne
   // is needed: the branch a student did not take is not work left.
   const remaining = needed && (status === "unsatisfied" || status === "advisory") ? fullest.need : NOTHING;
   const children = now.children?.map((child, index) => combine(child, projected.children![index]!, fullest.children![index]!, remaining.kind !== "none"));
-  return { name: shown.name, kind: now.kind, status, detail, citation: now.citation, remaining, ...(children ? { children } : {}) };
+  return {
+    name: shown.name,
+    kind: now.kind,
+    status,
+    detail,
+    citation: now.citation,
+    remaining,
+    ...(children ? { children } : {}),
+    ...(shown.shownBranch !== undefined ? { shownBranch: shown.shownBranch } : {}),
+  };
 }
 
 /** The finished courses a typed scope admits, each code once. */

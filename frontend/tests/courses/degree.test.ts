@@ -5,12 +5,14 @@
  * the real course model and the real 2026-2027 data.
  */
 import { describe, expect, test } from "bun:test";
+import type { ChoiceNode } from "@untangle/core/degree/types";
 import { buildCourseModel } from "@/components/courses/model/course-model";
 import { checkDegree, withDegree, type AuditedDegree } from "@/components/courses/model/degree";
 import { buildGroups } from "@/components/courses/model/groups";
 import { leftHeadline, leftNotes } from "@/components/courses/model/left-copy";
 import { autoTransaction, nextTermSuggestions, planAuto, snapshotOf } from "@/components/courses/model/plan-edits";
 import { untProfile } from "@/components/courses/school";
+import { DEGREE_DATA } from "@/lib/degree/programs.generated";
 import { getMajorById } from "@/lib/planner";
 import type { PlannerState } from "@/lib/types";
 import { completedPlan, finalTerm, journeyTranscript, plannerWith, row } from "./degree-students";
@@ -312,5 +314,31 @@ describe("Computer Engineering: Auto keeps one specialization", () => {
     const planned = planAuto({ ...profile, autoCreditBudget: 120 }, plan, getMajorById("ce")!).outcome.planned;
     expect(planned).not.toContain("CSCE 4440");
     expect(planned).not.toContain("CSCE 4600");
+  });
+
+  test("keeps one specialization when a branch name contains the separator the choice's name uses", () => {
+    // The choice's display name is "<choice> — <branch>", so a branch named
+    // with " — " cannot be read back out of it. Rename the catalog-first
+    // branch for this test only and restore it after.
+    const choice = DEGREE_DATA.programs.find((program) => program.id === "ce-bs")!.requirements.find((node): node is ChoiceNode => node.kind === "choice")!;
+    const branch = choice.branches[0]!;
+    const { name, node } = branch;
+    expect(name).toBe("Real-Time and Embedded Systems");
+    const renamed = "Real-Time — Embedded Systems";
+    branch.name = renamed;
+    branch.node = { ...node, citation: { ...node.citation, heading: renamed } };
+    try {
+      const plan = plannerWith([
+        row("CSCE 3444", "Spring 2026", "B", 3),
+        row("CSCE 3420", "Spring 2026", "B", 3),
+      ], "ce");
+      const planned = planAuto({ ...profile, autoCreditBudget: 120 }, plan, getMajorById("ce")!).outcome.planned;
+      expect(planned).not.toContain("CSCE 3530");
+      expect(planned).not.toContain("CSCE 3550");
+      expect(planned).not.toContain("CSCE 3610");
+    } finally {
+      branch.name = name;
+      branch.node = node;
+    }
   });
 });
