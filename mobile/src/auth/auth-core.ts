@@ -483,6 +483,11 @@ export function createAuth(deps: AuthDeps) {
           { fetchLike: deps.fetchLike, headers: { Authorization: `Bearer ${accessToken}` } },
         ).catch(() => null);
       }
+      // The revoke may have been in flight while grant-loss handling admitted
+      // a newer sign-in. Once the generation moved, this sign-out no longer
+      // owns the in-memory or durable grant; return before any destructors
+      // can erase the newer session.
+      if (generation !== signInGeneration) return;
       // A refresh that landed during the revoke scheduled a new timer; none
       // may outlive the sign-out.
       cancelRefreshTimer();

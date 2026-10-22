@@ -681,6 +681,63 @@ describe("signOut", () => {
     expect(harness.auth.getState()).toEqual({ status: "signed-out" });
   });
 
+  it("does not erase a newer grant when the old revoke finishes after re-sign-in", async () => {
+    let releaseCount: () => void = () => {};
+    const countGate = new Promise<void>(resolve => {
+      releaseCount = resolve;
+    });
+    let revokeEntered: () => void = () => {};
+    const revokeStarted = new Promise<void>(resolve => {
+      revokeEntered = resolve;
+    });
+    let releaseRevoke: () => void = () => {};
+    const revokeGate = new Promise<void>(resolve => {
+      releaseRevoke = resolve;
+    });
+    let syncCalls = 0;
+    const fetchLike: FetchLike = async url => {
+      if (url.endsWith("/api/v1/device/start")) return jsonResponse(START_200, 200);
+      if (url.endsWith("/api/v1/device/token")) return jsonResponse(TOKENS_GRANT_TWO, 200);
+      if (url.endsWith("/api/v1/sync")) {
+        if (syncCalls++ === 0) {
+          await countGate;
+          return jsonResponse({ error: "unauthorized" }, 401);
+        }
+        return jsonResponse(SYNC_200, 200);
+      }
+      if (url.endsWith("/api/v1/device/revoke")) {
+        revokeEntered();
+        await revokeGate;
+        return jsonResponse({ revoked: true }, 200);
+      }
+      return jsonResponse({ revoked: true }, 200);
+    };
+    const harness = makeHarness([], { fetchLike });
+    await harness.store.save(activeTokens());
+    await harness.auth.restore();
+    const signingOut = harness.auth.signOut();
+    await revokeStarted;
+
+    // The old grant's count read reports its 401 while sign-out is still
+    // waiting for revoke. Grant-loss cleanup publishes signed-out, allowing
+    // a new grant to be saved before the old sign-out resumes.
+    releaseCount();
+    await waitFor(harness.auth, "signed-out");
+    const signingIn = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await expect(signingIn).resolves.toEqual({ ok: true });
+    await flush();
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: 2, countFailed: false });
+    expect(await harness.auth.getAccessToken()).toBe(TOKENS_GRANT_TWO.accessToken);
+
+    // Releasing the old revoke must not let its cleanup destroy grant 2.
+    releaseRevoke();
+    await expect(signingOut).resolves.toBeUndefined();
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: 2, countFailed: false });
+    expect(await harness.auth.getAccessToken()).toBe(TOKENS_GRANT_TWO.accessToken);
+    expect((await harness.store.load())?.grantId).toBe("grant-2");
+  });
+
   it("refreshes an expired access token first, then revokes with the live one", async () => {
     const harness = makeHarness([
       { status: 200, body: SYNC_200 }, // restore's count read
