@@ -81,6 +81,17 @@ describe("pr-rules.yml's pr job", () => {
     expect(outputs.number).toBe("31");
   });
 
+  test("reports nothing when two open PRs share the review run's head", async () => {
+    const forks: ForkPr[] = [
+      { number: 30, owner: "someone", head: { ref: "fix", sha: "f".repeat(40) } },
+      { number: 32, owner: "someone", head: { ref: "fix", sha: "f".repeat(40) } },
+    ];
+    const run = { pull_requests: [], head_repository: { owner: { login: "someone" } }, head_branch: "fix", head_sha: "f".repeat(40) };
+    const { outputs, asked } = await find({ workflow_run: run }, open7, forks);
+    expect(asked).toEqual([]);
+    expect(outputs).toEqual({});
+  });
+
   test("reports nothing when no open PR has the review run's head", async () => {
     const run = { pull_requests: [], head_repository: { owner: { login: "someone" } }, head_branch: "gone", head_sha: "f".repeat(40) };
     const { outputs, notices, asked } = await find({ workflow_run: run });

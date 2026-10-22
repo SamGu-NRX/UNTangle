@@ -67,7 +67,8 @@ describe("pr-rules.yml", () => {
   test("lets the newest event's run replace older ones", async () => {
     const { concurrency } = await workflow("pr-rules.yml");
     expect(concurrency).toEqual({
-      group: "pr-rules-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.run_id }}",
+      group:
+        "pr-rules-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || format('{0}:{1}', github.event.workflow_run.head_repository.full_name, github.event.workflow_run.head_branch) }}",
       "cancel-in-progress": true,
     });
   });
