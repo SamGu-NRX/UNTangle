@@ -80,8 +80,25 @@ async function benchObservation(ctx: SuiteContext, targetDir: string): Promise<B
   if (memoized !== undefined) return memoized;
 
   const command = benchCommand(targetDir);
-  const run = await runCaptured({ cmd: command.cmd, args: command.args, cwd: command.cwd, timeoutMs: BENCH_TIMEOUT_MS });
+  const run = await runCaptured({
+    cmd: command.cmd,
+    args: command.args,
+    cwd: command.cwd,
+    timeoutMs: BENCH_TIMEOUT_MS,
+    signal: ctx.signal,
+  });
 
+  if (run.aborted) {
+    // Memoized like any other failed run, so the next optimizer case does not
+    // start another full bench after the runner has already given up on one.
+    memoized = {
+      kind: "run-failed",
+      headline: "bench was killed when the runner cancelled its timed-out case",
+      detail: `stderr tail: ${run.stderr.slice(-400)}`,
+      evidencePath: null,
+    };
+    return memoized;
+  }
   if (run.spawnError !== undefined) {
     memoized = { kind: "run-failed", headline: "bench could not be spawned", detail: run.spawnError, evidencePath: null };
     return memoized;

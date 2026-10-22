@@ -109,7 +109,7 @@ async function safelyRun(
 }
 
 async function runAcknowledgedSavesSurvive(ctx: SuiteContext, evidence: Evidence): Promise<CaseOutcome> {
-  const { browser, server } = await launchCaseBrowser();
+  const { browser, server } = await launchCaseBrowser(ctx.signal);
   try {
     const { context, page } = await openSession(browser);
     const pageErrors = collectPageErrors(page);
@@ -188,7 +188,7 @@ async function runAcknowledgedSavesSurvive(ctx: SuiteContext, evidence: Evidence
 }
 
 async function runFailedSavesNeverSaved(ctx: SuiteContext, evidence: Evidence): Promise<CaseOutcome> {
-  const { browser, server } = await launchCaseBrowser();
+  const { browser, server } = await launchCaseBrowser(ctx.signal);
   try {
     const { context, page } = await openSession(browser);
     const pageErrors = collectPageErrors(page);
@@ -304,7 +304,7 @@ async function runFailedSavesNeverSaved(ctx: SuiteContext, evidence: Evidence): 
 }
 
 async function runDeniedStorageDegradesHonestly(ctx: SuiteContext, evidence: Evidence): Promise<CaseOutcome> {
-  const { browser, server } = await launchCaseBrowser();
+  const { browser, server } = await launchCaseBrowser(ctx.signal);
   try {
     const context = await browser.newContext();
     await context.addInitScript(denyBrowserStorage);
@@ -370,7 +370,7 @@ async function runDeniedStorageDegradesHonestly(ctx: SuiteContext, evidence: Evi
 }
 
 async function runCorruptBytesQuarantined(ctx: SuiteContext, evidence: Evidence): Promise<CaseOutcome> {
-  const { browser, server } = await launchCaseBrowser();
+  const { browser, server } = await launchCaseBrowser(ctx.signal);
   try {
     const { context, page } = await openSession(browser);
     const pageErrors = collectPageErrors(page);
@@ -482,7 +482,7 @@ async function runCorruptBytesQuarantined(ctx: SuiteContext, evidence: Evidence)
 }
 
 async function runCrossTabConflictVisible(ctx: SuiteContext, evidence: Evidence): Promise<CaseOutcome> {
-  const { browser, server } = await launchCaseBrowser();
+  const { browser, server } = await launchCaseBrowser(ctx.signal);
   try {
     const context = await browser.newContext(); // one context = one browser profile, two same-origin tabs
     const pageStale = await context.newPage();
@@ -561,7 +561,7 @@ async function runCrossTabConflictVisible(ctx: SuiteContext, evidence: Evidence)
 }
 
 async function runCleanTabAdoptsNewer(ctx: SuiteContext, evidence: Evidence): Promise<CaseOutcome> {
-  const { browser, server } = await launchCaseBrowser();
+  const { browser, server } = await launchCaseBrowser(ctx.signal);
   try {
     const context = await browser.newContext();
     const pageClean = await context.newPage();
