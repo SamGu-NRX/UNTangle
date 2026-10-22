@@ -35,9 +35,26 @@ const openCases = new Set<CaseBrowser>();
  * Launch a fresh browser + context for one case and land on the app root.
  * `pathname` may carry a query (e.g. "/courses?q=CSCE"); it is appended to the
  * origin exactly as given.
+ *
+ * `signal` is the case's SuiteContext.signal. When the runner aborts a
+ * timed-out case, the browser is closed, which rejects every Playwright call
+ * the case is still awaiting, so the case settles within the runner's drain
+ * grace instead of running on beside the next case.
  */
-export async function openCase(origin: string, viewport: ViewportName, pathname = "/"): Promise<CaseBrowser> {
-  const browser = await launchWithRetry();
+export async function openCase(
+  origin: string,
+  viewport: ViewportName,
+  pathname = "/",
+  signal?: AbortSignal,
+): Promise<CaseBrowser> {
+  const browser = await launchWithRetry(signal);
+  if (signal?.aborted) {
+    await boundedClose(browser.close(), "browser.close() after a cancelled launch");
+    signal.throwIfAborted();
+  }
+  // Never removed: the runner aborts only a case that is still running, and
+  // the per-case signal is dropped once the case settles.
+  signal?.addEventListener("abort", () => void boundedClose(browser.close(), "browser.close() on cancel"), { once: true });
   const context = await browser.newContext({
     viewport: VIEWPORTS[viewport],
     deviceScaleFactor: 1,
@@ -73,8 +90,9 @@ const CLOSE_STEP_TIMEOUT_MS = 10_000;
  */
 const LAUNCH_DELAYS_MS = [2_000, 5_000];
 
-async function launchWithRetry(): Promise<Browser> {
+async function launchWithRetry(signal: AbortSignal | undefined): Promise<Browser> {
   for (let attempt = 1; attempt <= LAUNCH_DELAYS_MS.length + 1; attempt++) {
+    signal?.throwIfAborted();
     try {
       return await chromium.launch({ headless: true });
     } catch (error) {

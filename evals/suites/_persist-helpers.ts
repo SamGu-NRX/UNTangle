@@ -80,12 +80,18 @@ export async function gotoDoc(page: Page, url: string, label: string): Promise<v
  * orphaned chrome processes that starve later cases). The BrowserServer
  * handle is the guarantee — close()/kill() terminate the OS process even when
  * the protocol is unresponsive.
+ *
+ * `signal` is the case's SuiteContext.signal. When the runner aborts a
+ * timed-out case, the server is killed, which disconnects the browser and
+ * rejects every Playwright call the case is still awaiting, so the case
+ * settles within the runner's drain grace.
  */
-export async function launchCaseBrowser(): Promise<{ browser: Browser; server: BrowserServer }> {
+export async function launchCaseBrowser(signal?: AbortSignal): Promise<{ browser: Browser; server: BrowserServer }> {
+  signal?.throwIfAborted();
   const started = Date.now();
   let server: BrowserServer | undefined;
   try {
-    return await Promise.race([
+    const handle = await Promise.race([
       (async () => {
         console.error("[persistence-faults] launch: starting browser server");
         server = await chromium.launchServer({ headless: true });
@@ -97,6 +103,12 @@ export async function launchCaseBrowser(): Promise<{ browser: Browser; server: B
         throw new Error(`browser launch/connect exceeded 90s (launchServer ${server ? "up" : "never came up"})`);
       }),
     ]);
+    // Aborted mid-launch: the catch below closes the server.
+    signal?.throwIfAborted();
+    // Never removed: the runner aborts only a case that is still running, and
+    // the per-case signal is dropped once the case settles.
+    signal?.addEventListener("abort", () => void handle.server.kill().catch(() => undefined), { once: true });
+    return handle;
   } catch (error) {
     // A launch that lost the race must not leave its server process behind.
     if (server) {

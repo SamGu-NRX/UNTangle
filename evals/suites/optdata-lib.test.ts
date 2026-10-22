@@ -1,5 +1,5 @@
 /**
- * Unit tests for _optdata-lib's pure logic. The runner skips *.test.* files,
+ * Unit tests for _optdata-lib's logic. The runner skips *.test.* files,
  * so this never registers as a suite. Run: bun test evals/suites/optdata-lib.test.ts
  *
  * These tests pin the decision-685c contracts: the prescribed REAL tool
@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -29,6 +29,7 @@ import {
   resolveBundledCatalogPath,
   resolveTargetDir,
   roundNumber,
+  runCaptured,
   sha256Hex,
   summarizeBenchReport,
   verifyDescriptorAgainstBundle,
@@ -50,6 +51,37 @@ function contextWithTargetDir(detail: string | undefined): SuiteContext {
     ],
   };
 }
+
+describe("runCaptured cancellation", () => {
+  // The step cap is far above the abort delay, so only the signal can end
+  // these runs quickly.
+  const STEP_CAP_MS = 20_000;
+
+  test("aborting the signal kills the process and reports aborted, not timed out", async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 100);
+    const run = await runCaptured({ cmd: "sleep", args: ["30"], cwd: os.tmpdir(), timeoutMs: STEP_CAP_MS, signal: controller.signal });
+    expect(run.aborted).toBeTrue();
+    expect(run.timedOut).toBeFalse();
+    expect(run.code).toBeNull();
+    expect(run.durationMs).toBeLessThan(5_000);
+  }, 30_000);
+
+  test("an already-aborted signal spawns nothing", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const marker = path.join(mkdtempSync(path.join(os.tmpdir(), "optdata-abort-")), "spawned");
+    const run = await runCaptured({ cmd: "touch", args: [marker], cwd: os.tmpdir(), timeoutMs: STEP_CAP_MS, signal: controller.signal });
+    expect(run.aborted).toBeTrue();
+    expect(existsSync(marker)).toBeFalse();
+    rmSync(path.dirname(marker), { recursive: true, force: true });
+  });
+
+  test("without a signal a finished run reports aborted false", async () => {
+    const run = await runCaptured({ cmd: "true", args: [], cwd: os.tmpdir(), timeoutMs: STEP_CAP_MS });
+    expect(run).toMatchObject({ code: 0, aborted: false, timedOut: false });
+  });
+});
 
 describe("parseJsonObject", () => {
   test("objects parse; arrays and scalars are rejected", () => {

@@ -118,6 +118,8 @@ export interface CapturedRun {
   stdout: string;
   stderr: string;
   timedOut: boolean;
+  /** The caller's signal aborted (the runner cancelled the case) and the process was killed. */
+  aborted: boolean;
   durationMs: number;
   /** Set only when the process could not be spawned at all. */
   spawnError?: string;
@@ -128,17 +130,24 @@ const CAPTURE_LIMIT_BYTES = 1 << 20; // 1 MiB per stream; overflow noted in evid
 /**
  * Run a command with a hard wall-clock cap, capturing stdout/stderr as text.
  * Never throws — every failure mode lands in the returned record so a case
- * can report it.
+ * can report it. When `signal` aborts (the runner cancelling a timed-out
+ * case), the process is killed at once so the case settles inside the
+ * runner's drain grace instead of running to its own step cap.
  */
 export function runCaptured(options: {
   cmd: string;
   args: string[];
   cwd: string;
   timeoutMs: number;
+  signal?: AbortSignal;
 }): Promise<CapturedRun> {
-  const { cmd, args, cwd, timeoutMs } = options;
+  const { cmd, args, cwd, timeoutMs, signal } = options;
   return new Promise((resolve) => {
     const started = Date.now();
+    if (signal?.aborted) {
+      resolve({ code: null, stdout: "", stderr: "", timedOut: false, aborted: true, durationMs: 0 });
+      return;
+    }
     // Sync spawn-wrapper so a spawn failure is data, not an exception path.
     const spawned: { child: ChildProcess } | { error: string } = (() => {
       try {
@@ -153,6 +162,7 @@ export function runCaptured(options: {
         stdout: "",
         stderr: "",
         timedOut: false,
+        aborted: false,
         durationMs: Date.now() - started,
         spawnError: spawned.error,
       });
@@ -160,6 +170,7 @@ export function runCaptured(options: {
     }
     const child = spawned.child;
     let timedOut = false;
+    let aborted = false;
     let settled = false;
     const out: Buffer[] = [];
     const err: Buffer[] = [];
@@ -172,16 +183,23 @@ export function runCaptured(options: {
       timedOut = true;
       child.kill("SIGKILL");
     }, timeoutMs);
+    const onAbort = (): void => {
+      aborted = true;
+      child.kill("SIGKILL");
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
 
     const finish = (code: number | null, spawnError?: string): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
       resolve({
         code,
         stdout: Buffer.concat(out).toString("utf8") + (outTruncated ? "\n[_optdata-lib] stdout truncated at 1 MiB" : ""),
         stderr: Buffer.concat(err).toString("utf8") + (errTruncated ? "\n[_optdata-lib] stderr truncated at 1 MiB" : ""),
         timedOut,
+        aborted,
         durationMs: Date.now() - started,
         ...(spawnError === undefined ? {} : { spawnError }),
       });

@@ -48,7 +48,7 @@ async function firstSearchedCode(page: CaseBrowser["page"]): Promise<string> {
 
 /** Open the named page (guest persona) at desktop size. */
 async function openScanPage(ctx: SuiteContext, key: PageKey): Promise<CaseBrowser> {
-  const cb = await openCase(ctx.frontendOrigin, "desktop");
+  const cb = await openCase(ctx.frontendOrigin, "desktop", "/", ctx.signal);
   switch (key) {
     case "home":
       break;
@@ -127,7 +127,7 @@ async function runAxeCase(ctx: SuiteContext, caseId: string): Promise<CaseOutcom
 
 /** Keyboard-only: focus every step; no pointer events anywhere. */
 async function runKeyboardCorePath(ctx: SuiteContext, caseId: string): Promise<CaseOutcome> {
-  const cb = await openCase(ctx.frontendOrigin, "desktop");
+  const cb = await openCase(ctx.frontendOrigin, "desktop", "/", ctx.signal);
   await settle(cb.page);
   // Landing → courses via keyboard.
   const continueGuest = cb.page.getByRole("link", { name: "Continue as guest" });
@@ -155,7 +155,7 @@ async function runKeyboardCorePath(ctx: SuiteContext, caseId: string): Promise<C
 }
 
 async function runFocusIndicator(ctx: SuiteContext, caseId: string): Promise<CaseOutcome> {
-  const cb = await openCase(ctx.frontendOrigin, "desktop", "/courses");
+  const cb = await openCase(ctx.frontendOrigin, "desktop", "/courses", ctx.signal);
   await settle(cb.page);
   const search = cb.page.getByRole("textbox", { name: "Search courses" });
   await search.focus({ timeout: 10_000 });
@@ -183,7 +183,7 @@ async function runFocusIndicator(ctx: SuiteContext, caseId: string): Promise<Cas
 }
 
 async function runReducedMotion(ctx: SuiteContext, caseId: string): Promise<CaseOutcome> {
-  const cb = await openCase(ctx.frontendOrigin, "desktop");
+  const cb = await openCase(ctx.frontendOrigin, "desktop", "/", ctx.signal);
   await cb.page.emulateMedia({ reducedMotion: "reduce" });
   await cb.page.goto(`${ctx.frontendOrigin}/courses`, { waitUntil: "domcontentloaded", timeout: 30_000 });
   await settle(cb.page, 1500);
@@ -216,7 +216,7 @@ async function runNoHorizontalOverflow(ctx: SuiteContext, caseId: string): Promi
   // summed past the old 240s case cap on a loaded host (two r2 attempts died
   // as bare case timeouts mid-way), and the assertion — document overflow at
   // 390x844 — is per-path and gains nothing from a fresh context per path.
-  const cb = await openCase(ctx.frontendOrigin, "mobile");
+  const cb = await openCase(ctx.frontendOrigin, "mobile", "/", ctx.signal);
   try {
     for (const path of ["/courses", "/schedule", "/map"]) {
       await cb.page.goto(`${ctx.frontendOrigin}${path}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
@@ -240,7 +240,7 @@ async function runNoHorizontalOverflow(ctx: SuiteContext, caseId: string): Promi
 }
 
 async function runImageIconLabeling(ctx: SuiteContext, caseId: string): Promise<CaseOutcome> {
-  const cb = await openCase(ctx.frontendOrigin, "desktop", "/courses");
+  const cb = await openCase(ctx.frontendOrigin, "desktop", "/courses", ctx.signal);
   await settle(cb.page);
   const labeling = await cb.page.evaluate(() => {
     const problems: string[] = [];

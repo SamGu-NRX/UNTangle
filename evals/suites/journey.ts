@@ -305,7 +305,7 @@ interface EnteredCase {
 
 /** Shared case entry: fresh browser, correct persona sign-in state, on /courses. */
 async function enter(ctx: SuiteContext, persona: PersonaName, viewport: ViewportName): Promise<EnteredCase> {
-  const cb = await openCase(ctx.frontendOrigin, viewport);
+  const cb = await openCase(ctx.frontendOrigin, viewport, "/", ctx.signal);
   if (persona === "guest") {
     await activate(cb.page, cb.page.getByRole("link", { name: "Continue as guest" }));
     await cb.page.waitForURL("**/courses", { timeout: 30_000 });
@@ -1047,7 +1047,7 @@ async function runMap(ctx: SuiteContext, caseId: string, persona: PersonaName, v
 
 /** auth: the auth page surface; registered personas do the full round trip. */
 async function runAuth(ctx: SuiteContext, caseId: string, persona: PersonaName, viewport: ViewportName): Promise<CaseOutcome> {
-  const cb = await openCase(ctx.frontendOrigin, viewport);
+  const cb = await openCase(ctx.frontendOrigin, viewport, "/", ctx.signal);
   await activate(cb.page, cb.page.getByRole("link", { name: "Sign in or create account" }));
   await cb.page.waitForURL("**/auth", { timeout: 30_000 });
   const h1 = (await cb.page.getByRole("heading", { level: 1 }).first().textContent({ timeout: 10_000 }).catch(() => null)) ?? "";

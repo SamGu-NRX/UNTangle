@@ -108,14 +108,28 @@ async function runCatalogCertification(ctx: SuiteContext, targetDir: string): Pr
   const audit = catalogAuditCommand(targetDir, auditOutDir);
   const verify = catalogVerifyCommand(targetDir, auditOutDir);
 
-  const auditRun = await runCaptured({ cmd: audit.cmd, args: audit.args, cwd: audit.cwd, timeoutMs: STEP_TIMEOUT_MS });
+  const auditRun = await runCaptured({
+    cmd: audit.cmd,
+    args: audit.args,
+    cwd: audit.cwd,
+    timeoutMs: STEP_TIMEOUT_MS,
+    signal: ctx.signal,
+  });
   // The audit's own output contract: report.json under --out (read even on a
   // failing exit, so the evidence carries whatever the tool managed to write).
   const report = auditRun.code === 0 && !auditRun.timedOut && auditRun.spawnError === undefined
     ? readJsonObjectFile(path.join(auditOutDir, "report.json"))
     : undefined;
 
-  const verifyRun = await runCaptured({ cmd: verify.cmd, args: verify.args, cwd: verify.cwd, timeoutMs: STEP_TIMEOUT_MS });
+  // After a cancel, ctx.signal is already aborted, so this returns at once
+  // without spawning verify.
+  const verifyRun = await runCaptured({
+    cmd: verify.cmd,
+    args: verify.args,
+    cwd: verify.cwd,
+    timeoutMs: STEP_TIMEOUT_MS,
+    signal: ctx.signal,
+  });
   const verifyRan = verifyRun.code !== null && !verifyRun.timedOut && verifyRun.spawnError === undefined;
   const verdict = verifyRan ? parseVerifyVerdict(verifyRun.stdout) : null;
 

@@ -185,7 +185,71 @@ function suiteContext(stack: RunningStack): SuiteContext {
   };
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, what: string, cancel: () => void): Promise<T> {
+/**
+ * How long the runner waits, after aborting a timed-out case, for it to
+ * settle. A case that is still running after this is recorded as not drained
+ * and abandoned: before this bound, one case that never settled (a Playwright
+ * call on a dead transport, see the main() exit comment) hung the whole run
+ * with no scorecard. 30s matches the longest bounded browser teardown a case
+ * runs in its finally block (persistence-faults: 20s close + 10s server close;
+ * ui-browser: 10s context + 10s browser close). No run has measured cancel
+ * latency on the real stack; this is a ceiling, not a tuned value.
+ */
+const DEFAULT_DRAIN_GRACE_MS = 30_000;
+/** Overrides DEFAULT_DRAIN_GRACE_MS; the runner self-tests set it so a never-settling case costs them milliseconds. */
+const DRAIN_GRACE_ENV = "UNTANGLE_EVAL_DRAIN_GRACE_MS";
+
+function drainGraceMs(): number {
+  const raw = process.env[DRAIN_GRACE_ENV];
+  if (raw === undefined || raw === "") return DEFAULT_DRAIN_GRACE_MS;
+  if (!/^\d+$/.test(raw)) usageError(usage, `${DRAIN_GRACE_ENV} must be a whole number of milliseconds, got "${raw}"`);
+  return Number(raw);
+}
+
+/** A timed-out case was aborted but had not settled when the grace period ran out. */
+class CaseNotDrainedError extends Error {}
+
+/**
+ * True only while the runner dispatches a timed-out case's abort event. Bun
+ * (1.4.4) hands an error thrown by an abort listener to the process
+ * "uncaughtException" handler from inside abort() instead of throwing it to
+ * the caller, so try/catch alone cannot stop a faulty suite listener from
+ * ending the run with a crash card. The handler below checks this flag.
+ */
+let dispatchingCancel = false;
+
+function cancelSafely(what: string, cancel: () => void): void {
+  dispatchingCancel = true;
+  try {
+    cancel();
+  } catch (error) {
+    console.error(`[run] cancelling ${what} threw (continuing): ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    dispatchingCancel = false;
+  }
+}
+
+/** Resolves true if `promise` settles (either way) within `ms`, false otherwise. Never rejects. */
+function settlesWithin(promise: Promise<unknown>, ms: number): Promise<boolean> {
+  let timer: NodeJS.Timeout | undefined;
+  return Promise.race([
+    promise.then(
+      () => true,
+      () => true,
+    ),
+    new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(false), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  what: string,
+  cancel: () => void,
+  graceMs: number,
+): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   let timedOut = false;
   try {
@@ -194,18 +258,20 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, what: stri
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
           timedOut = true;
-          cancel();
+          cancelSafely(what, cancel);
           reject(new Error(`${what} timed out after ${timeoutMs}ms`));
         }, timeoutMs);
       }),
     ]);
   } catch (error) {
-    if (timedOut) {
-      // Cancellation is cooperative. Do not start another case until the
-      // timed-out case's finally blocks and child cleanup have drained; the
-      // timeout remains the scored error, while this await prevents overlap
-      // and detached late rejections.
-      await promise.catch(() => undefined);
+    if (timedOut && !(await settlesWithin(promise, graceMs))) {
+      // Cancellation is cooperative: wait for the case's finally blocks and
+      // child cleanup so the next case does not overlap it, but only for the
+      // grace period. settlesWithin has attached a rejection handler, so a
+      // late rejection from the abandoned case is not unhandled.
+      throw new CaseNotDrainedError(
+        `${what} timed out after ${timeoutMs}ms, not drained: still running ${graceMs}ms after it was cancelled`,
+      );
     }
     throw error;
   } finally {
@@ -217,25 +283,36 @@ async function runCase(
   suite: SuiteDefinition,
   caseId: string,
   ctx: SuiteContext,
-): Promise<{ outcome: CaseOutcome | null; note?: string }> {
+  graceMs: number,
+): Promise<{ outcome: CaseOutcome | null; note?: string; drained: boolean }> {
   const controller = new AbortController();
   const caseContext: SuiteContext = { ...ctx, signal: controller.signal };
   const promise = Promise.resolve().then(() => suite.run(caseId, caseContext));
   try {
-    return {
-      outcome: await withTimeout(
-        promise,
-        suite.caseTimeoutMs ?? DEFAULT_CASE_TIMEOUT_MS,
-        `case ${suite.name}/${caseId}`,
-        () => controller.abort(),
-      ),
-    };
+    const outcome = await withTimeout(
+      promise,
+      suite.caseTimeoutMs ?? DEFAULT_CASE_TIMEOUT_MS,
+      `case ${suite.name}/${caseId}`,
+      () => controller.abort(),
+      graceMs,
+    );
+    return { outcome, drained: true };
   } catch (error) {
-    return { outcome: null, note: `case threw: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      outcome: null,
+      note: `case threw: ${error instanceof Error ? error.message : String(error)}`,
+      drained: !(error instanceof CaseNotDrainedError),
+    };
   }
 }
 
-async function runSuite(suite: SuiteDefinition, stack: RunningStack, bars: BarsFile, only: readonly string[]): Promise<CaseRecord[]> {
+async function runSuite(
+  suite: SuiteDefinition,
+  stack: RunningStack,
+  bars: BarsFile,
+  only: readonly string[],
+  graceMs: number,
+): Promise<CaseRecord[]> {
   const specs = await suite.describe();
   // Validated pre-boot in main(); here it is a pure filter. Suites with no
   // matching id (the --suite all path) simply contribute no cases.
@@ -243,9 +320,9 @@ async function runSuite(suite: SuiteDefinition, stack: RunningStack, bars: BarsF
   const ctx = suiteContext(stack);
   const suiteBar = bars.bars[suite.name]?.bar;
   const records: CaseRecord[] = [];
-  for (const spec of selected) {
+  for (const [index, spec] of selected.entries()) {
     console.error(`[run] ${suite.name}/${spec.id} ...`);
-    const { outcome, note } = await runCase(suite, spec.id, ctx);
+    const { outcome, note, drained } = await runCase(suite, spec.id, ctx, graceMs);
     const record: CaseRecord = {
       suite: suite.name,
       id: spec.id,
@@ -257,6 +334,23 @@ async function runSuite(suite: SuiteDefinition, stack: RunningStack, bars: BarsF
     };
     records.push(record);
     console.error(`[run] ${suite.name}/${spec.id} → ${record.status}${record.note ? ` (${record.note})` : ""}`);
+    if (!drained) {
+      // The abandoned case may still hold this suite's shared state (its
+      // browser, memoized results, module-level sets), so later cases in the
+      // suite would measure that interference rather than the app.
+      for (const rest of selected.slice(index + 1)) {
+        records.push({
+          suite: suite.name,
+          id: rest.id,
+          status: "fail",
+          measured: null,
+          bar: suiteBar,
+          note: `not run: ${suite.name}/${spec.id} timed out and was not drained, so the rest of this suite was skipped`,
+        });
+      }
+      console.error(`[run] ${suite.name}: ${selected.length - index - 1} remaining case(s) failed as not run`);
+      break;
+    }
   }
   return records;
 }
@@ -384,6 +478,12 @@ async function writeCrashCard(error: unknown): Promise<void> {
 }
 
 process.on("uncaughtException", (error) => {
+  if (dispatchingCancel) {
+    // A suite's abort listener threw while the runner cancelled a timed-out
+    // case. The case is already scored as timed out; keep the run going.
+    console.error(`[run] an abort listener threw during cancellation (continuing): ${error.message}`);
+    return;
+  }
   void writeCrashCard(error);
 });
 // An unhandled rejection means nothing in-process awaited the promise, so the
@@ -507,6 +607,7 @@ async function main(): Promise<number> {
     return argv.length === 0 ? 2 : 0;
   }
   const args = parseRunArgs(argv);
+  const graceMs = drainGraceMs();
   crashCtx.outPath = args.out;
   crashCtx.suiteSelector = args.suite;
   crashCtx.targetDir = args.targetDir;
@@ -682,7 +783,7 @@ async function main(): Promise<number> {
     const cases: CaseRecord[] = crashCtx.cases;
     for (const { suite } of loaded) {
       try {
-        cases.push(...(await runSuite(suite, stack, bars, args.only)));
+        cases.push(...(await runSuite(suite, stack, bars, args.only, graceMs)));
       } catch (error) {
         console.error(`[run] suite ${suite.name} crashed: ${(error as Error).message}`);
         cases.push({

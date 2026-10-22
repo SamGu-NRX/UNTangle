@@ -28,7 +28,7 @@ const CASES: CaseSpec[] = [
 
 /** Navigate courses → the first CSCE row's detail page, failing precisely on a 404. */
 async function openFirstDetail(ctx: SuiteContext): Promise<{ page: Page; code: string }> {
-  const cb = await openCase(ctx.frontendOrigin, "desktop");
+  const cb = await openCase(ctx.frontendOrigin, "desktop", "/", ctx.signal);
   await activate(cb.page, cb.page.getByRole("link", { name: "Continue as guest" }));
   await cb.page.waitForURL("**/courses", { timeout: 30_000 });
   await settle(cb.page);
@@ -73,7 +73,7 @@ async function runRmpLabels(ctx: SuiteContext, caseId: string): Promise<CaseOutc
 }
 
 async function runSampleDataNotice(ctx: SuiteContext, caseId: string): Promise<CaseOutcome> {
-  const cb = await openCase(ctx.frontendOrigin, "desktop", "/courses");
+  const cb = await openCase(ctx.frontendOrigin, "desktop", "/courses", ctx.signal);
   await settle(cb.page);
   // REQUIRED by contract: a status named "Sample data notice" whose text says sample.
   const notice = await missingElement(
@@ -111,7 +111,7 @@ async function runStaleRatingNotice(ctx: SuiteContext, caseId: string): Promise<
 }
 
 async function runUnverifiedSavings(ctx: SuiteContext, caseId: string): Promise<CaseOutcome> {
-  const cb = await openCase(ctx.frontendOrigin, "desktop", PLANS);
+  const cb = await openCase(ctx.frontendOrigin, "desktop", PLANS, ctx.signal);
   const response = await cb.page.goto(`${ctx.frontendOrigin}${PLANS}`, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => null);
   await settle(cb.page);
   const status = response?.status() ?? 0;
@@ -129,7 +129,7 @@ async function runUnverifiedSavings(ctx: SuiteContext, caseId: string): Promise<
 }
 
 async function runNoFabricatedPrecision(ctx: SuiteContext, caseId: string): Promise<CaseOutcome> {
-  const cb = await openCase(ctx.frontendOrigin, "desktop", "/schedule");
+  const cb = await openCase(ctx.frontendOrigin, "desktop", "/schedule", ctx.signal);
   await settle(cb.page, 1200);
   const bodyText = (await cb.page.locator("body").textContent({ timeout: 10_000 }).catch(() => "")) ?? "";
   await screenshot(cb.page, ctx.runDir, caseId);
