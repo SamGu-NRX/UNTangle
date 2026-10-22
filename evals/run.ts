@@ -185,15 +185,29 @@ function suiteContext(stack: RunningStack): SuiteContext {
   };
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, what: string): Promise<T> {
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, what: string, cancel: () => void): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
+  let timedOut = false;
   try {
     return await Promise.race([
       promise,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`${what} timed out after ${timeoutMs}ms`)), timeoutMs);
+        timer = setTimeout(() => {
+          timedOut = true;
+          cancel();
+          reject(new Error(`${what} timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
       }),
     ]);
+  } catch (error) {
+    if (timedOut) {
+      // Cancellation is cooperative. Do not start another case until the
+      // timed-out case's finally blocks and child cleanup have drained; the
+      // timeout remains the scored error, while this await prevents overlap
+      // and detached late rejections.
+      await promise.catch(() => undefined);
+    }
+    throw error;
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -204,8 +218,18 @@ async function runCase(
   caseId: string,
   ctx: SuiteContext,
 ): Promise<{ outcome: CaseOutcome | null; note?: string }> {
+  const controller = new AbortController();
+  const caseContext: SuiteContext = { ...ctx, signal: controller.signal };
+  const promise = Promise.resolve().then(() => suite.run(caseId, caseContext));
   try {
-    return { outcome: await withTimeout(Promise.resolve(suite.run(caseId, ctx)), suite.caseTimeoutMs ?? DEFAULT_CASE_TIMEOUT_MS, `case ${suite.name}/${caseId}`) };
+    return {
+      outcome: await withTimeout(
+        promise,
+        suite.caseTimeoutMs ?? DEFAULT_CASE_TIMEOUT_MS,
+        `case ${suite.name}/${caseId}`,
+        () => controller.abort(),
+      ),
+    };
   } catch (error) {
     return { outcome: null, note: `case threw: ${error instanceof Error ? error.message : String(error)}` };
   }

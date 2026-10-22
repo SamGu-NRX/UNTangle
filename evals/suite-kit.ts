@@ -56,6 +56,8 @@ export interface SuiteContext {
     durationMs: number;
     detail?: string;
   }>;
+  /** Aborted by the runner when this case exceeds its wall-clock budget. */
+  signal?: AbortSignal;
 }
 
 export interface SuiteDefinition {
