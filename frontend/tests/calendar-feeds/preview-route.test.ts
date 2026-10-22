@@ -27,15 +27,32 @@ mock.module("node:https", () => ({ request: httpsFixture((url) => fetchStub(url)
 // resolves the auth-server registry at call time, so the wrapper always
 // agrees with the handler's own binding. Its store is fresh, so earlier
 // files' request counts cannot leak into these tests.
-mock.module("@/lib/rate-limit/server", () => ({
-  withRateLimit: createRateLimitWrapper({
+const realRateLimitServer = { ...(await import("@/lib/rate-limit/server")) };
+// Bun keeps this mock.module override for later test files. Routes this file
+// doesn't test get a fresh store each time a route module wraps a handler, so
+// a later file never inherits this file's request counts (CI run 39764102800).
+const isolatedRateLimit: typeof realRateLimitServer.withRateLimit = (route, handler) =>
+  createRateLimitWrapper({
+    store: memoryStore(),
+    secret: "isolated test rate limit",
+    session: async () => ((await import("@/lib/auth-server")) as { getServerSession: () => Promise<never> }).getServerSession(),
+  })(route, handler);
+
+const fakeRateLimit = createRateLimitWrapper({
     store: memoryStore(),
     secret: "untangle calendar-feeds preview tests",
     session: async () => {
       const mod = (await import("@/lib/auth-server")) as { getServerSession: SessionFn };
       return mod.getServerSession();
     },
-  }),
+  });
+
+mock.module("@/lib/rate-limit/server", () => ({
+  ...realRateLimitServer,
+  withRateLimit: ((route: Parameters<typeof realRateLimitServer.withRateLimit>[0], handler: Parameters<typeof realRateLimitServer.withRateLimit>[1]) =>
+    (route === "calendarFeedPreview" || route === "calendarFeedBusy"
+      ? fakeRateLimit
+      : isolatedRateLimit)(route, handler)) as typeof realRateLimitServer.withRateLimit,
 }));
 
 const sessionMock: SessionMock = getServerSession;
