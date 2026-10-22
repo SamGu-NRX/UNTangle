@@ -296,6 +296,25 @@ test("a token-only guest stamp asks and Bring it in continues the existing sign-
   expect(planned(server.plan(user.id), "CSCE 1040")).toBe(true);
 });
 
+test("leaving old guest work still applies account-kept browser settings", async () => {
+  const defaults = defaultSchedulePreferences(initial.optimization);
+  const fridays = { ...defaults, constraints: { ...defaults.constraints, daysOff: ["Fri" as const] } };
+  window.localStorage.setItem(preferencesKey({ kind: "user", id: user.id }), JSON.stringify({ revision: 1, preferences: fridays }));
+  guestLeft(plan(["CSCE 1040"]));
+  const token = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("untangle_guest_session="))?.split("=")[1];
+  expect(token).toBeTruthy();
+  window.localStorage.setItem(`${STAMP_PREFIX}plan`, `${token}.${Date.now() - GUEST_HANDOVER_MS - 1}`);
+  const planner = await signIn();
+  await waitFor(() => sheet() !== null, "handover question");
+  await planner.run(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+  await waitFor(
+    () => (server.document(user.id, "preferences-unt")?.body as SchedulePreferences | undefined)?.constraints.daysOff[0] === "Fri",
+    "account-kept settings applied",
+  );
+  expect(window.localStorage.getItem(PLANNER_STATE_STORE_KEY)).not.toBeNull();
+  expect(planned(server.plan(user.id), "CSCE 1040")).toBe(false);
+});
+
 test("a guest's own edits in this browser session are carried in on sign-in", async () => {
   const guest = await mountPlanner();
   mounted.push(guest.unmount);

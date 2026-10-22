@@ -1372,6 +1372,19 @@ function IdentityPlannerProvider({
       const storage = browserStorage();
       if (!storage || !userId) return;
 
+      // Step 4 of the migration: settings this browser kept for this account (#77 keys them by account) are
+      // offered once, as an ordinary preferences write, while the account's are still the defaults the
+      // migration started them with. Settings saved since, on any device, win.
+      const ownKey = preferencesKey({ kind: "user", id: userId });
+      const own = readStoredPreferences(storage, ownKey);
+      if (own.kind === "ok" && equal(preferencesRef.current, defaultSchedulePreferences(stateRef.current.optimization))) {
+        adoptPreferences(own.preferences);
+        // Removed only once the write is in this device's outbox.
+        if (await runSync((s) => s.save(readPlanner), { saving: true })) storage.removeItem(ownKey);
+        void runSync((s) => s.drain());
+      }
+      if (!current()) return;
+
       // A matching old or legacy stamp is not enough to identify the current visitor. Ask before reading or
       // moving any guest store; choosing "Bring it in" only unlocks this sign-in attempt.
       let handoverAllowed = false;
@@ -1386,19 +1399,6 @@ function IdentityPlannerProvider({
         if (choice !== "bring" || !current()) return;
         handoverAllowed = true;
       }
-
-      // Step 4 of the migration: settings this browser kept for this account (#77 keys them by account) are
-      // offered once, as an ordinary preferences write, while the account's are still the defaults the
-      // migration started them with. Settings saved since, on any device, win.
-      const ownKey = preferencesKey({ kind: "user", id: userId });
-      const own = readStoredPreferences(storage, ownKey);
-      if (own.kind === "ok" && equal(preferencesRef.current, defaultSchedulePreferences(stateRef.current.optimization))) {
-        adoptPreferences(own.preferences);
-        // Removed only once the write is in this device's outbox.
-        if (await runSync((s) => s.save(readPlanner), { saving: true })) storage.removeItem(ownKey);
-        void runSync((s) => s.drain());
-      }
-      if (!current()) return;
 
       // Only work a guest wrote in this browser session (lib/guest-session.ts): older work may be someone else's.
       if (!guestWorkIsThisSession() || (!handoverAllowed && guestWorkHandover().needsConfirmation)) return;
