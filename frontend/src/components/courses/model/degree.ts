@@ -178,8 +178,17 @@ function neededCodes(outcomes: readonly NodeOutcome[], into = new Set<string>())
         neededCodes(outcome.children ?? [], into);
         break;
       case "branch":
-        // An undecided choice is an advisor's call: none of its branches is needed until it is settled.
-        if (outcome.status !== "advisory") neededCodes(outcome.children ?? [], into);
+        // An undecided choice is an advisor's call. Once the audit has a
+        // leading branch, Auto follows that branch rather than mixing the
+        // remaining courses from every specialization.
+        if (outcome.status !== "advisory") {
+          const separator = outcome.kind === "choice" ? outcome.name.lastIndexOf(" — ") : -1;
+          const selectedBranch = separator >= 0 ? outcome.name.slice(separator + 3) : null;
+          const selected = selectedBranch
+            ? outcome.children?.find((child) => child.citation.heading === selectedBranch)
+            : null;
+          neededCodes(selected ? [selected] : outcome.children ?? [], into);
+        }
         break;
       case "none":
       case "advisor":

@@ -289,3 +289,28 @@ describe("a major the audit does not cover", () => {
     expect(nextTermSuggestions(profile, plan)).toEqual(getMajorById("math")!.coreCourseCodes);
   });
 });
+
+describe("Computer Engineering: Auto keeps one specialization", () => {
+  test("uses the catalog-first specialization when completed course counts tie", () => {
+    const plan = plannerWith([
+      row("CSCE 3444", "Spring 2026", "B", 3),
+      row("CSCE 3420", "Spring 2026", "B", 3),
+    ], "ce");
+    const ce = getMajorById("ce")!;
+    const planned = planAuto({ ...profile, autoCreditBudget: 120 }, plan, ce).outcome.planned;
+    expect(planned).not.toContain("CSCE 3530");
+    expect(planned).not.toContain("CSCE 3550");
+    expect(planned).not.toContain("CSCE 3610");
+  });
+
+  test("follows the specialization with more completed courses", () => {
+    const plan = plannerWith([
+      row("CSCE 3420", "Spring 2026", "B", 3),
+      row("CSCE 3530", "Spring 2026", "B", 3),
+      row("CSCE 3444", "Spring 2026", "B", 3),
+    ], "ce");
+    const planned = planAuto({ ...profile, autoCreditBudget: 120 }, plan, getMajorById("ce")!).outcome.planned;
+    expect(planned).not.toContain("CSCE 4440");
+    expect(planned).not.toContain("CSCE 4600");
+  });
+});
