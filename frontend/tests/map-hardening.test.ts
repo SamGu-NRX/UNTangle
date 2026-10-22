@@ -119,7 +119,6 @@ describe("TtlLruCache", () => {
 
 describe("map routes", () => {
   test("route POST allows the burst then returns 429 with the shared error shape", async () => {
-    process.env.RATE_LIMIT_TRUSTED_PROXY = "reverse-proxy";
     pinClockMidWindow();
     const midLat = (untCampusBounds.north + untCampusBounds.south) / 2;
     const midLng = (untCampusBounds.east + untCampusBounds.west) / 2;

@@ -6,7 +6,6 @@ mock.module("server-only", () => ({}));
 trustRealIp();
 
 test("the sections route answers 429 once an anonymous caller passes its budget", async () => {
-  process.env.RATE_LIMIT_TRUSTED_PROXY = "reverse-proxy";
   pinClockMidWindow();
   const { GET } = await import("@/app/api/sections/[term]/[subject]/[number]/route");
   // An unknown term answers 400 before any upstream fetch.
@@ -18,7 +17,6 @@ test("the sections route answers 429 once an anonymous caller passes its budget"
 });
 
 test("the class-number route is rate limited like the per-course route", async () => {
-  process.env.RATE_LIMIT_TRUSTED_PROXY = "reverse-proxy";
   pinClockMidWindow();
   const { GET } = await import("@/app/api/sections/[term]/class/[number]/route");
   const params = { term: "x", number: "21843" };

@@ -41,6 +41,15 @@ mock.module("node:https", () => ({
 // As in the route tests: the wrapper resolves the session through the auth-server registry at call
 // time, so whichever test file registered last, every file's own session mock is the one asked.
 const realRateLimitServer = { ...(await import("@/lib/rate-limit/server")) };
+// Bun keeps this mock.module override for later test files. Routes this file
+// doesn't test get a fresh store each time a route module wraps a handler, so
+// a later file never inherits this file's request counts (CI run 39764102800).
+const isolatedRateLimit: typeof realRateLimitServer.withRateLimit = (route, handler) =>
+  realRateLimitServer.createRateLimitWrapper({
+    store: memoryStore(),
+    secret: "isolated test rate limit",
+    session: async () => ((await import("@/lib/auth-server")) as { getServerSession: () => Promise<never> }).getServerSession(),
+  })(route, handler);
 
 const fakeRateLimit = createRateLimitWrapper({
     store: memoryStore(),
@@ -53,7 +62,7 @@ mock.module("@/lib/rate-limit/server", () => ({
   withRateLimit: ((route: Parameters<typeof realRateLimitServer.withRateLimit>[0], handler: Parameters<typeof realRateLimitServer.withRateLimit>[1]) =>
     (route === "calendarFeedPreview" || route === "calendarFeedBusy"
       ? fakeRateLimit
-      : realRateLimitServer.withRateLimit)(route, handler)) as typeof realRateLimitServer.withRateLimit,
+      : isolatedRateLimit)(route, handler)) as typeof realRateLimitServer.withRateLimit,
 }));
 
 const TERM = { id: "spring-2027", label: "Spring 2027", start: "2027-01-11", end: "2027-05-07" };

@@ -345,7 +345,6 @@ test("selected APIs route UT without keyed services and reject unknown campuses"
 });
 
 test("one caller's route budget covers every campus", async () => {
-  process.env.RATE_LIMIT_TRUSTED_PROXY = "reverse-proxy";
   pinClockMidWindow();
   const request = (query: string) => new Request(`http://localhost/api/map/route${query}`, {
     method: "POST",

@@ -8,7 +8,7 @@ import { SectionsProxy } from "@/lib/sections/proxy";
 import { ttlMs } from "@/lib/sections/config";
 import { createV1Auth } from "@/server/auth/v1-auth";
 import { createDeviceGrants, pkceChallenge } from "@/server/auth/device-grants";
-import { createRateLimitWrapper, createUserLimit } from "@/lib/rate-limit/wrapper";
+import { createUserLimit } from "@/lib/rate-limit/wrapper";
 import { memoryStore } from "@/lib/rate-limit/store";
 import { MemoryDeviceStore } from "../device-grants/memory-store";
 import fixture from "../sections/fixtures/spring-2027.json";
@@ -21,6 +21,15 @@ const path = `${origin}/api/v1/documents/${id}/availability`;
 const picked = { ...schedule, courses: ["MATH 1680"], selectedSections: { "MATH 1680": "vsb:spring-2027:MATH 1680:6862+6863" } };
 
 const realRateLimitServer = { ...(await import("@/lib/rate-limit/server")) };
+// Bun keeps this mock.module override for later test files. Each route module
+// that wraps a handler gets a fresh store, so a later file never inherits this
+// file's request counts (CI run 39764102800).
+const isolatedRateLimit: typeof realRateLimitServer.withRateLimit = (route, handler) =>
+  realRateLimitServer.createRateLimitWrapper({
+    store: memoryStore(),
+    secret: "isolated test rate limit",
+    session: async () => ((await import("@/lib/auth-server")) as { getServerSession: () => Promise<never> }).getServerSession(),
+  })(route, handler);
 
 function setup() {
   let userId: string | null = "alice";
@@ -189,14 +198,9 @@ describe("availability HTTP and data integration", () => {
 
   test("the exported Next route wires the document check, section proxy, and flood guard", async () => {
     const api = setup();
-    const wrapper = createRateLimitWrapper({ store: memoryStore(), session: async () => null, secret: "test-only", now: () => 1_000 });
     mock.module("@/lib/document-sync/server", () => ({ syncHandlers: api.handlers }));
     mock.module("@/lib/sections/server", () => ({ sectionsProxy: api.proxy }));
-    mock.module("@/lib/rate-limit/server", () => ({
-      ...realRateLimitServer,
-      withRateLimit: ((route: Parameters<typeof realRateLimitServer.withRateLimit>[0], handler: Parameters<typeof realRateLimitServer.withRateLimit>[1]) =>
-        (route === "documentFlood" ? wrapper : realRateLimitServer.withRateLimit)(route, handler)) as typeof realRateLimitServer.withRateLimit,
-    }));
+    mock.module("@/lib/rate-limit/server", () => ({ ...realRateLimitServer, withRateLimit: isolatedRateLimit }));
     const { GET } = await import("@/app/api/v1/documents/[id]/availability/route");
     const response = await GET(api.request(), context);
     expect(response.status).toBe(200);
