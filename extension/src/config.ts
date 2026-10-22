@@ -9,9 +9,12 @@ export const SCHEDULE_ID = "main";
 // Production frame origins need a live capture before release. Reserved
 // placeholders deliberately grant no access to UNT login or identity pages.
 export const CLASS_SEARCH_MATCHES = [
-  "http://localhost:4317/class-search*",
-  "https://class-search.myunt.example.invalid/*",
-  "https://class-search-frame.myunt.example.invalid/*",
+  "http://localhost:4317/class-search",
+  "http://localhost:4317/class-search/*",
+  "https://class-search.myunt.example.invalid/class-search",
+  "https://class-search.myunt.example.invalid/class-search/*",
+  "https://class-search-frame.myunt.example.invalid/class-search",
+  "https://class-search-frame.myunt.example.invalid/class-search/*",
 ] as const;
 export function isClassSearchUrl(raw: string | undefined): boolean {
   if (!raw)
@@ -19,8 +22,8 @@ export function isClassSearchUrl(raw: string | undefined): boolean {
   try {
     const url = new URL(raw);
     return CLASS_SEARCH_MATCHES.some(pattern => {
-      const expected = new URL(pattern.replace(/\*$/, ""));
-      return url.origin === expected.origin && url.pathname.startsWith(expected.pathname) && !url.username && !url.password;
+      const expected = new URL(pattern.replace(/\/\*$/, ""));
+      return url.origin === expected.origin && (url.pathname === "/class-search" || url.pathname.startsWith("/class-search/")) && !url.username && !url.password;
     });
   }
   catch {
