@@ -1,7 +1,7 @@
 {
   "catalogId": "unt-2026-27",
   "catalogYear": "2026-2027",
-  "builtAt": "2026-10-17T17:00:14.755Z",
+  "builtAt": "2026-10-22T16:56:40.850Z",
   "pages": [
     {
       "file": "cs-bs.html",
@@ -30,6 +30,20 @@
       "title": "Degree and Program Requirements - University of North Texas",
       "capturedAt": "2026-10-15T12:22:01.320Z",
       "sha256": "4e50a88e161b681bd1e2c7bf9b264e8e0aa71546397f4d566c5072fc535e0f50"
+    },
+    {
+      "file": "math-bsmth.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+      "title": "Program: Mathematics, BSMTH (non–teacher certification) - University of North Texas",
+      "capturedAt": "2026-10-22T16:41:48.158Z",
+      "sha256": "3b7992e06df87d784863bcded9695b3cce30d6d06a19f4f80a6bb4efdce9b1a9"
+    },
+    {
+      "file": "biology-bsbio.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+      "title": "Program: Biology, BSBIO - University of North Texas",
+      "capturedAt": "2026-10-22T16:41:48.158Z",
+      "sha256": "932c7c3758a2b51d6e209ae2027b32b36cd927b97ea2737f9edffd7b538665b7"
     }
   ],
   "programs": [
@@ -1756,6 +1770,3199 @@
         "PHYS 1710",
         "PHYS 2220",
         "TECM 2700"
+      ],
+      "courseSharing": "advisor"
+    },
+    {
+      "id": "math-bsmth",
+      "name": "Mathematics, BSMTH (non–teacher certification)",
+      "catalogId": "unt-2026-27",
+      "sourceUrl": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+      "requirements": [
+        {
+          "kind": "policy",
+          "name": "Total hours: 120",
+          "policy": {
+            "type": "totalHours",
+            "hours": 120
+          },
+          "quote": "A minimum of 120 semester hours, of which 36 must be advanced, and fulfillment of degree requirements for the bachelor of science degree as specified in the University Core Curriculum in the Degree and Program Requirements section of this catalog and the College of Science requirements.",
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours: 36",
+          "policy": {
+            "type": "advancedHours",
+            "hours": 36
+          },
+          "quote": "A minimum of 120 semester hours, of which 36 must be advanced, and fulfillment of degree requirements for the bachelor of science degree as specified in the University Core Curriculum in the Degree and Program Requirements section of this catalog and the College of Science requirements.",
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "group",
+          "name": "Major requirements, 43 hours",
+          "children": [
+            {
+              "kind": "note",
+              "name": "43-hour major minimum",
+              "text": "43 hours of mathematics courses, which must include:",
+              "citation": {
+                "page": "math-bsmth.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                "anchor": "MajorRequirements",
+                "heading": "Major requirements"
+              }
+            },
+            {
+              "kind": "all",
+              "name": "Mathematics core, 19 hours",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "MATH 1710",
+                        "MATH 1720"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "MATH 1810",
+                        "MATH 1820",
+                        "MATH 1830"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "MATH 1710",
+                        "MATH 1820",
+                        "MATH 1830"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "MATH 2000"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "MATH 2700"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "MATH 2730"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "MATH 3000"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "math-bsmth.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                "anchor": "MathematicsCore19Hours",
+                "heading": "Mathematics core, 19 hours"
+              }
+            },
+            {
+              "kind": "note",
+              "name": "MATH 2000 substitution",
+              "text": "** Incoming students who have already taken an introduction to mathematical proofs may request substitution of MATH 2000 by an upper-level mathematics course numbered 3350 or higher. Please see an advisor for more information.",
+              "citation": {
+                "page": "math-bsmth.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                "anchor": "MathematicsCore19Hours",
+                "heading": "Mathematics core, 19 hours"
+              }
+            },
+            {
+              "kind": "choice",
+              "name": "Depth and breadth, 18 hours",
+              "branches": [
+                {
+                  "name": "Analysis",
+                  "node": {
+                    "kind": "group",
+                    "name": "Analysis depth, with breadth",
+                    "children": [
+                      {
+                        "kind": "all",
+                        "name": "Analysis depth: MATH 3610",
+                        "items": [
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3610"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "Analysis",
+                          "heading": "Analysis"
+                        }
+                      },
+                      {
+                        "kind": "choose",
+                        "name": "Analysis depth: two more",
+                        "count": 2,
+                        "items": [
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3350"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3410"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3420"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3740"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4080"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4100"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4200"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4520"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "PlusTwoOfTheFollowing",
+                          "heading": "Plus two of the following:"
+                        }
+                      },
+                      {
+                        "kind": "choose",
+                        "name": "Breadth: one Algebra course",
+                        "count": 1,
+                        "items": [
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3510"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3400"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4010"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4430"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4450"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4510"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "BreadthRequirement9Hours",
+                          "heading": "Breadth requirement, 9 hours"
+                        }
+                      },
+                      {
+                        "kind": "choose",
+                        "name": "Breadth: one Probability/statistics course",
+                        "count": 1,
+                        "items": [
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "STAT 3680"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4610"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "STAT 4650"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "BreadthRequirement9Hours",
+                          "heading": "Breadth requirement, 9 hours"
+                        }
+                      },
+                      {
+                        "kind": "choose",
+                        "name": "Breadth: one Geometry/topology course",
+                        "count": 1,
+                        "items": [
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3740"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4060"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4080"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4500"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "BreadthRequirement9Hours",
+                          "heading": "Breadth requirement, 9 hours"
+                        }
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Analysis",
+                      "heading": "Analysis"
+                    }
+                  }
+                },
+                {
+                  "name": "Algebra",
+                  "node": {
+                    "kind": "group",
+                    "name": "Algebra depth, with breadth",
+                    "children": [
+                      {
+                        "kind": "all",
+                        "name": "Algebra depth: MATH 3510",
+                        "items": [
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3510"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "Algebra",
+                          "heading": "Algebra"
+                        }
+                      },
+                      {
+                        "kind": "choose",
+                        "name": "Algebra depth: two more",
+                        "count": 2,
+                        "items": [
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3400"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4010"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4430"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4450"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4510"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "PlusTwoOfTheFollowing",
+                          "heading": "Plus two of the following"
+                        }
+                      },
+                      {
+                        "kind": "choose",
+                        "name": "Breadth: one Analysis course",
+                        "count": 1,
+                        "items": [
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3610"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3350"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3410"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3420"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3740"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4080"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4100"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4200"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4520"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "BreadthRequirement9Hours",
+                          "heading": "Breadth requirement, 9 hours"
+                        }
+                      },
+                      {
+                        "kind": "choose",
+                        "name": "Breadth: one Probability/statistics course",
+                        "count": 1,
+                        "items": [
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "STAT 3680"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4610"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "STAT 4650"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "BreadthRequirement9Hours",
+                          "heading": "Breadth requirement, 9 hours"
+                        }
+                      },
+                      {
+                        "kind": "choose",
+                        "name": "Breadth: one Geometry/topology course",
+                        "count": 1,
+                        "items": [
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3740"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4060"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4080"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4500"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "BreadthRequirement9Hours",
+                          "heading": "Breadth requirement, 9 hours"
+                        }
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Algebra",
+                      "heading": "Algebra"
+                    }
+                  }
+                },
+                {
+                  "name": "Probability/statistics",
+                  "node": {
+                    "kind": "group",
+                    "name": "Probability/statistics depth, with breadth",
+                    "children": [
+                      {
+                        "kind": "hours",
+                        "name": "Probability/statistics depth, 9 hours",
+                        "hours": 9,
+                        "options": [
+                          {
+                            "must": [
+                              "STAT 3680"
+                            ]
+                          },
+                          {
+                            "must": [
+                              "MATH 4610"
+                            ]
+                          },
+                          {
+                            "must": [
+                              "STAT 4650"
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "Probabilitystatistics",
+                          "heading": "Probability/statistics"
+                        }
+                      },
+                      {
+                        "kind": "choose",
+                        "name": "Breadth: one Geometry/topology course",
+                        "count": 1,
+                        "items": [
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 3740"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4060"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4080"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4500"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "BreadthRequirement9Hours",
+                          "heading": "Breadth requirement, 9 hours"
+                        }
+                      },
+                      {
+                        "kind": "choice",
+                        "name": "Breadth: MATH 3510 or MATH 3610",
+                        "branches": [
+                          {
+                            "name": "MATH 3610",
+                            "node": {
+                              "kind": "group",
+                              "name": "MATH 3610 as the Analysis course",
+                              "children": [
+                                {
+                                  "kind": "all",
+                                  "name": "MATH 3610",
+                                  "items": [
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3610"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "citation": {
+                                    "page": "math-bsmth.html",
+                                    "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                                    "anchor": "BreadthRequirement9Hours",
+                                    "heading": "Breadth requirement, 9 hours"
+                                  }
+                                },
+                                {
+                                  "kind": "choose",
+                                  "name": "Breadth: one Algebra course",
+                                  "count": 1,
+                                  "items": [
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3510"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3400"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4010"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4430"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4450"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4510"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "citation": {
+                                    "page": "math-bsmth.html",
+                                    "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                                    "anchor": "BreadthRequirement9Hours",
+                                    "heading": "Breadth requirement, 9 hours"
+                                  }
+                                }
+                              ],
+                              "citation": {
+                                "page": "math-bsmth.html",
+                                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                                "anchor": "BreadthRequirement9Hours",
+                                "heading": "Breadth requirement, 9 hours"
+                              }
+                            }
+                          },
+                          {
+                            "name": "MATH 3510",
+                            "node": {
+                              "kind": "group",
+                              "name": "MATH 3510 as the Algebra course",
+                              "children": [
+                                {
+                                  "kind": "choose",
+                                  "name": "Breadth: one Analysis course",
+                                  "count": 1,
+                                  "items": [
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3610"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3350"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3410"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3420"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3740"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4080"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4100"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4200"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4520"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "citation": {
+                                    "page": "math-bsmth.html",
+                                    "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                                    "anchor": "BreadthRequirement9Hours",
+                                    "heading": "Breadth requirement, 9 hours"
+                                  }
+                                },
+                                {
+                                  "kind": "all",
+                                  "name": "MATH 3510",
+                                  "items": [
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3510"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "citation": {
+                                    "page": "math-bsmth.html",
+                                    "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                                    "anchor": "BreadthRequirement9Hours",
+                                    "heading": "Breadth requirement, 9 hours"
+                                  }
+                                }
+                              ],
+                              "citation": {
+                                "page": "math-bsmth.html",
+                                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                                "anchor": "BreadthRequirement9Hours",
+                                "heading": "Breadth requirement, 9 hours"
+                              }
+                            }
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "BreadthRequirement9Hours",
+                          "heading": "Breadth requirement, 9 hours"
+                        }
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Probabilitystatistics",
+                      "heading": "Probability/statistics"
+                    }
+                  }
+                },
+                {
+                  "name": "Geometry/topology",
+                  "node": {
+                    "kind": "group",
+                    "name": "Geometry/topology depth, with breadth",
+                    "children": [
+                      {
+                        "kind": "hours",
+                        "name": "Geometry/topology depth, 9 hours",
+                        "hours": 9,
+                        "options": [
+                          {
+                            "must": [
+                              "MATH 3740"
+                            ]
+                          },
+                          {
+                            "must": [
+                              "MATH 4060"
+                            ]
+                          },
+                          {
+                            "must": [
+                              "MATH 4080"
+                            ]
+                          },
+                          {
+                            "must": [
+                              "MATH 4500"
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "Geometrytopology",
+                          "heading": "Geometry/topology"
+                        }
+                      },
+                      {
+                        "kind": "choose",
+                        "name": "Breadth: one Probability/statistics course",
+                        "count": 1,
+                        "items": [
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "STAT 3680"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "MATH 4610"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "alternatives": [
+                              {
+                                "must": [
+                                  "STAT 4650"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "BreadthRequirement9Hours",
+                          "heading": "Breadth requirement, 9 hours"
+                        }
+                      },
+                      {
+                        "kind": "choice",
+                        "name": "Breadth: MATH 3510 or MATH 3610",
+                        "branches": [
+                          {
+                            "name": "MATH 3610",
+                            "node": {
+                              "kind": "group",
+                              "name": "MATH 3610 as the Analysis course",
+                              "children": [
+                                {
+                                  "kind": "all",
+                                  "name": "MATH 3610",
+                                  "items": [
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3610"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "citation": {
+                                    "page": "math-bsmth.html",
+                                    "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                                    "anchor": "BreadthRequirement9Hours",
+                                    "heading": "Breadth requirement, 9 hours"
+                                  }
+                                },
+                                {
+                                  "kind": "choose",
+                                  "name": "Breadth: one Algebra course",
+                                  "count": 1,
+                                  "items": [
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3510"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3400"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4010"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4430"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4450"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4510"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "citation": {
+                                    "page": "math-bsmth.html",
+                                    "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                                    "anchor": "BreadthRequirement9Hours",
+                                    "heading": "Breadth requirement, 9 hours"
+                                  }
+                                }
+                              ],
+                              "citation": {
+                                "page": "math-bsmth.html",
+                                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                                "anchor": "BreadthRequirement9Hours",
+                                "heading": "Breadth requirement, 9 hours"
+                              }
+                            }
+                          },
+                          {
+                            "name": "MATH 3510",
+                            "node": {
+                              "kind": "group",
+                              "name": "MATH 3510 as the Algebra course",
+                              "children": [
+                                {
+                                  "kind": "choose",
+                                  "name": "Breadth: one Analysis course",
+                                  "count": 1,
+                                  "items": [
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3610"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3350"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3410"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3420"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3740"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4080"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4100"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4200"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 4520"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "citation": {
+                                    "page": "math-bsmth.html",
+                                    "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                                    "anchor": "BreadthRequirement9Hours",
+                                    "heading": "Breadth requirement, 9 hours"
+                                  }
+                                },
+                                {
+                                  "kind": "all",
+                                  "name": "MATH 3510",
+                                  "items": [
+                                    {
+                                      "alternatives": [
+                                        {
+                                          "must": [
+                                            "MATH 3510"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "citation": {
+                                    "page": "math-bsmth.html",
+                                    "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                                    "anchor": "BreadthRequirement9Hours",
+                                    "heading": "Breadth requirement, 9 hours"
+                                  }
+                                }
+                              ],
+                              "citation": {
+                                "page": "math-bsmth.html",
+                                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                                "anchor": "BreadthRequirement9Hours",
+                                "heading": "Breadth requirement, 9 hours"
+                              }
+                            }
+                          }
+                        ],
+                        "citation": {
+                          "page": "math-bsmth.html",
+                          "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                          "anchor": "BreadthRequirement9Hours",
+                          "heading": "Breadth requirement, 9 hours"
+                        }
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Geometrytopology",
+                      "heading": "Geometry/topology"
+                    }
+                  }
+                }
+              ],
+              "citation": {
+                "page": "math-bsmth.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                "anchor": "DepthRequirement9Hours",
+                "heading": "Depth requirement, 9 hours"
+              }
+            },
+            {
+              "kind": "pool",
+              "name": "Mathematics electives, 6 hours",
+              "hours": 6,
+              "match": {
+                "subjects": [
+                  "MATH"
+                ],
+                "minLevel": 3350,
+                "maxLevel": 4999
+              },
+              "note": "The catalog names no list, only mathematics courses numbered 3350 or above, so the audit lists MATH 3350-4999 courses no other requirement counted. Whether a STAT or 5000-level course counts is an advisor's call.",
+              "citation": {
+                "page": "math-bsmth.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                "anchor": "MathematicsElectives6Hours",
+                "heading": "Mathematics electives, 6 hours"
+              }
+            }
+          ],
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "MajorRequirements",
+            "heading": "Major requirements"
+          }
+        },
+        {
+          "kind": "choice",
+          "name": "Laboratory science",
+          "branches": [
+            {
+              "name": "Option 1, Biology emphasis",
+              "node": {
+                "kind": "group",
+                "name": "Option 1, Biology emphasis",
+                "children": [
+                  {
+                    "kind": "all",
+                    "name": "BIOL 1710, BIOL 1720 and BIOL 1760",
+                    "items": [
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "BIOL 1710",
+                              "BIOL 1720",
+                              "BIOL 1760"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option1BiologyEmphasis",
+                      "heading": "Option 1, Biology emphasis"
+                    }
+                  },
+                  {
+                    "kind": "choose",
+                    "name": "Plus one physical science lecture and laboratory",
+                    "count": 1,
+                    "items": [
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "PHYS 1510",
+                              "PHYS 1530"
+                            ]
+                          },
+                          {
+                            "must": [
+                              "PHYS 1710",
+                              "PHYS 1730"
+                            ]
+                          },
+                          {
+                            "must": [
+                              "CHEM 1410",
+                              "CHEM 1430"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "PlusOneOfTheFollowing",
+                      "heading": "Plus one of the following"
+                    }
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option1BiologyEmphasis",
+                  "heading": "Option 1, Biology emphasis"
+                }
+              }
+            },
+            {
+              "name": "Option 2, Chemistry emphasis",
+              "node": {
+                "kind": "group",
+                "name": "Option 2, Chemistry emphasis",
+                "children": [
+                  {
+                    "kind": "all",
+                    "name": "General chemistry I and II with laboratories",
+                    "items": [
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "CHEM 1410",
+                              "CHEM 1430"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "CHEM 1420",
+                              "CHEM 1440"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option2ChemistryEmphasis",
+                      "heading": "Option 2, Chemistry emphasis"
+                    }
+                  },
+                  {
+                    "kind": "note",
+                    "name": "Third laboratory science course",
+                    "text": "One additional course that meets the University Core Curriculum requirement for the natural sciences, or any 3 hours from CHEM numbered at least 2000.",
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option2ChemistryEmphasis",
+                      "heading": "Option 2, Chemistry emphasis"
+                    }
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option2ChemistryEmphasis",
+                  "heading": "Option 2, Chemistry emphasis"
+                }
+              }
+            },
+            {
+              "name": "Option 3, Physics emphasis",
+              "node": {
+                "kind": "group",
+                "name": "Option 3, Physics emphasis",
+                "children": [
+                  {
+                    "kind": "all",
+                    "name": "Calculus-based physics sequence",
+                    "items": [
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "PHYS 1510",
+                              "PHYS 1530",
+                              "PHYS 1520",
+                              "PHYS 1540"
+                            ]
+                          },
+                          {
+                            "must": [
+                              "PHYS 1710",
+                              "PHYS 1730",
+                              "PHYS 2220",
+                              "PHYS 2240"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option3PhysicsEmphasis",
+                      "heading": "Option 3, Physics emphasis"
+                    }
+                  },
+                  {
+                    "kind": "note",
+                    "name": "Third laboratory science course",
+                    "text": "One additional course that meets the University Core Curriculum requirement for the natural sciences, or any 3 hours from PHYS numbered at least 2000.",
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option3PhysicsEmphasis",
+                      "heading": "Option 3, Physics emphasis"
+                    }
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option3PhysicsEmphasis",
+                  "heading": "Option 3, Physics emphasis"
+                }
+              }
+            },
+            {
+              "name": "Option 4",
+              "node": {
+                "kind": "note",
+                "name": "Double major laboratory science",
+                "text": "Students double majoring in mathematics and another discipline (typically biology, chemistry, physics or engineering) that requires at least 12 hours of laboratory science intended for science and engineering majors may use the same laboratory science courses that satisfy the requirements for the other major to satisfy the laboratory science requirement for the mathematics major.",
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option4",
+                  "heading": "Option 4"
+                }
+              }
+            },
+            {
+              "name": "Option 5",
+              "node": {
+                "kind": "group",
+                "name": "Option 5",
+                "children": [
+                  {
+                    "kind": "all",
+                    "name": "GEOL 1610 and GEOG 1710",
+                    "items": [
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "GEOL 1610"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "GEOG 1710"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option5",
+                      "heading": "Option 5"
+                    }
+                  },
+                  {
+                    "kind": "choose",
+                    "name": "Plus one lecture and laboratory combination",
+                    "count": 1,
+                    "items": [
+                      {
+                        "alternatives": [
+                          {
+                            "must": [
+                              "PHYS 1710",
+                              "PHYS 1730"
+                            ]
+                          },
+                          {
+                            "must": [
+                              "CHEM 1410",
+                              "CHEM 1430"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "PlusOneOfTheFollowingLectureAndLaboratoryCombinations",
+                      "heading": "Plus one of the following lecture and laboratory combinations"
+                    }
+                  },
+                  {
+                    "kind": "note",
+                    "name": "Geography or geology minor",
+                    "text": "To satisfy the laboratory science requirement for the mathematics major, students with a minor in geography or geology may use:",
+                    "citation": {
+                      "page": "math-bsmth.html",
+                      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                      "anchor": "Option5",
+                      "heading": "Option 5"
+                    }
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option5",
+                  "heading": "Option 5"
+                }
+              }
+            }
+          ],
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "LaboratoryScience",
+            "heading": "Laboratory science"
+          }
+        },
+        {
+          "kind": "choice",
+          "name": "Foreign language",
+          "branches": [
+            {
+              "name": "Option 1",
+              "node": {
+                "kind": "note",
+                "name": "Foreign language proficiency",
+                "text": "Proficiency in a foreign language equivalent to 1020 is required. Students intending to pursue a graduate degree in mathematics are encouraged to study French, German or Russian.",
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option1",
+                  "heading": "Option 1"
+                }
+              }
+            },
+            {
+              "name": "Option 2",
+              "node": {
+                "kind": "hours",
+                "name": "Technical writing, 6 hours",
+                "hours": 6,
+                "options": [
+                  {
+                    "must": [
+                      "TECM 2700"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "TECM 4180"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "TECM 4190"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "TECM 4250"
+                    ]
+                  },
+                  {
+                    "must": [
+                      "TECM 4700"
+                    ]
+                  }
+                ],
+                "citation": {
+                  "page": "math-bsmth.html",
+                  "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+                  "anchor": "Option2",
+                  "heading": "Option 2"
+                }
+              }
+            }
+          ],
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "ForeignLanguage",
+            "heading": "Foreign language"
+          }
+        },
+        {
+          "kind": "all",
+          "name": "Computer programming",
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 1010"
+                  ]
+                },
+                {
+                  "must": [
+                    "CSCE 1020"
+                  ]
+                },
+                {
+                  "must": [
+                    "CSCE 1030"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "ComputerProgramming",
+            "heading": "Computer programming"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Programming competency exam",
+          "text": "Students taking mathematics courses at the 2000-level or above are expected to be competent in computer programming, using languages such as BASIC, C, C++, Fortran, PASCAL or Java. Students are encouraged to complete the programming requirement during their freshman or sophomore year. Students who have acquired a solid programming competency in a non-academic setting, such as through work experience, may demonstrate their programming competency by passing a departmental exam in place of the CSCE 1010, CSCE 1020 or CSCE 1030 course requirement. Required courses:",
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "ComputerProgramming",
+            "heading": "Computer programming"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Minor requirements",
+          "text": "One of the following is required: A minor of at least 18 hours (6 advanced). A minor in statistics does not fulfill this requirement. Completion of a second major in addition to mathematics. Completion of the actuarial science certificate. Students must take STAT 3680, MATH 4610 and STAT 4650 for fulfilling degree requirements; students are also encouraged to take MATH 3350 and MATH 3740. Also, no mathematics courses may be chosen for fulfilling the elective requirements of the certificate program. Completion of the data analytics certificate.",
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "MinorRequirements",
+            "heading": "Minor requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "GPA 2.0 in major mathematics courses numbered 3350 or above",
+          "policy": {
+            "type": "note"
+          },
+          "quote": "Students must achieve a grade point average of at least 2.0 in all mathematics courses which are applied toward a mathematics major and are numbered 3350 or above.",
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "OtherRequirements",
+            "heading": "Other requirements"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "College of Science requirements",
+          "text": "A minimum of 120 semester hours, of which 36 must be advanced, and fulfillment of degree requirements for the bachelor of science degree as specified in the University Core Curriculum in the Degree and Program Requirements section of this catalog and the College of Science requirements.",
+          "citation": {
+            "page": "math-bsmth.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours at UNT: 24",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 24
+          },
+          "quote": "A minimum of 24 hours of advanced work (3000 or 4000 level) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours in the major at UNT: 12",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 12,
+            "courseScope": {
+              "kind": "applied"
+            }
+          },
+          "quote": "A minimum of 12 hours of advanced work in the major (except for the BAAS degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Residency",
+          "policy": {
+            "type": "residencyPercent",
+            "percent": 25
+          },
+          "quote": "Residence: minimum of 25 percent of the total hours for the degree (e.g., 30 hours for a 120-hour degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Overall GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
+          },
+          "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "UNT GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
+          },
+          "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Communication core grade",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
+          },
+          "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "English Composition Proficiency",
+            "heading": "English Composition Proficiency"
+          }
+        }
+      ],
+      "coreSharedCourses": [
+        "BIOL 1710",
+        "BIOL 1720",
+        "CHEM 1410",
+        "CHEM 1420",
+        "CSCE 1010",
+        "GEOG 1710",
+        "GEOL 1610",
+        "MATH 1710",
+        "MATH 1720",
+        "MATH 1810",
+        "PHYS 1510",
+        "PHYS 1520",
+        "PHYS 1710",
+        "PHYS 2220",
+        "TECM 2700"
+      ],
+      "courseSharing": "advisor"
+    },
+    {
+      "id": "biology-bsbio",
+      "name": "Biology, BSBIO",
+      "catalogId": "unt-2026-27",
+      "sourceUrl": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+      "requirements": [
+        {
+          "kind": "policy",
+          "name": "Total hours: 120",
+          "policy": {
+            "type": "totalHours",
+            "hours": 120
+          },
+          "quote": "A minimum of 120 semester hours, of which 36 must be advanced, and fulfillment of degree requirements for the bachelor’s degree as specified in the University Core Curriculum in the Degree and Program Requirements section of this catalog and the College of Science degree requirements.",
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours: 36",
+          "policy": {
+            "type": "advancedHours",
+            "hours": 36
+          },
+          "quote": "A minimum of 120 semester hours, of which 36 must be advanced, and fulfillment of degree requirements for the bachelor’s degree as specified in the University Core Curriculum in the Degree and Program Requirements section of this catalog and the College of Science degree requirements.",
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "group",
+          "name": "Foundation course requirements",
+          "children": [
+            {
+              "kind": "all",
+              "name": "Biology foundation courses",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 1710"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 1711"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 1720"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 1722"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 1750"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 1760"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 1761"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "BiologyCourses",
+                "heading": "Biology courses:"
+              }
+            },
+            {
+              "kind": "choose",
+              "name": "One 2000-level biology course",
+              "count": 1,
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 2041",
+                        "BIOL 2042"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 2140"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 2241"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 2251"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "OneOfTheFollowingCourseswithLabIfIndicated",
+                "heading": "One of the following courses (with lab, if indicated):"
+              }
+            },
+            {
+              "kind": "all",
+              "name": "Chemistry foundation courses",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 1410"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "CHEM 1412"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "CHEM 1413"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 1430"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 1420"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "CHEM 1422"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "CHEM 1423"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 1440"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 2370"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 3210"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "ChemistryCourses",
+                "heading": "Chemistry courses:"
+              }
+            },
+            {
+              "kind": "all",
+              "name": "Math foundation course",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "MATH 1650"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "MathCourses",
+                "heading": "Math courses:"
+              }
+            },
+            {
+              "kind": "policy",
+              "name": "Foundation courses: C or better and a 2.5 GPA",
+              "policy": {
+                "type": "note"
+              },
+              "quote": "The Foundation course requirements listed below must be completed before enrollment in 3000 and 4000 level courses required for the major. Successful completion is based on achieving a C or better in each course and an overall 2.5 grade point average in these courses.",
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "FoundationCourseRequirements",
+                "heading": "Foundation course requirements"
+              }
+            }
+          ],
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "FoundationCourseRequirements",
+            "heading": "Foundation course requirements"
+          }
+        },
+        {
+          "kind": "group",
+          "name": "Biology requirements",
+          "children": [
+            {
+              "kind": "choose",
+              "name": "Second 2000-level biology course",
+              "count": 1,
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 2041",
+                        "BIOL 2042"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 2140"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 2241"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 2251"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "OptionsForTheSecond2000LevelCourseRequirementwithLabIfIndicated",
+                "heading": "Options for the second 2000 level course requirement (with lab, if indicated):"
+              }
+            },
+            {
+              "kind": "all",
+              "name": "Advanced biology requirements",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 3451"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 3452"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 3510"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 3520"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "AdvancedBiologyRequirements",
+                "heading": "Advanced biology requirements:"
+              }
+            },
+            {
+              "kind": "choose",
+              "name": "Physiology course with laboratory",
+              "count": 1,
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "BIOL 4501",
+                        "BIOL 4502"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 4503",
+                        "BIOL 4504"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 4510",
+                        "BIOL 3800"
+                      ]
+                    },
+                    {
+                      "must": [
+                        "BIOL 4510",
+                        "BIOL 4505"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "PhysiologyRequirementOptionswithLab",
+                "heading": "Physiology requirement options (with lab):"
+              }
+            },
+            {
+              "kind": "hours",
+              "name": "Advanced biology electives, 16 hours",
+              "hours": 16,
+              "options": [
+                {
+                  "must": [
+                    "BIOL 3000"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3030"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3080"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3150"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3160"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3170"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3331"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3381"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3382"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3770"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3800"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3850"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3900"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 3996"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4000"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4005"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4006"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4030"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4035"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4045"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4050"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4051"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4052"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4053"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4054"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4055"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4056"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4057"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4070"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4085"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4091"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4092"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4100"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4110"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4120"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4160"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4170"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4180"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4190"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4201"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4202"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4220"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4230"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4240"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4250"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4260"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4261"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4280"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4290"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4300"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4320"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4330"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4370"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4375"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4380"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4400"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4420"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4440"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4460"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4480"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4501"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4502"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4503"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4504"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4505"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4506"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4510"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4530"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4540"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4560"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4570"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4590"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4650"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4720"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4751"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4752"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4760"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4800"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4801"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4805"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4810"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4820"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4580"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4900"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4910"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4920"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4930"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4940"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4950"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOL 4951"
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "AdvancedBiologyElectives",
+                "heading": "Advanced biology electives:"
+              }
+            },
+            {
+              "kind": "note",
+              "name": "Two advanced biology electives with laboratory",
+              "text": "In addition to the biology foundation courses, students must complete with a C or higher a second 2000 level biology course, the advanced biology requirements, one physiology course with laboratory, and 16 advanced biology elective hours (of which 2 courses must be with laboratory).",
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "BiologyRequirements",
+                "heading": "Biology requirements"
+              }
+            },
+            {
+              "kind": "policy",
+              "name": "Biology requirements: C or higher",
+              "policy": {
+                "type": "note"
+              },
+              "quote": "In addition to the biology foundation courses, students must complete with a C or higher a second 2000 level biology course, the advanced biology requirements, one physiology course with laboratory, and 16 advanced biology elective hours (of which 2 courses must be with laboratory).",
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "BiologyRequirements",
+                "heading": "Biology requirements"
+              }
+            }
+          ],
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "BiologyRequirements",
+            "heading": "Biology requirements"
+          }
+        },
+        {
+          "kind": "all",
+          "name": "Other course requirements",
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 1710"
+                  ]
+                },
+                {
+                  "must": [
+                    "MATH 1810"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1410",
+                    "PHYS 1430"
+                  ]
+                },
+                {
+                  "must": [
+                    "PHYS 1510",
+                    "PHYS 1530"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1420",
+                    "PHYS 1440"
+                  ]
+                },
+                {
+                  "must": [
+                    "PHYS 1520",
+                    "PHYS 1540"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "OtherCourseRequirements",
+            "heading": "Other course requirements"
+          }
+        },
+        {
+          "kind": "group",
+          "name": "Chemistry requirements",
+          "children": [
+            {
+              "kind": "all",
+              "name": "CHEM 2380 and CHEM 3220",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 2380"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "CHEM 3220"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "ChemistryRequirements",
+                "heading": "Chemistry requirements"
+              }
+            },
+            {
+              "kind": "hours",
+              "name": "Plus 4 advanced hours",
+              "hours": 4,
+              "options": [
+                {
+                  "must": [
+                    "CHEM 3451",
+                    "CHEM 3452"
+                  ]
+                },
+                {
+                  "must": [
+                    "CHEM 3530"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOC 3621",
+                    "BIOC 3622"
+                  ]
+                },
+                {
+                  "must": [
+                    "BIOC 4540",
+                    "BIOC 4550"
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "Plus4AdvancedHoursChosenFrom",
+                "heading": "Plus 4 advanced hours chosen from"
+              }
+            },
+            {
+              "kind": "policy",
+              "name": "Chemistry minor: C or higher",
+              "policy": {
+                "type": "note"
+              },
+              "quote": "Students must complete a minor in chemistry with a minimum of 20 hours. This includes the 12 hours of chemistry foundation courses plus 8 hours completed with a grade of C or higher, as follows:",
+              "citation": {
+                "page": "biology-bsbio.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+                "anchor": "ChemistryRequirements",
+                "heading": "Chemistry requirements"
+              }
+            }
+          ],
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "ChemistryRequirements",
+            "heading": "Chemistry requirements"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Electives",
+          "text": "Hours required for electives may vary based on course selection and the University Core Curriculum requirements. Electives may be required to satisfy the advanced hour requirement and/or the minimum total hours required for the degree. For specific information see an academic advisor in the College of Science.",
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "Electives",
+            "heading": "Electives"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Department grade and attempt rules",
+          "policy": {
+            "type": "note"
+          },
+          "quote": "Only two attempts will be allowed for each biology and biochemistry course in the degree. Grade of C or better and minimum 2.5 grade point average in Foundation Courses, C or better in all upper-division courses counting towards major requirements, and an overall 2.0 grade point average are required for graduation. All students seeking to enter the Department of Biological Sciences, with the exception of beginning freshmen, must meet the minimum grade point averages given above. Students in the department whose Foundation Course or overall grade point average drops below the minimum for two consecutive semesters will be removed from the program.",
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "OtherRequirements",
+            "heading": "Other requirements"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "College of Science requirements",
+          "text": "A minimum of 120 semester hours, of which 36 must be advanced, and fulfillment of degree requirements for the bachelor’s degree as specified in the University Core Curriculum in the Degree and Program Requirements section of this catalog and the College of Science degree requirements.",
+          "citation": {
+            "page": "biology-bsbio.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours at UNT: 24",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 24
+          },
+          "quote": "A minimum of 24 hours of advanced work (3000 or 4000 level) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours in the major at UNT: 12",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 12,
+            "courseScope": {
+              "kind": "applied"
+            }
+          },
+          "quote": "A minimum of 12 hours of advanced work in the major (except for the BAAS degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Residency",
+          "policy": {
+            "type": "residencyPercent",
+            "percent": 25
+          },
+          "quote": "Residence: minimum of 25 percent of the total hours for the degree (e.g., 30 hours for a 120-hour degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Overall GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
+          },
+          "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "UNT GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
+          },
+          "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Communication core grade",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
+          },
+          "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "English Composition Proficiency",
+            "heading": "English Composition Proficiency"
+          }
+        }
+      ],
+      "coreSharedCourses": [
+        "BIOL 1710",
+        "BIOL 1711",
+        "BIOL 1720",
+        "BIOL 1722",
+        "CHEM 1410",
+        "CHEM 1412",
+        "CHEM 1413",
+        "CHEM 1420",
+        "CHEM 1422",
+        "CHEM 1423",
+        "MATH 1650",
+        "MATH 1710",
+        "MATH 1810",
+        "PHYS 1410",
+        "PHYS 1420",
+        "PHYS 1510",
+        "PHYS 1520"
       ],
       "courseSharing": "advisor"
     },

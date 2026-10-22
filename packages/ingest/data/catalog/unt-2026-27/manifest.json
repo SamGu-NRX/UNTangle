@@ -35,6 +35,22 @@
       "httpStatus": 200,
       "capturedAt": "2026-10-15T12:22:01.320Z",
       "sha256": "4e50a88e161b681bd1e2c7bf9b264e8e0aa71546397f4d566c5072fc535e0f50"
+    },
+    {
+      "file": "math-bsmth.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
+      "title": "Program: Mathematics, BSMTH (non–teacher certification) - University of North Texas",
+      "httpStatus": 202,
+      "capturedAt": "2026-10-22T16:41:48.158Z",
+      "sha256": "3b7992e06df87d784863bcded9695b3cce30d6d06a19f4f80a6bb4efdce9b1a9"
+    },
+    {
+      "file": "biology-bsbio.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21206",
+      "title": "Program: Biology, BSBIO - University of North Texas",
+      "httpStatus": 200,
+      "capturedAt": "2026-10-22T16:41:48.158Z",
+      "sha256": "932c7c3758a2b51d6e209ae2027b32b36cd927b97ea2737f9edffd7b538665b7"
     }
   ]
 }

@@ -113,12 +113,12 @@ describe("the importer's rows, as the route sees them", () => {
 });
 
 describe("GET /api/v1/programs", () => {
-  test("lists CS BS, CE BS and the core, with page provenance", async () => {
+  test("lists every derived program, with page provenance", async () => {
     const response = await programsRoute.GET(new Request("http://localhost:3000/api/v1/programs"));
     expect(response.status).toBe(200);
     const body = (await response.json()) as { catalogId: string; programs: { id: string; sourceUrl: string }[]; pages: { sha256: string }[] };
     expect(body.catalogId).toBe("unt-2026-27");
-    expect(body.programs.map((program) => program.id)).toEqual(["cs-bs", "ce-bs", "core"]);
+    expect(body.programs.map((program) => program.id)).toEqual(["cs-bs", "ce-bs", "math-bsmth", "biology-bsbio", "core"]);
     for (const program of body.programs) expect(program.sourceUrl.startsWith("https://catalog.unt.edu")).toBe(true);
     for (const page of body.pages) expect(page.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
