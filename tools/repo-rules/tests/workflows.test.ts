@@ -94,6 +94,7 @@ describe("pr-rules.yml", () => {
   test("gives write access to Report alone, and only to statuses", async () => {
     const { jobs } = await workflow("pr-rules.yml");
     expect(jobs.report.permissions).toEqual({ statuses: "write", "pull-requests": "read" });
+    expect(jobs.report.concurrency).toEqual({ group: "pr-rules-report-${{ needs.pr.outputs.number }}", "cancel-in-progress": false });
     expect(jobs.pr.permissions).toEqual({ "pull-requests": "read" });
     expect(jobs["task-rule"].permissions).toBeUndefined();
     expect(jobs["path-ownership"].permissions).toBeUndefined();

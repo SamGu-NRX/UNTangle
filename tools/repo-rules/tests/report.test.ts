@@ -57,7 +57,7 @@ const failed: JobResult = { result: "failure", checked: "true" };
 async function report(
   reviews: Reviews,
   jobs: { taskRule?: JobResult; pathOwnership?: JobResult } = {},
-  options: { number?: number; env?: Record<string, string> } = {},
+  options: { number?: number; env?: Record<string, string>; currentHead?: string } = {},
 ): Promise<Posted[]> {
   const { script, env } = reportStep();
   const number = options.number ?? 7;
@@ -68,6 +68,12 @@ async function report(
     paginate: async <T>(method: (params: never) => Promise<{ data: T[] }>, params: never) => (await method(params)).data,
     rest: {
       pulls: {
+        get: async (params: { owner: string; repo: string; pull_number: number }) => {
+          if (params.owner !== OWNER || params.repo !== REPO || params.pull_number !== number) {
+            throw new Error(`Asked about the wrong PR: ${JSON.stringify(params)}`);
+          }
+          return { data: { head: { sha: options.currentHead ?? HEAD } } };
+        },
         // Newest first, since the API promises no order and the script must sort.
         listReviews: async (params: { owner: string; repo: string; pull_number: number }) => {
           if (params.owner !== OWNER || params.repo !== REPO || params.pull_number !== number) {
@@ -255,6 +261,12 @@ describe("the Report job", () => {
     ["a head that isn't a commit", { HEAD_SHA: "main" }],
   ])("fails loudly, posting nothing, given %s", async (_case, env) => {
     await expect(report(new Reviews().add(SAM, "APPROVED"), {}, { env })).rejects.toThrow("The pr job gave no pull request with a head commit");
+  });
+
+  // Reports for one PR queue, so an older one can run after a newer push; it must not post over it.
+  test("posts nothing when the PR's head moved after its run found it", async () => {
+    const posted = await report(new Reviews().add(SAM, "APPROVED"), {}, { currentHead: "c3".repeat(20) });
+    expect(posted).toEqual([]);
   });
 
   test("takes its approver list from the workflow: SamGu-NRX alone", () => {

@@ -180,6 +180,12 @@ jobs:
   report:
     name: Report
     needs: [pr, task-rule, path-ownership]
+    # A fork review's run and a pull_request_target run can sit in different
+    # workflow groups. Reports for one PR queue here instead, and each skips
+    # posting if the PR's head moved since its run found it.
+    concurrency:
+      group: pr-rules-report-${{ needs.pr.outputs.number }}
+      cancel-in-progress: false
     # Reports a failed or skipped check too, so it never leaves a stale status.
     if: ${{ !cancelled() && contains(fromJSON('["alpha", "main", "edge"]'), needs.pr.outputs.base-ref) }}
     runs-on: ubuntu-latest
@@ -239,6 +245,11 @@ jobs:
               return { approved: true, reason: "Sam approved this commit." };
             }
 
+            const { data: now } = await github.rest.pulls.get({ owner, repo, pull_number: pr.number });
+            if (now.head.sha !== pr.head.sha) {
+              core.notice(`#${pr.number} moved to ${now.head.sha} after this run found ${pr.head.sha}; the newer run reports.`, { title: "Skipped" });
+              return;
+            }
             const reviews = await github.paginate(github.rest.pulls.listReviews, { owner, repo, pull_number: pr.number, per_page: 100 });
             const approval = samApproval(reviews);
             core.notice(approval.reason, { title: approval.approved ? "Approved" : "Not approved" });
