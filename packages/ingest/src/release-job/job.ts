@@ -212,6 +212,11 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
       }
       const check = checkSubjectFile(subjectBody, termId, subject);
       if (!check.ok) {
+        // A subject the published release carries can't be dropped by a bad
+        // response: publishing without it would replace its slice with the
+        // term file's, which may be older. A 404 above is different: upstream
+        // removed the file, so the term file is the only source left.
+        if (publishedSubjects?.includes(subject)) unavailable.push(subject);
         subjectReports.push({ subject, applied: false, detail: check.detail });
         continue;
       }

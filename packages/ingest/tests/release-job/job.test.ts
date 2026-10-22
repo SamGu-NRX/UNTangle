@@ -346,6 +346,20 @@ describe("runReleaseJob, one run at a time", () => {
     expect(readFileSync(pointerPath, "utf8")).toBe(before);
   });
 
+  test("a recorded subject whose new body is invalid stops the run instead of dropping its overlay", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    const before = readFileSync(pointerPath, "utf8");
+    files["/data/spring-2027/MATH.json"] = { body: '{"schema_version":1}', etag: '"m2"' };
+
+    const report = await job();
+    expect(report.outcome).toBe("error");
+    expect(report.reason).toBe("subject-unavailable");
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: false, detail: "MATH.json: schema_version 1 is not 2" }]);
+    expect(readFileSync(pointerPath, "utf8")).toBe(before);
+  });
+
   test("a 304 without subjects publishes nothing over a release with no overlay record, until a run with subjects records one", async () => {
     files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
     expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
