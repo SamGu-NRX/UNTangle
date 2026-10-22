@@ -203,6 +203,12 @@ describe("the final term: 105 credits finished, 15 in progress that print 0.000 
     expect(degree.needed.size).toBe(0);
   });
 
+  test("advanced credits are in progress when the known current courses reach 42", () => {
+    const known = finalTerm.filter((record) => record.code !== "CSCE 4230");
+    const { degree: partial } = degreeOf(plannerWith(known, "cs"));
+    expect(rows(partial, "major")).toContainEqual(["Advanced credits: 42", "inProgress", "Taking now"]);
+  });
+
   test("with every in-progress course in the catalog, the figure is exact but approximate", () => {
     const known = finalTerm.filter((record) => !["AGER 2250", "CSCE 4230"].includes(record.code));
     const { degree: partial } = degreeOf(plannerWith(known, "cs"));

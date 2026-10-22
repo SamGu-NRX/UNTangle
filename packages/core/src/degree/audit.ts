@@ -162,7 +162,7 @@ export type HourTotals = {
 
 export type PolicyOutcome = {
   name: string;
-  status: "satisfied" | "unsatisfied" | "unverifiable";
+  status: "satisfied" | "inProgress" | "unsatisfied" | "unverifiable";
   detail: string;
   citation: Citation;
 };
@@ -794,6 +794,21 @@ function evaluatePolicyBeforeChoices(policy: PolicyNode, evidence: CourseEvidenc
   return { ...placed, status: "unverifiable", detail: `${counting} Cannot verify until a branch is met.` };
 }
 
+/** Treat current courses as credit for the audit's projected, in-progress layer. */
+function projectedEvidence(evidence: CourseEvidence[]): CourseEvidence[] {
+  return evidence.map((entry) => entry.credit || !entry.current ? entry : { ...entry, credit: entry.current });
+}
+
+/** Advanced hours use the same finished/projected distinction as requirement nodes. */
+function evaluatePolicyLayers(policy: PolicyNode, evidence: CourseEvidence[], now: ReturnType<typeof evaluateProgram>, projected: ReturnType<typeof evaluateProgram>, options: AuditOptions): PolicyOutcome {
+  const current = evaluatePolicyBeforeChoices(policy, evidence, now.used, now.partial, now.pools, options);
+  if (policy.policy.type !== "advancedHours" || current.status !== "unsatisfied") return current;
+  const later = evaluatePolicyBeforeChoices(policy, projectedEvidence(evidence), projected.used, projected.partial, projected.pools, options);
+  return later.status === "satisfied"
+    ? { ...current, status: "inProgress", detail: `${current.detail}. Counting in-progress courses: ${later.detail}` }
+    : current;
+}
+
 /**
  * GPA over every graded attempt in scope: A through F carry grade points,
  * and an F's hours count with zero points ("all work attempted"). P, CR, W,
@@ -918,7 +933,7 @@ export function auditProgram(program: ProgramData, courses: readonly (AuditCours
   // claimed from finished work, and the ones an unmet choice released.
   // Advisory pool matches are never claimed, and claims never reach a
   // policy: nothing verifies them.
-  const policies = policyNodes.map((node) => evaluatePolicyBeforeChoices(node, [...evidence.values()], now.used, now.partial, now.pools, options));
+  const policies = policyNodes.map((node) => evaluatePolicyLayers(node, [...evidence.values()], now, later, options));
 
   const count = (status: NodeOutcome["status"]): number => requirements.filter((result) => result.status === status).length;
   return {

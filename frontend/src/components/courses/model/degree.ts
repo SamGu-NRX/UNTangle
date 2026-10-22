@@ -375,6 +375,8 @@ function collectPolicies(result: AuditResult, walk: Walk): void {
     const key = `${result.programId}.policy.${index}`;
     if (policy.status === "unsatisfied") {
       walk.rows.push({ key, area: walk.area, name: inCredits(policy.name), status: "needed", fact: "Not met yet", left: NONE_LEFT, citation: policy.citation, source: { kind: "policy", detail: inCredits(policy.detail) } });
+    } else if (policy.status === "inProgress") {
+      walk.rows.push({ key, area: walk.area, name: inCredits(policy.name), status: "inProgress", fact: "Taking now", left: NONE_LEFT, citation: policy.citation, source: { kind: "policy", detail: inCredits(policy.detail) } });
     } else {
       walk.advisor.push({ key, area: walk.area, name: inCredits(policy.name), text: policy.detail, quote: false, candidates: [], askAbout: [], citation: policy.citation });
     }
