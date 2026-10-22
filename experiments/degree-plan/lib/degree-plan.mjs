@@ -57,7 +57,7 @@ export function buildProblem({
   // (Self-referencing prereq edges are NOT blockers: setCourseStatus has no
   // lock gate, so completing the course satisfies its own prereq edge.)
   const unplannable = [];
-  const remaining = [];
+  const candidateRemaining = [];
   for (const course of universe) {
     if (done.has(course.code) || planned.has(course.code)) continue;
     const hasUncataloged = course.gapPrereqRefs.some((gap) => gap.kind === "uncataloged");
@@ -68,9 +68,50 @@ export function buildProblem({
         selfRefs: course.gapPrereqRefs.filter((g) => g.kind === "self").map((g) => g.code),
       });
     } else {
-      remaining.push(course);
+      candidateRemaining.push(course);
     }
   }
+
+  // A strict-mode gap also blocks every dependent course. Treating a missing
+  // prerequisite as "pinned or assumed" would let the planner schedule the
+  // dependent immediately after dropping the unplannable prerequisite. Only
+  // an explicitly Done or Taking status may satisfy an omitted prerequisite;
+  // the assume mode is the deliberate escape hatch for unknown equivalences.
+  const candidateCodes = new Set(candidateRemaining.map((course) => course.code));
+  const blocked = new Map();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const course of candidateRemaining) {
+      if (blocked.has(course.code)) continue;
+      const blockers = course.prereqs.filter((prereq) => {
+        if (done.has(prereq) || planned.has(prereq)) return false;
+        return !candidateCodes.has(prereq) || blocked.has(prereq);
+      });
+      if (blockers.length > 0) {
+        blocked.set(course.code, blockers);
+        changed = true;
+      }
+    }
+  }
+  const directByCode = new Map(unplannable.map((entry) => [entry.code, entry]));
+  for (const course of candidateRemaining) {
+    const blockers = blocked.get(course.code);
+    if (!blockers) continue;
+    const inheritedGaps = blockers.flatMap((code) => {
+      const entry = directByCode.get(code) ?? unplannable.find((item) => item.code === code);
+      return entry?.uncatalogedPrereqs ?? [];
+    });
+    const entry = {
+      code: course.code,
+      blockedBy: blockers,
+      uncatalogedPrereqs: [...new Set(inheritedGaps)],
+      selfRefs: [],
+    };
+    unplannable.push(entry);
+    directByCode.set(course.code, entry);
+  }
+  const remaining = candidateRemaining.filter((course) => !blocked.has(course.code));
   remaining.sort((a, b) => a.code.localeCompare(b.code));
 
   // Cycle check over catalog-only edges (defensive; the real catalog is a DAG).
@@ -340,11 +381,26 @@ function msSince(started) {
 //  4. current-term-over-cap is returned directly from enumerate().
 export function infeasibilityWitness(problem) {
   const { horizon, termCap } = problem;
+  const unplannableByCode = new Map(problem.unplannable.map((entry) => [entry.code, entry]));
   const coreRemaining = problem.universe.filter(
     (course) => !problem.done.has(course.code) && !problem.planned.has(course.code),
   );
   const blockers = [];
   for (const course of coreRemaining) {
+    const unplannable = unplannableByCode.get(course.code);
+    if (unplannable && problem.equivalence === "strict") {
+      const refs = unplannable.uncatalogedPrereqs ?? [];
+      blockers.push({
+        code: course.code,
+        kind: unplannable.blockedBy ? "blocked-prereq" : "uncataloged-prereq",
+        ...(unplannable.blockedBy ? { blockedBy: unplannable.blockedBy } : {}),
+        uncatalogedPrereqs: refs,
+        detail: unplannable.blockedBy
+          ? `Depends on ${unplannable.blockedBy.join(", ")}, which cannot be planned in strict mode because ${refs.join(", ")} ${refs.length === 1 ? "is" : "are"} not catalog courses.`
+          : `Requires ${refs.join(", ")}, which ${refs.length === 1 ? "is not a catalog course" : "are not catalog courses"}. The planner drops statuses for non-catalog codes (planner.ts normalizePlannerState), so the app can never mark this prerequisite completed.`,
+      });
+      continue;
+    }
     const uncatalogedGaps = (course.gapPrereqRefs ?? []).filter((gap) => gap.kind === "uncataloged");
     if (uncatalogedGaps.length > 0 && problem.equivalence === "strict") {
       const refs = uncatalogedGaps.map((gap) => gap.code);
