@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import { auditProgram, type AuditCourse, type AuditResult } from "@untangle/core/degree/audit";
 import type { DegreeData, ProgramData } from "@untangle/core/degree/types";

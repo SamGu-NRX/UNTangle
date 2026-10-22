@@ -396,8 +396,18 @@ function deriveCybersecurity(page: CatalogPage, university: CatalogPage): Requir
   const other = requireSection(page, "Other course requirements");
   const lab = requireSection(page, "Choose 2 courses (6-8 hours including labs) from the following:");
   const labCodes = new Set(courseItems(lab).flatMap((item) => item.type === "courseGroup" ? item.courses.map((course) => course.code) : []));
-  const labPairs = [["CHEM 1410", "CHEM 1430"], ["CHEM 1420", "CHEM 1440"], ["PHYS 1410", "PHYS 1430"], ["PHYS 1420", "PHYS 1440"], ["PHYS 1710", "PHYS 1730"], ["PHYS 2220", "PHYS 2240"]];
-  for (const pair of labPairs) for (const code of pair) if (!labCodes.has(code)) throw new Error(`${page.file}: laboratory note names unlisted course ${code}.`);
+  const labPairs = [
+    ["BIOL 1710", "BIOL 1760"], ["BIOL 1720", "BIOL 1760"],
+    ["BIOL 2301", "BIOL 2311"], ["BIOL 2302", "BIOL 2312"],
+    ["CHEM 1410", "CHEM 1430"], ["CHEM 1420", "CHEM 1440"],
+    ["PHYS 1410", "PHYS 1430"], ["PHYS 1420", "PHYS 1440"],
+    ["PHYS 1710", "PHYS 1730"], ["PHYS 2220", "PHYS 2240"],
+  ];
+  // The page's note says that every listed course with a separate lab needs
+  // both components. The captured list prints those pairs as separate bullets
+  // for biology and physics, so preserve the note explicitly instead of
+  // treating each component as an independent laboratory choice.
+  for (const pair of labPairs) for (const code of pair) if (!labCodes.has(code)) throw new Error(`${page.file}: laboratory pair names unlisted course ${code}.`);
   const pairedCodes = new Set(labPairs.flat());
   const standaloneLabs = [...labCodes].filter((code) => !pairedCodes.has(code)).map((code) => [code]);
   const nodes: RequirementNode[] = [

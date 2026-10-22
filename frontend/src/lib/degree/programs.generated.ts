@@ -6,7 +6,7 @@ import type { DegreeData } from "@untangle/core/degree/types";
 export const DEGREE_DATA: DegreeData = {
   "catalogId": "unt-2026-27",
   "catalogYear": "2026-2027",
-  "builtAt": "2026-10-22T14:05:59.919Z",
+  "builtAt": "2026-10-22T15:52:29.450Z",
   "pages": [
     {
       "file": "cs-bs.html",
@@ -2825,69 +2825,6 @@ export const DEGREE_DATA: DegreeData = {
               "alternatives": [
                 {
                   "must": [
-                    "BIOL 1710"
-                  ]
-                }
-              ]
-            },
-            {
-              "alternatives": [
-                {
-                  "must": [
-                    "BIOL 1720"
-                  ]
-                }
-              ]
-            },
-            {
-              "alternatives": [
-                {
-                  "must": [
-                    "BIOL 1760"
-                  ]
-                }
-              ]
-            },
-            {
-              "alternatives": [
-                {
-                  "must": [
-                    "BIOL 2301"
-                  ]
-                }
-              ]
-            },
-            {
-              "alternatives": [
-                {
-                  "must": [
-                    "BIOL 2302"
-                  ]
-                }
-              ]
-            },
-            {
-              "alternatives": [
-                {
-                  "must": [
-                    "BIOL 2311"
-                  ]
-                }
-              ]
-            },
-            {
-              "alternatives": [
-                {
-                  "must": [
-                    "BIOL 2312"
-                  ]
-                }
-              ]
-            },
-            {
-              "alternatives": [
-                {
-                  "must": [
                     "GEOG 1710"
                   ]
                 }
@@ -2925,6 +2862,46 @@ export const DEGREE_DATA: DegreeData = {
                 {
                   "must": [
                     "PHYS 1270"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 1710",
+                    "BIOL 1760"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 1720",
+                    "BIOL 1760"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 2301",
+                    "BIOL 2311"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 2302",
+                    "BIOL 2312"
                   ]
                 }
               ]

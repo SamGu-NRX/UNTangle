@@ -276,10 +276,35 @@ describe("derived requirement trees on the captured catalog pages", () => {
     const itMajor = it.requirements.find((node) => node.name === "Major requirements")!;
     expect(itMajor.kind === "all" && itMajor.items.map((slot) => slot.alternatives[0]!.must[0])).toEqual(["CSCE 1010", "CSCE 1015", "CSCE 1030", "CSCE 1040", "CSCE 2100", "CSCE 2110", "CSCE 2130", "CSCE 3055", "CSCE 3220", "CSCE 3420", "CSCE 3444", "CSCE 3530", "CSCE 3550", "CSCE 3600", "CSCE 3605", "CSCE 4010", "CSCE 4350", "CSCE 4355", "CSCE 4535", "CSCE 4905", "CSCE 4925"]);
     const cyber = program("cybersecurity-bs");
-    expect(cyber.requirements.find((node) => node.name === "Major electives, 12 hours (choose 4)")?.kind).toBe("choose");
-    expect(cyber.requirements.find((node) => node.name === "Major electives, 12 hours (choose 4)")?.kind === "choose" && (cyber.requirements.find((node) => node.name === "Major electives, 12 hours (choose 4)") as any).count).toBe(4);
+    const cyberMajor = cyber.requirements.find((node) => node.name === "Major requirements");
+    expect(cyberMajor?.kind === "all" && cyberMajor.items.map((slot) => slot.alternatives[0]!.must[0])).toEqual([
+      "CSCE 1010", "CSCE 1015", "CSCE 1030", "CSCE 1040", "CSCE 2100", "CSCE 2110", "CSCE 2120", "CSCE 2130", "CSCE 3530", "CSCE 3550", "CSCE 3560", "CSCE 3600", "CSCE 4010", "CSCE 4535", "CSCE 4555", "CSCE 4560", "CSCE 4565", "CSCE 4575", "CSCE 4907", "CSCE 4927",
+    ]);
+    const cyberElectives = cyber.requirements.find((node) => node.name === "Major electives, 12 hours (choose 4)");
+    expect(cyberElectives?.kind === "choose" && cyberElectives.count).toBe(4);
+    const cyberLab = cyber.requirements.find((node) => node.name.startsWith("Laboratory science"));
+    expect(cyberLab?.kind === "choose" && cyberLab.items.map((slot) => slot.alternatives.map((option) => option.must.join("+")).join(" | "))).toEqual([
+      "BIOL 1112", "BIOL 1132", "GEOG 1710", "GEOL 1610", "PHYS 1052", "PHYS 1062", "PHYS 1270", "BIOL 1710+BIOL 1760", "BIOL 1720+BIOL 1760", "BIOL 2301+BIOL 2311", "BIOL 2302+BIOL 2312", "CHEM 1410+CHEM 1430", "CHEM 1420+CHEM 1440", "PHYS 1410+PHYS 1430", "PHYS 1420+PHYS 1440", "PHYS 1710+PHYS 1730", "PHYS 2220+PHYS 2240",
+    ]);
     const ee = program("ee-bs");
     expect(ee.requirements.map((node) => node.name).slice(0, 5)).toEqual(["Total hours: 128", "Advanced hours: 42", "Major requirements", "EENG 4000-level electives, 15 hours (choose 5)", "Project and Laboratory courses, 27 hours"]);
+    const eeElective = ee.requirements.find((node) => node.name.startsWith("EENG 4000-level electives"));
+    expect(eeElective?.kind === "choose" && eeElective.items.flatMap((slot) => slot.alternatives[0]!.must)).toEqual([
+      "EENG 4010", "EENG 4210", "EENG 4310", "EENG 4320", "EENG 4330", "EENG 4340", "EENG 4350", "EENG 4410", "EENG 4450", "EENG 4510", "EENG 4520", "EENG 4530", "EENG 4580", "EENG 4610", "EENG 4710", "EENG 4720", "EENG 4740", "EENG 4760", "EENG 4810", "EENG 4820", "EENG 4850", "EENG 4900",
+    ]);
+  });
+
+  test("new major groups retain the captured catalog wording and hours", () => {
+    const sectionParagraph = (file: string, heading: string, text: string) => {
+      const section = loadPage(file).sections.find((candidate) => candidate.heading === heading);
+      expect(section?.items.some((item) => item.type === "paragraph" && item.text.includes(text))).toBe(true);
+    };
+    sectionParagraph("it-bs.html", "Hours required and general/college requirements", "A minimum of 121 semester hours, of which 42 must be advanced");
+    sectionParagraph("it-bs.html", "Supporting area, 18-20 hours", "18-20 hours are required to support the information technology major and can be chosen from courses in many UNT departments. Check with a CSE faculty advisor concerning eligible courses.");
+    sectionParagraph("cybersecurity-bs.html", "Major requirements", "Major of 70 hours, including:");
+    sectionParagraph("cybersecurity-bs.html", "Choose 2 courses (6-8 hours including labs) from the following:", "Note: courses that have a separate lab must include both the lecture and lab components (e.g., PHYS 1710 AND PHYS 1730).");
+    sectionParagraph("ee-bs.html", "Hours required and general/college requirements", "A minimum of 128 semester hours, of which 42 must be advanced courses");
+    sectionParagraph("ee-bs.html", "Major requirements", "A minimum of 39 semester hours of coursework, including:");
   });
 
   test("every derived node carries a citation into a captured page", () => {
