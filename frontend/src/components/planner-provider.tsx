@@ -663,7 +663,7 @@ function IdentityPlannerProvider({
   const [guestHandover, setGuestHandover] = useState<{ writtenAt: number | null } | null>(null);
   // Resolves the open guest sign-in question; null means the instance retired before an answer.
   const guestAnswer = useRef<((choice: GuestChoice | "recheck" | null) => void) | null>(null);
-  const guestHandoverAnswer = useRef<((choice: "bring" | "leave" | null) => void) | null>(null);
+  const guestHandoverAnswer = useRef<((choice: "bring" | "leave" | "recheck" | null) => void) | null>(null);
   // An answer waiting for the lock, applied only if the account still asks the same questions.
   const pendingChoice = useRef<GuestChoice | null>(null);
   const syncProblemRef = useRef(syncProblem);
@@ -803,6 +803,7 @@ function IdentityPlannerProvider({
       syncRef.current?.close();
       syncRef.current = null;
       guestAnswer.current?.(null);
+      guestHandoverAnswer.current?.(null);
       if (saveTimer.current) clearTimeout(saveTimer.current);
       if (retryTimer.current) clearTimeout(retryTimer.current);
       hydrationWaiters.current.splice(0).forEach((resolve) => resolve());
@@ -1386,19 +1387,21 @@ function IdentityPlannerProvider({
       if (!current()) return;
 
       // A matching old or legacy stamp is not enough to identify the current visitor. Ask before reading or
-      // moving any guest store; choosing "Bring it in" only unlocks this sign-in attempt.
+      // moving any guest store; choosing "Bring it in" only unlocks this sign-in attempt. Another tab can settle
+      // or clear the work while this asks, so a storage change asks again only if the stamps still need it.
       let handoverAllowed = false;
-      const handover = guestWorkHandover();
-      if (handover.needsConfirmation) {
+      for (let handover = guestWorkHandover(); handover.needsConfirmation && !handoverAllowed; handover = guestWorkHandover()) {
         setGuestHandover({ writtenAt: handover.writtenAt });
-        const choice = await new Promise<"bring" | "leave" | null>((resolve) => {
+        const choice = await new Promise<"bring" | "leave" | "recheck" | null>((resolve) => {
           guestHandoverAnswer.current = resolve;
         });
         guestHandoverAnswer.current = null;
+        if (choice === "recheck" && current()) continue;
         setGuestHandover(null);
         if (choice !== "bring" || !current()) return;
         handoverAllowed = true;
       }
+      setGuestHandover(null);
 
       // Only work a guest wrote in this browser session (lib/guest-session.ts): older work may be someone else's.
       if (!guestWorkIsThisSession() || (!handoverAllowed && guestWorkHandover().needsConfirmation)) return;
@@ -1599,14 +1602,17 @@ function IdentityPlannerProvider({
   const settleGuestSignIn = useCallback((choice: GuestChoice) => guestAnswer.current?.(choice), []);
 
   // Another tab settled or cleared the guest work: this tab's open question is stale, so it checks again.
+  const asking = guestSignIn !== null || guestHandover !== null;
   useEffect(() => {
-    if (!guestSignIn) return;
+    if (!asking) return;
     const onStorage = (event: StorageEvent) => {
-      if (event.key === null || event.key === PLANNER_STATE_STORE_KEY || event.key.startsWith(STAMP_PREFIX)) guestAnswer.current?.("recheck");
+      if (event.key !== null && event.key !== PLANNER_STATE_STORE_KEY && !event.key.startsWith(STAMP_PREFIX)) return;
+      guestAnswer.current?.("recheck");
+      guestHandoverAnswer.current?.("recheck");
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, [guestSignIn]);
+  }, [asking]);
 
   const prepareSignOut = useCallback(async () => {
     const sync = syncRef.current;

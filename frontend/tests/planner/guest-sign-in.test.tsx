@@ -296,6 +296,29 @@ test("a token-only guest stamp asks and Bring it in continues the existing sign-
   expect(planned(server.plan(user.id), "CSCE 1040")).toBe(true);
 });
 
+/** Stamps this browser session's guest plan as written longer ago than the handover window, so sign-in asks first. */
+function stampPlanOld() {
+  const token = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("untangle_guest_session="))?.split("=")[1];
+  expect(token).toBeTruthy();
+  window.localStorage.setItem(`${STAMP_PREFIX}plan`, `${token}.${Date.now() - GUEST_HANDOVER_MS - 1}`);
+}
+
+test("two signed-in tabs: bringing old guest work in from one closes the other's handover question", async () => {
+  guestLeft(plan(["CSCE 1040"]));
+  stampPlanOld();
+  const first = await signIn();
+  const second = await mountPlanner();
+  mounted.push(second.unmount);
+  await waitFor(() => first.get().guestHandover !== null && second.get().guestHandover !== null, "asked in both tabs");
+  // A storage change that leaves the old stamp in place keeps the question open.
+  await second.run(() => window.dispatchEvent(new window.StorageEvent("storage", { key: PLANNER_STATE_STORE_KEY })));
+  expect(second.get().guestHandover).not.toBeNull();
+  await first.run((p) => p.settleGuestHandover("bring"));
+  await waitFor(() => guestCleared() && planned(server.plan(user.id), "CSCE 1040"), "first tab brought it in");
+  await second.run(() => window.dispatchEvent(new window.StorageEvent("storage", { key: `${STAMP_PREFIX}plan` })));
+  await waitFor(() => second.get().guestHandover === null, "second tab's question closed");
+});
+
 test("leaving old guest work still applies account-kept browser settings", async () => {
   const defaults = defaultSchedulePreferences(initial.optimization);
   const fridays = { ...defaults, constraints: { ...defaults.constraints, daysOff: ["Fri" as const] } };
