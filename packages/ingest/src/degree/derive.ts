@@ -412,7 +412,7 @@ function deriveCybersecurity(page: CatalogPage, university: CatalogPage): Requir
   const standaloneLabs = [...labCodes].filter((code) => !pairedCodes.has(code)).map((code) => [code]);
   const nodes: RequirementNode[] = [
     note("70-hour major minimum", majorLine, citation(major, page)),
-    allNode("Major requirements", majorItems.slice(0, 20), citation(major, page)),
+    allNode("Major requirements", majorItems, citation(major, page)),
     chooseNode("Major electives, 12 hours (choose 4)", 4, courseItems(elective), citation(elective, page)),
     allNode("Other course requirements", courseItems(other), citation(other, page)),
     explicitChoose("Laboratory science, 6-8 hours (choose 2)", 2, [...standaloneLabs, ...labPairs], citation(lab, page)),

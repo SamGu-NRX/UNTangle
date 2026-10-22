@@ -6,7 +6,7 @@ import type { DegreeData } from "@untangle/core/degree/types";
 export const DEGREE_DATA: DegreeData = {
   "catalogId": "unt-2026-27",
   "catalogYear": "2026-2027",
-  "builtAt": "2026-10-22T15:52:29.450Z",
+  "builtAt": "2026-10-22T16:21:56.982Z",
   "pages": [
     {
       "file": "cs-bs.html",
