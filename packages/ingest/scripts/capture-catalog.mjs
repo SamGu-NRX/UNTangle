@@ -41,6 +41,9 @@ const PAGES = [
   { file: "ce-bs.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21225`, expect: "Computer Engineering" },
   { file: "core-curriculum.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21275`, expect: "University Core" },
   { file: "degree-requirements.html", url: `${BASE}/content.php?catoid=${CATOID}&navoid=4689`, expect: "Degree" },
+  { file: "it-bs.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21301`, expect: "Information Technology" },
+  { file: "cybersecurity-bs.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21644`, expect: "Cybersecurity" },
+  { file: "ee-bs.html", url: `${BASE}/preview_program.php?catoid=${CATOID}&poid=21250`, expect: "Electrical Engineering" },
 ];
 
 const INTERVAL_MS = 1100;

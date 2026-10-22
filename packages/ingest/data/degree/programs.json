@@ -1,7 +1,7 @@
 {
   "catalogId": "unt-2026-27",
   "catalogYear": "2026-2027",
-  "builtAt": "2026-10-17T17:00:14.755Z",
+  "builtAt": "2026-10-22T14:05:59.919Z",
   "pages": [
     {
       "file": "cs-bs.html",
@@ -30,6 +30,27 @@
       "title": "Degree and Program Requirements - University of North Texas",
       "capturedAt": "2026-10-15T12:22:01.320Z",
       "sha256": "4e50a88e161b681bd1e2c7bf9b264e8e0aa71546397f4d566c5072fc535e0f50"
+    },
+    {
+      "file": "it-bs.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+      "title": "Program: Information Technology, BS - University of North Texas",
+      "capturedAt": "2026-10-22T13:49:52.419Z",
+      "sha256": "77bd316a744c4f08e7a32216464ae3046b9e853bc295726890666c740d0c4252"
+    },
+    {
+      "file": "cybersecurity-bs.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21644",
+      "title": "Program: Cybersecurity, BS - University of North Texas",
+      "capturedAt": "2026-10-22T13:49:52.419Z",
+      "sha256": "0be4a44f5afe1e77f4404abe2a9e849913fd421d243c0d2687c85144412aa43d"
+    },
+    {
+      "file": "ee-bs.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+      "title": "Program: Electrical Engineering, BS - University of North Texas",
+      "capturedAt": "2026-10-22T13:49:52.419Z",
+      "sha256": "1c34ae01ef3e6041acbe049ec5d6240f7671eec42e995427e37a95d2e4161a4e"
     }
   ],
   "programs": [
@@ -1750,6 +1771,2228 @@
       "coreSharedCourses": [
         "CHEM 1410",
         "CSCE 1010",
+        "MATH 1710",
+        "MATH 1720",
+        "MATH 1810",
+        "PHYS 1710",
+        "PHYS 2220",
+        "TECM 2700"
+      ],
+      "courseSharing": "advisor"
+    },
+    {
+      "id": "it-bs",
+      "name": "Information Technology, BS",
+      "catalogId": "unt-2026-27",
+      "sourceUrl": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+      "requirements": [
+        {
+          "kind": "policy",
+          "name": "Total hours: 121",
+          "policy": {
+            "type": "totalHours",
+            "hours": 121
+          },
+          "quote": "A minimum of 121 semester hours, of which 42 must be advanced, and fulfillment of degree requirements for the Bachelor of Science degree as specified in the University Core Curriculum in the Degree and Program Requirements of this catalog, and college requirements as specified in the College of Engineering section of this catalog. A minimum of 31 semester hours must be completed at UNT.",
+          "citation": {
+            "page": "it-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours: 42",
+          "policy": {
+            "type": "advancedHours",
+            "hours": 42
+          },
+          "quote": "A minimum of 121 semester hours, of which 42 must be advanced, and fulfillment of degree requirements for the Bachelor of Science degree as specified in the University Core Curriculum in the Degree and Program Requirements of this catalog, and college requirements as specified in the College of Engineering section of this catalog. A minimum of 31 semester hours must be completed at UNT.",
+          "citation": {
+            "page": "it-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "all",
+          "name": "Required courses",
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "TECM 2700"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 1710"
+                  ]
+                },
+                {
+                  "must": [
+                    "MATH 1810"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "it-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+            "anchor": "RequiredCourses",
+            "heading": "Required courses"
+          }
+        },
+        {
+          "kind": "choose",
+          "name": "Laboratory science, 6-8 hours (choose 2)",
+          "count": 2,
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 1112"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 1132"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 1710",
+                    "BIOL 1760"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 2301",
+                    "BIOL 2311"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 2302",
+                    "BIOL 2312"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CHEM 1410",
+                    "CHEM 1430"
+                  ]
+                },
+                {
+                  "must": [
+                    "CHEM 1415",
+                    "CHEM 1435"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "GEOG 1710"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "GEOL 1610"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1052"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1062"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1410",
+                    "PHYS 1430"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1420",
+                    "PHYS 1440"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1710",
+                    "PHYS 1730"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1270"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "it-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+            "anchor": "RequiredCourses",
+            "heading": "Required courses"
+          }
+        },
+        {
+          "kind": "all",
+          "name": "Major requirements",
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 1010"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 1015"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 1030"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 1040"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 2100"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 2110"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 2130"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 3055"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 3220"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 3420"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 3444"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 3530"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 3550"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 3600"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 3605"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4010"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4350"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4355"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4535"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4905"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4925"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "it-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+            "anchor": "MajorRequirements",
+            "heading": "Major requirements"
+          }
+        },
+        {
+          "kind": "pool",
+          "name": "Supporting area, 18 hours",
+          "hours": 18,
+          "match": {
+            "subjects": null,
+            "minLevel": null,
+            "maxLevel": null
+          },
+          "note": "The catalog says 18-20 hours may be chosen from many UNT departments and directs the student to a CSE faculty advisor; eligible courses are not listed.",
+          "citation": {
+            "page": "it-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+            "anchor": "SupportingArea1820Hours",
+            "heading": "Supporting area, 18-20 hours"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Note",
+          "text": "A maximum of 6 hours of credit in the following will count toward this degree: CSCE 4890, CSCE 4920, CSCE 4940, or CSCE 4950. The 6 hours may include at most 3 hours in CSCE 4920.",
+          "citation": {
+            "page": "it-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+            "anchor": "Note",
+            "heading": "Note"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Minor",
+          "text": "Optional.",
+          "citation": {
+            "page": "it-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+            "anchor": "Minor",
+            "heading": "Minor"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Electives",
+          "text": "See your academic advisor to discuss electives needed to reach the required 121 credit hours needed to graduate.",
+          "citation": {
+            "page": "it-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+            "anchor": "Electives",
+            "heading": "Electives"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Other requirements",
+          "text": "A maximum of 24 hours of technical credit from an accredited college may be applied to the supporting area.",
+          "citation": {
+            "page": "it-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+            "anchor": "OtherRequirements",
+            "heading": "Other requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Minimum grade of C (major courses)",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "all courses required in the major",
+            "courseScope": {
+              "kind": "applied"
+            }
+          },
+          "quote": "A minimum grade of C is required in all courses required in a student’s major for degree completion. Courses include, but are not limited to, engineering, computing, mathematics, laboratory sciences, supporting area, technical elective, technical option, energy elective, and specialization courses.",
+          "citation": {
+            "page": "it-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+            "anchor": "DepartmentPolicies",
+            "heading": "Department policies"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Total hours: 120",
+          "policy": {
+            "type": "totalHours",
+            "hours": 120
+          },
+          "quote": "Students must complete a minimum of 120 semester hours to earn a degree at UNT. One course may be used to meet multiple requirements. Students should speak to an advisor to determine which courses can be used to meet more than one requirement. Schools, colleges and departments may have additional requirements to qualify for graduation. Students must complete:",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours at UNT: 24",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 24
+          },
+          "quote": "A minimum of 24 hours of advanced work (3000 or 4000 level) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours in the major at UNT: 12",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 12,
+            "courseScope": {
+              "kind": "applied"
+            }
+          },
+          "quote": "A minimum of 12 hours of advanced work in the major (except for the BAAS degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Residency",
+          "policy": {
+            "type": "residencyPercent",
+            "percent": 25
+          },
+          "quote": "Residence: minimum of 25 percent of the total hours for the degree (e.g., 30 hours for a 120-hour degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Overall GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
+          },
+          "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "UNT GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
+          },
+          "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Communication core grade",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
+          },
+          "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "English Composition Proficiency",
+            "heading": "English Composition Proficiency"
+          }
+        }
+      ],
+      "coreSharedCourses": [
+        "BIOL 1112",
+        "BIOL 1132",
+        "BIOL 1710",
+        "BIOL 2301",
+        "BIOL 2302",
+        "CHEM 1410",
+        "CSCE 1010",
+        "GEOG 1710",
+        "GEOL 1610",
+        "MATH 1710",
+        "MATH 1810",
+        "PHYS 1052",
+        "PHYS 1062",
+        "PHYS 1270",
+        "PHYS 1410",
+        "PHYS 1420",
+        "PHYS 1710",
+        "TECM 2700"
+      ],
+      "courseSharing": "advisor"
+    },
+    {
+      "id": "cybersecurity-bs",
+      "name": "Cybersecurity, BS",
+      "catalogId": "unt-2026-27",
+      "sourceUrl": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21644",
+      "requirements": [
+        {
+          "kind": "note",
+          "name": "70-hour major minimum",
+          "text": "Major of 70 hours, including:",
+          "citation": {
+            "page": "cybersecurity-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21644",
+            "anchor": "MajorRequirements",
+            "heading": "Major requirements"
+          }
+        },
+        {
+          "kind": "all",
+          "name": "Major requirements",
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 1010"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 1015"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 1030"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 1040"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 2100"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 2110"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 2120"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 2130"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 3530"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 3550"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 3560"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 3600"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4010"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4535"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4555"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4560"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4565"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4575"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4907"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4927"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "cybersecurity-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21644",
+            "anchor": "MajorRequirements",
+            "heading": "Major requirements"
+          }
+        },
+        {
+          "kind": "choose",
+          "name": "Major electives, 12 hours (choose 4)",
+          "count": 4,
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4050"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4350"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4357"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4520"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4570"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 4600"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CJUS 3340"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CJUS 4330"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "INFO 4670"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "INFO 4710"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "INFO 4745"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "cybersecurity-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21644",
+            "anchor": "Electives",
+            "heading": "Electives"
+          }
+        },
+        {
+          "kind": "all",
+          "name": "Other course requirements",
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 1710"
+                  ]
+                },
+                {
+                  "must": [
+                    "MATH 1810"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "TECM 2700"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "cybersecurity-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21644",
+            "anchor": "OtherCourseRequirements",
+            "heading": "Other course requirements"
+          }
+        },
+        {
+          "kind": "choose",
+          "name": "Laboratory science, 6-8 hours (choose 2)",
+          "count": 2,
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 1112"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 1132"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 1710"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 1720"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 1760"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 2301"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 2302"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 2311"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "BIOL 2312"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "GEOG 1710"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "GEOL 1610"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1052"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1062"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1270"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CHEM 1410",
+                    "CHEM 1430"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CHEM 1420",
+                    "CHEM 1440"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1410",
+                    "PHYS 1430"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1420",
+                    "PHYS 1440"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1710",
+                    "PHYS 1730"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 2220",
+                    "PHYS 2240"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "cybersecurity-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21644",
+            "anchor": "Choose2Courses68HoursIncludingLabsFromTheFollowing",
+            "heading": "Choose 2 courses (6-8 hours including labs) from the following:"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Laboratory science lab pairing",
+          "text": "Note: courses that have a separate lab must include both the lecture and lab components (e.g., PHYS 1710 AND PHYS 1730).",
+          "citation": {
+            "page": "cybersecurity-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21644",
+            "anchor": "Choose2Courses68HoursIncludingLabsFromTheFollowing",
+            "heading": "Choose 2 courses (6-8 hours including labs) from the following:"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Minor",
+          "text": "No minor is required.",
+          "citation": {
+            "page": "cybersecurity-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21644",
+            "anchor": "Minor",
+            "heading": "Minor"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Electives",
+          "text": "Students choose four courses from the following list:",
+          "citation": {
+            "page": "cybersecurity-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21644",
+            "anchor": "Electives",
+            "heading": "Electives"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Total hours: 120",
+          "policy": {
+            "type": "totalHours",
+            "hours": 120
+          },
+          "quote": "Students must complete a minimum of 120 semester hours to earn a degree at UNT. One course may be used to meet multiple requirements. Students should speak to an advisor to determine which courses can be used to meet more than one requirement. Schools, colleges and departments may have additional requirements to qualify for graduation. Students must complete:",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours at UNT: 24",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 24
+          },
+          "quote": "A minimum of 24 hours of advanced work (3000 or 4000 level) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours in the major at UNT: 12",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 12,
+            "courseScope": {
+              "kind": "applied"
+            }
+          },
+          "quote": "A minimum of 12 hours of advanced work in the major (except for the BAAS degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Residency",
+          "policy": {
+            "type": "residencyPercent",
+            "percent": 25
+          },
+          "quote": "Residence: minimum of 25 percent of the total hours for the degree (e.g., 30 hours for a 120-hour degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Overall GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
+          },
+          "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "UNT GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
+          },
+          "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Communication core grade",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
+          },
+          "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "English Composition Proficiency",
+            "heading": "English Composition Proficiency"
+          }
+        }
+      ],
+      "coreSharedCourses": [
+        "BIOL 1112",
+        "BIOL 1132",
+        "BIOL 1710",
+        "BIOL 1720",
+        "BIOL 2301",
+        "BIOL 2302",
+        "CHEM 1410",
+        "CHEM 1420",
+        "CSCE 1010",
+        "GEOG 1710",
+        "GEOL 1610",
+        "MATH 1710",
+        "MATH 1810",
+        "PHYS 1052",
+        "PHYS 1062",
+        "PHYS 1270",
+        "PHYS 1410",
+        "PHYS 1420",
+        "PHYS 1710",
+        "PHYS 2220",
+        "TECM 2700"
+      ],
+      "courseSharing": "advisor"
+    },
+    {
+      "id": "ee-bs",
+      "name": "Electrical Engineering, BS",
+      "catalogId": "unt-2026-27",
+      "sourceUrl": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+      "requirements": [
+        {
+          "kind": "policy",
+          "name": "Total hours: 128",
+          "policy": {
+            "type": "totalHours",
+            "hours": 128
+          },
+          "quote": "A minimum of 128 semester hours, of which 42 must be advanced courses, and fulfillment of degree requirements for the Bachelor of Science degree as specified in the University Core Curriculum in the Degree and Program Requirements section of this catalog and in the College of Engineering section of this catalog.",
+          "citation": {
+            "page": "ee-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours: 42",
+          "policy": {
+            "type": "advancedHours",
+            "hours": 42
+          },
+          "quote": "A minimum of 128 semester hours, of which 42 must be advanced courses, and fulfillment of degree requirements for the Bachelor of Science degree as specified in the University Core Curriculum in the Degree and Program Requirements section of this catalog and in the College of Engineering section of this catalog.",
+          "citation": {
+            "page": "ee-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+            "anchor": "HoursRequiredAndGeneralcollegeRequirements",
+            "heading": "Hours required and general/college requirements"
+          }
+        },
+        {
+          "kind": "group",
+          "name": "Major requirements",
+          "children": [
+            {
+              "kind": "all",
+              "name": "Required EENG courses",
+              "items": [
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "EENG 2610"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "EENG 2620"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "EENG 2710"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "EENG 3410"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "EENG 3510"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "EENG 3520"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "EENG 3710"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "alternatives": [
+                    {
+                      "must": [
+                        "EENG 3810"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "citation": {
+                "page": "ee-bs.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+                "anchor": "MajorRequirements",
+                "heading": "Major requirements"
+              }
+            },
+            {
+              "kind": "note",
+              "name": "39-hour major minimum",
+              "text": "A minimum of 39 semester hours of coursework, including:",
+              "citation": {
+                "page": "ee-bs.html",
+                "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+                "anchor": "MajorRequirements",
+                "heading": "Major requirements"
+              }
+            }
+          ],
+          "citation": {
+            "page": "ee-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+            "anchor": "MajorRequirements",
+            "heading": "Major requirements"
+          }
+        },
+        {
+          "kind": "choose",
+          "name": "EENG 4000-level electives, 15 hours (choose 5)",
+          "count": 5,
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4010"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4210"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4310"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4320"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4330"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4340"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4350"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4410"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4450"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4510"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4520"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4530"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4580"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4610"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4710"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4720"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4740"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4760"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4810"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4820"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4850"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4900"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "ee-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+            "anchor": "FiveEENG4000levelElectivesChosenFrom",
+            "heading": "Five EENG 4000-level electives chosen from:"
+          }
+        },
+        {
+          "kind": "all",
+          "name": "Project and Laboratory courses, 27 hours",
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 1910"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 2611"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 2621"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 2711"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 2905"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 2920"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 3411"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 3511"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 3811"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 3910"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 3920"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4910"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "EENG 4990"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "ee-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+            "anchor": "ProjectAndLaboratoryCourses27Hours",
+            "heading": "Project and Laboratory courses, 27 hours"
+          }
+        },
+        {
+          "kind": "all",
+          "name": "Other required courses",
+          "items": [
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CHEM 1410",
+                    "CHEM 1430"
+                  ]
+                },
+                {
+                  "must": [
+                    "CHEM 1415",
+                    "CHEM 1435"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "CSCE 1030",
+                    "CSCE 1015"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 1710"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 1720"
+                  ]
+                },
+                {
+                  "must": [
+                    "MATH 1810"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 1820"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 1830"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 2700"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 2730"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 3180"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "MATH 3410"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 1710",
+                    "PHYS 1730"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "PHYS 2220",
+                    "PHYS 2240"
+                  ]
+                }
+              ]
+            },
+            {
+              "alternatives": [
+                {
+                  "must": [
+                    "TECM 2700"
+                  ]
+                }
+              ]
+            }
+          ],
+          "citation": {
+            "page": "ee-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+            "anchor": "OtherRequiredCourses",
+            "heading": "Other required courses"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Minor",
+          "text": "Optional.",
+          "citation": {
+            "page": "ee-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+            "anchor": "Minor",
+            "heading": "Minor"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Electives",
+          "text": "Hours required for electives may vary based on course selection and the University Core Curriculum requirements. Electives may be required to satisfy the advanced hour requirement (42) and/or the minimum total hours required for the degree. For specific information, see an academic advisor in the College of Engineering.",
+          "citation": {
+            "page": "ee-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+            "anchor": "Electives",
+            "heading": "Electives"
+          }
+        },
+        {
+          "kind": "note",
+          "name": "Other requirements",
+          "text": "The catalog provides no additional text in this section.",
+          "citation": {
+            "page": "ee-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+            "anchor": "OtherRequirements",
+            "heading": "Other requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Minimum grade of C (major courses)",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "all courses required in the major",
+            "courseScope": {
+              "kind": "applied"
+            }
+          },
+          "quote": "A minimum grade of C is required in all courses required in a student’s major for degree completion. Courses include, but are not limited to, engineering, computing, mathematics, laboratory sciences, supporting area, technical elective, technical option, energy elective and specialization courses.",
+          "citation": {
+            "page": "ee-bs.html",
+            "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+            "anchor": "DepartmentPolicies",
+            "heading": "Department policies"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Total hours: 120",
+          "policy": {
+            "type": "totalHours",
+            "hours": 120
+          },
+          "quote": "Students must complete a minimum of 120 semester hours to earn a degree at UNT. One course may be used to meet multiple requirements. Students should speak to an advisor to determine which courses can be used to meet more than one requirement. Schools, colleges and departments may have additional requirements to qualify for graduation. Students must complete:",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours at UNT: 24",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 24
+          },
+          "quote": "A minimum of 24 hours of advanced work (3000 or 4000 level) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Advanced hours in the major at UNT: 12",
+          "policy": {
+            "type": "advancedHoursAtUnt",
+            "hours": 12,
+            "courseScope": {
+              "kind": "applied"
+            }
+          },
+          "quote": "A minimum of 12 hours of advanced work in the major (except for the BAAS degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Residence",
+            "heading": "Residence"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Residency",
+          "policy": {
+            "type": "residencyPercent",
+            "percent": 25
+          },
+          "quote": "Residence: minimum of 25 percent of the total hours for the degree (e.g., 30 hours for a 120-hour degree) at UNT",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Minimum Hour Requirements",
+            "heading": "Minimum Hour Requirements"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Overall GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
+          },
+          "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "UNT GPA",
+          "policy": {
+            "type": "gpa",
+            "minimum": 2,
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
+          },
+          "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "Grade Point Average (GPA)",
+            "heading": "Grade Point Average (GPA)"
+          }
+        },
+        {
+          "kind": "policy",
+          "name": "Communication core grade",
+          "policy": {
+            "type": "minGrade",
+            "grade": "C",
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
+          },
+          "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
+          "citation": {
+            "page": "degree-requirements.html",
+            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
+            "anchor": "English Composition Proficiency",
+            "heading": "English Composition Proficiency"
+          }
+        }
+      ],
+      "coreSharedCourses": [
+        "CHEM 1410",
         "MATH 1710",
         "MATH 1720",
         "MATH 1810",

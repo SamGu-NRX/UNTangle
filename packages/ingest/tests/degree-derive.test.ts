@@ -138,6 +138,15 @@ const EXPECTED_SECTIONS: Record<string, string[]> = {
     "Hours required and general/college requirements", "Major requirements", "Other required courses", "Specialization area, 9 hours", "Real-Time and Embedded Systems",
     "VLSI and Electronics", "Communication and Networks", "Computer Systems", "Artificial intelligence and machine learning", "Note", "Minor", "Electives", "Department policies",
   ],
+  "it-bs": [
+    "Hours required and general/college requirements", "Required courses", "Major requirements", "Supporting area, 18-20 hours", "Note", "Minor", "Electives", "Other requirements", "Department policies",
+  ],
+  "cybersecurity-bs": [
+    "Major requirements", "Electives", "Other course requirements", "Choose 2 courses (6-8 hours including labs) from the following:", "Minor",
+  ],
+  "ee-bs": [
+    "Hours required and general/college requirements", "Major requirements", "Five EENG 4000-level electives chosen from:", "Project and Laboratory courses, 27 hours", "Other required courses", "Minor", "Electives", "Other requirements", "Department policies",
+  ],
   core: [
     "University Core Curriculum Requirements", "Communication, 6 hours", "Group 1", "Group 2", "Mathematics, 3 hours", "Life and Physical Sciences, 6 hours",
     "Language, Philosophy and Culture, 3 hours", "Creative Arts, 3 hours", "American History, 6 hours", "Government/Political Science, 6 hours",
@@ -177,9 +186,9 @@ describe("derived requirement trees on the captured catalog pages", () => {
 
   test("only CS BS, CE BS and the core are served, all from the 2026-27 catalog", () => {
     expect(data.catalogId).toBe("unt-2026-27");
-    expect(data.programs.map((entry) => [entry.id, entry.courseSharing])).toEqual([["cs-bs", "advisor"], ["ce-bs", "advisor"], ["core", "forbidden"]]);
-    expect(data.programs.map((entry) => entry.id)).toEqual(["cs-bs", "ce-bs", "core"]);
-    expect(data.pages.map((page) => page.file)).toEqual(["cs-bs.html", "ce-bs.html", "core-curriculum.html", "degree-requirements.html"]);
+    expect(data.programs.map((entry) => [entry.id, entry.courseSharing])).toEqual([["cs-bs", "advisor"], ["ce-bs", "advisor"], ["it-bs", "advisor"], ["cybersecurity-bs", "advisor"], ["ee-bs", "advisor"], ["core", "forbidden"]]);
+    expect(data.programs.map((entry) => entry.id)).toEqual(["cs-bs", "ce-bs", "it-bs", "cybersecurity-bs", "ee-bs", "core"]);
+    expect(data.pages.map((page) => page.file)).toEqual(["cs-bs.html", "ce-bs.html", "core-curriculum.html", "degree-requirements.html", "it-bs.html", "cybersecurity-bs.html", "ee-bs.html"]);
     for (const entry of data.programs) expect(entry.sourceUrl).toContain("catalog.unt.edu/preview_program.php?catoid=40");
   });
 
@@ -259,6 +268,18 @@ describe("derived requirement trees on the captured catalog pages", () => {
     expect(program("cs-bs").coreSharedCourses).toContain("MATH 1710");
     expect(program("cs-bs").coreSharedCourses).toContain("TECM 2700");
     expect(program("cs-bs").coreSharedCourses).not.toContain("CSCE 3600");
+  });
+
+  test("IT, Cybersecurity and EE encode exact catalog groups and hours", () => {
+    const it = program("it-bs");
+    expect(it.requirements.slice(0, 6).map((node) => node.name)).toEqual(["Total hours: 121", "Advanced hours: 42", "Required courses", "Laboratory science, 6-8 hours (choose 2)", "Major requirements", "Supporting area, 18 hours"]);
+    const itMajor = it.requirements.find((node) => node.name === "Major requirements")!;
+    expect(itMajor.kind === "all" && itMajor.items.map((slot) => slot.alternatives[0]!.must[0])).toEqual(["CSCE 1010", "CSCE 1015", "CSCE 1030", "CSCE 1040", "CSCE 2100", "CSCE 2110", "CSCE 2130", "CSCE 3055", "CSCE 3220", "CSCE 3420", "CSCE 3444", "CSCE 3530", "CSCE 3550", "CSCE 3600", "CSCE 3605", "CSCE 4010", "CSCE 4350", "CSCE 4355", "CSCE 4535", "CSCE 4905", "CSCE 4925"]);
+    const cyber = program("cybersecurity-bs");
+    expect(cyber.requirements.find((node) => node.name === "Major electives, 12 hours (choose 4)")?.kind).toBe("choose");
+    expect(cyber.requirements.find((node) => node.name === "Major electives, 12 hours (choose 4)")?.kind === "choose" && (cyber.requirements.find((node) => node.name === "Major electives, 12 hours (choose 4)") as any).count).toBe(4);
+    const ee = program("ee-bs");
+    expect(ee.requirements.map((node) => node.name).slice(0, 5)).toEqual(["Total hours: 128", "Advanced hours: 42", "Major requirements", "EENG 4000-level electives, 15 hours (choose 5)", "Project and Laboratory courses, 27 hours"]);
   });
 
   test("every derived node carries a citation into a captured page", () => {

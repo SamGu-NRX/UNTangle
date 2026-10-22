@@ -356,6 +356,92 @@ function deriveCore(page: CatalogPage): RequirementNode[] {
   return nodes;
 }
 
+function explicitChoose(name: string, count: number, options: string[][], cite: Citation): ChooseNode {
+  return { kind: "choose", name, count, items: options.map((must) => ({ alternatives: [{ must }] })), citation: cite };
+}
+
+/** IT is a CSE program with a prose supporting-area rule, not the CS/CE shape. */
+function deriveInformationTechnology(page: CatalogPage, university: CatalogPage): RequirementNode[] {
+  const general = requireSection(page, "Hours required and general/college requirements");
+  const hoursLine = requireParagraph(page, general, /A minimum of 121 semester hours, of which 42 must be advanced/);
+  const nodes: RequirementNode[] = [
+    policyNode("Total hours: 121", { type: "totalHours", hours: 121 }, hoursLine, citation(general, page)),
+    policyNode("Advanced hours: 42", { type: "advancedHours", hours: 42 }, hoursLine, citation(general, page)),
+  ];
+  const required = requireSection(page, "Required courses");
+  const pickIndex = required.items.findIndex((item) => item.type === "paragraph" && /Pick two \(6-8 hours including labs\)/.test(item.text));
+  if (pickIndex < 0) throw new Error(`${page.file}: Required courses has no laboratory-science paragraph.`);
+  nodes.push(allNode("Required courses", required.items.slice(0, pickIndex), citation(required, page)));
+  nodes.push(chooseNode("Laboratory science, 6-8 hours (choose 2)", 2, required.items.slice(pickIndex + 1), citation(required, page)));
+  const major = requireSection(page, "Major requirements");
+  nodes.push(allNode("Major requirements", courseItems(major), citation(major, page)));
+  const support = requireSection(page, "Supporting area, 18-20 hours");
+  nodes.push({ kind: "pool", name: "Supporting area, 18 hours", hours: 18, match: { subjects: null, minLevel: null, maxLevel: null }, note: "The catalog says 18-20 hours may be chosen from many UNT departments and directs the student to a CSE faculty advisor; eligible courses are not listed.", citation: citation(support, page) } satisfies PoolNode);
+  for (const heading of ["Note", "Minor", "Electives", "Other requirements"]) {
+    const section = requireSection(page, heading);
+    nodes.push(note(heading, paragraphs(section).join(" ") || "The catalog provides no additional text in this section.", citation(section, page)));
+  }
+  const policies = requireSection(page, "Department policies");
+  nodes.push(policyNode("Minimum grade of C (major courses)", { type: "minGrade", grade: "C", scope: "all courses required in the major" }, requireParagraph(page, policies, MAJOR_GRADE_RULE), citation(policies, page)));
+  nodes.push(...universityPolicies(university));
+  return nodes;
+}
+
+/** Cybersecurity publishes its own major/elective/lab sections and no general-hours block. */
+function deriveCybersecurity(page: CatalogPage, university: CatalogPage): RequirementNode[] {
+  const major = requireSection(page, "Major requirements");
+  const majorLine = requireParagraph(page, major, /Major of 70 hours, including/);
+  const majorItems = courseItems(major);
+  const elective = requireSection(page, "Electives");
+  const other = requireSection(page, "Other course requirements");
+  const lab = requireSection(page, "Choose 2 courses (6-8 hours including labs) from the following:");
+  const labCodes = new Set(courseItems(lab).flatMap((item) => item.type === "courseGroup" ? item.courses.map((course) => course.code) : []));
+  const labPairs = [["CHEM 1410", "CHEM 1430"], ["CHEM 1420", "CHEM 1440"], ["PHYS 1410", "PHYS 1430"], ["PHYS 1420", "PHYS 1440"], ["PHYS 1710", "PHYS 1730"], ["PHYS 2220", "PHYS 2240"]];
+  for (const pair of labPairs) for (const code of pair) if (!labCodes.has(code)) throw new Error(`${page.file}: laboratory note names unlisted course ${code}.`);
+  const pairedCodes = new Set(labPairs.flat());
+  const standaloneLabs = [...labCodes].filter((code) => !pairedCodes.has(code)).map((code) => [code]);
+  const nodes: RequirementNode[] = [
+    note("70-hour major minimum", majorLine, citation(major, page)),
+    allNode("Major requirements", majorItems.slice(0, 20), citation(major, page)),
+    chooseNode("Major electives, 12 hours (choose 4)", 4, courseItems(elective), citation(elective, page)),
+    allNode("Other course requirements", courseItems(other), citation(other, page)),
+    explicitChoose("Laboratory science, 6-8 hours (choose 2)", 2, [...standaloneLabs, ...labPairs], citation(lab, page)),
+    note("Laboratory science lab pairing", requireParagraph(page, lab, /courses that have a separate lab must include both/), citation(lab, page)),
+  ];
+  for (const heading of ["Minor", "Electives"]) {
+    const section = requireSection(page, heading);
+    nodes.push(note(heading, paragraphs(section).join(" "), citation(section, page)));
+  }
+  nodes.push(...universityPolicies(university));
+  return nodes;
+}
+
+/** Electrical Engineering has explicit major, elective, project/lab and support lists. */
+function deriveElectricalEngineering(page: CatalogPage, university: CatalogPage): RequirementNode[] {
+  const nodes: RequirementNode[] = [];
+  const general = requireSection(page, "Hours required and general/college requirements");
+  const hoursLine = requireParagraph(page, general, /A minimum of 128 semester hours, of which 42 must be advanced/);
+  nodes.push(policyNode("Total hours: 128", { type: "totalHours", hours: 128 }, hoursLine, citation(general, page)));
+  nodes.push(policyNode("Advanced hours: 42", { type: "advancedHours", hours: 42 }, hoursLine, citation(general, page)));
+  const major = requireSection(page, "Major requirements");
+  const majorLine = requireParagraph(page, major, /A minimum of 39 semester hours of coursework, including/);
+  nodes.push({ kind: "group", name: "Major requirements", children: [allNode("Required EENG courses", courseItems(major), citation(major, page)), note("39-hour major minimum", majorLine, citation(major, page))], citation: citation(major, page) });
+  const electives = requireSection(page, "Five EENG 4000-level electives chosen from:");
+  nodes.push(chooseNode("EENG 4000-level electives, 15 hours (choose 5)", 5, courseItems(electives), citation(electives, page)));
+  const projects = requireSection(page, "Project and Laboratory courses, 27 hours");
+  nodes.push(allNode("Project and Laboratory courses, 27 hours", courseItems(projects), citation(projects, page)));
+  const other = requireSection(page, "Other required courses");
+  nodes.push(allNode("Other required courses", courseItems(other), citation(other, page)));
+  for (const heading of ["Minor", "Electives", "Other requirements"]) {
+    const section = requireSection(page, heading);
+    nodes.push(note(heading, paragraphs(section).join(" ") || "The catalog provides no additional text in this section.", citation(section, page)));
+  }
+  const policies = requireSection(page, "Department policies");
+  nodes.push(policyNode("Minimum grade of C (major courses)", { type: "minGrade", grade: "C", scope: "all courses required in the major" }, requireParagraph(page, policies, MAJOR_GRADE_RULE), citation(policies, page)));
+  nodes.push(...universityPolicies(university));
+  return nodes;
+}
+
 /** Course codes a node lists, in listed order. */
 function nodeCodes(node: RequirementNode): string[] {
   switch (node.kind) {
@@ -399,6 +485,12 @@ export type ProgramSpec = {
 export const PROGRAM_SPECS: ProgramSpec[] = [
   { id: "cs-bs", name: "Computer Science, BS", file: "cs-bs.html", courseSharing: "advisor", derive: (page, university) => [...deriveEngineering(page, "cs"), ...universityPolicies(university)] },
   { id: "ce-bs", name: "Computer Engineering, BS", file: "ce-bs.html", courseSharing: "advisor", derive: (page, university) => [...deriveEngineering(page, "ce"), ...universityPolicies(university)] },
+  // These three pages do not share the CS/CE College of Engineering shape.
+  // Their explicit derivations below only encode listed courses and preserve
+  // prose eligibility rules as advisor notes, as required by the catalog text.
+  { id: "it-bs", name: "Information Technology, BS", file: "it-bs.html", courseSharing: "advisor", derive: deriveInformationTechnology },
+  { id: "cybersecurity-bs", name: "Cybersecurity, BS", file: "cybersecurity-bs.html", courseSharing: "advisor", derive: deriveCybersecurity },
+  { id: "ee-bs", name: "Electrical Engineering, BS", file: "ee-bs.html", courseSharing: "advisor", derive: deriveElectricalEngineering },
   // The core carries its own rules only. The degree-wide policies (total
   // hours, residence, GPA) belong to the major audit, which the audit route
   // returns beside every core audit.

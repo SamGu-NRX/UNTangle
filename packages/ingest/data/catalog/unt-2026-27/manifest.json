@@ -35,6 +35,30 @@
       "httpStatus": 200,
       "capturedAt": "2026-10-15T12:22:01.320Z",
       "sha256": "4e50a88e161b681bd1e2c7bf9b264e8e0aa71546397f4d566c5072fc535e0f50"
+    },
+    {
+      "file": "it-bs.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21301",
+      "title": "Program: Information Technology, BS - University of North Texas",
+      "httpStatus": 200,
+      "capturedAt": "2026-10-22T13:49:52.419Z",
+      "sha256": "77bd316a744c4f08e7a32216464ae3046b9e853bc295726890666c740d0c4252"
+    },
+    {
+      "file": "cybersecurity-bs.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21644",
+      "title": "Program: Cybersecurity, BS - University of North Texas",
+      "httpStatus": 200,
+      "capturedAt": "2026-10-22T13:49:52.419Z",
+      "sha256": "0be4a44f5afe1e77f4404abe2a9e849913fd421d243c0d2687c85144412aa43d"
+    },
+    {
+      "file": "ee-bs.html",
+      "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21250",
+      "title": "Program: Electrical Engineering, BS - University of North Texas",
+      "httpStatus": 200,
+      "capturedAt": "2026-10-22T13:49:52.419Z",
+      "sha256": "1c34ae01ef3e6041acbe049ec5d6240f7671eec42e995427e37a95d2e4161a4e"
     }
   ]
 }
