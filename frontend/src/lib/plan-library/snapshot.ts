@@ -5,13 +5,18 @@ import { findOption, sampleCatalog, sectionRef, type SectionCatalog } from "@/li
 import { validatePlannerStatePayload } from "@/lib/planner-validation";
 import type { Section } from "@/lib/sections";
 import type { Course, CourseSection, CourseStatus, PlannerState } from "@/lib/types";
+import { PreferencesBodySchema } from "../../../../packages/contracts/src/documents";
 import {
   SAVED_PLAN_SCHEMA_VERSION,
   type SavedPlanAssumptions,
   type SavedPlanCatalogIdentity,
+  type SavedPlanPreferences,
   type SavedPlanSnapshot,
   type SavedPlanSource,
 } from "./snapshot-types";
+
+/** The preferences document's own rules, so a kept set is one the account would accept as it is. */
+const SavedPlanPreferencesSchema = PreferencesBodySchema.omit({ institutionId: true });
 
 export { SAVED_PLAN_SCHEMA_VERSION };
 export type { SavedPlanSnapshot } from "./snapshot-types";
@@ -234,7 +239,7 @@ export function validateSavedPlanPayload(raw: unknown): SavedPlanValidation {
     };
   }
 
-  const { planId, name, createdAt, snapshotTakenAt, archivedAt, source, catalog, state, assumptions } = raw;
+  const { planId, name, createdAt, snapshotTakenAt, archivedAt, source, catalog, state, assumptions, preferences } = raw;
 
   if (typeof planId !== "string" || planId.length === 0) {
     return { ok: false, reason: "A saved plan must carry a planId string." };
@@ -269,6 +274,11 @@ export function validateSavedPlanPayload(raw: unknown): SavedPlanValidation {
   if (!plannerValidation.ok) {
     return { ok: false, reason: `Planner state inside the saved plan is invalid: ${plannerValidation.reason}` };
   }
+  const keptPreferences = preferences === undefined ? null : SavedPlanPreferencesSchema.safeParse(preferences);
+  if (keptPreferences && !keptPreferences.success) {
+    const [issue] = keptPreferences.error.issues;
+    return { ok: false, reason: `The preferences kept with the saved plan are invalid at ${issue.path.join(".") || "the top level"}: ${issue.message}` };
+  }
 
   const snapshot: SavedPlanSnapshot = {
     schemaVersion: SAVED_PLAN_SCHEMA_VERSION,
@@ -285,6 +295,7 @@ export function validateSavedPlanPayload(raw: unknown): SavedPlanValidation {
     },
     state: plannerValidation.state,
     assumptions: validatedAssumptions,
+    ...(keptPreferences ? { preferences: keptPreferences.data } : {}),
   };
 
   return { ok: true, snapshot, references: resolveSectionReferences(plannerValidation.state) };
@@ -323,6 +334,7 @@ export function buildSavedPlanSnapshot(input: {
   source: Omit<SavedPlanSource, "capturedAt">;
   planId?: string;
   now?: Date;
+  preferences?: SavedPlanPreferences;
 }): SavedPlanSnapshot {
   const now = (input.now ?? new Date()).toISOString();
   const statusCounts = declaredStatusCounts(input.state.courseStatuses);
@@ -345,5 +357,6 @@ export function buildSavedPlanSnapshot(input: {
       transcriptRecordCount: input.state.transcriptRecords.length,
       prerequisiteOutstanding: prerequisiteOutstanding(input.state),
     },
+    ...(input.preferences ? { preferences: input.preferences } : {}),
   };
 }

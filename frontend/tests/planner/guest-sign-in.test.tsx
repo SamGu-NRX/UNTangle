@@ -221,6 +221,68 @@ describe("the academic record and preferences", () => {
   });
 });
 
+describe("guest preferences that signing in replaces are kept in Schedules", () => {
+  const defaults = defaultSchedulePreferences(initial.optimization);
+  const fridays = { ...defaults, constraints: { ...defaults.constraints, daysOff: ["Fri" as const] } };
+  const mornings = { ...defaults, constraints: { ...defaults.constraints, earliestStart: 600 } };
+  const keptDaysOff = () => library().map((entry) => entry.preferences?.constraints.daysOff ?? null);
+  const guestPrefsCleared = () => window.localStorage.getItem(preferencesKey({ kind: "guest", id: "guest-0001" })) === null;
+
+  const ways: Record<string, () => void> = {
+    "Save choices": () => button("Save choices").click(),
+    Escape: () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+    "the scrim": () => document.querySelector<HTMLElement>(".ui-dialog-scrim")!.click(),
+  };
+  for (const [way, close] of Object.entries(ways)) {
+    test(`keeping the account's set with ${way} saves this browser's set on a copy`, async () => {
+      server.seedPlan(user.id, initial, mornings);
+      guestLeft(null, fridays);
+      const planner = await signIn();
+      await waitFor(() => sheet() !== null, "asked");
+      expect(sheet()?.textContent).toContain("This browser's set is kept in Schedules if you don't choose it.");
+      await planner.run(close);
+      await waitFor(() => guestPrefsCleared() && planner.get().guestSignIn === null, "settled");
+      expect(planner.get().schedulePreferences.constraints.earliestStart).toBe(600);
+      expect(library().map((entry) => entry.name.startsWith("From this browser"))).toEqual([true]);
+      expect(keptDaysOff()).toEqual([["Fri"]]);
+    });
+  }
+
+  test("Undo after carrying preferences over saves this browser's set on a copy", async () => {
+    guestLeft(null, fridays);
+    const planner = await signIn();
+    await waitFor(() => toastText() === "Saved your preferences to your account", "carried");
+    await planner.run(() => button("Undo").click());
+    await waitFor(() => library().length === 1, "copy kept");
+    expect(keptDaysOff()).toEqual([["Fri"]]);
+    expect(planner.get().schedulePreferences.constraints.daysOff).toEqual([]);
+    const said = `Your account's preferences are back to how they were. This browser's are in Schedules as "${library()[0].name}"`;
+    await waitFor(() => toastText() === said, "the Undo toast names the copy");
+  });
+
+  test("Undo after carrying a schedule and preferences over keeps both on one copy", async () => {
+    guestLeft(plan(["CSCE 1040"]), fridays);
+    const planner = await signIn();
+    await waitFor(() => toastText() === "Saved your schedule and preferences to your account", "carried");
+    await planner.run(() => button("Undo").click());
+    await waitFor(() => library().length === 1, "copy kept");
+    expect(planned(library()[0].state, "CSCE 1040")).toBe(true);
+    expect(keptDaysOff()).toEqual([["Fri"]]);
+  });
+
+  test("choosing this browser's set keeps no preferences on the copy", async () => {
+    server.seedPlan(user.id, plan(["MATH 1720"]), mornings);
+    guestLeft(plan(["CSCE 1040"]), fridays);
+    const planner = await signIn();
+    await waitFor(() => sheet() !== null, "asked");
+    const guestSide = document.querySelectorAll<HTMLInputElement>(".sync-question input[type=radio]")[1];
+    await planner.run(() => guestSide.click());
+    await planner.run(() => button("Keep my saved schedule").click());
+    await waitFor(() => guestCleared() && planner.get().guestSignIn === null, "settled");
+    expect(library().map((entry) => [planned(entry.state, "CSCE 1040"), entry.preferences])).toEqual([[true, undefined]]);
+  });
+});
+
 test("guest library entries arrive with this session's plan, every field intact", async () => {
   guestLeft(plan(["CSCE 1040"]));
   const guestLibrary = createSavedPlanStore(window.localStorage, null);

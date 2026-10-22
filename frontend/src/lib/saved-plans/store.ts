@@ -4,7 +4,7 @@ import {
 } from "@/lib/plan-library/snapshot";
 import { equal } from "@untangle/sync";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
-import type { SavedPlanSnapshot, SavedPlanSource } from "@/lib/plan-library/snapshot-types";
+import type { SavedPlanPreferences, SavedPlanSnapshot, SavedPlanSource } from "@/lib/plan-library/snapshot-types";
 import type { PlannerState } from "@/lib/types";
 import { clashMessage, freeName, nameClash, nameKey } from "./names";
 
@@ -233,9 +233,15 @@ export type SavedPlanStore = {
    * Saves a copy. A name that is "Main" or another copy's gets a number
    * ("Plan 2"), so a save the app makes on its own never fails on a name;
    * `onClash: "refuse"`, for a name the student typed, refuses it instead
-   * with a "nameClash" failure.
+   * with a "nameClash" failure. `preferences` are kept with the copy (snapshot-types.ts).
    */
-  savePlan(input: { state: PlannerState; name?: string; now?: Date; onClash?: "number" | "refuse" }): StoreWriteResult<SavedPlanSnapshot>;
+  savePlan(input: {
+    state: PlannerState;
+    name?: string;
+    now?: Date;
+    onClash?: "number" | "refuse";
+    preferences?: SavedPlanPreferences;
+  }): StoreWriteResult<SavedPlanSnapshot>;
   /**
    * Adds whole entries from another library (a guest's, moved on sign-in),
    * every field kept but the name: one that is "Main" or a name already here,
@@ -247,7 +253,7 @@ export type SavedPlanStore = {
   addSnapshots(plans: readonly SavedPlanSnapshot[]): StoreWriteResult<SavedPlanSnapshot[]>;
   /** Refuses "Main" and another copy's name with a "nameClash" failure. */
   renamePlan(planId: string, name: string): StoreWriteResult<SavedPlanSnapshot>;
-  /** Names the copy "<name> (copy)", then "(copy 2)" and so on, past any name in use. */
+  /** Names the copy "<name> (copy)", then "(copy 2)" and so on, past any name in use. Kept preferences come along. */
   duplicatePlan(planId: string, now?: Date): StoreWriteResult<SavedPlanSnapshot>;
   setPlanArchived(planId: string, archived: boolean, now?: Date): StoreWriteResult<SavedPlanSnapshot>;
   /** Capture before async work, then pass to importPlan to refuse account changes. */
@@ -497,7 +503,7 @@ export function createSavedPlanStore(storage?: Storage | null, userId: string | 
       return readFromRaw(rawRead.raw);
     },
 
-    savePlan({ state, name, now, onClash = "number" }) {
+    savePlan({ state, name, now, onClash = "number", preferences }) {
       return mutate<SavedPlanSnapshot>((doc) => {
         const typed = name && name.trim().length > 0 ? name.trim() : null;
         const clash = typed && onClash === "refuse" ? nameClash(typed, doc.plans) : null;
@@ -510,6 +516,7 @@ export function createSavedPlanStore(storage?: Storage | null, userId: string | 
             detail: "Saved from the working schedule",
           },
           now,
+          preferences,
         });
         doc.plans = [snapshot, ...doc.plans];
         return { value: snapshot };
@@ -567,6 +574,7 @@ export function createSavedPlanStore(storage?: Storage | null, userId: string | 
             detail: `Duplicated from “${plan.name}”`,
           },
           now,
+          preferences: plan.preferences,
         });
         doc.plans = [duplicate, ...doc.plans];
         return { value: duplicate };
