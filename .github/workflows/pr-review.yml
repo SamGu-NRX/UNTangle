@@ -17,7 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Name the reviewed PR
-        run: echo "Review ${ACTION} on #${PR_NUMBER}; pr-rules.yml reports next."
+        # A block scalar: in a plain scalar, " #" would start a YAML comment.
+        run: |
+          echo "Review ${ACTION} on #${PR_NUMBER}; pr-rules.yml reports next."
         env:
           ACTION: ${{ github.event.action }}
           PR_NUMBER: ${{ github.event.pull_request.number }}

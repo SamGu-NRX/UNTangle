@@ -210,7 +210,8 @@ describe("pr-review.yml", () => {
     expect(jobs.signal.steps).toHaveLength(1);
     const [step] = jobs.signal.steps;
     expect(step.uses).toBeUndefined();
-    expect(step.run).toStartWith("echo ");
+    // The whole command, so YAML can't silently cut it at a " #".
+    expect(step.run).toBe('echo "Review ${ACTION} on #${PR_NUMBER}; pr-rules.yml reports next."\n');
   });
 
   test("is the workflow pr-rules.yml waits for", async () => {
