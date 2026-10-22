@@ -299,6 +299,21 @@ describe("runReleaseJob, one run at a time", () => {
     expect(publishedCourses((JSON.parse(before) as { file: string }).file).get("MATH 1680")).toBe(7);
   });
 
+  test("a 200 rebuild keeps a fresher published subject overlay that it did not request", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+
+    files["/data/spring-2027.json"] = { body: editTerm(raw => {
+      raw.courses["ACCT 5120"].sections[0].linked_sections[0].open_seats = 42;
+    }), etag: '"v2"' };
+    const report = await job();
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["fetched"]);
+    expect(report.outcome).toBe("published");
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: true, detail: "kept from the published release, from the cached body" }]);
+    expect(publishedCourses(report.file).get("MATH 1680")).toBe(7);
+    expect(publishedCourses(report.file).get("ACCT 5120")).toBe(42);
+  });
+
   test("a 304 that cannot reapply a published subject file publishes nothing", async () => {
     files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
     expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");

@@ -216,16 +216,16 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
       overlays.push({ subject, body: subjectBody });
     }
   }
-  // An unchanged term file's slices are no fresher than the subject files
-  // the published release was built with, so a 304 rebuild keeps those it
-  // was not asked for, from their cached bodies. One it cannot reapply
-  // stops the run, so it never publishes an older slice. A release with no
-  // record (published before records existed) may carry any overlay, even
-  // one the run did not request, so step 3 publishes nothing over it.
+  // The published release's subject slices may be fresher than any term
+  // rebuild, so every rebuild keeps recorded overlays it was not asked to
+  // refresh, from their cached bodies. One it cannot reapply stops the run,
+  // so it never publishes an older slice. A release with no record (published
+  // before records existed) may carry any overlay, even one the run did not
+  // request, so step 3 publishes nothing over it.
   let overlayUnknown = false;
-  if (termOutcome.kind === "not-modified" && pointer !== null) {
+  if (pointer !== null) {
     const published = await readOverlaySubjects(outDir, pointer.contentSha256);
-    overlayUnknown = published === null;
+    overlayUnknown = termOutcome.kind === "not-modified" && published === null;
     for (const subject of published ?? []) {
       if (subjects.includes(subject)) continue;
       const entry = await readCachedBody(outDir, mirror.urlFor(termId, subject));
