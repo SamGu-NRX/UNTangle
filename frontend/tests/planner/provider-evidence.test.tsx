@@ -18,23 +18,23 @@ import { installDom, mountPlanner, removeDom, setSession, waitFor } from "./test
 /** Every course whose history the provider asked for. */
 const requested: string[] = [];
 
+// Bun's mock.module override outlives this file (mock.restore doesn't undo
+// it), and it reached tests/grades-history/course-history.test.ts whenever the
+// runner loaded this file first: six of its tests then ran this fake. So the
+// override forwards to the real module (copied before mocking, since the
+// mock updates live bindings) except while this file's tests run.
+const real = { ...(await import("@/lib/grades-history/course-history")) };
+let faking = false;
 mock.module("@/lib/grades-history/course-history", () => ({
-  COURSE_HISTORY_TIMEOUT_MS: 10_000,
+  ...real,
   // Every planned course reads the same history: Doe pools to 326 hundredths,
   // Khan to 200 — both accepted, so the course's evidence counts and the
   // stronger instructor must win the cost tie.
-  fetchCourseHistory: (subject: string, number: string): Promise<HistoryResult<CourseHistory>> => {
+  fetchCourseHistory: (...args: Parameters<typeof real.fetchCourseHistory>): Promise<HistoryResult<CourseHistory>> => {
+    if (!faking) return real.fetchCourseHistory(...args);
+    const [subject, number] = args;
     requested.push(`${subject} ${number}`);
     return Promise.resolve({ status: "ok", source: "untgrades.app", data: HISTORY });
-  },
-  fetchMissingHistories: (
-    fetchable: ReadonlySet<string>,
-    cached: Map<string, Promise<HistoryResult<CourseHistory>>>,
-    fetchOne: (code: string) => Promise<HistoryResult<CourseHistory>>,
-  ) => {
-    for (const code of fetchable) if (!cached.has(code)) cached.set(code, fetchOne(code));
-    for (const code of [...cached.keys()]) if (!fetchable.has(code)) cached.delete(code);
-    return cached;
   },
 }));
 
@@ -125,10 +125,12 @@ const store: SectionStore = { catalog, ensure: () => {}, version: () => 1, subsc
 
 const mounted: Array<() => Promise<void>> = [];
 beforeAll(() => {
+  faking = true;
   installDom();
 });
 afterAll(() => {
   removeDom();
+  faking = false;
 });
 beforeEach(() => {
   window.localStorage.clear();
