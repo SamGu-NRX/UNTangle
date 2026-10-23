@@ -1,0 +1,25 @@
+name: PR review
+
+# A review's only job is to make pr-rules.yml run again, through workflow_run.
+# pull_request_review runs the copy of this file in the PR's merge commit, so
+# a PR can change it. That gains nothing: it has no permissions, the repository
+# default token is read-only, and pr-rules.yml reads the PR from the API rather
+# than from anything this run produces.
+on:
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions: {}
+
+jobs:
+  signal:
+    name: Signal a review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Name the reviewed PR
+        # A block scalar: in a plain scalar, " #" would start a YAML comment.
+        run: |
+          echo "Review ${ACTION} on #${PR_NUMBER}; pr-rules.yml reports next."
+        env:
+          ACTION: ${{ github.event.action }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
