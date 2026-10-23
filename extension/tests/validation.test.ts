@@ -11,6 +11,12 @@ test("forged ids, absent tabs, hostile top frames and hostile child frames are r
   for (const forged of [{ ...sender, id: "other" }, { ...sender, tab: undefined }, { ...sender, url: "https://login.unt.edu/" }, { ...sender, tab: { ...sender.tab!, url: "https://evil.test" } }, { ...sender, frameId: undefined }, { ...sender, frameId: -1 }, { ...sender, origin: "https://evil.test" }])
     expect(validateMessage({ type: "marker/request", ref }, forged, "our-extension")).toBeNull();
 });
+test("page messages accept only the exact class-search route and its descendants", () => {
+  for (const pathname of ["/class-search", "/class-search/results"])
+    expect(validateMessage({ type: "marker/request", ref }, { ...sender, url: `http://localhost:4317${pathname}`, tab: { ...sender.tab!, url: `http://localhost:4317${pathname}` } }, "our-extension")).not.toBeNull();
+  for (const pathname of ["/class-search-evil", "/class-searchx"])
+    expect(validateMessage({ type: "marker/request", ref }, { ...sender, url: `http://localhost:4317${pathname}`, tab: { ...sender.tab!, url: `http://localhost:4317${pathname}` } }, "our-extension")).toBeNull();
+});
 test("page messages cannot confirm, sign in, request details or supply URLs", () => {
   for (const message of [{ type: "panel/confirm", previewId: "known" }, { type: "panel/sign-in" }, { type: "add/request", ref }, { type: "fetch", url: "https://evil.test" }, { type: "marker/request", ref, url: "https://evil.test" }, { type: "marker/request", ref: { ...ref, term: "../account" } }, { type: "marker/request", ref: { ...ref, classNumber: 12345 } }, { type: "marker/request", ref: { ...ref, url: "https://evil.test" } }, null])
     expect(validateMessage(message, sender, "our-extension")).toBeNull();
