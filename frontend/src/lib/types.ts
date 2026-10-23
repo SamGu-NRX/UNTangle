@@ -18,6 +18,9 @@ export type OptimizationKey =
 export type MajorId =
   | "cs"
   | "ce"
+  | "it"
+  | "cybersecurity"
+  | "ee"
   | "math"
   | "biol"
   | "busi"

@@ -36,7 +36,7 @@ export const OptimizationKeySchema = z.enum([
   "minimizeDistance",
   "maximizeProfessor",
 ]);
-export const MajorIdSchema = z.enum(["cs", "ce", "math", "biol", "busi", "psyc", "engl", "other"]);
+export const MajorIdSchema = z.enum(["cs", "ce", "it", "cybersecurity", "ee", "math", "biol", "busi", "psyc", "engl", "other"]);
 
 export const TranscriptCourseRecordSchema = z.strictObject({
   id: z.string().min(1),

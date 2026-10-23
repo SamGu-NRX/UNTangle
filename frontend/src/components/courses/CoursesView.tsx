@@ -623,7 +623,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
         </div>
         {degree.kind === "unaudited" && hydrated ? (
           <p className={styles.degreeNote}>
-            The degree check covers Computer Science and Computer Engineering only.
+            The degree check covers Computer Science, Computer Engineering, Information Technology, Cybersecurity, and Electrical Engineering only.
             {major && major.department !== "—" ? ` For ${major.name}, Courses lists a sample of its courses.` : ""}
           </p>
         ) : null}

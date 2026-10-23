@@ -177,10 +177,10 @@ test("courses marked done by hand: the requirement reads 'You marked this done',
   }
 });
 
-test("a major the audit doesn't cover keeps its sample list and says plainly the check covers CS and CE only", async () => {
+test("a major the audit doesn't cover keeps its sample list and says plainly which majors the check covers", async () => {
   const view = await coursesFor(journeyTranscript, "math");
   try {
-    await waitFor(() => text(view.page).includes("The degree check covers Computer Science and Computer Engineering only."), "the coverage line");
+    await waitFor(() => text(view.page).includes("The degree check covers Computer Science, Computer Engineering, Information Technology, Cybersecurity, and Electrical Engineering only."), "the coverage line");
     expect(view.left()).toBeNull();
     expect(text(view.page)).toContain("For Mathematics, Courses lists a sample of its courses.");
     expect(text(view.page)).toContain("9 of 120 credits");

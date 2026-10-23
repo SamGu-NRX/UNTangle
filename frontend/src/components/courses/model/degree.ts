@@ -6,8 +6,9 @@
  * Auto may plan from. The prerequisite model (course-model.ts) still decides
  * readiness: whether a course is locked, needs a check, or can be taken now.
  *
- * The audit covers Computer Science, BS and Computer Engineering, BS, each
- * with the University Core, from the 2026-2027 catalog. Other majors get
+ * The audit covers Computer Science, Computer Engineering, Information
+ * Technology, Cybersecurity, and Electrical Engineering, each with the
+ * University Core, from the 2026-2027 catalog. Other majors get
  * `{ kind: "unaudited" }`, and Courses keeps its sample core lists for them.
  */
 import { auditProgram, type AuditCourse, type AuditResult, type ClaimedCourse, type NodeOutcome, type Remaining } from "@untangle/core/degree/audit";
@@ -19,7 +20,13 @@ import type { SchoolProfile } from "../school";
 import { manualDoneIds, type CourseModel, type CourseRowModel, type PlanSnapshot } from "./course-model";
 
 /** The audit's program for each planner major it covers. */
-const AUDITED: Partial<Record<MajorId, string>> = { cs: "cs-bs", ce: "ce-bs" };
+const AUDITED: Partial<Record<MajorId, string>> = {
+  cs: "cs-bs",
+  ce: "ce-bs",
+  it: "it-bs",
+  cybersecurity: "cybersecurity-bs",
+  ee: "ee-bs",
+};
 const CORE_ID = "core";
 
 export type Area = "major" | "core";
