@@ -231,8 +231,9 @@ function subjectOf(code: string): string {
  * Z does. The caller passes only rows the importer or the student judged
  * finished, so a grade off UNT's scale or a missing one still counts as
  * credit here; the grade floors and the GPA flag what they cannot read.
+ * The roadmap reads the record through this too, so both agree on what is done.
  */
-function earnsCredit(attempt: AuditCourse): boolean {
+export function earnsCredit(attempt: AuditCourse): boolean {
   return !attempt.inProgress && !(attempt.grade !== null && NO_CREDIT_GRADES.has(attempt.grade));
 }
 
