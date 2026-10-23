@@ -156,13 +156,25 @@ describe("each course counts toward one requirement node", () => {
     const outcome = node(auditProgram(tree, [done("CSCE 4610"), done("CSCE 4730"), current("CSCE 3610")], COMPLETE), "Specialization");
     expect(outcome.status).toBe("advisory");
     expect(outcome.name).toBe("Specialization — VLSI");
+    expect(outcome.shownBranch).toBe(1);
   });
 
   test("an unmet choice names its closest branch", () => {
     const tree = program([
       { kind: "choice", name: "Track", citation, branches: [{ name: "First", node: all("First", "CSCE 1030", "CSCE 1040") }, { name: "Second", node: all("Second", "CSCE 2100", "CSCE 2110", "CSCE 2120") }] },
     ]);
-    expect(node(auditProgram(tree, [done("CSCE 2100"), done("CSCE 2110")], COMPLETE), "Track").name).toBe("Track — Second");
+    const outcome = node(auditProgram(tree, [done("CSCE 2100"), done("CSCE 2110")], COMPLETE), "Track");
+    expect(outcome.name).toBe("Track — Second");
+    expect(outcome.shownBranch).toBe(1);
+  });
+
+  test("an unmet choice whose first branch is closest points at index 0", () => {
+    const tree = program([
+      { kind: "choice", name: "Track", citation, branches: [{ name: "First — Systems", node: all("First", "CSCE 1030", "CSCE 1040") }, { name: "Second", node: all("Second", "CSCE 2100", "CSCE 2110", "CSCE 2120") }] },
+    ]);
+    const outcome = node(auditProgram(tree, [done("CSCE 1030")], COMPLETE), "Track");
+    expect(outcome.name).toBe("Track — First — Systems");
+    expect(outcome.shownBranch).toBe(0);
   });
 
   test("a choice keeps the claims of the branch it settles on and releases the rest", () => {
