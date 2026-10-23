@@ -14,18 +14,24 @@ name: PR rules
 # status is posted explicitly because the jobs' own checks attach to the
 # default branch's commit (GITHUB_SHA for pull_request_target), not the PR's.
 #
-# pull_request_target runs this file as it is on the default branch.
-# pull_request_review runs the copy in the PR's merge commit instead, which
-# for a PR that doesn't edit this file is the base branch's copy. A PR that
-# edits it changes only what runs on its own reviews, and merging still needs
-# Sam's approving review, which lifts these checks anyway.
+# Both triggers run this file as it is on the default branch. A review can't
+# trigger it directly: pull_request_review runs the copy in the PR's merge
+# commit, so a same-repository PR that edited this file could post any status
+# it liked once anyone reviewed it. So a review triggers pr-review.yml, which
+# has no permissions and does nothing, and its completion (workflow_run)
+# triggers this file. The pr job then reads the PR from the API. A PR that
+# edits or deletes pr-review.yml only stops its own reviews from re-running
+# this, so its statuses stay as they were (failing closed). Editing the PR's
+# title or base re-runs it from the default branch through pull_request_target,
+# which reads the reviews then.
 on:
   pull_request_target:
     # edited covers a change of base branch; a title edit re-runs harmlessly.
     types: [opened, synchronize, reopened, edited]
     branches: [alpha, main, edge]
-  pull_request_review:
-    types: [submitted, dismissed]
+  workflow_run:
+    workflows: [PR review]
+    types: [completed]
 
 permissions:
   contents: read
@@ -33,14 +39,68 @@ permissions:
 # The newest event wins. Every run reads the reviews when it reports, so the
 # run that survives decides from the latest state.
 concurrency:
-  group: pr-rules-${{ github.event.pull_request.number }}
+  # workflow_run lists the PRs whose head branch the review's run used. A
+  # fork's run lists none, so its reviews queue by the fork's branch instead.
+  group: pr-rules-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || format('{0}:{1}', github.event.workflow_run.head_repository.full_name, github.event.workflow_run.head_branch) }}
   cancel-in-progress: true
 
 jobs:
+  pr:
+    name: Find the PR
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      number: ${{ steps.find.outputs.number }}
+      base-ref: ${{ steps.find.outputs.base-ref }}
+      base-sha: ${{ steps.find.outputs.base-sha }}
+      head-sha: ${{ steps.find.outputs.head-sha }}
+      head-ref: ${{ steps.find.outputs.head-ref }}
+    steps:
+      - name: Read the PR from the event or the API
+        id: find
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          # tools/repo-rules/tests/find-pr.test.ts runs this exact text.
+          script: |
+            let number = context.payload.pull_request?.number;
+            if (number === undefined) {
+              // A review's run. GitHub fills in its pull_requests and head fields,
+              // so a PR can't point this at another one. A fork's PR has no
+              // pull_requests entry, so find it by the run's head instead.
+              const run = context.payload.workflow_run;
+              number = run?.pull_requests?.[0]?.number;
+              if (number === undefined && run?.head_repository?.owner?.login && run.head_branch) {
+                const { data: open } = await github.rest.pulls.list({
+                  ...context.repo, state: "open", head: `${run.head_repository.owner.login}:${run.head_branch}`, per_page: 100,
+                });
+                // A review run's head_sha is the PR's head commit (run 39799963135:
+                // head_sha = head.sha, not merge_commit_sha). Only one exact match counts.
+                const matches = open.filter((candidate) => candidate.head.sha === run.head_sha);
+                number = matches.length === 1 ? matches[0].number : undefined;
+              }
+              if (number === undefined) {
+                core.notice("The review's run names no open pull request, so there is nothing to report.");
+                return;
+              }
+            }
+            // Always the PR as it is now, so a review of an older push reports on the current head.
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: number });
+            if (pr.state !== "open") {
+              core.notice(`#${number} is ${pr.state}, so there is nothing to report.`);
+              return;
+            }
+            core.setOutput("number", String(pr.number));
+            core.setOutput("base-ref", pr.base.ref);
+            core.setOutput("base-sha", pr.base.sha);
+            core.setOutput("head-sha", pr.head.sha);
+            core.setOutput("head-ref", pr.head.ref);
+
   task-rule:
     name: Check the task rule
-    # pull_request_review has no branch filter.
-    if: contains(fromJSON('["alpha", "main", "edge"]'), github.event.pull_request.base.ref)
+    needs: pr
+    # workflow_run has no branch filter.
+    if: contains(fromJSON('["alpha", "main", "edge"]'), needs.pr.outputs.base-ref)
     runs-on: ubuntu-latest
     outputs:
       checked: ${{ steps.tools.outputs.present }}
@@ -48,7 +108,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # GITHUB_SHA is the default branch's head here, not the PR's base.
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ needs.pr.outputs.base-sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Look for the check on the base commit
@@ -64,7 +124,7 @@ jobs:
         if: steps.tools.outputs.present == 'true'
         run: git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pr/head"
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ needs.pr.outputs.number }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.tools.outputs.present == 'true'
         with:
@@ -73,13 +133,14 @@ jobs:
         if: steps.tools.outputs.present == 'true'
         run: bun --no-env-file tools/repo-rules/src/check-task-rule.ts
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ needs.pr.outputs.base-sha }}
+          HEAD_SHA: ${{ needs.pr.outputs.head-sha }}
 
   path-ownership:
     name: Check path ownership
-    # pull_request_review has no branch filter.
-    if: contains(fromJSON('["alpha", "main", "edge"]'), github.event.pull_request.base.ref)
+    needs: pr
+    # workflow_run has no branch filter.
+    if: contains(fromJSON('["alpha", "main", "edge"]'), needs.pr.outputs.base-ref)
     runs-on: ubuntu-latest
     outputs:
       checked: ${{ steps.tools.outputs.present }}
@@ -87,7 +148,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # GITHUB_SHA is the default branch's head here, not the PR's base.
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ needs.pr.outputs.base-sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Look for the check on the base commit
@@ -103,7 +164,7 @@ jobs:
         if: steps.tools.outputs.present == 'true'
         run: git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pr/head"
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ needs.pr.outputs.number }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.tools.outputs.present == 'true'
         with:
@@ -112,15 +173,21 @@ jobs:
         if: steps.tools.outputs.present == 'true'
         run: bun --no-env-file tools/repo-rules/src/check-lead-paths.ts
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_SHA: ${{ needs.pr.outputs.base-sha }}
+          HEAD_SHA: ${{ needs.pr.outputs.head-sha }}
+          HEAD_REF: ${{ needs.pr.outputs.head-ref }}
 
   report:
     name: Report
-    needs: [task-rule, path-ownership]
+    needs: [pr, task-rule, path-ownership]
+    # A fork review's run and a pull_request_target run can sit in different
+    # workflow groups. Reports for one PR queue here instead, and each skips
+    # posting if the PR's head moved, or it was retargeted, since its run found it.
+    concurrency:
+      group: pr-rules-report-${{ needs.pr.outputs.number }}
+      cancel-in-progress: false
     # Reports a failed or skipped check too, so it never leaves a stale status.
-    if: ${{ !cancelled() && contains(fromJSON('["alpha", "main", "edge"]'), github.event.pull_request.base.ref) }}
+    if: ${{ !cancelled() && contains(fromJSON('["alpha", "main", "edge"]'), needs.pr.outputs.base-ref) }}
     runs-on: ubuntu-latest
     # The only job that writes, and it runs nothing from the PR or its base.
     permissions:
@@ -136,6 +203,9 @@ jobs:
           TASK_RULE_CHECKED: ${{ needs.task-rule.outputs.checked }}
           PATH_OWNERSHIP_RESULT: ${{ needs.path-ownership.result }}
           PATH_OWNERSHIP_CHECKED: ${{ needs.path-ownership.outputs.checked }}
+          PR_NUMBER: ${{ needs.pr.outputs.number }}
+          HEAD_SHA: ${{ needs.pr.outputs.head-sha }}
+          BASE_REF: ${{ needs.pr.outputs.base-ref }}
         with:
           # The script lives here, not in a file, so the job needs no checkout.
           # tools/repo-rules/tests/report.test.ts runs this exact text.
@@ -149,8 +219,10 @@ jobs:
             if (!Array.isArray(approvers) || approvers.length === 0 || !approvers.every((login) => typeof login === "string" && login !== "")) {
               throw new Error(`APPROVERS must be a non-empty JSON array of GitHub logins, got ${process.env.APPROVERS}`);
             }
-            const pr = context.payload.pull_request;
-            if (!pr?.number || !pr.head?.sha) throw new Error("The event carries no pull request with a head commit.");
+            const pr = { number: Number(process.env.PR_NUMBER), head: { sha: process.env.HEAD_SHA ?? "" }, base: { ref: process.env.BASE_REF ?? "" } };
+            if (!Number.isInteger(pr.number) || pr.number <= 0 || !/^[0-9a-f]{40}$/.test(pr.head.sha) || pr.base.ref === "") {
+              throw new Error(`The pr job gave no pull request with a head commit and base branch (PR_NUMBER=${process.env.PR_NUMBER}, HEAD_SHA=${process.env.HEAD_SHA}, BASE_REF=${process.env.BASE_REF}).`);
+            }
             const { owner, repo } = context.repo;
 
             // The REST API documents no order for reviews. submitted_at has one-second
@@ -174,6 +246,17 @@ jobs:
               return { approved: true, reason: "Sam approved this commit." };
             }
 
+            const { data: now } = await github.rest.pulls.get({ owner, repo, pull_number: pr.number });
+            if (now.head.sha !== pr.head.sha) {
+              core.notice(`#${pr.number} moved to ${now.head.sha} after this run found ${pr.head.sha}; the newer run reports.`, { title: "Skipped" });
+              return;
+            }
+            // By branch, not commit: the base commit moves each time that branch gains a commit, and checking
+            // it would drop every report made across such a move.
+            if (now.base.ref !== pr.base.ref) {
+              core.notice(`#${pr.number} was retargeted to ${now.base.ref} after this run checked it against ${pr.base.ref}; the newer run reports.`, { title: "Skipped" });
+              return;
+            }
             const reviews = await github.paginate(github.rest.pulls.listReviews, { owner, repo, pull_number: pr.number, per_page: 100 });
             const approval = samApproval(reviews);
             core.notice(approval.reason, { title: approval.approved ? "Approved" : "Not approved" });
