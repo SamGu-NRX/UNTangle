@@ -512,6 +512,8 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
   );
   const navigation = useMemo<CourseNavigation>(() => ({ open: openCourse, isKnown: (id) => model.rows.has(id) }), [openCourse, model]);
   const openRequirement = useCallback((key: string) => {
+    // As in openCourse: a roadmap row sets the opener after this.
+    opener.current = null;
     setDetailId(`${REQUIREMENT_PREFIX}${key}`);
     setDetailOpen(true);
   }, []);
@@ -730,9 +732,9 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
                   openCourse(code);
                   opener.current = element;
                 }}
-                onOpenRequirement={(key) => {
-                  opener.current = null;
+                onOpenRequirement={(key, element) => {
                   openRequirement(key);
+                  opener.current = element;
                 }}
                 selectedId={detailOpen ? detailId : null}
               />

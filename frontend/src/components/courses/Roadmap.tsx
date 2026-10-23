@@ -27,7 +27,7 @@ type Props = {
   canOpen: (code: string) => boolean;
   canOpenRequirement: (key: string) => boolean;
   onOpen: (code: string, opener: HTMLElement) => void;
-  onOpenRequirement: (key: string) => void;
+  onOpenRequirement: (key: string, opener: HTMLElement) => void;
   selectedId: string | null;
 };
 
@@ -51,15 +51,21 @@ export function Roadmap({ state, open, onToggle, limit, onLimitChange, stale, ti
   const rootRef = useRef<HTMLDivElement>(null);
   const pending = useRef<{ first: ReturnType<typeof measure>; limit: number; move: boolean } | null>(null);
   const running = useRef<Animation[]>([]);
+  /** Which change the running moves belong to, so a finished older one never clears a newer one's state. */
+  const generation = useRef(0);
   const roadmap = state.kind === "ready" ? state.roadmap : null;
   const summary = roadmap ? roadmapSummary(roadmap) : null;
 
   const changeLimit = (next: CreditLimit) => {
+    const root = rootRef.current;
+    // Measured before the running moves stop, so a second press starts each row from where it is
+    // on screen, mid-move, rather than snapping it to the last layout first. A keyboard change never
+    // animates (MOTION.md §1), so it isn't measured.
+    pending.current = root && !keyboardFocused() ? { first: measure(root), limit: next, move: !reducedMotion() } : null;
     running.current.forEach((animation) => animation.cancel());
     running.current = [];
-    const root = rootRef.current;
-    // A keyboard change never animates (MOTION.md §1); measuring is skipped too.
-    pending.current = root && !keyboardFocused() ? { first: measure(root), limit: next, move: !reducedMotion() } : null;
+    generation.current += 1;
+    if (root) delete root.dataset.moving;
     onLimitChange(next);
   };
 
@@ -71,7 +77,10 @@ export function Roadmap({ state, open, onToggle, limit, onLimitChange, stale, ti
     pending.current = null;
     if (queued.move) root.dataset.moving = "";
     running.current = flip(root, queued.first, { duration: MOVE.add, fadeIn: MOVE.fadeIn, move: queued.move });
-    const settle = () => delete root.dataset.moving;
+    const mine = generation.current;
+    const settle = () => {
+      if (generation.current === mine) delete root.dataset.moving;
+    };
     if (running.current.length === 0) settle();
     else void Promise.allSettled(running.current.map((animation) => animation.finished)).then(settle);
   }, [roadmap]);
@@ -236,7 +245,7 @@ const UnplacedRow = memo(function UnplacedRow({ course, title, openable, selecte
   );
 });
 
-const OpenRow = memo(function OpenRow({ item, openable, selected, onOpen }: { item: OpenRequirement; openable: boolean; selected: boolean; onOpen: (key: string) => void }) {
+const OpenRow = memo(function OpenRow({ item, openable, selected, onOpen }: { item: OpenRequirement; openable: boolean; selected: boolean; onOpen: (key: string, opener: HTMLElement) => void }) {
   const content = (
     <>
       <span className={styles.lead} aria-hidden="true">
@@ -252,7 +261,7 @@ const OpenRow = memo(function OpenRow({ item, openable, selected, onOpen }: { it
   return (
     <li className={styles.row} data-kind="requirement" data-selected={selected || undefined}>
       {openable ? (
-        <button type="button" className={styles.reqOpen} data-row-open={`${REQUIREMENT_PREFIX}${item.viewKey}`} aria-current={selected || undefined} onClick={() => onOpen(item.viewKey)}>
+        <button type="button" className={styles.reqOpen} data-row-open={`${REQUIREMENT_PREFIX}${item.viewKey}`} aria-current={selected || undefined} onClick={(event) => onOpen(item.viewKey, event.currentTarget)}>
           {content}
         </button>
       ) : (
