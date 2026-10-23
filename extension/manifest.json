@@ -21,10 +21,13 @@
     {
       "matches": [
         "http://localhost:4317/class-search",
+        "http://localhost:4317/class-search?*",
         "http://localhost:4317/class-search/*",
         "https://class-search.myunt.example.invalid/class-search",
+        "https://class-search.myunt.example.invalid/class-search?*",
         "https://class-search.myunt.example.invalid/class-search/*",
         "https://class-search-frame.myunt.example.invalid/class-search",
+        "https://class-search-frame.myunt.example.invalid/class-search?*",
         "https://class-search-frame.myunt.example.invalid/class-search/*"
       ],
       "js": [

@@ -8,12 +8,17 @@ export const SCHEDULE_NAME = "Main";
 export const SCHEDULE_ID = "main";
 // Production frame origins need a live capture before release. Reserved
 // placeholders deliberately grant no access to UNT login or identity pages.
+// Chromium matches these against the path and query string, so the base route
+// needs its own query pattern ("/class-search?term=fall").
 export const CLASS_SEARCH_MATCHES = [
   "http://localhost:4317/class-search",
+  "http://localhost:4317/class-search?*",
   "http://localhost:4317/class-search/*",
   "https://class-search.myunt.example.invalid/class-search",
+  "https://class-search.myunt.example.invalid/class-search?*",
   "https://class-search.myunt.example.invalid/class-search/*",
   "https://class-search-frame.myunt.example.invalid/class-search",
+  "https://class-search-frame.myunt.example.invalid/class-search?*",
   "https://class-search-frame.myunt.example.invalid/class-search/*",
 ] as const;
 export function isClassSearchUrl(raw: string | undefined): boolean {
@@ -22,7 +27,7 @@ export function isClassSearchUrl(raw: string | undefined): boolean {
   try {
     const url = new URL(raw);
     return CLASS_SEARCH_MATCHES.some(pattern => {
-      const expected = new URL(pattern.replace(/\/\*$/, ""));
+      const expected = new URL(pattern.replace(/[/?]\*$/, ""));
       return url.origin === expected.origin && (url.pathname === "/class-search" || url.pathname.startsWith("/class-search/")) && !url.username && !url.password;
     });
   }
