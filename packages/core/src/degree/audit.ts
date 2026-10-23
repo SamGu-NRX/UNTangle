@@ -162,7 +162,7 @@ export type HourTotals = {
 
 export type PolicyOutcome = {
   name: string;
-  status: "satisfied" | "unsatisfied" | "unverifiable";
+  status: "satisfied" | "inProgress" | "unsatisfied" | "unverifiable";
   detail: string;
   citation: Citation;
 };
@@ -207,6 +207,12 @@ const CREDIT_ONLY_GRADES = new Set(["P", "CR"]);
 function levelOf(code: string): number {
   const match = /\s(\d{4})$/.exec(code);
   return match ? Number(match[1]) : 0;
+}
+
+/** "Advanced-hour credit is earned for courses taken at the 3000- or 4000-level" (degree-requirements.html), so a graduate course doesn't count. */
+function isAdvanced(code: string): boolean {
+  const level = levelOf(code);
+  return level >= 3000 && level < 5000;
 }
 
 function subjectOf(code: string): string {
@@ -700,12 +706,12 @@ function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied:
       return { ...base, status: hours >= p.hours ? "satisfied" : "unsatisfied", detail: `${hours} completed hours of ${p.hours}${note}` };
     }
     case "advancedHours": {
-      const { hours, unknown } = creditedHours(credited.filter((entry) => levelOf(entry.code) >= 3000));
+      const { hours, unknown } = creditedHours(credited.filter((entry) => isAdvanced(entry.code)));
       if (hours === null) return { ...base, detail: `${policy.quote} — credit hours unknown for ${unknown.join(", ")}; cannot verify.` };
       return { ...base, status: hours >= p.hours ? "satisfied" : "unsatisfied", detail: `${hours} advanced hours of ${p.hours}` };
     }
     case "advancedHoursAtUnt": {
-      const advanced = (p.courseScope ? evidenceInScope(p.courseScope, credited, applied) : credited).filter((entry) => levelOf(entry.code) >= 3000);
+      const advanced = (p.courseScope ? evidenceInScope(p.courseScope, credited, applied) : credited).filter((entry) => isAdvanced(entry.code));
       const atUnt = advanced.filter((entry) => entry.credit?.sourceKind === "unt");
       const elsewhere = advanced.length - atUnt.length;
       const { hours, unknown } = creditedHours(atUnt);
@@ -714,7 +720,7 @@ function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied:
       // candidates; an unclaimed advanced UNT course may be the elective that
       // closes the gap, so a short total cannot read unsatisfied then.
       const poolAtUnt = p.courseScope?.kind === "applied" && hours < p.hours
-        ? [...new Set(pools.flatMap(({ codes }) => codes))].filter((code) => credited.some((entry) => entry.code === code && entry.credit?.sourceKind === "unt" && levelOf(code) >= 3000))
+        ? [...new Set(pools.flatMap(({ codes }) => codes))].filter((code) => credited.some((entry) => entry.code === code && entry.credit?.sourceKind === "unt" && isAdvanced(code)))
         : [];
       if (poolAtUnt.length > 0) return { ...base, detail: `${hours} advanced UNT hours of ${p.hours} from courses the audit placed; ${poolAtUnt.join(", ")} may count as major electives too. Cannot verify.` };
       return {
@@ -792,6 +798,21 @@ function evaluatePolicyBeforeChoices(policy: PolicyNode, evidence: CourseEvidenc
   // move either way, so for a GPA only an unchanged reading is conclusive.
   if (widened.status === placed.status && policy.policy.type !== "gpa") return { ...placed, detail: counting };
   return { ...placed, status: "unverifiable", detail: `${counting} Cannot verify until a branch is met.` };
+}
+
+/** Treat current courses as credit for the audit's projected, in-progress layer. */
+function projectedEvidence(evidence: CourseEvidence[]): CourseEvidence[] {
+  return evidence.map((entry) => entry.credit || !entry.current ? entry : { ...entry, credit: entry.current });
+}
+
+/** Advanced hours use the same finished/projected distinction as requirement nodes. */
+function evaluatePolicyLayers(policy: PolicyNode, evidence: CourseEvidence[], now: ReturnType<typeof evaluateProgram>, projected: ReturnType<typeof evaluateProgram>, options: AuditOptions): PolicyOutcome {
+  const current = evaluatePolicyBeforeChoices(policy, evidence, now.used, now.partial, now.pools, options);
+  if (policy.policy.type !== "advancedHours" || current.status !== "unsatisfied") return current;
+  const later = evaluatePolicyBeforeChoices(policy, projectedEvidence(evidence), projected.used, projected.partial, projected.pools, options);
+  return later.status === "satisfied"
+    ? { ...current, status: "inProgress", detail: `${current.detail}. Counting in-progress courses: ${later.detail}` }
+    : current;
 }
 
 /**
@@ -918,7 +939,7 @@ export function auditProgram(program: ProgramData, courses: readonly (AuditCours
   // claimed from finished work, and the ones an unmet choice released.
   // Advisory pool matches are never claimed, and claims never reach a
   // policy: nothing verifies them.
-  const policies = policyNodes.map((node) => evaluatePolicyBeforeChoices(node, [...evidence.values()], now.used, now.partial, now.pools, options));
+  const policies = policyNodes.map((node) => evaluatePolicyLayers(node, [...evidence.values()], now, later, options));
 
   const count = (status: NodeOutcome["status"]): number => requirements.filter((result) => result.status === status).length;
   return {
