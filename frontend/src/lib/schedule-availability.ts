@@ -42,7 +42,11 @@ function describeSection(section: Section): AvailabilitySection {
 }
 
 /** Resolve only the saved option id. A different option with the same label is not a replacement. */
-export function checkCourseAvailability(courseCode: string, selectedSectionId: string, result: CourseSections): CourseAvailability {
+export function checkCourseAvailability({ courseCode, selectedSectionId, result }: {
+  courseCode: string;
+  selectedSectionId: string;
+  result: CourseSections;
+}): CourseAvailability {
   const selection = { courseCode, selectedSectionId };
   if (result.status === "unavailable") {
     return { ...selection, state: result.sections.some((section) => section.id === selectedSectionId) ? "sample" : "unavailable", evidence: null, section: null };
@@ -70,7 +74,7 @@ export async function checkScheduleAvailability(schedule: ScheduleBody, readSect
         const result = await readUntilAborted(() => readSections(schedule.termId, courseCode), signal);
         // Keep evidence for another course or term out of this student's check.
         if (result.term !== schedule.termId || result.courseCode !== courseCode) throw new Error("Section lookup identity mismatch.");
-        courses.push(checkCourseAvailability(courseCode, selectedSectionId, result));
+        courses.push(checkCourseAvailability({ courseCode, selectedSectionId, result }));
       } catch {
         courses.push({ courseCode, selectedSectionId, state: "unavailable", evidence: null, section: null });
       }
