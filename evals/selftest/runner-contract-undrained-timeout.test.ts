@@ -22,7 +22,14 @@ const GRACE_MS = 500;
 const FINISH_WITHIN_MS = GRACE_MS + 10_000;
 const SPAWN_CAP_MS = 30_000;
 
+const SHARED_RESOURCE = `const tracked = new Set<string>();
+export function holdResource(id: string): void { tracked.add(id); }
+export function closeTrackedResources(): void { tracked.clear(); }
+export function hasResource(id: string): boolean { return tracked.has(id); }
+`;
+
 const HANG_SUITE = `import { defineSuite } from "../suite-kit";
+import { closeTrackedResources } from "./shared-resource";
 
 export default defineSuite({
   name: "hangsuite",
@@ -33,6 +40,7 @@ export default defineSuite({
       // Ignores ctx.signal and holds a live handle, as a wedged Playwright
       // transport does, so the event loop cannot empty on its own.
       setInterval(() => undefined, 1_000);
+      setTimeout(() => closeTrackedResources(), 700);
       return new Promise(() => undefined);
     }
     return { status: "pass", measured: "ran beside an undrained case" };
@@ -41,11 +49,16 @@ export default defineSuite({
 `;
 
 const NEXT_SUITE = `import { defineSuite } from "../suite-kit";
+import { hasResource, holdResource } from "./shared-resource";
 
 export default defineSuite({
   name: "nextsuite",
   describe: () => [{ id: "still-runs" }],
-  run: () => ({ status: "pass", measured: "later suite ran" }),
+  run: async () => {
+    holdResource("later-suite-browser");
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return { status: hasResource("later-suite-browser") ? "pass" : "fail", measured: "later suite ran" };
+  },
 });
 `;
 
@@ -79,6 +92,7 @@ function harnessWith(label: string, suites: Record<string, string>): { harness: 
   for (const [name, source] of Object.entries(suites)) {
     writeFileSync(path.join(harness.suitesDir, `${name}.ts`), source);
   }
+  writeFileSync(path.join(harness.suitesDir, "shared-resource.ts"), SHARED_RESOURCE);
   const runSource = readFileSync(harness.runTs, "utf8");
   const registry = `const SUITE_REGISTRY: readonly string[] = ${JSON.stringify(Object.keys(suites))};\nconst REAL_SUITE_REGISTRY: readonly string[] = [`;
   const patched = runSource.replace("const SUITE_REGISTRY: readonly string[] = [", registry);
@@ -119,7 +133,10 @@ describe("runner contract: a timed-out case that never drains", () => {
     expect(hang[0]?.note).toContain("not drained");
     expect(hang[1]?.status).toBe("fail");
     expect(hang[1]?.note).toContain("not run");
-    expect(card.cases.find((c) => c.suite === "nextsuite")?.status).toBe("pass");
+    const next = card.cases.find((c) => c.suite === "nextsuite");
+    expect(next?.status).toBe("fail");
+    expect(next?.note).toContain("not run");
+    expect(next?.note).toContain("hangsuite");
   }, 60_000);
 
   test("an abort listener that throws does not crash the run", async () => {
