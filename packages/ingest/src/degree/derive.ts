@@ -441,7 +441,8 @@ function deriveElectricalEngineering(page: CatalogPage, university: CatalogPage)
   const projects = requireSection(page, "Project and Laboratory courses, 27 hours");
   nodes.push(allNode("Project and Laboratory courses, 27 hours", courseItems(projects), citation(projects, page)));
   const other = requireSection(page, "Other required courses");
-  nodes.push(allNode("Other required courses", courseItems(other), citation(other, page)));
+  const others = allNode("Other required courses", courseItems(other), citation(other, page));
+  nodes.push({ ...others, items: calculusSequences(others.items) });
   for (const heading of ["Minor", "Electives", "Other requirements"]) {
     const section = requireSection(page, heading);
     nodes.push(note(heading, paragraphs(section).join(" ") || "The catalog provides no additional text in this section.", citation(section, page)));
@@ -450,6 +451,23 @@ function deriveElectricalEngineering(page: CatalogPage, university: CatalogPage)
   nodes.push(policyNode("Minimum grade of C (major courses)", { type: "minGrade", grade: "C", scope: "all courses required in the major" }, requireParagraph(page, policies, MAJOR_GRADE_RULE), citation(policies, page)));
   nodes.push(...universityPolicies(university));
   return nodes;
+}
+
+/**
+ * EE's "Other required courses" list MATH 1710 and 1720, then "OR" and MATH 1810, 1820 and 1830 (ee-bs.html):
+ * two whole calculus sequences. The list parser reads that OR as a choice between MATH 1720 and MATH 1810
+ * alone, so this joins the four slots it makes into one slot with the two sequences. A different listing
+ * stops the build rather than guess.
+ */
+function calculusSequences(items: CourseSlot[]): CourseSlot[] {
+  const shown = (slot: CourseSlot | undefined) => slot?.alternatives.map((option) => option.must.join(" and ")).join(" or ") ?? "nothing";
+  const parsed = ["MATH 1710", "MATH 1720 or MATH 1810", "MATH 1820", "MATH 1830"];
+  const start = items.findIndex((slot) => shown(slot) === parsed[0]);
+  if (start < 0 || parsed.some((expected, offset) => shown(items[start + offset]) !== expected)) {
+    throw new Error(`ee-bs.html "Other required courses": expected the calculus listing ${parsed.join(", ")}; found ${items.map(shown).join(", ")}`);
+  }
+  const sequences: CourseSlot = { alternatives: [{ must: ["MATH 1710", "MATH 1720"] }, { must: ["MATH 1810", "MATH 1820", "MATH 1830"] }] };
+  return [...items.slice(0, start), sequences, ...items.slice(start + parsed.length)];
 }
 
 /** Course codes a node lists, in listed order. */

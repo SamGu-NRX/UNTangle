@@ -29,7 +29,7 @@ const cyberRecord = [
 const eeRequired = ["EENG 2610", "EENG 2620", "EENG 2710", "EENG 3410", "EENG 3510", "EENG 3520", "EENG 3710", "EENG 3810"];
 const eeElectives = ["EENG 4010", "EENG 4210", "EENG 4310", "EENG 4320", "EENG 4330"];
 const eeProjects = ["EENG 1910", "EENG 2611", "EENG 2621", "EENG 2711", "EENG 2905", "EENG 2920", "EENG 3411", "EENG 3511", "EENG 3811", "EENG 3910", "EENG 3920", "EENG 4910", "EENG 4990"];
-const eeOther = ["CHEM 1410", "CHEM 1430", "CSCE 1030", "CSCE 1015", "MATH 1710", "MATH 1720", "MATH 1820", "MATH 1830", "MATH 2700", "MATH 2730", "MATH 3180", "MATH 3410", "PHYS 1710", "PHYS 1730", "PHYS 2220", "PHYS 2240", "TECM 2700"];
+const eeOther = ["CHEM 1410", "CHEM 1430", "CSCE 1030", "CSCE 1015", "MATH 1710", "MATH 1720", "MATH 2700", "MATH 2730", "MATH 3180", "MATH 3410", "PHYS 1710", "PHYS 1730", "PHYS 2220", "PHYS 2240", "TECM 2700"];
 const eeHours = (code: string) => ["EENG 2611", "EENG 2621", "EENG 2711", "EENG 3411", "EENG 3511", "EENG 3811", "PHYS 1730", "PHYS 2240", "CSCE 1015", "CHEM 1430"].includes(code) ? 1 : ["MATH 1710", "MATH 1720", "MATH 1820", "MATH 1830"].includes(code) ? 4 : 3;
 const eeRecord = [...eeRequired, ...eeElectives, ...eeProjects, ...eeOther].map((code) => done(code, eeHours(code)));
 
@@ -69,5 +69,20 @@ describe("new 2026-27 major audits", () => {
   test("Electrical Engineering: missing EENG 4990 fails the project/lab requirement", () => {
     const result = auditProgram(program("ee-bs"), eeRecord.filter((course) => course.code !== "EENG 4990"), complete);
     expect(named(result, "Project and Laboratory").status).toBe("unsatisfied");
+  });
+
+  // ee-bs.html lists MATH 1710 and 1720 "OR" MATH 1810, 1820 and 1830: either whole sequence meets it.
+  const withCalculus = (...codes: string[]) => [...eeRecord.filter((course) => !course.code.startsWith("MATH 17") && !course.code.startsWith("MATH 18")), ...codes.map((code) => done(code, 4))];
+
+  test("Electrical Engineering: Calculus I and II meet the calculus requirement", () => {
+    expect(named(auditProgram(program("ee-bs"), withCalculus("MATH 1710", "MATH 1720"), complete), "Other required courses").status).toBe("satisfied");
+  });
+
+  test("Electrical Engineering: the three-course science and engineering sequence meets it", () => {
+    expect(named(auditProgram(program("ee-bs"), withCalculus("MATH 1810", "MATH 1820", "MATH 1830"), complete), "Other required courses").status).toBe("satisfied");
+  });
+
+  test("Electrical Engineering: part of each sequence doesn't", () => {
+    expect(named(auditProgram(program("ee-bs"), withCalculus("MATH 1710", "MATH 1820", "MATH 1830"), complete), "Other required courses").status).toBe("unsatisfied");
   });
 });

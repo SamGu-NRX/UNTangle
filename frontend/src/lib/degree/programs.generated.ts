@@ -6,7 +6,7 @@ import type { DegreeData } from "@untangle/core/degree/types";
 export const DEGREE_DATA: DegreeData = {
   "catalogId": "unt-2026-27",
   "catalogYear": "2026-2027",
-  "builtAt": "2026-10-22T16:21:56.982Z",
+  "builtAt": "2026-10-23T04:55:31.144Z",
   "pages": [
     {
       "file": "cs-bs.html",
@@ -3680,38 +3680,14 @@ export const DEGREE_DATA: DegreeData = {
               "alternatives": [
                 {
                   "must": [
-                    "MATH 1710"
-                  ]
-                }
-              ]
-            },
-            {
-              "alternatives": [
-                {
-                  "must": [
+                    "MATH 1710",
                     "MATH 1720"
                   ]
                 },
                 {
                   "must": [
-                    "MATH 1810"
-                  ]
-                }
-              ]
-            },
-            {
-              "alternatives": [
-                {
-                  "must": [
-                    "MATH 1820"
-                  ]
-                }
-              ]
-            },
-            {
-              "alternatives": [
-                {
-                  "must": [
+                    "MATH 1810",
+                    "MATH 1820",
                     "MATH 1830"
                   ]
                 }
