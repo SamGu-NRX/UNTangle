@@ -1,0 +1,39 @@
+10:41:03 GATE-WAIT load1=1.15 load5=1.85
+10:41:03 GATE-PASS load1=1.15 load5=1.85
+10:41:03 RUN-START suite=journey target=d42166faca133b58eba410d0c0fd6b5a0fde38c1 out=/home/user/work/untangle-r2-journey-104103/journey-r2-104103.json
+10:41:03 load=1.15 load5=1.85 availMB=3639 runners=1 top=1601MB:next-server 1108MB:next-server 79MB:node 
+10:41:33 load=2.21 load5=2.04 availMB=2529 runners=2 top=1601MB:next-server 1108MB:next-server 864MB:node 
+10:42:03 load=2.79 load5=2.20 availMB=2526 runners=1 top=1601MB:next-server 1108MB:next-server 647MB:node 
+10:42:33 load=3.17 load5=2.34 availMB=1873 runners=1 top=1601MB:next-server 1108MB:next-server 395MB:chrome-headless 
+10:43:03 load=2.76 load5=2.32 availMB=1552 runners=1 top=1601MB:next-server 1108MB:next-server 401MB:chrome-headless 
+10:43:34 load=2.88 load5=2.39 availMB=1062 runners=1 top=1601MB:next-server 1108MB:next-server 406MB:chrome-headless 
+10:44:04 load=3.16 load5=2.48 availMB=676 runners=1 top=1600MB:next-server 1107MB:next-server 276MB:next-server 
+10:44:34 load=3.87 load5=2.70 availMB=285 runners=1 top=1598MB:next-server 1105MB:next-server 303MB:chrome-headless 
+10:45:05 load=3.19 load5=2.65 availMB=255 runners=1 top=1598MB:next-server 1105MB:next-server 227MB:chrome-headless 
+10:45:36 load=4.45 load5=3.00 availMB=234 runners=1 top=1598MB:next-server 1105MB:next-server 164MB:chrome-headless 
+10:46:06 load=3.52 load5=2.97 availMB=1857 runners=1 top=1598MB:next-server 1110MB:next-server 414MB:chrome-headless 
+10:46:36 load=2.98 load5=2.87 availMB=1572 runners=1 top=1598MB:next-server 1110MB:next-server 395MB:chrome-headless 
+10:47:06 load=2.25 load5=2.70 availMB=1559 runners=1 top=1598MB:next-server 1110MB:next-server 191MB:next-server 
+10:47:37 load=2.90 load5=2.81 availMB=514 runners=1 top=1598MB:next-server 1110MB:next-server 362MB:chrome-headless 
+10:48:07 load=3.53 load5=2.96 availMB=243 runners=1 top=1598MB:next-server 1105MB:next-server 374MB:chrome-headless 
+10:48:37 load=3.05 load5=2.91 availMB=301 runners=1 top=1598MB:next-server 1107MB:next-server 230MB:chrome-headless 
+10:49:07 load=4.04 load5=3.15 availMB=271 runners=1 top=1598MB:next-server 1105MB:next-server 202MB:next-server 
+10:49:38 load=9.77 load5=4.61 availMB=226 runners=1 top=1598MB:next-server 1107MB:next-server 201MB:next-server 
+10:50:20 load=22.21 load5=8.14 availMB=253 runners=1 top=1598MB:next-server 1105MB:next-server 201MB:next-server 
+10:51:15 load=24.02 load5=10.35 availMB=253 runners=1 top=1598MB:next-server 1103MB:next-server 201MB:next-server 
+10:51:45 load=20.74 load5=11.57 availMB=795 runners=1 top=1598MB:next-server 1111MB:next-server 418MB:chrome-headless 
+10:52:24 load=20.13 load5=12.29 availMB=217 runners=1 top=1598MB:next-server 1105MB:next-server 817MB:chrome-headless 
+10:52:55 load=16.38 load5=12.35 availMB=1329 runners=1 top=1598MB:next-server 1110MB:next-server 158MB:bun 
+10:53:25 load=9.93 load5=11.17 availMB=1315 runners=1 top=1599MB:next-server 1110MB:next-server 160MB:bun 
+10:53:55 load=6.02 load5=10.10 availMB=1326 runners=1 top=1599MB:next-server 1110MB:next-server 160MB:bun 
+10:54:25 load=3.64 load5=9.13 availMB=1338 runners=1 top=1599MB:next-server 1110MB:next-server 160MB:bun 
+10:54:55 load=2.21 load5=8.26 availMB=1337 runners=1 top=1599MB:next-server 1110MB:next-server 160MB:bun 
+10:55:25 load=1.34 load5=7.47 availMB=1341 runners=1 top=1599MB:next-server 1110MB:next-server 154MB:bun 
+10:55:55 load=1.36 load5=6.88 availMB=1334 runners=1 top=1599MB:next-server 1110MB:next-server 155MB:bun 
+10:56:25 load=1.40 load5=6.37 availMB=1016 runners=1 top=1599MB:next-server 1110MB:next-server 155MB:bun 
+10:56:55 load=1.53 load5=5.93 availMB=774 runners=1 top=1599MB:next-server 1110MB:next-server 151MB:bun 
+10:57:25 load=1.46 load5=5.49 availMB=539 runners=1 top=1601MB:next-server 1110MB:next-server 151MB:bun 
+10:57:55 load=1.34 load5=5.07 availMB=294 runners=1 top=1599MB:next-server 1107MB:next-server 131MB:bun 
+10:58:39 load=4.45 load5=5.40 availMB=214 runners=1 top=1598MB:next-server 1094MB:next-server 129MB:bun 
+10:59:25 load=16.03 load5=8.81 availMB=213 runners=1 top=1598MB:next-server 1105MB:next-server 129MB:bun 
+10:59:56 load=20.85 load5=10.77 availMB=228 runners=1 top=1598MB:next-server 1105MB:next-server 129MB:bun 

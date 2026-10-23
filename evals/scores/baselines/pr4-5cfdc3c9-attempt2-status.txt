@@ -1,0 +1,8 @@
+LOCK-HELD 2026-10-19T19:37:55Z
+GATE-OPEN 2026-10-19T19:37:55Z 1m=1.27 5m=1.40 head=#4 5cfdc3c99f51 sha=5cfdc3c99f510518130a918810627e07cb1ca0fc prov=PR #4 head 5cfdc3c99f510518130a918810627e07cb1ca0fc (refs/pr/4); attempt-2 after attempt-1 wedge
+TARGET-MATERIALIZE 2026-10-19T19:37:56Z git worktree add --detach /home/user/work/untangle-baseline-target 5cfdc3c99f510518130a918810627e07cb1ca0fc
+Preparing worktree (detached HEAD 5cfdc3c9)
+HEAD is now at 5cfdc3c9 Merge remote-tracking branch 'origin/obv/untangle-privacy-a11y-checks' into obv/products-untangle-hardening-20261009
+TARGET-VERIFIED 2026-10-19T19:37:56Z at 5cfdc3c99f510518130a918810627e07cb1ca0fc
+RUN-END exit=1 2026-10-19T20:34:58Z score=/home/user/work/untangle-baseline-pr4/scorecard-pr4-193755.json loadlog=/home/user/work/baselines-logs/pr4-193755-load.log
+ALL-DONE rc=1 score=/home/user/work/untangle-baseline-pr4/scorecard-pr4-193755.json loadlog=/home/user/work/baselines-logs/pr4-193755-load.log

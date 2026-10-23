@@ -1,0 +1,8 @@
+LOCK-HELD 2026-10-19T21:53:15Z
+GATE-OPEN 2026-10-19T21:53:15Z 1m=0.74 5m=0.42 head=#7 1fa6bb7c57a8 sha=1fa6bb7c57a8a08b7a3aea8bcb7d766c574880af prov=PR #7 head 1fa6bb7c57a8 (refs/pr/7)
+TARGET-MATERIALIZE 2026-10-19T21:53:17Z git worktree add --detach /home/user/work/untangle-baseline-target 1fa6bb7c57a8a08b7a3aea8bcb7d766c574880af
+Preparing worktree (detached HEAD 1fa6bb7c)
+HEAD is now at 1fa6bb7c a11y: verify the course journey with Playwright and axe at both viewports
+TARGET-VERIFIED 2026-10-19T21:53:17Z at 1fa6bb7c57a8a08b7a3aea8bcb7d766c574880af
+RUN-END exit=1 2026-10-19T22:51:39Z score=/home/user/work/untangle-baseline-pr7/scorecard-pr7-215315.json loadlog=/home/user/work/baselines-logs/pr7-215315-load.log
+ALL-DONE rc=1 score=/home/user/work/untangle-baseline-pr7/scorecard-pr7-215315.json loadlog=/home/user/work/baselines-logs/pr7-215315-load.log

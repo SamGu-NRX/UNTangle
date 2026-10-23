@@ -1,0 +1,8 @@
+LOCK-HELD 2026-10-20T00:10:23Z
+GATE-OPEN 2026-10-20T00:10:23Z 1m=0.61 5m=0.31 head=alpha fb741afdf7ae sha=fb741afdf7ae3480baf0eecc8c2db3ef7806bd56 prov=alpha fb741afdf7ae (origin fleet/alpha-candidate-r1 ABSENT; SHA resolves locally, reachable from origin/alpha — verified this session before launch)
+TARGET-MATERIALIZE 2026-10-20T00:10:24Z git worktree add --detach /home/user/work/untangle-baseline-target fb741afdf7ae3480baf0eecc8c2db3ef7806bd56
+Preparing worktree (detached HEAD fb741afd)
+HEAD is now at fb741afd Merge #16 (real-term survey + data provenance) at 641b20ed729d into alpha
+TARGET-VERIFIED 2026-10-20T00:10:24Z at fb741afdf7ae3480baf0eecc8c2db3ef7806bd56
+RUN-END exit=1 2026-10-20T00:59:25Z score=/home/user/work/untangle-baseline-alpha/scorecard-alpha-001023.json loadlog=/home/user/work/baselines-logs/alpha-001023-load.log
+ALL-DONE rc=1 score=/home/user/work/untangle-baseline-alpha/scorecard-alpha-001023.json loadlog=/home/user/work/baselines-logs/alpha-001023-load.log

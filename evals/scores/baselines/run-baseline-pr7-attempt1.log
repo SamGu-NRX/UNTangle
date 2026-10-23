@@ -1,0 +1,356 @@
+[run] suites: selfcheck, journey, honesty, a11y-polish, routing, optimizer, data, persistence-faults
+[stack] step target-dir: pass (1ms)
+[stack] step contract-hash: pass (0ms)
+[stack] step submodule-backend: pass (708ms)
+[stack] step backend-install: pass (568ms)
+[stack] step backend-sqlite-build: pass (2882ms)
+[stack] step backend-seed: pass (1532ms)
+[stack] step postgres-init: pass (1373ms)
+[stack] step postgres-start: pass (218ms)
+[stack] step frontend-install: pass (882ms)
+[stack] step migrations-apply: pass (708ms)
+[stack] step db-roundtrip: pass (20ms)
+[stack] step backend-start: pass (1243ms)
+[stack] step frontend-build: pass (35780ms)
+[stack] step frontend-start: pass (1320ms)
+[stack] step playwright-launch: pass (1410ms)
+[run] selfcheck/preflight-all-green ...
+[run] selfcheck/preflight-all-green → pass
+[run] selfcheck/db-roundtrip-persists ...
+[run] selfcheck/db-roundtrip-persists → pass
+[run] selfcheck/frontend-renders ...
+[run] selfcheck/frontend-renders → pass
+[run] selfcheck/rmp-block-active ...
+[run] selfcheck/rmp-block-active → pass
+[run] journey/journey/discover-guest-desktop ...
+[run] journey/journey/discover-guest-desktop → pass
+[run] journey/journey/discover-guest-mobile ...
+[run] journey/journey/discover-guest-mobile → pass
+[run] journey/journey/discover-registered-desktop ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/discover-registered-desktop → pass
+[run] journey/journey/discover-registered-mobile ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/discover-registered-mobile → fail (case threw: case journey/journey/discover-registered-mobile timed out after 480000ms)
+[run] journey/journey/instructor-guest-desktop ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/instructor-guest-desktop → fail (Required contract surface absent: ratings-unavailable `status` notice naming the instructor (contract: /instructors/[id], required))
+[run] journey/journey/instructor-guest-mobile ...
+[run] journey/journey/instructor-guest-mobile → fail (Required contract surface absent: ratings-unavailable `status` notice naming the instructor (contract: /instructors/[id], required))
+[run] journey/journey/instructor-registered-desktop ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/instructor-registered-desktop → fail (Required contract surface absent: ratings-unavailable `status` notice naming the instructor (contract: /instructors/[id], required))
+[run] journey/journey/instructor-registered-mobile ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/instructor-registered-mobile → fail (Required contract surface absent: ratings-unavailable `status` notice naming the instructor (contract: /instructors/[id], required))
+[run] journey/journey/build-guest-desktop ...
+[run] journey/journey/build-guest-desktop → fail (the build leg ran through this head's exposed surfaces (marked ANTH 1010, CSCE 1030 taking; 5 options; 8 events rendered), but contract-REQUIRED build surfaces are absent: Add ANTH 1010 section {NNN}; Optimize schedule; optimization-option `aria-pressed` state (contract: /schedule, required))
+[run] journey/journey/build-guest-mobile ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/build-guest-mobile → fail (the build leg ran through this head's exposed surfaces (marked ANTH 1010, CSCE 1030 taking; 5 options; 8 events rendered), but contract-REQUIRED build surfaces are absent: Add ANTH 1010 section {NNN}; Optimize schedule; optimization-option `aria-pressed` state (contract: /schedule, required))
+[run] journey/journey/build-registered-desktop ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/build-registered-desktop → fail (case threw: goto: Timeout 30000ms exceeded.
+Call log:
+[2m  - navigating to "http://localhost:3901/auth", waiting until "domcontentloaded"[22m
+)
+[run] journey/journey/build-registered-mobile ...
+[run] journey/journey/build-registered-mobile → fail (case threw: case journey/journey/build-registered-mobile timed out after 480000ms)
+[run] journey/journey/save-guest-desktop ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/save-guest-desktop → fail (persisted state survived the reload exactly (byte-exact), but the contract's durability/export surface is missing: Required contract surface absent: `Save state` status region (contract: /schedule, required — durability acknowledgment); Required contract surface absent: `Print schedule` button (contract: /schedule, required); Required contract surface absent: `Download .ics` button (contract: /schedule, required))
+[run] journey/journey/save-guest-mobile ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/save-guest-mobile → fail (case threw: focus: Timeout 5000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('link', { name: 'Continue as guest' })[22m
+)
+[run] journey/journey/save-registered-desktop ...
+[run] journey/journey/save-registered-desktop → fail (persisted state survived the reload exactly (byte-exact), but the contract's durability/export surface is missing: Required contract surface absent: `Save state` status region (contract: /schedule, required — durability acknowledgment); Required contract surface absent: `Print schedule` button (contract: /schedule, required); Required contract surface absent: `Download .ics` button (contract: /schedule, required))
+[run] journey/journey/save-registered-mobile ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/save-registered-mobile → fail (persisted state survived the reload exactly (byte-exact), but the contract's durability/export surface is missing: Required contract surface absent: `Save state` status region (contract: /schedule, required — durability acknowledgment); Required contract surface absent: `Print schedule` button (contract: /schedule, required); Required contract surface absent: `Download .ics` button (contract: /schedule, required))
+[run] journey/journey/plan-guest-desktop ...
+[run] journey/journey/plan-guest-desktop → fail (plan journey: no calendar events rendered before saving the plan — nothing to restore)
+[run] journey/journey/plan-guest-mobile ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/plan-guest-mobile → fail (case threw: focus: Timeout 5000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('dialog').getByRole('button', { name: /^Confirm/ }).first()[22m
+)
+[run] journey/journey/plan-registered-desktop ...
+[run] journey/journey/plan-registered-desktop → fail (plan journey: no calendar events rendered before saving the plan — nothing to restore)
+[run] journey/journey/plan-registered-mobile ...
+[run] journey/journey/plan-registered-mobile → fail (plan journey: no calendar events rendered before saving the plan — nothing to restore)
+[run] journey/journey/map-guest-desktop ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/map-guest-desktop → fail (case threw: case journey/journey/map-guest-desktop timed out after 480000ms)
+[run] journey/journey/map-guest-mobile ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/map-guest-mobile → fail (Required contract surface absent: 'Route legs' region (contract: /map) (no route legs/stops rendered for active courses CSCE 1030, CSCE 1040))
+[run] journey/journey/map-registered-desktop ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/map-registered-desktop → fail (Required contract surface absent: 'Route legs' region (contract: /map) (no route legs/stops rendered for active courses CSCE 1030, CSCE 1040))
+[run] journey/journey/map-registered-mobile ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/map-registered-mobile → fail (Required contract surface absent: 'Route legs' region (contract: /map) (no route legs/stops rendered for active courses CSCE 1030, CSCE 1040))
+[run] journey/journey/auth-guest-desktop ...
+[run] journey/journey/auth-guest-desktop → pass
+[run] journey/journey/auth-guest-mobile ...
+[run] journey/journey/auth-guest-mobile → pass
+[run] journey/journey/auth-registered-desktop ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/auth-registered-desktop → pass
+[run] journey/journey/auth-registered-mobile ...
+[run] unhandledRejection (continuing): Failed to connect
+[run] unhandledRejection (continuing): Failed to connect
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] chromium.launch failed (launch: Timeout 180000ms exceeded.
+Call log:
+[2m  - <launching> /home/user/work/pw-browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-quET4g --remote-debugging-pipe --no-startup-window[22m
+[2m  - <launched> pid=442825[22m
+[2m  - [pid=442825][err] [1019/222431.695836:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")[22m
+[2m  - [pid=442825][err] [1019/222431.700200:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:[22m
+[2m  - [pid=442825][err] [1019/222431.700486:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")[22m
+[2m  - [pid=442825][err] [1019/222431.708034:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:[22m
+[2m  - [pid=442825][err] [1019/222431.709462:ERROR:content/browser/devtools/devtools_pipe_handler.cc:188] Connection terminated while reading from pipe[22m
+[2m  - [pid=442825] <process did exit: exitCode=0, signal=null>[22m
+[2m  - [pid=442825] starting temporary directories cleanup[22m
+[2m  - [pid=442825] finished temporary directories cleanup[22m
+) — retrying (attempt 2/3)
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] journey/journey/auth-registered-mobile → fail (case threw: focus: Timeout 5000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('link', { name: 'Sign in or create account' })[22m
+)
+[run] honesty/honesty/rmp-labels-when-unavailable ...
+[run] honesty/honesty/rmp-labels-when-unavailable → fail (RMP is blocked at the network boundary but no honest unavailable label was found (no 'No RateMyProfessors match yet', no 'N/A', no 'No RMP' row badge))
+[run] honesty/honesty/sample-data-notice ...
+[run] honesty/honesty/sample-data-notice → fail (Required contract surface absent: `status` named 'Sample data notice' with sample wording (contract: /courses, required))
+[run] honesty/honesty/stale-rating-notice ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] honesty/honesty/stale-rating-notice → fail (Stale/unavailable-data signaling missing: Required contract surface absent: 'Grade data unavailable' / 'Grade records unavailable' status (contract: /courses/[subject]/[number]); Required contract surface absent: ratings-unavailable `status` notice (contract: /courses/[subject]/[number]))
+[run] honesty/honesty/unverified-savings-disclaimer ...
+[run] honesty/honesty/unverified-savings-disclaimer → fail (Required contract surface absent: /plans returned HTTP 404 — no plans page to assert disclaimers on (contract: /plans))
+[run] honesty/honesty/no-fabricated-precision ...
+[run] honesty/honesty/no-fabricated-precision → pass
+[run] a11y-polish/a11y/axe-home ...
+[run] a11y-polish/a11y/axe-home → pass
+[run] a11y-polish/a11y/axe-courses ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] a11y-polish/a11y/axe-courses → fail (axe impact counts {"serious":2})
+[run] a11y-polish/a11y/axe-detail ...
+[run] unhandledRejection (continuing): Failed to connect
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] chromium.launch failed (launch: Timeout 180000ms exceeded.
+Call log:
+[2m  - <launching> /home/user/work/pw-browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-gOAvMf --remote-debugging-pipe --no-startup-window[22m
+[2m  - <launched> pid=443822[22m
+[2m  - [pid=443822][err] [1019/222907.323508:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")[22m
+[2m  - [pid=443822][err] [1019/222907.331017:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:[22m
+[2m  - [pid=443822][err] [1019/222907.331409:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")[22m
+[2m  - [pid=443822][err] [1019/222907.335424:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:[22m
+[2m  - [pid=443822][err] [1019/222907.335688:ERROR:content/browser/devtools/devtools_pipe_handler.cc:274] Could not write into pipe[22m
+[2m  - [pid=443822][err] [1019/222907.335713:ERROR:content/browser/devtools/devtools_pipe_handler.cc:274] Could not write into pipe[22m
+[2m  - [pid=443822][err] [1019/222907.356236:ERROR:ui/gl/angle_platform_impl.cc:34] vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_surface[22m
+[2m  - [pid=443822][err] ERR: vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_surface[22m
+[2m  - [pid=443822][err] [1019/222907.356600:ERROR:ui/gl/angle_platform_impl.cc:34] vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_xcb_surface[22m
+[2m  - [pid=443822][err] ERR: vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_xcb_surface[22m
+[2m  - [pid=443822][err] [1019/222907.356712:ERROR:ui/gl/angle_platform_impl.cc:34] Display.cpp:1505 (initialize): ANGLE Display::initialize error 0: Internal Vulkan error (-7): A requested extension is not supported, in ../../third_party/angle/src/libANGLE/renderer/vulkan/vk_renderer.cpp, enableInstanceExtensions:2499.[22m
+[2m  - [pid=443822][err] ERR: Display.cpp:1505 (initialize): ANGLE Display::initialize error 0: Internal Vulkan error (-7): A requested extension is not supported, in ../../third_party/angle/src/libANGLE/renderer/vulkan/vk_renderer.cpp, enableInstanceExtensions:2499.[22m
+[2m  - [pid=443822][err] [1019/222907.356822:ERROR:ui/gl/egl_util.cc:92] EGL Driver message (Critical) eglInitialize: Internal Vulkan error (-7): A requested extension is not supported, in ../../third_party/angle/src/libANGLE/renderer/vulkan/vk_renderer.cpp, enableInstanceExtensions:2499.[22m
+[2m  - [pid=443822][err] [1019/222907.356867:ERROR:ui/gl/gl_display.cc:613] eglInitialize SwANGLE failed with error EGL_NOT_INITIALIZED[22m
+[2m  - [pid=443822][err] [1019/222907.356912:ERROR:ui/gl/gl_display.cc:648] Initialization of all (1) EGL display types failed.[22m
+[2m  - [pid=443822][err] [1019/222907.356944:ERROR:ui/ozone/common/gl_ozone_egl.cc:26] GLDisplayEGL::Initialize failed.[22m
+[2m  - [pid=443822][err] [1019/222907.357622:ERROR:ui/gl/angle_platform_impl.cc:34] vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_surface[22m
+[2m  - [pid=443822][err] ERR: vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_surface[22m
+[2m  - [pid=443822][err] [1019/222907.357742:ERROR:ui/gl/angle_platform_impl.cc:34] vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_xcb_surface[22m
+[2m  - [pid=443822][err] ERR: vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_xcb_surface[22m
+[2m  - [pid=443822][err] [1019/222907.357802:ERROR:ui/gl/angle_platform_impl.cc:34] Display.cpp:1505 (initialize): ANGLE Display::initialize error 0: Internal Vulkan error (-7): A requested extension is not supported, in ../../third_party/angle/src/libANGLE/renderer/vulkan/vk_renderer.cpp, enableInstanceExtensions:2499.[22m
+[2m  - [pid=443822][err] ERR: Display.cpp:1505 (initialize): ANGLE Display::initialize error 0: Internal Vulkan error (-7): A requested extension is not supported, in ../../third_party/angle/src/libANGLE/renderer/vulkan/vk_renderer.cpp, enableInstanceExtensions:2499.[22m
+[2m  - [pid=443822][err] [1019/222907.357899:ERROR:ui/gl/egl_util.cc:92] EGL Driver message (Critical) eglInitialize: Internal Vulkan error (-7): A requested extension is not supported, in ../../third_party/angle/src/libANGLE/renderer/vulkan/vk_renderer.cpp, enableInstanceExtensions:2499.[22m
+[2m  - [pid=443822][err] [1019/222907.357958:ERROR:ui/gl/gl_display.cc:613] eglInitialize SwANGLE failed with error EGL_NOT_INITIALIZED[22m
+[2m  - [pid=443822][err] [1019/222907.358008:ERROR:ui/gl/gl_display.cc:648] Initialization of all (1) EGL display types failed.[22m
+[2m  - [pid=443822][err] [1019/222907.358027:ERROR:ui/ozone/common/gl_ozone_egl.cc:26] GLDisplayEGL::Initialize failed.[22m
+[2m  - [pid=443822][err] [1019/222907.361193:ERROR:components/viz/service/main/viz_main_impl.cc:192] Exiting GPU process due to errors during initialization[22m
+[2m  - [pid=443822][err] [1019/222907.366675:WARNING:media/gpu/vaapi/vaapi_wrapper.cc:1655] drmGetDevices2() has not found any devices[22m
+) — retrying (attempt 2/3)
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] a11y-polish/a11y/axe-detail → fail (case threw: a11y case could not read a course code after search (first meta: none))
+[run] a11y-polish/a11y/axe-instructor ...
+[run] a11y-polish/a11y/axe-instructor → pass
+[run] a11y-polish/a11y/axe-schedule ...
+[run] a11y-polish/a11y/axe-schedule → fail (axe impact counts {"serious":1})
+[run] a11y-polish/a11y/axe-map ...
+[run] a11y-polish/a11y/axe-map → pass
+[run] a11y-polish/a11y/axe-auth ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] a11y-polish/a11y/axe-auth → fail (axe impact counts {"serious":2})
+[run] a11y-polish/a11y/keyboard-core-path ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] a11y-polish/a11y/keyboard-core-path → fail (case threw: focus: Timeout 10000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('link', { name: 'Schedule', exact: true }).first()[22m
+)
+[run] a11y-polish/a11y/focus-indicator ...
+[run] a11y-polish/a11y/focus-indicator → pass
+[run] a11y-polish/a11y/reduced-motion ...
+[run] unhandledRejection (continuing): Failed to connect
+[run] unhandledRejection (continuing): Failed to connect
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] chromium.launch failed (launch: Timeout 180000ms exceeded.
+Call log:
+[2m  - <launching> /home/user/work/pw-browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-9Sc4yD --remote-debugging-pipe --no-startup-window[22m
+[2m  - <launched> pid=444726[22m
+[2m  - [pid=444726][err] [1019/223329.428334:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")[22m
+[2m  - [pid=444726][err] [1019/223329.434459:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:[22m
+[2m  - [pid=444726][err] [1019/223329.436153:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")[22m
+[2m  - [pid=444726][err] [1019/223329.438856:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:[22m
+[2m  - [pid=444726][err] [1019/223329.443799:ERROR:content/browser/devtools/devtools_pipe_handler.cc:188] Connection terminated while reading from pipe[22m
+[2m  - [pid=444726][err] [0100/000000.464561:ERROR:ui/gl/angle_platform_impl.cc:34] vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_surface[22m
+[2m  - [pid=444726][err] ERR: vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_surface[22m
+[2m  - [pid=444726][err] [0100/000000.467906:ERROR:ui/gl/angle_platform_impl.cc:34] vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_xcb_surface[22m
+[2m  - [pid=444726][err] ERR: vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_xcb_surface[22m
+[2m  - [pid=444726][err] [0100/000000.468013:ERROR:ui/gl/angle_platform_impl.cc:34] Display.cpp:1505 (initialize): ANGLE Display::initialize error 0: Internal Vulkan error (-7): A requested extension is not supported, in ../../third_party/angle/src/libANGLE/renderer/vulkan/vk_renderer.cpp, enableInstanceExtensions:2499.[22m
+[2m  - [pid=444726][err] ERR: Display.cpp:1505 (initialize): ANGLE Display::initialize error 0: Internal Vulkan error (-7): A requested extension is not supported, in ../../third_party/angle/src/libANGLE/renderer/vulkan/vk_renderer.cpp, enableInstanceExtensions:2499.[22m
+[2m  - [pid=444726][err] [0100/000000.468100:ERROR:ui/gl/egl_util.cc:92] EGL Driver message (Critical) eglInitialize: Internal Vulkan error (-7): A requested extension is not supported, in ../../third_party/angle/src/libANGLE/renderer/vulkan/vk_renderer.cpp, enableInstanceExtensions:2499.[22m
+[2m  - [pid=444726][err] [0100/000000.468130:ERROR:ui/gl/gl_display.cc:613] eglInitialize SwANGLE failed with error EGL_NOT_INITIALIZED[22m
+[2m  - [pid=444726][err] [0100/000000.468202:ERROR:ui/gl/gl_display.cc:648] Initialization of all (1) EGL display types failed.[22m
+[2m  - [pid=444726][err] [0100/000000.468244:ERROR:ui/ozone/common/gl_ozone_egl.cc:26] GLDisplayEGL::Initialize failed.[22m
+[2m  - [pid=444726][err] [0100/000000.469060:ERROR:ui/gl/angle_platform_impl.cc:34] vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_surface[22m
+[2m  - [pid=444726][err] ERR: vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_surface[22m
+[2m  - [pid=444726][err] [0100/000000.469158:ERROR:ui/gl/angle_platform_impl.cc:34] vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_xcb_surface[22m
+[2m  - [pid=444726][err] ERR: vk_renderer.cpp:282 (VerifyExtensionsPresent): Extension not supported: VK_KHR_xcb_surface[22m
+[2m  - [pid=444726][err] [0100/000000.469270:ERROR:ui/gl/angle_platform_impl.cc:34] Display.cpp:1505 (initialize): ANGLE Display::initialize error 0: Internal Vulkan error (-7): A requested extension is not supported, in ../../third_party/angle/src/libANGLE/renderer/vulkan/vk_renderer.cpp, enableInstanceExtensions:2499.[22m
+[2m  - [pid=444726][err] ERR: Display.cpp:1505 (initialize): ANGLE Display::initialize error 0: Internal Vulkan error (-7): A requested extension is not supported, in ../../third_party/angle/src/libANGLE/renderer/vulkan/vk_renderer.cpp, enableInstanceExtensions:2499.[22m
+[2m  - [pid=444726][err] [0100/000000.469355:ERROR:ui/gl/egl_util.cc:92] EGL Driver message (Critical) eglInitialize: Internal Vulkan error (-7): A requested extension is not supported, in ../../third_party/angle/src/libANGLE/renderer/vulkan/vk_renderer.cpp, enableInstanceExtensions:2499.[22m
+[2m  - [pid=444726][err] [0100/000000.469385:ERROR:ui/gl/gl_display.cc:613] eglInitialize SwANGLE failed with error EGL_NOT_INITIALIZED[22m
+[2m  - [pid=444726][err] [0100/000000.469500:ERROR:ui/gl/gl_display.cc:648] Initialization of all (1) EGL display types failed.[22m
+[2m  - [pid=444726][err] [0100/000000.469573:ERROR:ui/ozone/common/gl_ozone_egl.cc:26] GLDisplayEGL::Initialize failed.[22m
+[2m  - [pid=444726] <process did exit: exitCode=0, signal=null>[22m
+[2m  - [pid=444726] starting temporary directories cleanup[22m
+[2m  - [pid=444726] finished temporary directories cleanup[22m
+) — retrying (attempt 2/3)
+[run] a11y-polish/a11y/reduced-motion → fail (case threw: case a11y-polish/a11y/reduced-motion timed out after 480000ms)
+[run] a11y-polish/a11y/no-horizontal-overflow-mobile ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] a11y-polish/a11y/no-horizontal-overflow-mobile → pass
+[run] a11y-polish/a11y/image-icon-labeling ...
+[run] a11y-polish/a11y/image-icon-labeling → pass
+[run] routing/building-coverage ...
+[ui-browser] context.close() did not finish within 10000ms — continuing
+[ui-browser] browser.close() did not finish within 10000ms — continuing
+[run] routing/building-coverage → pass (All 16 buildings resolve by name and mnemonic; ntdp is identified but unresolved (off main-campus bounds) by design.)
+[run] routing/route-geodesic-floor ...
+[run] routing/route-geodesic-floor → pass (ORS disabled in this environment; observed sources: fallback:18. No sub-geodesic distances.)
+[run] routing/route-latency ...
+[run] routing/route-latency → pass (ORS disabled; fixed-interval pacing 1050 ms (~57 req/min < 60). Warm p95 9.9 ms vs bar 200 ms; n=10 warm / 10 cold.)
+[run] optimizer/violations-zero ...
+[run] optimizer/violations-zero → not-applicable (the target checkout has no frontend/src/lib/optimizer/bench/run-bench.ts (looked at /home/user/work/untangle-baseline-target/frontend/src/lib/optimizer/bench/run-bench.ts))
+[run] optimizer/gap-zero ...
+[run] optimizer/gap-zero → not-applicable (the target checkout has no frontend/src/lib/optimizer/bench/run-bench.ts (looked at /home/user/work/untangle-baseline-target/frontend/src/lib/optimizer/bench/run-bench.ts))
+[run] optimizer/p95-8courses ...
+[run] optimizer/p95-8courses → not-applicable (the target checkout has no frontend/src/lib/optimizer/bench/run-bench.ts (looked at /home/user/work/untangle-baseline-target/frontend/src/lib/optimizer/bench/run-bench.ts))
+[run] data/catalog-certification-counts ...
+[run] data/catalog-certification-counts → not-applicable (the target checkout has no tools/catalog-consistency/audit.mjs (looked at /home/user/work/untangle-baseline-target/tools/catalog-consistency/audit.mjs) (also missing: tools/catalog-consistency/verify.mjs))
+[run] data/provenance-descriptor ...
+[run] data/provenance-descriptor → not-applicable (the target checkout has no frontend/src/lib/data-provenance.ts (looked at /home/user/work/untangle-baseline-target/frontend/src/lib/data-provenance.ts))
+[run] persistence-faults/acknowledged-saves-survive ...
+[persistence-faults] acknowledged-saves-survive: start
+[persistence-faults] launch: starting browser server
+[persistence-faults] acknowledged-saves-survive: threw
+[run] persistence-faults/acknowledged-saves-survive → fail (case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up))
+[run] persistence-faults/failed-saves-never-saved ...
+[persistence-faults] failed-saves-never-saved: start
+[persistence-faults] launch: starting browser server
+[persistence-faults] failed-saves-never-saved: threw
+[run] persistence-faults/failed-saves-never-saved → fail (case could not complete (harness/journey error, not a measured durability verdict): connect: WebSocket error: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()
+Call log:
+[2m  - <ws connecting> ws://[::1]:38261/a55d7f0134d8ed9a9e26c213186f8214[22m
+[2m  - <ws error> ws://[::1]:38261/a55d7f0134d8ed9a9e26c213186f8214 error The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()[22m
+[2m  - <ws connect error> ws://[::1]:38261/a55d7f0134d8ed9a9e26c213186f8214 The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()[22m
+[2m  - <ws disconnected> ws://[::1]:38261/a55d7f0134d8ed9a9e26c213186f8214 code=1006 reason=[22m
+)
+[run] persistence-faults/denied-storage-degrades-honestly ...
+[persistence-faults] denied-storage-degrades-honestly: start
+[persistence-faults] launch: starting browser server
+[persistence-faults] denied-storage-degrades-honestly: threw
+[run] persistence-faults/denied-storage-degrades-honestly → fail (case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up))
+[run] persistence-faults/corrupt-bytes-quarantined ...
+[persistence-faults] corrupt-bytes-quarantined: start
+[persistence-faults] launch: starting browser server
+[persistence-faults] corrupt-bytes-quarantined: threw
+[run] persistence-faults/corrupt-bytes-quarantined → fail (case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up))
+[run] persistence-faults/cross-tab-conflict-visible ...
+[persistence-faults] cross-tab-conflict-visible: start
+[persistence-faults] launch: starting browser server
+[persistence-faults] cross-tab-conflict-visible: threw
+[run] persistence-faults/cross-tab-conflict-visible → fail (case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up))
+[run] persistence-faults/clean-tab-adopts-newer ...
+[persistence-faults] clean-tab-adopts-newer: start
+[persistence-faults] launch: starting browser server
+[persistence-faults] clean-tab-adopts-newer: threw
+[run] persistence-faults/clean-tab-adopts-newer → fail (case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up))
+[run] 20/63 pass, 38 fail, 5 n/a — scorecard /home/user/work/untangle-baseline-pr7/scorecard-pr7-215315.json

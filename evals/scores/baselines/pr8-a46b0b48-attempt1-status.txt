@@ -1,0 +1,8 @@
+LOCK-HELD 2026-10-19T22:56:19Z
+GATE-OPEN 2026-10-19T22:56:19Z 1m=0.71 5m=0.31 head=#8 a46b0b48a75d sha=a46b0b48a75d172f3f2b71f5b570ccd5720a7989 prov=PR #8 head a46b0b48a75d (refs/pr/8)
+TARGET-MATERIALIZE 2026-10-19T22:56:20Z git worktree add --detach /home/user/work/untangle-baseline-target a46b0b48a75d172f3f2b71f5b570ccd5720a7989
+Preparing worktree (detached HEAD a46b0b48)
+HEAD is now at a46b0b48 Verify /plans with browser evidence and a11y fixes (M4)
+TARGET-VERIFIED 2026-10-19T22:56:20Z at a46b0b48a75d172f3f2b71f5b570ccd5720a7989
+RUN-END exit=1 2026-10-19T23:58:02Z score=/home/user/work/untangle-baseline-pr8/scorecard-pr8-225619.json loadlog=/home/user/work/baselines-logs/pr8-225619-load.log
+ALL-DONE rc=1 score=/home/user/work/untangle-baseline-pr8/scorecard-pr8-225619.json loadlog=/home/user/work/baselines-logs/pr8-225619-load.log

@@ -1,0 +1,21 @@
+09:57:53 PRE-LAUNCH load1=0.67 load5=1.62
+09:57:53 RUN-START suite=journey target=d42166faca133b58eba410d0c0fd6b5a0fde38c1 out=/home/user/work/untangle-r2-journey-095753/journey-r2-095753.json
+09:57:53 load=0.67 load5=1.62 availMB=3824 runners=1
+09:58:23 load=1.75 load5=1.80 availMB=2612 runners=1
+09:58:53 load=2.47 load5=1.96 availMB=2539 runners=1
+09:59:23 load=2.71 load5=2.06 availMB=2103 runners=1
+09:59:53 load=3.48 load5=2.30 availMB=1659 runners=1
+10:00:23 load=3.18 load5=2.35 availMB=1250 runners=1
+10:00:53 load=4.28 load5=2.67 availMB=638 runners=1
+10:01:23 load=5.00 load5=3.02 availMB=556 runners=1
+10:01:55 load=4.09 load5=2.99 availMB=228 runners=1
+10:02:50 load=26.22 load5=9.89 availMB=1967 runners=1
+10:03:20 load=18.44 load5=9.04 availMB=1642 runners=1
+10:03:50 load=11.85 load5=8.32 availMB=1065 runners=1
+10:04:20 load=7.60 load5=7.62 availMB=561 runners=1
+10:04:50 load=4.91 load5=6.96 availMB=384 runners=1
+10:05:20 load=4.28 load5=6.62 availMB=268 runners=1
+10:05:56 load=8.19 load5=7.27 availMB=217 runners=1
+10:07:26 load=23.99 load5=13.43 availMB=213 runners=1
+10:10:43 load=27.40 load5=16.16 availMB=214 runners=1
+10:11:13 load=26.17 load5=16.95 availMB=624 runners=1

@@ -1,0 +1,9 @@
+17:44:35 GATE-WAIT load1=1.10 load5=0.91
+17:44:35 GATE-PASS load1=1.10 load5=0.91
+17:44:35 RUN-START tag=instructor target=d42166faca133b58eba410d0c0fd6b5a0fde38c1 out=/home/user/work/untangle-r2-only-instructor-174435/journey-r2-repaired-only-instructor-174435.json only=journey/instructor-guest-desktop journey/instructor-guest-mobile journey/instructor-registered-desktop journey/instructor-registered-mobile
+17:44:35 load=1.10 load5=0.91 availMB=4784 runners=1 top=76MB:jupyter-server 53MB:python3.13 45MB:uvicorn 
+17:45:05 load=1.82 load5=1.10 availMB=3536 runners=1 top=897MB:node 130MB:bun 102MB:node 
+17:45:35 load=2.54 load5=1.35 availMB=3721 runners=1 top=300MB:chrome-headless 201MB:next-server 146MB:bun 
+17:46:05 load=2.86 load5=1.55 availMB=3679 runners=1 top=286MB:next-server 155MB:bun 79MB:node 
+17:46:35 RUN-END exit=1
+17:46:35 MONITOR-STOPPED exit=1 out=/home/user/work/untangle-r2-only-instructor-174435/journey-r2-repaired-only-instructor-174435.json
