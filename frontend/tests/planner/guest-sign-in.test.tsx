@@ -303,6 +303,18 @@ function stampPlanOld() {
   window.localStorage.setItem(`${STAMP_PREFIX}plan`, `${token}.${Date.now() - GUEST_HANDOVER_MS - 1}`);
 }
 
+test("a guest stamp written after the current time (the clock was set back) asks at an unknown time", async () => {
+  guestLeft(plan(["CSCE 1040"]));
+  const token = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("untangle_guest_session="))?.split("=")[1];
+  expect(token).toBeTruthy();
+  window.localStorage.setItem(`${STAMP_PREFIX}plan`, `${token}.${Date.now() + 60 * 60 * 1000}`);
+  await signIn();
+  await waitFor(() => sheet() !== null, "handover question");
+  expect(sheet()?.textContent).toContain("at an unknown time");
+  expect(server.putsStarted).toBe(0);
+  expect(guestCleared()).toBe(false);
+});
+
 test("two signed-in tabs: bringing old guest work in from one closes the other's handover question", async () => {
   guestLeft(plan(["CSCE 1040"]));
   stampPlanOld();

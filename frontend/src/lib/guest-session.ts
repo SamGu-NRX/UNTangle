@@ -67,8 +67,9 @@ export function guestWorkHandover(part?: GuestPart, now = Date.now()): { needsCo
   if (!token) return { needsConfirmation: false, writtenAt: null };
   const matching = (part ? [part] : PARTS).map(readStamp).filter((stamp): stamp is GuestStamp => stamp?.token === token);
   if (matching.length === 0) return { needsConfirmation: false, writtenAt: null };
-  const hasUnknownTime = matching.some((stamp) => stamp.writtenAt === null);
-  const knownTimes = matching.flatMap((stamp) => (stamp.writtenAt === null ? [] : [stamp.writtenAt]));
+  // A write time ahead of the clock (it was set back since the write) says nothing about the stamp's age.
+  const hasUnknownTime = matching.some((stamp) => stamp.writtenAt === null || stamp.writtenAt > now);
+  const knownTimes = matching.flatMap((stamp) => (stamp.writtenAt === null || stamp.writtenAt > now ? [] : [stamp.writtenAt]));
   const oldest = knownTimes.length > 0 ? Math.min(...knownTimes) : null;
   return { needsConfirmation: hasUnknownTime || oldest === null || now - oldest > GUEST_HANDOVER_MS, writtenAt: hasUnknownTime ? null : oldest };
 }
