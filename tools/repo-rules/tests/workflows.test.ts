@@ -123,6 +123,7 @@ describe("pr-rules.yml", () => {
       PATH_OWNERSHIP_CHECKED: "${{ needs.path-ownership.outputs.checked }}",
       PR_NUMBER: "${{ needs.pr.outputs.number }}",
       HEAD_SHA: "${{ needs.pr.outputs.head-sha }}",
+      BASE_REF: "${{ needs.pr.outputs.base-ref }}",
     });
   });
 

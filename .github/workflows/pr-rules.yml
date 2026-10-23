@@ -182,7 +182,7 @@ jobs:
     needs: [pr, task-rule, path-ownership]
     # A fork review's run and a pull_request_target run can sit in different
     # workflow groups. Reports for one PR queue here instead, and each skips
-    # posting if the PR's head moved since its run found it.
+    # posting if the PR's head moved, or it was retargeted, since its run found it.
     concurrency:
       group: pr-rules-report-${{ needs.pr.outputs.number }}
       cancel-in-progress: false
@@ -205,6 +205,7 @@ jobs:
           PATH_OWNERSHIP_CHECKED: ${{ needs.path-ownership.outputs.checked }}
           PR_NUMBER: ${{ needs.pr.outputs.number }}
           HEAD_SHA: ${{ needs.pr.outputs.head-sha }}
+          BASE_REF: ${{ needs.pr.outputs.base-ref }}
         with:
           # The script lives here, not in a file, so the job needs no checkout.
           # tools/repo-rules/tests/report.test.ts runs this exact text.
@@ -218,9 +219,9 @@ jobs:
             if (!Array.isArray(approvers) || approvers.length === 0 || !approvers.every((login) => typeof login === "string" && login !== "")) {
               throw new Error(`APPROVERS must be a non-empty JSON array of GitHub logins, got ${process.env.APPROVERS}`);
             }
-            const pr = { number: Number(process.env.PR_NUMBER), head: { sha: process.env.HEAD_SHA ?? "" } };
-            if (!Number.isInteger(pr.number) || pr.number <= 0 || !/^[0-9a-f]{40}$/.test(pr.head.sha)) {
-              throw new Error(`The pr job gave no pull request with a head commit (PR_NUMBER=${process.env.PR_NUMBER}, HEAD_SHA=${process.env.HEAD_SHA}).`);
+            const pr = { number: Number(process.env.PR_NUMBER), head: { sha: process.env.HEAD_SHA ?? "" }, base: { ref: process.env.BASE_REF ?? "" } };
+            if (!Number.isInteger(pr.number) || pr.number <= 0 || !/^[0-9a-f]{40}$/.test(pr.head.sha) || pr.base.ref === "") {
+              throw new Error(`The pr job gave no pull request with a head commit and base branch (PR_NUMBER=${process.env.PR_NUMBER}, HEAD_SHA=${process.env.HEAD_SHA}, BASE_REF=${process.env.BASE_REF}).`);
             }
             const { owner, repo } = context.repo;
 
@@ -248,6 +249,12 @@ jobs:
             const { data: now } = await github.rest.pulls.get({ owner, repo, pull_number: pr.number });
             if (now.head.sha !== pr.head.sha) {
               core.notice(`#${pr.number} moved to ${now.head.sha} after this run found ${pr.head.sha}; the newer run reports.`, { title: "Skipped" });
+              return;
+            }
+            // By branch, not commit: the base commit moves each time that branch gains a commit, and checking
+            // it would drop every report made across such a move.
+            if (now.base.ref !== pr.base.ref) {
+              core.notice(`#${pr.number} was retargeted to ${now.base.ref} after this run checked it against ${pr.base.ref}; the newer run reports.`, { title: "Skipped" });
               return;
             }
             const reviews = await github.paginate(github.rest.pulls.listReviews, { owner, repo, pull_number: pr.number, per_page: 100 });
