@@ -182,7 +182,7 @@ function neededCodes(outcomes: readonly NodeOutcome[], into = new Set<string>())
         // leading branch, Auto follows that branch rather than mixing the
         // remaining courses from every specialization.
         if (outcome.status === "advisory") break;
-        const shown = outcome.shownBranch === undefined ? undefined : outcome.children?.[outcome.shownBranch];
+        const shown = outcome.kind === "choice" ? outcome.children[outcome.shownBranch] : undefined;
         if (!shown) throw new Error(`The audit named no branch for the unmet choice "${outcome.name}".`);
         neededCodes([shown], into);
         break;
