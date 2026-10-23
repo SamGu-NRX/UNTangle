@@ -121,9 +121,18 @@ export type Remaining =
    */
   | { kind: "advisor"; reason: string; candidates: string[] };
 
-export type NodeOutcome = {
+/**
+ * A choice always shows one branch, the met or the closest one, so its
+ * outcome carries every branch and that branch's index; no other kind has
+ * one. Code that follows the student's branch reads `shownBranch`, never the
+ * name, which is display text. A group's `children` are its parts.
+ */
+export type NodeOutcome =
+  | (OutcomeFields & { kind: "choice"; children: NodeOutcome[]; shownBranch: number })
+  | (OutcomeFields & { kind: Exclude<RequirementNode["kind"], "choice">; children?: NodeOutcome[]; shownBranch?: never });
+
+type OutcomeFields = {
   name: string;
-  kind: RequirementNode["kind"];
   /**
    * Defined in the comment at the top of this file. "claimed" or
    * "inProgress" can sit on a node whose own courses are all finished, when
@@ -133,8 +142,6 @@ export type NodeOutcome = {
   detail: string;
   citation: Citation;
   remaining: Remaining;
-  /** A group's parts, or every branch of a choice. */
-  children?: NodeOutcome[];
 };
 
 /**
@@ -162,7 +169,7 @@ export type HourTotals = {
 
 export type PolicyOutcome = {
   name: string;
-  status: "satisfied" | "unsatisfied" | "unverifiable";
+  status: "satisfied" | "inProgress" | "unsatisfied" | "unverifiable";
   detail: string;
   citation: Citation;
 };
@@ -207,6 +214,12 @@ const CREDIT_ONLY_GRADES = new Set(["P", "CR"]);
 function levelOf(code: string): number {
   const match = /\s(\d{4})$/.exec(code);
   return match ? Number(match[1]) : 0;
+}
+
+/** "Advanced-hour credit is earned for courses taken at the 3000- or 4000-level" (degree-requirements.html), so a graduate course doesn't count. */
+function isAdvanced(code: string): boolean {
+  const level = levelOf(code);
+  return level >= 3000 && level < 5000;
 }
 
 function subjectOf(code: string): string {
@@ -301,9 +314,13 @@ type Scenario = {
 };
 
 type State = "met" | "unmet" | "undecided";
-type Evaluation = {
+/** As in NodeOutcome, a choice's evaluation carries every branch and the index of the one its name gives. */
+type Evaluation =
+  | (EvaluationFields & { kind: "choice"; children: Evaluation[]; shownBranch: number })
+  | (EvaluationFields & { kind: Exclude<RequirementNode["kind"], "choice">; children?: Evaluation[]; shownBranch?: never });
+
+type EvaluationFields = {
   name: string;
-  kind: RequirementNode["kind"];
   state: State;
   detail: string;
   citation: Citation;
@@ -311,7 +328,6 @@ type Evaluation = {
   progress: number;
   /** What this evaluation still lacks: none when met, an advisor's call when undecided. */
   need: Remaining;
-  children?: Evaluation[];
 };
 
 const NOTHING: Remaining = { kind: "none" };
@@ -453,7 +469,7 @@ function evaluate(node: RequirementNode, scenario: Scenario): Evaluation {
 }
 
 function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
-  const base = { name: node.name, kind: node.kind, citation: node.citation };
+  const base = { name: node.name, citation: node.citation };
   switch (node.kind) {
     case "all": {
       // A required slot claims the complete alternative with the best grades
@@ -472,7 +488,7 @@ function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
         met += 1;
       }
       const state: State = met === node.items.length ? "met" : "unmet";
-      return { ...base, state, progress: met / node.items.length, detail: `${met}/${node.items.length} required courses or sequences complete`, need: state === "met" ? NOTHING : missingCourses(unfilled, scenario) };
+      return { ...base, kind: node.kind, state, progress: met / node.items.length, detail: `${met}/${node.items.length} required courses or sequences complete`, need: state === "met" ? NOTHING : missingCourses(unfilled, scenario) };
     }
     case "choose": {
       const before = new Set(scenario.used);
@@ -480,7 +496,7 @@ function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
       claim(scenario, codes);
       const state: State = covered >= node.count ? "met" : "unmet";
       return {
-        ...base,
+        ...base, kind: node.kind,
         state,
         progress: covered / node.count,
         detail: `${covered}/${node.count} chosen${codes.length > 0 ? ` (${codes.join(", ")})` : ""}`,
@@ -517,12 +533,12 @@ function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
         state === "met" ? NOTHING
         : state === "undecided" ? advisor(`The credit hours of ${unknown.join(", ")} are unknown, so the audit cannot tell how many of the ${node.hours} hours are left.`, unknown)
         : { kind: "hours", hours: node.hours - hours, eligible: node.options.filter((option) => option.must.every((code) => !scenario.used.has(code))).map((option) => option.must.filter((code) => !isFree(scenario, code))) };
-      return { ...base, state, progress: Math.min(hours / node.hours, 1), detail: `${plural(taken.length, "course")}, ${hours}/${node.hours} hours${listed}${unknownNote}`, need };
+      return { ...base, kind: node.kind, state, progress: Math.min(hours / node.hours, 1), detail: `${plural(taken.length, "course")}, ${hours}/${node.hours} hours${listed}${unknownNote}`, need };
     }
     case "pool": {
       const codes = poolMatches(node, scenario);
       if (scenario.claimedByTracked) scenario.pools.push({ node, codes });
-      return { ...base, state: "undecided", progress: 0, detail: poolDetail(node, codes, scenario), need: advisor(node.note ?? UNCAPTURED_POOL, codes) };
+      return { ...base, kind: node.kind, state: "undecided", progress: 0, detail: poolDetail(node, codes, scenario), need: advisor(node.note ?? UNCAPTURED_POOL, codes) };
     }
     case "choice": {
       // Every branch is tried against the claims made before the choice, so
@@ -549,13 +565,14 @@ function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
         entry.evaluation.progress > best.evaluation.progress || (entry.evaluation.progress === best.evaluation.progress && entry.evaluation.state === "undecided" && best.evaluation.state !== "undecided");
       const shown = met ?? tried.reduce((best, entry) => (closer(entry, best) ? entry : best));
       return {
-        ...base,
+        ...base, kind: node.kind,
         name: `${node.name} — ${shown.branch}`,
         progress: shown.evaluation.progress,
         state: met ? "met" : undecided ? "undecided" : "unmet",
         detail: met ? shown.evaluation.detail : `No branch met. ${shown.branch}: ${shown.evaluation.detail}`,
         need: met ? NOTHING : { kind: "branch" },
         children: tried.map((entry) => entry.evaluation),
+        shownBranch: tried.indexOf(shown),
       };
     }
     case "group": {
@@ -569,12 +586,12 @@ function evaluateNode(node: RequirementNode, scenario: Scenario): Evaluation {
       // group to an advisor: it cannot read satisfied with parts unchecked.
       const state: State = children.some((child) => child.state === "unmet") ? "unmet" : undecided.length > 0 ? "undecided" : "met";
       const review = undecided.length > 0 ? `; needs advisor review: ${undecided.map((child) => child.name).join(", ")}` : "";
-      return { ...base, state, progress: children.length === 0 ? 1 : met / children.length, detail: `${met}/${children.length} parts satisfied${review}`, need: state === "met" ? NOTHING : { kind: "parts" }, children };
+      return { ...base, kind: node.kind, state, progress: children.length === 0 ? 1 : met / children.length, detail: `${met}/${children.length} parts satisfied${review}`, need: state === "met" ? NOTHING : { kind: "parts" }, children };
     }
     case "policy":
-      return { ...base, state: "undecided", progress: 0, detail: node.quote, need: advisor(`The audit does not check this catalog rule: ${node.quote}`) };
+      return { ...base, kind: node.kind, state: "undecided", progress: 0, detail: node.quote, need: advisor(`The audit does not check this catalog rule: ${node.quote}`) };
     case "note":
-      return { ...base, state: "undecided", progress: 0, detail: node.text, need: advisor(`The audit does not check this catalog passage: ${node.text}`) };
+      return { ...base, kind: node.kind, state: "undecided", progress: 0, detail: node.text, need: advisor(`The audit does not check this catalog passage: ${node.text}`) };
   }
 }
 
@@ -655,8 +672,14 @@ function combine(now: Evaluation, projected: Evaluation, fullest: Evaluation, ne
   // claimed is listed as needed. Under a parent that needs nothing, nothing
   // is needed: the branch a student did not take is not work left.
   const remaining = needed && (status === "unsatisfied" || status === "advisory") ? fullest.need : NOTHING;
-  const children = now.children?.map((child, index) => combine(child, projected.children![index]!, fullest.children![index]!, remaining.kind !== "none"));
-  return { name: shown.name, kind: now.kind, status, detail, citation: now.citation, remaining, ...(children ? { children } : {}) };
+  const combined = (child: Evaluation, index: number) => combine(child, projected.children![index]!, fullest.children![index]!, remaining.kind !== "none");
+  const common = { name: shown.name, status, detail, citation: now.citation, remaining };
+  if (now.kind === "choice") {
+    // Every layer evaluates the same node, so the layer shown is a choice too.
+    if (shown.kind !== "choice") throw new Error(`The audit's layers disagree on what kind of node "${now.name}" is.`);
+    return { ...common, kind: "choice", children: now.children.map(combined), shownBranch: shown.shownBranch };
+  }
+  return { ...common, kind: now.kind, ...(now.children ? { children: now.children.map(combined) } : {}) };
 }
 
 /** The finished courses a typed scope admits, each code once. */
@@ -700,12 +723,12 @@ function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied:
       return { ...base, status: hours >= p.hours ? "satisfied" : "unsatisfied", detail: `${hours} completed hours of ${p.hours}${note}` };
     }
     case "advancedHours": {
-      const { hours, unknown } = creditedHours(credited.filter((entry) => levelOf(entry.code) >= 3000));
+      const { hours, unknown } = creditedHours(credited.filter((entry) => isAdvanced(entry.code)));
       if (hours === null) return { ...base, detail: `${policy.quote} — credit hours unknown for ${unknown.join(", ")}; cannot verify.` };
       return { ...base, status: hours >= p.hours ? "satisfied" : "unsatisfied", detail: `${hours} advanced hours of ${p.hours}` };
     }
     case "advancedHoursAtUnt": {
-      const advanced = (p.courseScope ? evidenceInScope(p.courseScope, credited, applied) : credited).filter((entry) => levelOf(entry.code) >= 3000);
+      const advanced = (p.courseScope ? evidenceInScope(p.courseScope, credited, applied) : credited).filter((entry) => isAdvanced(entry.code));
       const atUnt = advanced.filter((entry) => entry.credit?.sourceKind === "unt");
       const elsewhere = advanced.length - atUnt.length;
       const { hours, unknown } = creditedHours(atUnt);
@@ -714,7 +737,7 @@ function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied:
       // candidates; an unclaimed advanced UNT course may be the elective that
       // closes the gap, so a short total cannot read unsatisfied then.
       const poolAtUnt = p.courseScope?.kind === "applied" && hours < p.hours
-        ? [...new Set(pools.flatMap(({ codes }) => codes))].filter((code) => credited.some((entry) => entry.code === code && entry.credit?.sourceKind === "unt" && levelOf(code) >= 3000))
+        ? [...new Set(pools.flatMap(({ codes }) => codes))].filter((code) => credited.some((entry) => entry.code === code && entry.credit?.sourceKind === "unt" && isAdvanced(code)))
         : [];
       if (poolAtUnt.length > 0) return { ...base, detail: `${hours} advanced UNT hours of ${p.hours} from courses the audit placed; ${poolAtUnt.join(", ")} may count as major electives too. Cannot verify.` };
       return {
@@ -792,6 +815,21 @@ function evaluatePolicyBeforeChoices(policy: PolicyNode, evidence: CourseEvidenc
   // move either way, so for a GPA only an unchanged reading is conclusive.
   if (widened.status === placed.status && policy.policy.type !== "gpa") return { ...placed, detail: counting };
   return { ...placed, status: "unverifiable", detail: `${counting} Cannot verify until a branch is met.` };
+}
+
+/** Treat current courses as credit for the audit's projected, in-progress layer. */
+function projectedEvidence(evidence: CourseEvidence[]): CourseEvidence[] {
+  return evidence.map((entry) => entry.credit || !entry.current ? entry : { ...entry, credit: entry.current });
+}
+
+/** Advanced hours use the same finished/projected distinction as requirement nodes. */
+function evaluatePolicyLayers(policy: PolicyNode, evidence: CourseEvidence[], now: ReturnType<typeof evaluateProgram>, projected: ReturnType<typeof evaluateProgram>, options: AuditOptions): PolicyOutcome {
+  const current = evaluatePolicyBeforeChoices(policy, evidence, now.used, now.partial, now.pools, options);
+  if (policy.policy.type !== "advancedHours" || current.status !== "unsatisfied") return current;
+  const later = evaluatePolicyBeforeChoices(policy, projectedEvidence(evidence), projected.used, projected.partial, projected.pools, options);
+  return later.status === "satisfied"
+    ? { ...current, status: "inProgress", detail: `${current.detail}. Counting in-progress courses: ${later.detail}` }
+    : current;
 }
 
 /**
@@ -918,7 +956,7 @@ export function auditProgram(program: ProgramData, courses: readonly (AuditCours
   // claimed from finished work, and the ones an unmet choice released.
   // Advisory pool matches are never claimed, and claims never reach a
   // policy: nothing verifies them.
-  const policies = policyNodes.map((node) => evaluatePolicyBeforeChoices(node, [...evidence.values()], now.used, now.partial, now.pools, options));
+  const policies = policyNodes.map((node) => evaluatePolicyLayers(node, [...evidence.values()], now, later, options));
 
   const count = (status: NodeOutcome["status"]): number => requirements.filter((result) => result.status === status).length;
   return {

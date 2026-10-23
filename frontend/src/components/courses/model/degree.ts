@@ -177,10 +177,16 @@ function neededCodes(outcomes: readonly NodeOutcome[], into = new Set<string>())
       case "parts":
         neededCodes(outcome.children ?? [], into);
         break;
-      case "branch":
-        // An undecided choice is an advisor's call: none of its branches is needed until it is settled.
-        if (outcome.status !== "advisory") neededCodes(outcome.children ?? [], into);
+      case "branch": {
+        // An undecided choice is an advisor's call. Once the audit has a
+        // leading branch, Auto follows that branch rather than mixing the
+        // remaining courses from every specialization.
+        if (outcome.status === "advisory") break;
+        const shown = outcome.kind === "choice" ? outcome.children[outcome.shownBranch] : undefined;
+        if (!shown) throw new Error(`The audit named no branch for the unmet choice "${outcome.name}".`);
+        neededCodes([shown], into);
         break;
+      }
       case "none":
       case "advisor":
         break;
@@ -375,6 +381,8 @@ function collectPolicies(result: AuditResult, walk: Walk): void {
     const key = `${result.programId}.policy.${index}`;
     if (policy.status === "unsatisfied") {
       walk.rows.push({ key, area: walk.area, name: inCredits(policy.name), status: "needed", fact: "Not met yet", left: NONE_LEFT, citation: policy.citation, source: { kind: "policy", detail: inCredits(policy.detail) } });
+    } else if (policy.status === "inProgress") {
+      walk.rows.push({ key, area: walk.area, name: inCredits(policy.name), status: "inProgress", fact: "Taking now", left: NONE_LEFT, citation: policy.citation, source: { kind: "policy", detail: inCredits(policy.detail) } });
     } else {
       walk.advisor.push({ key, area: walk.area, name: inCredits(policy.name), text: policy.detail, quote: false, candidates: [], askAbout: [], citation: policy.citation });
     }

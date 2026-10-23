@@ -171,6 +171,55 @@ for (const open of [true, false]) {
   });
 }
 
+describe("a copy that holds preferences (guest-sync.md: kept when signing in replaced them)", () => {
+  async function withPreferences() {
+    const { defaultSchedulePreferences } = await import("@/lib/planner");
+    const { createSavedPlanStore } = await import("@/lib/saved-plans/store");
+    const { rerender, main } = await page();
+    const own = defaultSchedulePreferences(main.optimization);
+    plannerValue.schedulePreferences = own;
+    plannerValue.setSchedulePreferences = (update: (current: typeof own) => typeof own) => {
+      plannerValue.schedulePreferences = update(plannerValue.schedulePreferences as typeof own);
+    };
+    // "Use these preferences" sets the goal through applySchedule, which moves no section (adopt.ts).
+    plannerValue.applySchedule = (_byCourse: Record<string, string>, goal?: PlannerState["optimization"] | null) => {
+      if (goal) plannerValue.plannerState = { ...(plannerValue.plannerState as PlannerState), optimization: goal };
+    };
+    const kept = { goal: "clusterNight" as const, constraints: { ...own.constraints, daysOff: ["Fri" as const] }, weights: own.weights };
+    expect(createSavedPlanStore().savePlan({ state: main, name: "From this browser, Oct 22", preferences: kept }).ok).toBe(true);
+    await rerender();
+    return { rerender, own, kept };
+  }
+  async function openMenu(name: string) {
+    const trigger = button(`More for ${name}`);
+    const { act } = await import("react");
+    await act(async () => trigger.focus());
+    await press(trigger, "Enter");
+    const menu = document.querySelector(`[role="menu"][aria-label="More for ${name}"]`)!;
+    return [...menu.querySelectorAll('[role="menuitem"]')].map((item) => item as HTMLElement);
+  }
+  const liveText = () => document.querySelector("[data-ui-live]")?.textContent;
+
+  test("its row offers Use these preferences, which replaces them with Undo", async () => {
+    const { own, kept } = await withPreferences();
+    const items = await openMenu("From this browser, Oct 22");
+    await click(items.find((item) => item.textContent === "Use these preferences")!);
+    expect(plannerValue.schedulePreferences).toEqual({ constraints: kept.constraints, weights: kept.weights });
+    expect((plannerValue.plannerState as PlannerState).optimization).toBe("clusterNight");
+    expect(liveText()).toBe("Now using the preferences from “From this browser, Oct 22”");
+    await click(button("Undo"));
+    expect(plannerValue.schedulePreferences).toEqual(own);
+    expect((plannerValue.plannerState as PlannerState).optimization).toBe("clusterMorning");
+    expect(liveText()).toBe("Your preferences are back to how they were");
+  });
+
+  test("a copy without preferences doesn't offer them", async () => {
+    await withPreferences();
+    const items = await openMenu("Saved copy");
+    expect(items.map((item) => item.textContent)).not.toContain("Use these preferences");
+  });
+});
+
 describe("naming a copy (PR #62 review: two rows called Main)", () => {
   const nameField = () => document.querySelector<HTMLInputElement>('[role="dialog"][data-state="open"] input')!;
   /** The naming dialog is open; a closing one stays mounted through its exit. */

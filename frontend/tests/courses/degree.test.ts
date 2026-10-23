@@ -5,12 +5,14 @@
  * the real course model and the real 2026-2027 data.
  */
 import { describe, expect, test } from "bun:test";
+import type { ChoiceNode } from "@untangle/core/degree/types";
 import { buildCourseModel } from "@/components/courses/model/course-model";
 import { checkDegree, withDegree, type AuditedDegree } from "@/components/courses/model/degree";
 import { buildGroups } from "@/components/courses/model/groups";
 import { leftHeadline, leftNotes } from "@/components/courses/model/left-copy";
 import { autoTransaction, nextTermSuggestions, planAuto, snapshotOf } from "@/components/courses/model/plan-edits";
 import { untProfile } from "@/components/courses/school";
+import { DEGREE_DATA } from "@/lib/degree/programs.generated";
 import { getMajorById } from "@/lib/planner";
 import type { PlannerState } from "@/lib/types";
 import { completedPlan, finalTerm, journeyTranscript, plannerWith, row } from "./degree-students";
@@ -191,17 +193,25 @@ describe("the final term: 105 credits finished, 15 in progress that print 0.000 
       "The 2026-2027 catalog asks 120 credits for Computer Science, BS.",
       "CSCE 4230, CSCE 4240, CSCE 4902 and PSCI 2305 count at catalog credits until grades post.",
       "UNTangle doesn't know the credits for AGER 2250, so fewer may be left.",
+      // Nothing is left as needed (below), so the advisor's list is all that stands before applying.
+      "Before you apply to graduate, go over the list below with an advisor.",
     ]);
   });
 
   test("what this term finishes reads in progress, not needed", () => {
-    // The audit's rules read finished courses only, so 39 of 42 advanced credits is not met until this term's grades post.
+    // With CSCE 4230 at catalog credits on edge, this term's courses reach the 42 advanced credits (#193).
     expect(rows(degree, "major")).toEqual([
-      ["Advanced credits: 42", "needed", "Not met yet"],
       ["Required courses", "inProgress", "Taking now"],
+      ["Advanced credits: 42", "inProgress", "Taking now"],
     ]);
     expect(rows(degree, "core")).toEqual([["Government/Political Science", "inProgress", "Taking now"]]);
     expect(degree.needed.size).toBe(0);
+  });
+
+  test("advanced credits are in progress when the known current courses reach 42", () => {
+    const known = finalTerm.filter((record) => record.code !== "CSCE 4230");
+    const { degree: partial } = degreeOf(plannerWith(known, "cs"));
+    expect(rows(partial, "major")).toContainEqual(["Advanced credits: 42", "inProgress", "Taking now"]);
   });
 
   test("with every in-progress course in the catalog, the figure is exact but approximate", () => {
@@ -288,5 +298,56 @@ describe("a major the audit does not cover", () => {
     expect(checkDegree(profile, snapshot, buildCourseModel(profile, snapshot), getMajorById("math")!)).toEqual({ kind: "unaudited" });
     expect(planAuto(profile, plan, getMajorById("math")!).outcome.planned).toEqual(["MATH 1720"]);
     expect(nextTermSuggestions(profile, plan)).toEqual(getMajorById("math")!.coreCourseCodes);
+  });
+});
+
+describe("Computer Engineering: Auto keeps one specialization", () => {
+  test("uses the catalog-first specialization when completed course counts tie", () => {
+    const plan = plannerWith([
+      row("CSCE 3444", "Spring 2026", "B", 3),
+      row("CSCE 3420", "Spring 2026", "B", 3),
+    ], "ce");
+    const ce = getMajorById("ce")!;
+    const planned = planAuto({ ...profile, autoCreditBudget: 120 }, plan, ce).outcome.planned;
+    expect(planned).not.toContain("CSCE 3530");
+    expect(planned).not.toContain("CSCE 3550");
+    expect(planned).not.toContain("CSCE 3610");
+  });
+
+  test("follows the specialization with more completed courses", () => {
+    const plan = plannerWith([
+      row("CSCE 3420", "Spring 2026", "B", 3),
+      row("CSCE 3530", "Spring 2026", "B", 3),
+      row("CSCE 3444", "Spring 2026", "B", 3),
+    ], "ce");
+    const planned = planAuto({ ...profile, autoCreditBudget: 120 }, plan, getMajorById("ce")!).outcome.planned;
+    expect(planned).not.toContain("CSCE 4440");
+    expect(planned).not.toContain("CSCE 4600");
+  });
+
+  test("keeps one specialization when a branch name contains the separator the choice's name uses", () => {
+    // The choice's display name is "<choice> — <branch>", so a branch named
+    // with " — " cannot be read back out of it. Rename the catalog-first
+    // branch for this test only and restore it after.
+    const choice = DEGREE_DATA.programs.find((program) => program.id === "ce-bs")!.requirements.find((node): node is ChoiceNode => node.kind === "choice")!;
+    const branch = choice.branches[0]!;
+    const { name, node } = branch;
+    expect(name).toBe("Real-Time and Embedded Systems");
+    const renamed = "Real-Time — Embedded Systems";
+    branch.name = renamed;
+    branch.node = { ...node, citation: { ...node.citation, heading: renamed } };
+    try {
+      const plan = plannerWith([
+        row("CSCE 3444", "Spring 2026", "B", 3),
+        row("CSCE 3420", "Spring 2026", "B", 3),
+      ], "ce");
+      const planned = planAuto({ ...profile, autoCreditBudget: 120 }, plan, getMajorById("ce")!).outcome.planned;
+      expect(planned).not.toContain("CSCE 3530");
+      expect(planned).not.toContain("CSCE 3550");
+      expect(planned).not.toContain("CSCE 3610");
+    } finally {
+      branch.name = name;
+      branch.node = node;
+    }
   });
 });

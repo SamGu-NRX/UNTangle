@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } fr
 import * as fixtures from "../../../packages/contracts/tests/fixtures";
 import { FakeDocumentServer, flushSaves, installDom, type PersistedDocumentStore, mountPlanner, removeDom, resetDocumentStore, setSession, waitFor } from "./test-dom";
 import { GUEST_ID_KEY, preferencesKey } from "@/components/schedule/preferences-store";
-import { guestWorkIsThisSession, stampGuestWork } from "@/lib/guest-session";
+import { GUEST_HANDOVER_MS, guestWorkIsThisSession, stampGuestWork, STAMP_PREFIX } from "@/lib/guest-session";
 import { defaultSchedulePreferences, getInitialPlannerState } from "@/lib/planner";
 import { createPlannerStateStore, PLANNER_STATE_STORE_KEY } from "@/lib/planner-store";
 import { createSavedPlanStore, SAVED_PLANS_STORE_KEY, setSavedPlanIdentity } from "@/lib/saved-plans/store";
@@ -221,6 +221,68 @@ describe("the academic record and preferences", () => {
   });
 });
 
+describe("guest preferences that signing in replaces are kept in Schedules", () => {
+  const defaults = defaultSchedulePreferences(initial.optimization);
+  const fridays = { ...defaults, constraints: { ...defaults.constraints, daysOff: ["Fri" as const] } };
+  const mornings = { ...defaults, constraints: { ...defaults.constraints, earliestStart: 600 } };
+  const keptDaysOff = () => library().map((entry) => entry.preferences?.constraints.daysOff ?? null);
+  const guestPrefsCleared = () => window.localStorage.getItem(preferencesKey({ kind: "guest", id: "guest-0001" })) === null;
+
+  const ways: Record<string, () => void> = {
+    "Save choices": () => button("Save choices").click(),
+    Escape: () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+    "the scrim": () => document.querySelector<HTMLElement>(".ui-dialog-scrim")!.click(),
+  };
+  for (const [way, close] of Object.entries(ways)) {
+    test(`keeping the account's set with ${way} saves this browser's set on a copy`, async () => {
+      server.seedPlan(user.id, initial, mornings);
+      guestLeft(null, fridays);
+      const planner = await signIn();
+      await waitFor(() => sheet() !== null, "asked");
+      expect(sheet()?.textContent).toContain("This browser's set is kept in Schedules if you don't choose it.");
+      await planner.run(close);
+      await waitFor(() => guestPrefsCleared() && planner.get().guestSignIn === null, "settled");
+      expect(planner.get().schedulePreferences.constraints.earliestStart).toBe(600);
+      expect(library().map((entry) => entry.name.startsWith("From this browser"))).toEqual([true]);
+      expect(keptDaysOff()).toEqual([["Fri"]]);
+    });
+  }
+
+  test("Undo after carrying preferences over saves this browser's set on a copy", async () => {
+    guestLeft(null, fridays);
+    const planner = await signIn();
+    await waitFor(() => toastText() === "Saved your preferences to your account", "carried");
+    await planner.run(() => button("Undo").click());
+    await waitFor(() => library().length === 1, "copy kept");
+    expect(keptDaysOff()).toEqual([["Fri"]]);
+    expect(planner.get().schedulePreferences.constraints.daysOff).toEqual([]);
+    const said = `Your account's preferences are back to how they were. This browser's are in Schedules as "${library()[0].name}"`;
+    await waitFor(() => toastText() === said, "the Undo toast names the copy");
+  });
+
+  test("Undo after carrying a schedule and preferences over keeps both on one copy", async () => {
+    guestLeft(plan(["CSCE 1040"]), fridays);
+    const planner = await signIn();
+    await waitFor(() => toastText() === "Saved your schedule and preferences to your account", "carried");
+    await planner.run(() => button("Undo").click());
+    await waitFor(() => library().length === 1, "copy kept");
+    expect(planned(library()[0].state, "CSCE 1040")).toBe(true);
+    expect(keptDaysOff()).toEqual([["Fri"]]);
+  });
+
+  test("choosing this browser's set keeps no preferences on the copy", async () => {
+    server.seedPlan(user.id, plan(["MATH 1720"]), mornings);
+    guestLeft(plan(["CSCE 1040"]), fridays);
+    const planner = await signIn();
+    await waitFor(() => sheet() !== null, "asked");
+    const guestSide = document.querySelectorAll<HTMLInputElement>(".sync-question input[type=radio]")[1];
+    await planner.run(() => guestSide.click());
+    await planner.run(() => button("Keep my saved schedule").click());
+    await waitFor(() => guestCleared() && planner.get().guestSignIn === null, "settled");
+    expect(library().map((entry) => [planned(entry.state, "CSCE 1040"), entry.preferences])).toEqual([[true, undefined]]);
+  });
+});
+
 test("guest library entries arrive with this session's plan, every field intact", async () => {
   guestLeft(plan(["CSCE 1040"]));
   const guestLibrary = createSavedPlanStore(window.localStorage, null);
@@ -262,6 +324,92 @@ test("an earlier visitor's guest work isn't carried into the next student's acco
   expect(server.putsStarted).toBe(0);
   expect(guestCleared()).toBe(false);
   expect(planned(planner.get().plannerState, "CSCE 1040")).toBe(false);
+});
+
+test("old stamped guest work asks before reading it, and Leave it here keeps every guest store untouched", async () => {
+  server.seedPlan(user.id, plan(["MATH 1720"]));
+  guestLeft(plan(["CSCE 1040"]));
+  const token = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("untangle_guest_session="))?.split("=")[1];
+  expect(token).toBeTruthy();
+  window.localStorage.setItem(`${STAMP_PREFIX}plan`, `${token}.${Date.now() - GUEST_HANDOVER_MS - 1}`);
+  const planner = await signIn();
+  await waitFor(() => sheet() !== null, "handover question");
+  expect(sheet()?.textContent).toContain("Bring this browser's guest work into your account?");
+  expect(sheet()?.textContent).toContain("Someone used UNTangle as a guest here");
+  expect(server.putsStarted).toBe(0);
+  expect(guestCleared()).toBe(false);
+  await planner.run(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+  await waitFor(() => sheet() === null, "handover dismissed");
+  expect(server.putsStarted).toBe(0);
+  expect(guestCleared()).toBe(false);
+  expect(window.localStorage.getItem(PLANNER_STATE_STORE_KEY)).not.toBeNull();
+});
+
+test("a token-only guest stamp asks and Bring it in continues the existing sign-in flow", async () => {
+  guestLeft(plan(["CSCE 1040"]));
+  const token = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("untangle_guest_session="))?.split("=")[1];
+  expect(token).toBeTruthy();
+  window.localStorage.setItem(`${STAMP_PREFIX}plan`, token!);
+  const planner = await signIn();
+  await waitFor(() => sheet() !== null, "handover question");
+  expect(sheet()?.textContent).toContain("at an unknown time");
+  await planner.run(() => button("Bring it in").click());
+  await waitFor(() => toastText() === "Saved your schedule to your account", "existing flow");
+  expect(planned(server.plan(user.id), "CSCE 1040")).toBe(true);
+});
+
+/** Stamps this browser session's guest plan as written longer ago than the handover window, so sign-in asks first. */
+function stampPlanOld() {
+  const token = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("untangle_guest_session="))?.split("=")[1];
+  expect(token).toBeTruthy();
+  window.localStorage.setItem(`${STAMP_PREFIX}plan`, `${token}.${Date.now() - GUEST_HANDOVER_MS - 1}`);
+}
+
+test("a guest stamp written after the current time (the clock was set back) asks at an unknown time", async () => {
+  guestLeft(plan(["CSCE 1040"]));
+  const token = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("untangle_guest_session="))?.split("=")[1];
+  expect(token).toBeTruthy();
+  window.localStorage.setItem(`${STAMP_PREFIX}plan`, `${token}.${Date.now() + 60 * 60 * 1000}`);
+  await signIn();
+  await waitFor(() => sheet() !== null, "handover question");
+  expect(sheet()?.textContent).toContain("at an unknown time");
+  expect(server.putsStarted).toBe(0);
+  expect(guestCleared()).toBe(false);
+});
+
+test("two signed-in tabs: bringing old guest work in from one closes the other's handover question", async () => {
+  guestLeft(plan(["CSCE 1040"]));
+  stampPlanOld();
+  const first = await signIn();
+  const second = await mountPlanner();
+  mounted.push(second.unmount);
+  await waitFor(() => first.get().guestHandover !== null && second.get().guestHandover !== null, "asked in both tabs");
+  // A storage change that leaves the old stamp in place keeps the question open.
+  await second.run(() => window.dispatchEvent(new window.StorageEvent("storage", { key: PLANNER_STATE_STORE_KEY })));
+  expect(second.get().guestHandover).not.toBeNull();
+  await first.run((p) => p.settleGuestHandover("bring"));
+  await waitFor(() => guestCleared() && planned(server.plan(user.id), "CSCE 1040"), "first tab brought it in");
+  await second.run(() => window.dispatchEvent(new window.StorageEvent("storage", { key: `${STAMP_PREFIX}plan` })));
+  await waitFor(() => second.get().guestHandover === null, "second tab's question closed");
+});
+
+test("leaving old guest work still applies account-kept browser settings", async () => {
+  const defaults = defaultSchedulePreferences(initial.optimization);
+  const fridays = { ...defaults, constraints: { ...defaults.constraints, daysOff: ["Fri" as const] } };
+  window.localStorage.setItem(preferencesKey({ kind: "user", id: user.id }), JSON.stringify({ revision: 1, preferences: fridays }));
+  guestLeft(plan(["CSCE 1040"]));
+  const token = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("untangle_guest_session="))?.split("=")[1];
+  expect(token).toBeTruthy();
+  window.localStorage.setItem(`${STAMP_PREFIX}plan`, `${token}.${Date.now() - GUEST_HANDOVER_MS - 1}`);
+  const planner = await signIn();
+  await waitFor(() => sheet() !== null, "handover question");
+  await planner.run(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+  await waitFor(
+    () => (server.document(user.id, "preferences-unt")?.body as SchedulePreferences | undefined)?.constraints.daysOff[0] === "Fri",
+    "account-kept settings applied",
+  );
+  expect(window.localStorage.getItem(PLANNER_STATE_STORE_KEY)).not.toBeNull();
+  expect(planned(server.plan(user.id), "CSCE 1040")).toBe(false);
 });
 
 test("a guest's own edits in this browser session are carried in on sign-in", async () => {
