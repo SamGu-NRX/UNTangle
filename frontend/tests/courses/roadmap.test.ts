@@ -84,7 +84,8 @@ function violations(roadmap: Roadmap, programs: readonly ProgramData[], record: 
       if (!holds(ruleOf(course.code), before, sameTerm, earned)) problems.push(`${course.code} is in ${label} before its prerequisites`);
     }
     for (const code of sameTerm) before.add(code);
-    earned += entry.credits;
+    // The app counts full terms toward standing (buildRoadmap), so the check does too.
+    earned += Math.max(entry.credits, limit);
   }
   for (const course of roadmap.unplaced) if (seen.has(course.code)) problems.push(`${course.code} is both placed and unplaced`);
   const accounted = [...seen, ...roadmap.unplaced.map((course) => course.code)].sort();
@@ -113,7 +114,7 @@ describe("every major on alpha", () => {
     for (const [recordName, record] of Object.entries(RECORDS)) {
       for (const limit of CREDIT_LIMITS) {
         test(`${program.id}, ${recordName} record, ${limit} credits: a valid roadmap`, () => {
-          const input = { programs: [program, core], record, catalog: planCatalog(profile), start: START, creditLimit: limit };
+          const input = { programs: [program, core], record, catalog: planCatalog(profile), start: START, creditLimit: limit, fullTermsForStanding: true };
           const roadmap = planRoadmap(input);
           expect(violations(roadmap, input.programs, record, limit)).toEqual([]);
           // Most of each degree is placeable from UNTangle's catalog.
@@ -126,7 +127,7 @@ describe("every major on alpha", () => {
 
   test("the check above catches a roadmap out of order, over its limit, or hiding an open requirement", () => {
     const programs = [majors[0]!, core];
-    const roadmap = planRoadmap({ programs, record: RECORDS.empty, catalog: planCatalog(profile), start: START, creditLimit: 15 });
+    const roadmap = planRoadmap({ programs, record: RECORDS.empty, catalog: planCatalog(profile), start: START, creditLimit: 15, fullTermsForStanding: true });
     expect(violations({ ...roadmap, terms: [...roadmap.terms].reverse() }, programs, RECORDS.empty, 15).some((line) => line.includes("before its prerequisites"))).toBe(true);
     expect(violations(roadmap, programs, RECORDS.empty, 12).some((line) => line.includes("over 12"))).toBe(true);
     expect(roadmap.open.length).toBeGreaterThan(0);
@@ -135,7 +136,7 @@ describe("every major on alpha", () => {
 
   test("a lower limit never finishes sooner", () => {
     for (const program of majors) {
-      const lengths = CREDIT_LIMITS.map((limit) => planRoadmap({ programs: [program, core], record: RECORDS.empty, catalog: planCatalog(profile), start: START, creditLimit: limit }).terms.length);
+      const lengths = CREDIT_LIMITS.map((limit) => planRoadmap({ programs: [program, core], record: RECORDS.empty, catalog: planCatalog(profile), start: START, creditLimit: limit, fullTermsForStanding: true }).terms.length);
       expect(lengths).toEqual([...lengths].sort((a, b) => b - a));
     }
   });
@@ -153,6 +154,10 @@ describe("buildRoadmap", () => {
     expect(first).toEqual(["CSCE 2100", "CSCE 2110"]);
     const placed = roadmap.terms.flatMap((entry) => entry.courses.map((course) => course.code));
     for (const code of ["MATH 1710", "ENGL 1310", "CSCE 1040", "ENGL 1320"]) expect(placed).not.toContain(code);
+    // Senior standing comes from full terms, so the capstone pair goes in, the second right after the first.
+    const termOf = (code: string) => roadmap.terms.findIndex((entry) => entry.courses.some((course) => course.code === code));
+    expect(termOf("CSCE 4901")).toBeGreaterThan(0);
+    expect(termOf("CSCE 4902")).toBe(termOf("CSCE 4901") + 1);
   });
 
   test("a term label the roadmap can't read fails loudly", () => {

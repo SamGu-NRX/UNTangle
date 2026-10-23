@@ -214,6 +214,28 @@ describe("the credit limit", () => {
     expect(layout(roadmap)).toEqual(["spring 2027: A 1000", "fall 2027: B 1000", "spring 2028: S 4000"]);
   });
 
+  test("with full terms counted, standing grows by the limit each term, electives filling the rest", () => {
+    const input = {
+      programs: [program([all("Major", "A 1000", "S 4000")])],
+      catalog: catalogOf(course("A 1000"), course("S 4000", { kind: "credits", min: 30 })),
+      creditLimit: 15,
+    };
+    // Named courses alone reach 3 credits, so S 4000 never goes in.
+    expect(plan(input).unplaced.map((entry) => entry.reason)).toEqual([{ kind: "standing", credits: 30, reaches: 3 }]);
+    // Counted as full, spring and fall make 30 by the next spring, with the empty fall kept between.
+    expect(layout(plan({ ...input, fullTermsForStanding: true }))).toEqual(["spring 2027: A 1000", "fall 2027: ", "spring 2028: S 4000"]);
+  });
+
+  test("with full terms counted, a course waiting on standing outlasts a turn of empty terms", () => {
+    const roadmap = plan({
+      programs: [program([all("Major", "S 4000")])],
+      catalog: catalogOf(course("S 4000", { kind: "credits", min: 60 })),
+      fullTermsForStanding: true,
+    });
+    // 15 a term: 60 earned after four terms, so the fifth takes it.
+    expect(layout(roadmap)).toEqual(["spring 2027: ", "fall 2027: ", "spring 2028: ", "fall 2028: ", "spring 2029: S 4000"]);
+  });
+
   test("standing the roadmap never reaches is reported with what it does reach", () => {
     const roadmap = plan({
       programs: [program([all("Major", "A 1000", "S 4000")])],

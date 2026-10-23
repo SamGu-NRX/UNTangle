@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { CONNECT_PATH, OPEN_CONNECT_EVENT } from "@/components/connect/open-connect";
 import { usePlanner } from "@/components/planner-provider";
 import { asksForMajor, LENS_HREF } from "@/components/shell/routes";
@@ -32,6 +32,8 @@ import { creditProgress, creditsLabel, DEGREE_CREDITS } from "./model/progress";
 import { sampleTranscript } from "./model/sample-transcript";
 import { instructorIndex, searchCatalog } from "./model/search";
 import { RequirementDetail, type LeftItem } from "./RequirementDetail";
+import { Roadmap, type RoadmapState } from "./Roadmap";
+import { buildRoadmap, planCatalog, roadmapNote, type CreditLimit } from "./model/roadmap";
 import { AUTO_TIMELINE, fadeIn, flip, fly, measure, MOVE, reducedMotion, wait, type Rects } from "./reveal";
 import { untProfile } from "./school";
 import { TermTray } from "./TermTray";
@@ -114,6 +116,41 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
     return next;
   }, [trayRows]);
   const credits = creditProgress(model, transcriptRecords, profile);
+
+  // The roadmap is built only while its group is open, from deferred inputs, so a tray edit or a
+  // limit press answers at once and the roadmap follows (planRoadmap takes 20 to 100ms here).
+  const [roadmapOpen, setRoadmapOpen] = useState(false);
+  // Starts at the profile's pace (school.ts): 15, the common four-year load. No data on what students choose.
+  const [creditLimit, setCreditLimit] = useState<CreditLimit>(15);
+  const trayKey = trayRows.map((row) => row.id).join("\n");
+  const roadmapInput = {
+    statuses: useDeferredValue(courseStatuses),
+    transcript: useDeferredValue(transcriptRecords),
+    manualCredit: useDeferredValue(coursePlan.manualCredit.join("\n")),
+    tray: useDeferredValue(trayKey),
+    limit: useDeferredValue(creditLimit),
+  };
+  const roadmapStale =
+    roadmapInput.statuses !== courseStatuses || roadmapInput.transcript !== transcriptRecords || roadmapInput.tray !== trayKey || roadmapInput.limit !== creditLimit;
+  const majorId = major?.id ?? null;
+  const roadmapState = useMemo<RoadmapState>(() => {
+    if (!roadmapOpen || !majorId || degree.kind !== "audited") return { kind: "closed" };
+    const plan = {
+      statuses: roadmapInput.statuses,
+      transcript: roadmapInput.transcript,
+      manualCredit: new Set(roadmapInput.manualCredit ? roadmapInput.manualCredit.split("\n") : []),
+      planned: new Set(roadmapInput.tray ? roadmapInput.tray.split("\n") : []),
+    };
+    try {
+      const roadmap = buildRoadmap(profile, plan, { id: majorId }, roadmapInput.limit);
+      return roadmap ? { kind: "ready", roadmap } : { kind: "closed" };
+    } catch (error) {
+      // planRoadmap fails loudly on data it can't read; the group says so and the rest of Courses still works.
+      return { kind: "error", message: error instanceof Error ? error.message : String(error) };
+    }
+  }, [profile, roadmapOpen, majorId, degree.kind, roadmapInput.statuses, roadmapInput.transcript, roadmapInput.manualCredit, roadmapInput.tray, roadmapInput.limit]);
+  // The row that opened the detail. With the roadmap open a course can show twice, so focus returns to the one pressed.
+  const opener = useRef<HTMLElement | null>(null);
 
   const [open, setOpen] = useState(OPEN_AT_START);
   // What's left opens by width until the student toggles a group (leftOpenAtStart).
@@ -466,6 +503,8 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
   const openCourse = useCallback(
     (id: string) => {
       if (!model.rows.has(id)) return;
+      // Opened from anywhere but a roadmap row (which sets it after this), focus returns the usual way.
+      opener.current = null;
       setDetailId(id);
       setDetailOpen(true);
     },
@@ -533,6 +572,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
     event.preventDefault();
     next.focus();
     next.scrollIntoView({ block: "nearest" });
+    opener.current = next;
     if (detailOpen) setDetailId(next.dataset.rowOpen!);
   };
 
@@ -675,6 +715,28 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
                 onOpen={openRequirement}
               />
             ) : null}
+            {audited ? (
+              <Roadmap
+                state={roadmapState}
+                open={roadmapOpen}
+                onToggle={() => setRoadmapOpen((value) => !value)}
+                limit={creditLimit}
+                onLimitChange={setCreditLimit}
+                stale={roadmapStale}
+                titleOf={(code) => model.rows.get(code)?.title ?? profile.entries.get(code)?.title ?? null}
+                canOpen={(code) => model.rows.has(code)}
+                canOpenRequirement={(key) => audited.areas.some((area) => area.requirements.some((entry) => entry.key === key)) || audited.advisor.some((entry) => entry.key === key)}
+                onOpen={(code, element) => {
+                  openCourse(code);
+                  opener.current = element;
+                }}
+                onOpenRequirement={(key) => {
+                  opener.current = null;
+                  openRequirement(key);
+                }}
+                selectedId={detailOpen ? detailId : null}
+              />
+            ) : null}
             <CourseGroups
               groups={groups}
               model={model}
@@ -722,11 +784,12 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
           ) : undefined
         }
         // The selected row, or the degree line when that row is not on the page (a searched course, a closed group).
-        returnFocus={() =>
-          (detailId ? pageRef.current?.querySelector<HTMLElement>(`[data-row-open="${CSS.escape(detailId)}"]`) : null) ??
-          pageRef.current?.querySelector<HTMLElement>("[data-degree]") ??
-          null
-        }
+        returnFocus={() => {
+          const pressed = opener.current;
+          if (pressed?.isConnected && pressed.dataset.rowOpen === detailId) return pressed;
+          const rows = detailId ? [...(pageRef.current?.querySelectorAll<HTMLElement>(`[data-row-open="${CSS.escape(detailId)}"]`) ?? [])] : [];
+          return rows.find((row) => !row.closest("#roadmap-body")) ?? rows[0] ?? pageRef.current?.querySelector<HTMLElement>("[data-degree]") ?? null;
+        }}
       >
         {detailRow ? (
           <CourseDetail
@@ -739,6 +802,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
             chosenSectionId={plannerState.selectedSections[detailRow.id]}
             initialInstructor={instructorForDetail}
             degreeNote={degreeNote(detailRow, audited, coreSet)}
+            roadmapNote={roadmapState.kind === "ready" ? roadmapNote(detailRow.id, roadmapState.roadmap, planCatalog(profile)) : null}
             actions={detailActions}
             planLoaded={hydrated}
           />

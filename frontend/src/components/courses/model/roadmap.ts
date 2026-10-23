@@ -82,6 +82,8 @@ export function buildRoadmap(profile: SchoolProfile, plan: Pick<PlanSnapshot, "s
     start: parseTerm(profile.planningTerm),
     creditLimit,
     pinned: [...plan.planned].sort(),
+    // Spare credits in a term go to the electives the 120-credit total still needs, so standing counts full terms.
+    fullTermsForStanding: true,
   });
 }
 

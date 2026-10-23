@@ -35,6 +35,8 @@ type Props = {
   initialInstructor: string | null;
   /** How the degree treats this course, in one sentence ("Your degree still needs this course."), or null. */
   degreeNote: string | null;
+  /** Where the roadmap put this course and why, while the roadmap is open; null otherwise. */
+  roadmapNote?: string | null;
   actions: DetailActions;
   /**
    * False until the planner has read the student's saved plan. Until then the
@@ -73,7 +75,7 @@ const stateOfRow = (row: CourseRowModel): StopState => (row.status === "done" ||
  * against the student's record, sections against their week, grade history
  * and the description.
  */
-export function CourseDetail({ row, model, profile, options, placed, chosenSectionId, initialInstructor, degreeNote, actions, planLoaded }: Props) {
+export function CourseDetail({ row, model, profile, options, placed, chosenSectionId, initialInstructor, degreeNote, roadmapNote = null, actions, planLoaded }: Props) {
   const term = profile.planningTerm;
   const { view, retry } = useGradeHistory(profile, row.id);
   const slices = useMemo(() => slicesByInstructor(view), [view]);
@@ -107,7 +109,7 @@ export function CourseDetail({ row, model, profile, options, placed, chosenSecti
           <DetailActionsPart row={row} term={term} actions={actions} />
           <section className={styles.dsec} aria-labelledby="detail-path">
             <h3 id="detail-path">Path</h3>
-            <PathPart row={row} model={model} dependents={profile.dependents(row.id)} degreeNote={degreeNote} />
+            <PathPart row={row} model={model} dependents={profile.dependents(row.id)} degreeNote={degreeNote} roadmapNote={roadmapNote} />
           </section>
           <section className={styles.dsec} aria-labelledby="detail-sections">
             <h3 id="detail-sections">Sections</h3>
@@ -197,7 +199,7 @@ function DetailActionsPart({ row, term, actions }: { row: CourseRowModel; term: 
   );
 }
 
-function PathPart({ row, model, dependents, degreeNote }: { row: CourseRowModel; model: CourseModel; dependents: readonly string[]; degreeNote: string | null }) {
+function PathPart({ row, model, dependents, degreeNote, roadmapNote }: { row: CourseRowModel; model: CourseModel; dependents: readonly string[]; degreeNote: string | null; roadmapNote: string | null }) {
   // The path draws at most four stops, so it fits a 360px screen: up to two requirements
   // (the catalog rule below names them all), this course, and as many unlocks as fit, at most two.
   const requirements = pathStops(row.rule, model.rows).slice(0, 2);
@@ -306,6 +308,7 @@ function PathPart({ row, model, dependents, degreeNote }: { row: CourseRowModel;
         </p>
       ) : null}
       {degreeNote ? <p className={styles.rule}>{degreeNote}</p> : null}
+      {roadmapNote ? <p className={styles.rule}>{roadmapNote}</p> : null}
     </>
   );
 }

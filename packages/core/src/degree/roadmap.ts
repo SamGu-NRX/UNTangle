@@ -76,6 +76,15 @@ export type RoadmapInput = {
   readonly pinned?: readonly string[];
   /** The most terms the roadmap lays out; 16 unless given. */
   readonly maxTerms?: number;
+  /**
+   * Count every term as holding `creditLimit` credits toward standing,
+   * though the roadmap names fewer. The roadmap holds only the courses
+   * requirements name; a student fills the rest of a term with electives
+   * the degree's total still needs, so without this senior standing (90)
+   * can sit out of reach of a 120-credit degree's named courses. Off unless
+   * given.
+   */
+  readonly fullTermsForStanding?: boolean;
 };
 
 /** Why a course is on the roadmap. */
@@ -746,10 +755,17 @@ export function planRoadmap(input: RoadmapInput): Roadmap {
       placedBefore.add(code);
       placedOnRoadmap.add(code);
     }
-    earned += credits;
+    earned += input.fullTermsForStanding ? Math.max(credits, input.creditLimit) : credits;
     idle = now.size === 0 ? idle + 1 : 0;
-    // A full turn of seasons with nothing placed: nothing will change, so stop.
-    if (idle >= new Set(seasons).size) break;
+    // A full turn of seasons with nothing placed: nothing will change, so stop. Unless full terms count
+    // toward standing and a course waits on standing alone, or standing has just let it in: each term
+    // brings it closer (maxTerms still bounds it).
+    const waitsOnStanding = () =>
+      [...pending].some((code) => {
+        const found = blockers(rule(code), placedBefore, earned, planned);
+        return found === null || (found.credits !== null && found.first.size === 0 && found.alongside.size === 0);
+      });
+    if (idle >= new Set(seasons).size && !(input.fullTermsForStanding && waitsOnStanding())) break;
     term = nextTerm(term, seasons);
   }
   while (terms.length > 0 && terms[terms.length - 1]!.courses.length === 0) terms.pop();

@@ -180,6 +180,142 @@
   -webkit-line-clamp: 1;
 }
 
+/* ───────── Roadmap ───────── */
+
+/*
+ * Every term to the end of the degree, under the What's left groups: term
+ * subheads with their credits, a 2px line filling toward the credit limit,
+ * and the course rows, all on the page ground (rule 9). Text starts where
+ * the rows' codes do: 12px row padding, 18px glyph, 12px gap.
+ */
+.roadmapBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 12px 0 42px;
+}
+.roadmapLead {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+}
+.roadmapLimit {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+.roadmapLimitLabel {
+  font-size: 13px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.roadmapWait,
+.roadmapError,
+.roadmapEmpty,
+.roadmapNote,
+.termEmpty {
+  max-width: 62ch;
+  margin: 10px 12px 0 42px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+/* A replan under 400ms never shows this line (copy.md, "Loading"); opacity only. */
+.roadmapWait {
+  opacity: 0;
+  animation: roadmap-wait-in 150ms var(--ease-out) 400ms forwards;
+}
+@keyframes roadmap-wait-in {
+  to {
+    opacity: 1;
+  }
+}
+.roadmapError {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--danger);
+}
+.roadmapEmpty {
+  font-size: 14px;
+  line-height: 20px;
+}
+.roadmapNote {
+  margin-top: 16px;
+}
+.terms {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.term {
+  margin-top: 18px;
+  list-style: none;
+}
+.termHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 0 12px 0 42px;
+  font: 650 14px/20px var(--font-ui);
+  color: var(--ink);
+}
+.termCredits {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.termCredits[data-tone="attention"] {
+  color: var(--attention);
+}
+/* How full the term is against the limit, ending where the row hairlines do. The fill is a transform, so it can follow a limit change. */
+.termLoad {
+  position: relative;
+  display: block;
+  height: 2px;
+  margin: 6px 8px 2px 42px;
+  overflow: hidden;
+  border-radius: 1px;
+  background: var(--line);
+}
+.termLoad i {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--brand-2);
+  transform: scaleX(var(--load));
+  transform-origin: left center;
+}
+.termLoad[data-over] i {
+  background: var(--attention);
+}
+/* Only while the courses move to a pointer's new limit: the same 300ms as their FLIP (MOTION.md §7). */
+.roadmap[data-moving] .termLoad i {
+  transition: transform var(--t-move) var(--ease-in-out);
+}
+/* A roadmap row has no action column: the code, title and one fact fill it. */
+.row[data-kind="roadmap"] {
+  grid-template-columns: minmax(0, 1fr);
+  padding-right: 12px;
+}
+.row[data-kind="roadmap"] > .rowOpen {
+  padding-right: 0;
+}
+/* A row with no detail to open (no catalog data) reads as text, not a target. */
+:is(.rowOpen, .reqOpen)[data-static] {
+  cursor: default;
+}
+
 /* The requirement detail (panel on desktop, sheet on phone). */
 .reqLead {
   margin: 0 0 6px;
@@ -608,6 +744,9 @@
   }
   .row[data-selected]:hover {
     background: var(--brand-soft);
+  }
+  .row:has(> [data-static]):hover {
+    background: transparent;
   }
   .act:hover {
     background: var(--brand-soft);
@@ -1476,5 +1615,33 @@
     justify-self: end;
     white-space: normal;
     text-align: right;
+  }
+  /* The limit goes under the sentence, so neither wraps beside the other. Text starts at the codes' 40px. */
+  .roadmapBar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 6px 10px 0 40px;
+  }
+  .roadmapLimit {
+    justify-content: space-between;
+  }
+  .roadmapWait,
+  .roadmapError,
+  .roadmapEmpty,
+  .roadmapNote,
+  .termEmpty {
+    margin-left: 40px;
+    margin-right: 10px;
+  }
+  .termHead {
+    padding: 0 10px 0 40px;
+    font-size: 15px;
+  }
+  .termLoad {
+    margin: 6px 8px 2px 40px;
+  }
+  .row[data-kind="roadmap"] {
+    padding-right: 10px;
   }
 }
