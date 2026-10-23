@@ -19,7 +19,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { diffReleases, sanityCheck, type ReleaseDiff, type SanityResult } from "./compare";
 import { emptyMirrorState, Mirror, type FetchLike, type FetchOutcome, type MirrorState } from "./mirror";
-import { localSink, type ReleaseSink } from "./publish";
+import { localSink, type ReleasePointer, type ReleaseSink } from "./publish";
 import { buildSectionRelease, type ReleaseManifest } from "../section-release";
 import type { ReviewedSourcePolicy } from "../source-policies";
 import { termWatchReport, type TermWatchReport } from "./term-watch";
@@ -95,6 +95,8 @@ export async function runReleaseJob(input: RunReleaseJobOptions): Promise<JobRep
     now: options.now,
     state,
   });
+  const pointer = await sink.readPointer(options.termId);
+  const publishedSubjects = pointer === null ? null : await readOverlaySubjects(outDir, pointer.contentSha256);
   // A 304 is only usable with the body it confirms. A cached body counts only
   // when the validators stored with it are the ones the state will send; any
   // other file the job needs is fetched without validators, so the mirror
@@ -102,7 +104,8 @@ export async function runReleaseJob(input: RunReleaseJobOptions): Promise<JobRep
   // validators, and a failed write can leave an older body, so the two are
   // compared rather than trusted.
   const cached = new Map<string, string>();
-  const urls = [mirror.urlFor(options.termId), ...options.subjects.map(subject => mirror.urlFor(options.termId, subject))];
+  const fetchSubjects = canonicalSubjects([...options.subjects, ...(publishedSubjects ?? [])]);
+  const urls = [mirror.urlFor(options.termId), ...fetchSubjects.map(subject => mirror.urlFor(options.termId, subject))];
   for (const url of urls) {
     const file = state.files[url];
     if (file === undefined) continue;
@@ -113,13 +116,13 @@ export async function runReleaseJob(input: RunReleaseJobOptions): Promise<JobRep
   // Every exit saves the request log and validators, including refusals,
   // errors and the watch's requests, so the next run honors the policy.
   try {
-    return await runWithMirror(options, mirror, sink, cached);
+    return await runWithMirror(options, mirror, sink, cached, pointer, publishedSubjects);
   } finally {
     if (!dryRun) await saveMirrorState(outDir, mirror.state);
   }
 }
 
-async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink: ReleaseSink, cached: Map<string, string>): Promise<JobReport> {
+async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink: ReleaseSink, cached: Map<string, string>, pointer: ReleasePointer | null, publishedSubjects: string[] | null): Promise<JobReport> {
   const now = options.now ?? Date.now;
   const { termId, outDir } = options;
   const dryRun = options.dryRun === true;
@@ -179,7 +182,7 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
     return { termId, outcome: "error", reason: "absent-upstream", detail: `the mirror has no file for ${termId}`, fetched, subjects: subjectReports, termWatch: [], wrote: false };
   }
   const subjects = options.subjects ?? [];
-  const pointer = await sink.readPointer(termId);
+  const fetchSubjects = canonicalSubjects([...subjects, ...(publishedSubjects ?? [])]);
 
   // 2. Subject overlays, then build. A 304 builds from the cached term body:
   //    it confirms that body, not that it was published, since a publish can
@@ -194,8 +197,8 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
   let body = termBody;
   const overlays: Array<{ subject: string; body: string }> = [];
   const unavailable: string[] = [];
-  if (subjects.length) {
-    const requests = subjects.map(subject => ({ term: termId, subject }));
+  if (fetchSubjects.length) {
+    const requests = fetchSubjects.map(subject => ({ term: termId, subject }));
     const outcomes = await mirror.fetchFiles(requests);
     for (const { request, url, outcome } of outcomes) {
       record(url, outcome);
@@ -209,36 +212,29 @@ async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink
       }
       const check = checkSubjectFile(subjectBody, termId, subject);
       if (!check.ok) {
+        // A subject the published release carries can't be dropped by a bad
+        // response: publishing without it would replace its slice with the
+        // term file's, which may be older. A 404 above is different: upstream
+        // removed the file, so the term file is the only source left.
+        if (publishedSubjects?.includes(subject)) unavailable.push(subject);
         subjectReports.push({ subject, applied: false, detail: check.detail });
         continue;
       }
-      subjectReports.push({ subject, applied: true, ...(notAsked ? { detail: `from the cached body; the fetch was ${outcome.kind}` } : {}) });
+      const recorded = publishedSubjects?.includes(subject) === true && !subjects.includes(subject);
+      const detail = notAsked
+        ? `from the cached body; the fetch was ${outcome.kind}`
+        : outcome.kind === "not-modified" && recorded
+          ? "kept from the published release, confirmed unchanged"
+          : undefined;
+      subjectReports.push({ subject, applied: true, ...(detail ? { detail } : {}) });
       overlays.push({ subject, body: subjectBody });
     }
   }
-  // An unchanged term file's slices are no fresher than the subject files
-  // the published release was built with, so a 304 rebuild keeps those it
-  // was not asked for, from their cached bodies. One it cannot reapply
-  // stops the run, so it never publishes an older slice. A release with no
-  // record (published before records existed) may carry any overlay, even
-  // one the run did not request, so step 3 publishes nothing over it.
-  let overlayUnknown = false;
-  if (termOutcome.kind === "not-modified" && pointer !== null) {
-    const published = await readOverlaySubjects(outDir, pointer.contentSha256);
-    overlayUnknown = published === null;
-    for (const subject of published ?? []) {
-      if (subjects.includes(subject)) continue;
-      const entry = await readCachedBody(outDir, mirror.urlFor(termId, subject));
-      const check = entry === null ? null : checkSubjectFile(entry.body, termId, subject);
-      if (entry === null || !check?.ok) {
-        unavailable.push(subject);
-        subjectReports.push({ subject, applied: false, detail: `in the published release, but ${check && !check.ok ? check.detail : "no cached body"}` });
-        continue;
-      }
-      subjectReports.push({ subject, applied: true, detail: "kept from the published release, from the cached body" });
-      overlays.push({ subject, body: entry.body });
-    }
-  }
+  // A release with no record (published before records existed) may carry any
+  // overlay, even one the run did not request. On a 304, step 3 therefore
+  // publishes nothing over it unless the candidate is a recorded pending
+  // release from an earlier 200 run.
+  const overlayUnknown = termOutcome.kind === "not-modified" && pointer !== null && publishedSubjects === null;
   if (unavailable.length) {
     return { termId, outcome: "error", reason: "subject-unavailable", detail: `${unavailable.join(", ")}: no body to apply; the published release stays`, fetched, subjects: subjectReports, termWatch: await runWatch(), wrote: false };
   }
