@@ -4,7 +4,8 @@
  * sentences that explain where each course went.
  *
  * The catalog the planner reads is the prerequisite engine's, translated:
- * a grade minimum becomes its course (the roadmap assumes a pass), a
+ * a grade minimum stays on each course it covers (a D on the record
+ * doesn't meet "C or better", so the roadmap plans the retake), a
  * corequisite becomes "this term or earlier", standing becomes earned
  * credits through the school's own table, and consent or text the parser
  * couldn't read becomes an advisor check that doesn't block placing.
@@ -26,6 +27,26 @@ import { auditCourses, degreePrograms } from "./degree";
 export const CREDIT_LIMITS = [12, 15, 18] as const;
 export type CreditLimit = (typeof CREDIT_LIMITS)[number];
 
+/** `rule` with `grade` as the minimum on every course it names; where a course already has one, the stricter stays. */
+function withMinimum(rule: Requires, grade: string, adapter: SchoolAdapter): Requires {
+  switch (rule.kind) {
+    case "course": {
+      const inner = rule.minGrade;
+      // The outer minimum is the stricter when a grade at it would meet the inner one.
+      const stricter = inner === undefined || adapter.meetsMinimumGrade(grade, inner) === true ? grade : inner;
+      return { ...rule, minGrade: stricter };
+    }
+    case "and":
+    case "or":
+      return { kind: rule.kind, children: rule.children.map((child) => withMinimum(child, grade, adapter)) };
+    case "concurrent":
+      return { kind: "concurrent", requirement: withMinimum(rule.requirement, grade, adapter) };
+    case "credits":
+    case "check":
+      return rule;
+  }
+}
+
 export function requiresOf(node: Prerequisite, adapter: SchoolAdapter): Requires {
   const check = (): Requires => ({ kind: "check", text: node.source.trim() });
   switch (node.kind) {
@@ -35,7 +56,7 @@ export function requiresOf(node: Prerequisite, adapter: SchoolAdapter): Requires
     case "or":
       return { kind: node.kind, children: node.children.map((child) => requiresOf(child, adapter)) };
     case "minGrade":
-      return requiresOf(node.requirement, adapter);
+      return withMinimum(requiresOf(node.requirement, adapter), node.grade, adapter);
     case "corequisite":
       return { kind: "concurrent", requirement: requiresOf(node.requirement, adapter) };
     case "standing": {
@@ -70,9 +91,18 @@ export function parseTerm(label: string): Term {
 
 /**
  * The roadmap for a plan, starting with the planning term, whose tray
- * courses stay in it. Null for a major the degree audit doesn't cover.
+ * courses stay in it. `waivers` are the degree check's: courses the record
+ * covers that the degree still lists, which Courses sends to an advisor, so
+ * the roadmap holds them out of every term too. Null for a major the degree
+ * audit doesn't cover.
  */
-export function buildRoadmap(profile: SchoolProfile, plan: Pick<PlanSnapshot, "statuses" | "transcript" | "manualCredit" | "planned">, major: Pick<Major, "id">, creditLimit: number): Roadmap | null {
+export function buildRoadmap(
+  profile: SchoolProfile,
+  plan: Pick<PlanSnapshot, "statuses" | "transcript" | "manualCredit" | "planned">,
+  major: Pick<Major, "id">,
+  creditLimit: number,
+  waivers: ReadonlyMap<string, string> = new Map(),
+): Roadmap | null {
   const programs = degreePrograms(major);
   if (!programs) return null;
   return planRoadmap({
@@ -84,7 +114,34 @@ export function buildRoadmap(profile: SchoolProfile, plan: Pick<PlanSnapshot, "s
     pinned: [...plan.planned].sort(),
     // Spare credits in a term go to the electives the 120-credit total still needs, so standing counts full terms.
     fullTermsForStanding: true,
+    meetsMinimum: (grade, minimum) => profile.adapter.meetsMinimumGrade(grade, minimum),
+    covered: waivers,
   });
+}
+
+/** What the roadmap on screen was built from: the record by identity, the rest as text, so a change to any of them is seen. */
+export type RoadmapInputs = {
+  statuses: PlanSnapshot["statuses"];
+  transcript: PlanSnapshot["transcript"];
+  /** The courses marked done, one per line. */
+  manualCredit: string;
+  /** The tray's courses, one per line. */
+  tray: string;
+  limit: number;
+  /** The degree check's waivers, one "course>covered by" per line. */
+  waivers: string;
+};
+
+/** True while the roadmap on screen was built from older inputs than the current ones, so the view says it's replanning. */
+export function roadmapIsStale(shown: RoadmapInputs, current: RoadmapInputs): boolean {
+  return (
+    shown.statuses !== current.statuses ||
+    shown.transcript !== current.transcript ||
+    shown.manualCredit !== current.manualCredit ||
+    shown.tray !== current.tray ||
+    shown.limit !== current.limit ||
+    shown.waivers !== current.waivers
+  );
 }
 
 /* ---------- copy ---------- */
@@ -100,7 +157,7 @@ export function termsByCourse(roadmap: Roadmap): ReadonlyMap<string, Term> {
 /** The one fact a roadmap row shows, or null: why a course that no requirement names is here. */
 export function plannedFact(course: PlannedCourse): string | null {
   if (course.why.kind === "pinned") return course.ruleMet ? "In your tray" : "In your tray early";
-  if (course.why.kind === "prerequisite") return `For ${course.why.for[0]}${course.why.for.length > 1 ? ` and ${course.why.for.length - 1} more` : ""}`;
+  if (course.why.kind === "prerequisite") return `${course.retake ? "Retake for" : "For"} ${course.why.for[0]}${course.why.for.length > 1 ? ` and ${course.why.for.length - 1} more` : ""}`;
   return null;
 }
 
@@ -122,6 +179,8 @@ export function unplacedFact(course: UnplacedCourse): string {
       return `Needs ${reason.credits} credits first`;
     case "unmeetable":
       return "No way to meet its rule";
+    case "covered":
+      return "Ask an advisor";
     case "out-of-terms":
       return "Past the last term";
   }
@@ -161,6 +220,10 @@ export function roadmapNote(code: string, roadmap: Roadmap, catalog: ReadonlyMap
       parts.push(course.waited.for === "season" ? `It could start in ${since}, but it doesn't run that season.` : `It could go in ${since}, but that term is full at ${roadmap.creditLimit} credits.`);
     }
     if (course.checks.length > 0) parts.push("Part of its rule needs an advisor's say, which the roadmap assumes you get.");
+    if (course.retake && course.why.kind === "prerequisite") {
+      const needs = course.why.for;
+      return `${parts.join(" ")} You have it on record, but ${list(needs)} ${needs.length === 1 ? "needs" : "need"} a better grade in it, so the roadmap has you take it again first.`;
+    }
     return parts.join(" ") + whyClause(course.why);
   }
   const unplaced = roadmap.unplaced.find((entry) => entry.code === code);
@@ -174,15 +237,29 @@ export function roadmapNote(code: string, roadmap: Roadmap, catalog: ReadonlyMap
     blocked: `It needs ${reason.kind === "blocked" ? reason.by : ""} first, and the roadmap can't place that course either.`,
     standing: reason.kind === "standing" ? `It needs ${reason.credits} earned credits, and the roadmap's courses with your record reach ${reason.reaches}. Electives count toward that total too.` : "",
     unmeetable: "Its catalog rule has no alternative the roadmap can meet. Ask an advisor how to read it.",
+    // The degree note above already says the record covers it and only an advisor can waive it.
+    covered: "The roadmap leaves it out of every term until an advisor decides whether you need it.",
     "out-of-terms": `The roadmap stops after ${DEFAULT_MAX_TERMS} terms, and this course hadn't gone in by then.`,
   }[reason.kind];
   return `It isn't in a term yet. ${sentence}${whyClause(unplaced.why)}`;
 }
 
-/** The closed group's summary and the open group's first line: how many terms, and the last one. */
+const counted = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+
+/**
+ * The group's first line: how many terms, and the last one. With anything
+ * not in a term yet it names no last term, since the degree doesn't end
+ * there, and says how much is still out.
+ */
 export function roadmapSummary(roadmap: Roadmap): string {
   const count = roadmap.terms.length;
-  if (count === 0) return roadmap.unplaced.length + roadmap.open.length > 0 ? "Nothing it can place" : "Nothing left";
+  const out = [
+    roadmap.unplaced.length > 0 ? counted(roadmap.unplaced.length, "course") : null,
+    roadmap.open.length > 0 ? counted(roadmap.open.length, "requirement") : null,
+  ].filter((part) => part !== null);
+  const outText = out.length > 0 ? `${out.join(" and ")} not in a term yet` : null;
+  if (count === 0) return outText ?? "Nothing left";
+  if (outText) return `${counted(count, "term")} so far, and ${outText}`;
   const last = termLabel(roadmap.terms[count - 1]!.term);
   return count === 1 ? `1 term, ${last}` : `${count} terms, through ${last}`;
 }

@@ -39,7 +39,8 @@ export type Term = { readonly season: Season; readonly year: number };
 
 /** A course's prerequisite rule in the shapes the roadmap can schedule. */
 export type Requires =
-  | { readonly kind: "course"; readonly code: string }
+  /** The course passed, with at least `minGrade` when the rule names one. */
+  | { readonly kind: "course"; readonly code: string; readonly minGrade?: string }
   /** An empty "and" needs nothing; an empty "or" can never be met. */
   | { readonly kind: "and" | "or"; readonly children: readonly Requires[] }
   /** Met when the inner rule is met by the end of the same term: a corequisite. */
@@ -85,6 +86,21 @@ export type RoadmapInput = {
    * given.
    */
   readonly fullTermsForStanding?: boolean;
+  /**
+   * Whether a grade meets a rule's minimum ("D" against "C": false); undefined
+   * when the school's scale can't say. Required when any rule names a
+   * minimum. A course on the record meets a minimum only with a grade that
+   * does (undefined lets it through); one in progress, marked done or on the
+   * roadmap is assumed to.
+   */
+  readonly meetsMinimum?: (grade: string, minimum: string) => boolean | undefined;
+  /**
+   * Courses the record covers as prerequisites (passing the course named
+   * here proves them) that a requirement still lists. Only an advisor can
+   * waive one, so the roadmap never puts one in a term; it reports it, and
+   * it still meets what needs it.
+   */
+  readonly covered?: ReadonlyMap<string, string>;
 };
 
 /** Why a course is on the roadmap. */
@@ -110,9 +126,18 @@ export type PlannedCourse = {
   readonly waited: { readonly since: Term; readonly for: "credits" | "season" } | null;
   /** False for a pinned course whose rule the record and the term don't meet yet. */
   readonly ruleMet: boolean;
+  /** On the record already, with a grade below what a roadmap course's rule asks for, so it is taken again. */
+  readonly retake: boolean;
 };
 
-export type PlanTerm = { readonly term: Term; readonly credits: number; readonly courses: readonly PlannedCourse[] };
+export type PlanTerm = {
+  readonly term: Term;
+  /** The credits of the courses it names. */
+  readonly credits: number;
+  readonly courses: readonly PlannedCourse[];
+  /** With `fullTermsForStanding`, the credits it counts toward standing beyond its courses: electives the student picks. 0 otherwise. */
+  readonly electives: number;
+};
 
 export type UnplacedReason =
   /** Not in the catalog the roadmap was given, so its prerequisites and credits are unknown. */
@@ -129,6 +154,8 @@ export type UnplacedReason =
   | { readonly kind: "standing"; readonly credits: number; readonly reaches: number }
   /** Its rule has no alternative that can ever be met, such as an empty "or". */
   | { readonly kind: "unmeetable" }
+  /** The record covers it through `by`, but a requirement still lists it: an advisor decides (`covered` in the input). */
+  | { readonly kind: "covered"; readonly by: string }
   /** Ready, but the roadmap ran out of terms (`maxTerms`). */
   | { readonly kind: "out-of-terms" };
 
@@ -206,6 +233,17 @@ function courseLeaves(rule: Requires, into = new Set<string>()): Set<string> {
   return into;
 }
 
+/** Whether a course, with a rule's minimum when it names one, counts as done. */
+type Has = (code: string, minGrade?: string) => boolean;
+
+/** Every course leaf with its minimum, for checks that read grades. */
+function leafList(rule: Requires, into: { code: string; minGrade?: string }[] = []): { code: string; minGrade?: string }[] {
+  if (rule.kind === "course") into.push(rule.minGrade === undefined ? { code: rule.code } : { code: rule.code, minGrade: rule.minGrade });
+  if (rule.kind === "and" || rule.kind === "or") rule.children.forEach((child) => leafList(child, into));
+  if (rule.kind === "concurrent") leafList(rule.requirement, into);
+  return into;
+}
+
 function checkTexts(rule: Requires, into: string[] = []): string[] {
   if (rule.kind === "check" && !into.includes(rule.text)) into.push(rule.text);
   if (rule.kind === "and" || rule.kind === "or") rule.children.forEach((child) => checkTexts(child, into));
@@ -213,68 +251,79 @@ function checkTexts(rule: Requires, into: string[] = []): string[] {
   return into;
 }
 
-/** A route to meeting a rule: courses to add (each with the course that needs it), how many of them have no data, and how many advisor checks it leans on. */
-type Route = { add: { code: string; for: string }[]; missing: number; checks: number };
+/**
+ * A route to meeting a rule: courses to add (each with the course that
+ * needs it), how many of them have no data, how many advisor checks it
+ * leans on, and how many times it leads back to a course it is meeting a
+ * prerequisite for, which no term order can satisfy.
+ */
+type Route = { add: { code: string; for: string }[]; missing: number; checks: number; loops: number };
 
-const EMPTY_ROUTE: Route = { add: [], missing: 0, checks: 0 };
+const EMPTY_ROUTE: Route = { add: [], missing: 0, checks: 0, loops: 0 };
 
-/** Fewer courses without data first, then fewer advisor checks, then fewer courses: a real course beats "or consent". */
-const routeOrder = (a: Route, b: Route) => a.missing - b.missing || a.checks - b.checks || a.add.length - b.add.length;
+/** A loop never, then fewer courses without data, fewer advisor checks, fewer courses: a real course beats "or consent". */
+const routeOrder = (a: Route, b: Route) => a.loops - b.loops || a.missing - b.missing || a.checks - b.checks || a.add.length - b.add.length;
 
 /**
  * The cheapest set of courses that would meet `rule` for `parent`, given
- * the courses already `known` (on the record or on the roadmap). A course's
- * own prerequisites join the route, so the cost is the whole chain.
- * `visiting` stops a prerequisite loop; the placing step reports it.
+ * what `has` counts as done (the record, with its grades, and the roadmap
+ * so far). A course's own prerequisites join the route, so the cost is the
+ * whole chain. A course on the record with too low a grade joins it again,
+ * as a retake. `visiting` holds the courses whose prerequisites this route
+ * is meeting: reaching one again is a loop, checked before anything counts
+ * as done, so an alternative that needs the course it serves never looks
+ * free.
  */
-function route(rule: Requires, parent: string, known: ReadonlySet<string>, catalog: RoadmapInput["catalog"], visiting: ReadonlySet<string>): Route {
+function route(rule: Requires, parent: string, has: Has, catalog: RoadmapInput["catalog"], visiting: ReadonlySet<string>): Route {
   switch (rule.kind) {
     case "course": {
-      if (known.has(rule.code)) return EMPTY_ROUTE;
+      if (visiting.has(rule.code)) return { add: [], missing: 0, checks: 0, loops: 1 };
+      if (has(rule.code, rule.minGrade)) return EMPTY_ROUTE;
       const self = { code: rule.code, for: parent };
       const entry = catalog.get(rule.code);
-      if (!entry) return { add: [self], missing: 1, checks: 0 };
-      if (visiting.has(rule.code)) return { add: [self], missing: 0, checks: 0 };
-      const inner = route(entry.requires, rule.code, new Set([...known, rule.code]), catalog, new Set([...visiting, rule.code]));
-      return { add: [self, ...inner.add], missing: inner.missing, checks: inner.checks };
+      if (!entry) return { add: [self], missing: 1, checks: 0, loops: 0 };
+      const inner = route(entry.requires, rule.code, has, catalog, new Set([...visiting, rule.code]));
+      return { add: [self, ...inner.add], missing: inner.missing, checks: inner.checks, loops: inner.loops };
     }
     case "and": {
       // Each part sees what the parts before it added, so a shared prerequisite counts once.
-      const grown = new Set(known);
-      const total: Route = { add: [], missing: 0, checks: 0 };
+      const added = new Set<string>();
+      const grown: Has = (code, minGrade) => added.has(code) || has(code, minGrade);
+      const total: Route = { add: [], missing: 0, checks: 0, loops: 0 };
       for (const child of rule.children) {
         const part = route(child, parent, grown, catalog, visiting);
         for (const entry of part.add) {
-          if (grown.has(entry.code)) continue;
-          grown.add(entry.code);
+          if (added.has(entry.code)) continue;
+          added.add(entry.code);
           total.add.push(entry);
         }
         total.missing += part.missing;
         total.checks += part.checks;
+        total.loops += part.loops;
       }
       return total;
     }
     case "or": {
-      if (rule.children.length === 0) return { add: [], missing: 1, checks: 0 };
+      if (rule.children.length === 0) return { add: [], missing: 1, checks: 0, loops: 0 };
       let best: Route | null = null;
       for (const child of rule.children) {
-        const option = route(child, parent, known, catalog, visiting);
+        const option = route(child, parent, has, catalog, visiting);
         if (best === null || routeOrder(option, best) < 0) best = option;
       }
       return best!;
     }
     case "concurrent":
-      return route(rule.requirement, parent, known, catalog, visiting);
+      return route(rule.requirement, parent, has, catalog, visiting);
     case "credits":
       return EMPTY_ROUTE;
     case "check":
-      return { add: [], missing: 0, checks: 1 };
+      return { add: [], missing: 0, checks: 1, loops: 0 };
   }
 }
 
 /** The route that adds `codes` themselves, with their prerequisites. */
-function routeFor(codes: readonly string[], known: ReadonlySet<string>, catalog: RoadmapInput["catalog"]): Route {
-  return route({ kind: "and", children: codes.map((code) => ({ kind: "course" as const, code })) }, "", known, catalog, new Set());
+function routeFor(codes: readonly string[], has: Has, catalog: RoadmapInput["catalog"]): Route {
+  return route({ kind: "and", children: codes.map((code) => ({ kind: "course" as const, code })) }, "", has, catalog, new Set());
 }
 
 /* ---------- choosing courses ---------- */
@@ -284,6 +333,8 @@ type Choosing = {
   catalog: RoadmapInput["catalog"];
   /** On the record, pinned, or already picked. */
   known: Set<string>;
+  /** What counts as done when ranking options: picks and pinned courses, and the record with its grades. */
+  has: Has;
   /** Picked in this walk: one course fills one requirement of a program. */
   taken: Set<string>;
   picks: Map<string, string>;
@@ -304,7 +355,7 @@ function creditsOf(codes: readonly string[], catalog: RoadmapInput["catalog"]): 
 function rankOptions<T>(options: readonly T[], codesOf: (option: T) => readonly string[], context: Choosing): T[] {
   const scored = options.map((option, index) => {
     const codes = codesOf(option);
-    return { option, index, route: routeFor(codes, context.known, context.catalog), credits: creditsOf(codes, context.catalog) ?? Number.MAX_SAFE_INTEGER };
+    return { option, index, route: routeFor(codes, context.has, context.catalog), credits: creditsOf(codes, context.catalog) ?? Number.MAX_SAFE_INTEGER };
   });
   scored.sort((a, b) => routeOrder(a.route, b.route) || a.credits - b.credits || a.index - b.index);
   return scored.map((entry) => entry.option);
@@ -417,10 +468,38 @@ function plannedAttempt(code: string, catalog: RoadmapInput["catalog"]): AuditCo
 }
 
 /**
- * The courses the roadmap will take: what the requirements name, chosen as
- * the module comment says, plus the prerequisites they lack.
+ * A requirement the audit still reads unmet with every roadmap course
+ * counted: the choosing rounds had nothing more to give it (its courses
+ * already count toward an earlier requirement, say), so it is reported
+ * rather than dropped. Groups and choices open into the parts that are unmet.
  */
-function chooseCourses(input: RoadmapInput, onRecord: ReadonlySet<string>, pinned: readonly string[]): { picks: Map<string, Why>; open: OpenRequirement[] } {
+function reportUnmet(outcome: NodeOutcome, node: RequirementNode, key: string, viewKey: string, context: Choosing): void {
+  if (outcome.status !== "unsatisfied") return;
+  const children = evaluatedChildren(node);
+  if (outcome.kind === "choice" && node.kind === "choice") {
+    reportUnmet(outcome.children[outcome.shownBranch]!, children[outcome.shownBranch]!, `${key}.${outcome.shownBranch}`, viewKey, context);
+    return;
+  }
+  if (outcome.kind === "group" && outcome.children) {
+    outcome.children.forEach((child, index) => reportUnmet(child, children[index]!, `${key}.${index}`, `${viewKey}.${index}`, context));
+    return;
+  }
+  const reported = context.open.some((item) => item.key === key || item.key.startsWith(`${key}.`) || key.startsWith(`${item.key}.`));
+  if (!reported) openItem(outcome, node, key, viewKey, `With every course on the roadmap counted, the audit still reads it unmet: ${outcome.detail}.`, context);
+}
+
+/**
+ * The courses the roadmap will take: what the requirements name, chosen as
+ * the module comment says, plus the prerequisites they lack. `recordMeets`
+ * says whether the record holds a course, with a grade meeting a minimum.
+ */
+function chooseCourses(
+  input: RoadmapInput,
+  onRecord: ReadonlySet<string>,
+  recordMeets: Has,
+  covered: ReadonlyMap<string, string>,
+  pinned: readonly string[],
+): { picks: Map<string, Why>; open: OpenRequirement[] } {
   const requirementPicks = new Map<string, { program: string; requirement: string }>();
   let open: OpenRequirement[] = [];
   for (let round = 0; ; round += 1) {
@@ -430,7 +509,9 @@ function chooseCourses(input: RoadmapInput, onRecord: ReadonlySet<string>, pinne
     for (const program of input.programs) {
       const planned = [...pinned, ...requirementPicks.keys()].filter((code) => !onRecord.has(code));
       const result = auditProgram(program, [...input.record, ...planned.map((code) => plannedAttempt(code, input.catalog))], { gradeHistoryComplete: false });
-      const context: Choosing = { program, catalog: input.catalog, known: new Set([...onRecord, ...pinned, ...requirementPicks.keys()]), taken: new Set(), picks: new Map(), open };
+      const known = new Set([...onRecord, ...pinned, ...requirementPicks.keys()]);
+      const has: Has = (code, minGrade) => covered.has(code) || (known.has(code) && !onRecord.has(code)) || recordMeets(code, minGrade);
+      const context: Choosing = { program, catalog: input.catalog, known, has, taken: new Set(), picks: new Map(), open };
       walkProgram(result.requirements, program, context);
       for (const [code, requirement] of context.picks) {
         if (requirementPicks.has(code)) continue;
@@ -449,32 +530,53 @@ function chooseCourses(input: RoadmapInput, onRecord: ReadonlySet<string>, pinne
   for (const code of pinned) if (!picks.has(code)) picks.set(code, { kind: "pinned" });
 
   // Prerequisites, once every requirement is picked, so an "or" uses a course already on the roadmap when it can.
-  const known = new Set([...onRecord, ...picks.keys()]);
+  // A course the record holds with too low a grade comes back here, as a retake.
+  const chosen = new Set(picks.keys());
+  const has: Has = (code, minGrade) => covered.has(code) || chosen.has(code) || recordMeets(code, minGrade);
   const prerequisiteFor = new Map<string, Set<string>>();
   for (const code of sorted(picks.keys())) {
     const entry = input.catalog.get(code);
-    if (!entry) continue;
-    const needs = route(entry.requires, code, known, input.catalog, new Set([code]));
+    // A covered course goes in no term, so nothing has to come before it.
+    if (!entry || covered.has(code)) continue;
+    const needs = route(entry.requires, code, has, input.catalog, new Set([code]));
     for (const need of needs.add) {
-      known.add(need.code);
+      chosen.add(need.code);
       if (picks.has(need.code)) continue;
       prerequisiteFor.set(need.code, (prerequisiteFor.get(need.code) ?? new Set()).add(need.for));
     }
   }
+  // Which roadmap courses each prerequisite serves. The pass above stops at the first course that adds
+  // one, so a later course needing it too reads it as done; routing each course again with no
+  // prerequisite chosen yet names every course that leans on it.
+  const requirementsOnly: Has = (code, minGrade) => covered.has(code) || (picks.has(code) && !prerequisiteFor.has(code)) || recordMeets(code, minGrade);
+  for (const code of sorted(picks.keys())) {
+    const entry = input.catalog.get(code);
+    if (!entry || covered.has(code)) continue;
+    for (const need of route(entry.requires, code, requirementsOnly, input.catalog, new Set([code])).add) prerequisiteFor.get(need.code)?.add(need.for);
+  }
   for (const code of sorted(prerequisiteFor.keys())) picks.set(code, { kind: "prerequisite", for: sorted(prerequisiteFor.get(code)!) });
+
+  // The degree with the whole roadmap counted: whatever the audit still reads unmet is reported, never dropped.
+  for (const program of input.programs) {
+    const result = auditProgram(program, [...input.record, ...[...picks.keys()].map((code) => plannedAttempt(code, input.catalog))], { gradeHistoryComplete: false });
+    const nodes = program.requirements.filter((node) => node.kind !== "policy");
+    const context: Choosing = { program, catalog: input.catalog, known: new Set(), has, taken: new Set(), picks: new Map(), open };
+    result.requirements.forEach((outcome, index) => reportUnmet(outcome, nodes[index]!, `${program.id}.${index}`, `${program.id}.${index}`, context));
+  }
   return { picks, open };
 }
 
 /* ---------- placing courses ---------- */
 
 type Placing = {
-  before: ReadonlySet<string>;
+  /** Done before this term: the record (with its grades), covered courses, and earlier terms. */
+  done: Has;
   /** Placed this term, plus the bundle being tried. */
   now: ReadonlySet<string>;
   earned: number;
   canJoin: (code: string) => boolean;
-  /** On the record or on the roadmap. */
-  planned: ReadonlySet<string>;
+  /** On the record (with its grades), covered, or on the roadmap. */
+  planned: Has;
 };
 
 /**
@@ -483,10 +585,10 @@ type Placing = {
  * planned "MATH 1100" over "or consent", so placing waits for MATH 1100
  * rather than letting the consent clause pass first.
  */
-function followed(children: readonly Requires[], planned: ReadonlySet<string>): readonly Requires[] {
+function followed(children: readonly Requires[], planned: Has): readonly Requires[] {
   const routed = children.filter((child) => {
-    const leaves = courseLeaves(child);
-    return leaves.size > 0 && [...leaves].every((code) => planned.has(code));
+    const leaves = leafList(child);
+    return leaves.length > 0 && leaves.every((leaf) => planned(leaf.code, leaf.minGrade));
   });
   return routed.length > 0 ? routed : children;
 }
@@ -499,7 +601,7 @@ function followed(children: readonly Requires[], planned: ReadonlySet<string>): 
 function joinsNeeded(rule: Requires, at: Placing, concurrent = false): string[] | null {
   switch (rule.kind) {
     case "course":
-      if (at.before.has(rule.code)) return [];
+      if (at.done(rule.code, rule.minGrade)) return [];
       if (!concurrent) return null;
       if (at.now.has(rule.code)) return [];
       return at.canJoin(rule.code) ? [rule.code] : null;
@@ -538,10 +640,10 @@ function joinsNeeded(rule: Requires, at: Placing, concurrent = false): string[] 
  */
 type Blockers = { first: Set<string>; alongside: Set<string>; credits: number | null };
 
-function blockers(rule: Requires, done: ReadonlySet<string>, earned: number, planned: ReadonlySet<string>, concurrent = false): Blockers | null {
+function blockers(rule: Requires, done: Has, earned: number, planned: Has, concurrent = false): Blockers | null {
   switch (rule.kind) {
     case "course":
-      if (done.has(rule.code)) return null;
+      if (done(rule.code, rule.minGrade)) return null;
       return concurrent ? { first: new Set(), alongside: new Set([rule.code]), credits: null } : { first: new Set([rule.code]), alongside: new Set(), credits: null };
     case "and":
     case "or": {
@@ -611,16 +713,27 @@ function loops(codes: readonly string[], edges: (code: string) => readonly strin
   return groups.sort((a, b) => byCode(a[0]!, b[0]!));
 }
 
-/** Courses that are on the record for prerequisites, and the credits they have earned or will have by `start`. */
-function readRecord(record: RoadmapInput["record"]): { onRecord: Set<string>; earned: number } {
+/**
+ * Courses that are on the record for prerequisites, every grade each was
+ * counted with (null in progress or marked done), and the credits they have
+ * earned or will have by `start`. As in the audit (splitClaims), any
+ * transcript attempt at a code decides it, so a mark on a failed course
+ * counts for nothing.
+ */
+function readRecord(record: RoadmapInput["record"]): { onRecord: Set<string>; grades: Map<string, (string | null)[]>; earned: number } {
+  const attempted = new Set(record.filter((course) => course.sourceKind !== "claimed").map((course) => course.code));
   const credits = new Map<string, number>();
+  const grades = new Map<string, (string | null)[]>();
   for (const course of record) {
+    if (course.sourceKind === "claimed" && attempted.has(course.code)) continue;
     const counts = course.sourceKind === "claimed" ? true : course.inProgress || earnsCredit(course);
     if (!counts) continue;
     // A course counts once; credits it never printed count as none, so standing is never overstated.
     credits.set(course.code, Math.max(credits.get(course.code) ?? 0, course.credits ?? 0));
+    const grade = course.sourceKind === "claimed" || course.inProgress ? null : course.grade;
+    grades.set(course.code, [...(grades.get(course.code) ?? []), grade]);
   }
-  return { onRecord: new Set(credits.keys()), earned: [...credits.values()].reduce((sum, value) => sum + value, 0) };
+  return { onRecord: new Set(credits.keys()), grades, earned: [...credits.values()].reduce((sum, value) => sum + value, 0) };
 }
 
 function validate(input: RoadmapInput, seasons: readonly Season[], maxTerms: number): void {
@@ -632,6 +745,9 @@ function validate(input: RoadmapInput, seasons: readonly Season[], maxTerms: num
   for (const [code, course] of input.catalog) {
     if (course.code !== code) throw new Error(`The catalog lists ${course.code} under ${code}.`);
     if (!Number.isFinite(course.credits) || course.credits < 0) throw new Error(`${code} has invalid credits: ${course.credits}.`);
+    if (!input.meetsMinimum && leafList(course.requires).some((leaf) => leaf.minGrade !== undefined)) {
+      throw new Error(`${code}'s rule has a grade minimum, so the roadmap needs meetsMinimum to compare grades.`);
+    }
   }
 }
 
@@ -639,16 +755,27 @@ export function planRoadmap(input: RoadmapInput): Roadmap {
   const seasons = input.seasons ?? DEFAULT_SEASONS;
   const maxTerms = input.maxTerms ?? DEFAULT_MAX_TERMS;
   validate(input, seasons, maxTerms);
-  const { onRecord, earned: earnedOnRecord } = readRecord(input.record);
+  const { onRecord, grades, earned: earnedOnRecord } = readRecord(input.record);
+  const covered = input.covered ?? new Map<string, string>();
+  const recordMeets: Has = (code, minGrade) => {
+    const counted = grades.get(code);
+    if (!counted) return false;
+    if (minGrade === undefined) return true;
+    return counted.some((grade) => grade === null || input.meetsMinimum!(grade, minGrade) !== false);
+  };
   const pinned = sorted(new Set((input.pinned ?? []).filter((code) => !onRecord.has(code))));
-  const { picks, open } = chooseCourses(input, onRecord, pinned);
+  const { picks, open } = chooseCourses(input, onRecord, recordMeets, covered, pinned);
 
   const unplaced = new Map<string, UnplacedReason>();
   const pending = new Set<string>();
   for (const code of picks.keys()) {
     const entry = input.catalog.get(code);
-    if (!entry) unplaced.set(code, { kind: "no-data" });
-    else if (pinned.includes(code)) continue;
+    if (pinned.includes(code)) {
+      if (!entry) unplaced.set(code, { kind: "no-data" });
+      continue;
+    }
+    if (covered.has(code)) unplaced.set(code, { kind: "covered", by: covered.get(code)! });
+    else if (!entry) unplaced.set(code, { kind: "no-data" });
     else if (entry.credits > input.creditLimit) unplaced.set(code, { kind: "over-limit", credits: entry.credits });
     else if (entry.offered && !entry.offered.some((season) => seasons.includes(season))) unplaced.set(code, { kind: "not-offered", offered: [...entry.offered] });
     else pending.add(code);
@@ -686,12 +813,13 @@ export function planRoadmap(input: RoadmapInput): Roadmap {
       byCode(a, b),
   );
 
-  const planned: ReadonlySet<string> = new Set([...onRecord, ...picks.keys()]);
-  const placedBefore = new Set<string>(onRecord);
+  const planned: Has = (code, minGrade) => covered.has(code) || picks.has(code) || recordMeets(code, minGrade);
   const placedOnRoadmap = new Set<string>();
+  // Done before the term being placed: the record with its grades, covered courses, and every earlier term.
+  const placedBefore: Has = (code, minGrade) => covered.has(code) || placedOnRoadmap.has(code) || recordMeets(code, minGrade);
   const firstReady = new Map<string, number>();
   const skippedSeason = new Map<string, boolean>();
-  const terms: { term: Term; credits: number; courses: PlannedCourse[] }[] = [];
+  const terms: PlanTerm[] = [];
   let earned = earnedOnRecord;
   let term = input.start;
   let idle = 0;
@@ -716,6 +844,7 @@ export function planRoadmap(input: RoadmapInput): Roadmap {
         checks: checkTexts(entry.requires),
         waited,
         ruleMet,
+        retake: onRecord.has(code),
       });
       now.add(code);
       credits += entry.credits;
@@ -726,7 +855,7 @@ export function planRoadmap(input: RoadmapInput): Roadmap {
     const offeredNow = (other: string) => input.catalog.get(other)!.offered?.includes(term.season) ?? true;
     for (const code of order) {
       if (!pending.has(code) || now.has(code)) continue;
-      const base: Placing = { before: placedBefore, now, earned, planned, canJoin: (other) => pending.has(other) && !now.has(other) };
+      const base: Placing = { done: placedBefore, now, earned, planned, canJoin: (other) => pending.has(other) && !now.has(other) };
       if (joinsNeeded(rule(code), base) === null) continue;
       if (!firstReady.has(code)) firstReady.set(code, index);
       if (!offeredNow(code)) {
@@ -747,15 +876,13 @@ export function planRoadmap(input: RoadmapInput): Roadmap {
     const withs = courses.map((course) => ({
       ...course,
       with: sorted([...courseLeaves(rule(course.code))].filter((leaf) => leaf !== course.code && now.has(leaf))),
-      ruleMet: course.why.kind !== "pinned" || joinsNeeded(rule(course.code), { before: placedBefore, now, earned, planned, canJoin: () => false }) !== null,
+      ruleMet: course.why.kind !== "pinned" || joinsNeeded(rule(course.code), { done: placedBefore, now, earned, planned, canJoin: () => false }) !== null,
     }));
-    terms.push({ term, credits, courses: withs.sort((a, b) => byCode(a.code, b.code)) });
+    const electives = input.fullTermsForStanding ? Math.max(0, input.creditLimit - credits) : 0;
+    terms.push({ term, credits, courses: withs.sort((a, b) => byCode(a.code, b.code)), electives });
     laidOut += 1;
-    for (const code of now) {
-      placedBefore.add(code);
-      placedOnRoadmap.add(code);
-    }
-    earned += input.fullTermsForStanding ? Math.max(credits, input.creditLimit) : credits;
+    for (const code of now) placedOnRoadmap.add(code);
+    earned += credits + electives;
     idle = now.size === 0 ? idle + 1 : 0;
     // A full turn of seasons with nothing placed: nothing will change, so stop. Unless full terms count
     // toward standing and a course waits on standing alone, or standing has just let it in: each term
@@ -783,7 +910,7 @@ export function planRoadmap(input: RoadmapInput): Roadmap {
   for (const code of stuck) {
     if (unplaced.has(code)) continue;
     // Its rule holds with everything placed: then only room kept it out, with the corequisites it must go with.
-    const bundle = bundleFor(code, { before: placedBefore, now: new Set(), earned, planned, canJoin: (other) => stuckSet.has(other) }, rule);
+    const bundle = bundleFor(code, { done: placedBefore, now: new Set(), earned, planned, canJoin: (other) => stuckSet.has(other) }, rule);
     if (bundle) {
       const credits = bundle.reduce((sum, member) => sum + input.catalog.get(member)!.credits, 0);
       if (credits > input.creditLimit) unplaced.set(code, { kind: "over-limit", credits });

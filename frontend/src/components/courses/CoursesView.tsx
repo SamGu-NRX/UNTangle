@@ -33,7 +33,7 @@ import { sampleTranscript } from "./model/sample-transcript";
 import { instructorIndex, searchCatalog } from "./model/search";
 import { RequirementDetail, type LeftItem } from "./RequirementDetail";
 import { Roadmap, type RoadmapState } from "./Roadmap";
-import { buildRoadmap, planCatalog, roadmapNote, type CreditLimit } from "./model/roadmap";
+import { buildRoadmap, planCatalog, roadmapIsStale, roadmapNote, type CreditLimit, type RoadmapInputs } from "./model/roadmap";
 import { AUTO_TIMELINE, fadeIn, flip, fly, measure, MOVE, reducedMotion, wait, type Rects } from "./reveal";
 import { untProfile } from "./school";
 import { TermTray } from "./TermTray";
@@ -122,33 +122,43 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
   const [roadmapOpen, setRoadmapOpen] = useState(false);
   // Starts at the profile's pace (school.ts): 15, the common four-year load. No data on what students choose.
   const [creditLimit, setCreditLimit] = useState<CreditLimit>(15);
-  const trayKey = trayRows.map((row) => row.id).join("\n");
-  const roadmapInput = {
-    statuses: useDeferredValue(courseStatuses),
-    transcript: useDeferredValue(transcriptRecords),
-    manualCredit: useDeferredValue(coursePlan.manualCredit.join("\n")),
-    tray: useDeferredValue(trayKey),
-    limit: useDeferredValue(creditLimit),
+  const current: RoadmapInputs = {
+    statuses: courseStatuses,
+    transcript: transcriptRecords,
+    manualCredit: coursePlan.manualCredit.join("\n"),
+    tray: trayRows.map((row) => row.id).join("\n"),
+    limit: creditLimit,
+    // Courses the record covers that the degree still lists: Courses sends them to an advisor, and so does the roadmap.
+    waivers: degree.kind === "audited" ? [...degree.waivers].map(([id, by]) => `${id}>${by}`).join("\n") : "",
   };
-  const roadmapStale =
-    roadmapInput.statuses !== courseStatuses || roadmapInput.transcript !== transcriptRecords || roadmapInput.tray !== trayKey || roadmapInput.limit !== creditLimit;
+  const roadmapInput = {
+    statuses: useDeferredValue(current.statuses),
+    transcript: useDeferredValue(current.transcript),
+    manualCredit: useDeferredValue(current.manualCredit),
+    tray: useDeferredValue(current.tray),
+    limit: useDeferredValue(creditLimit),
+    waivers: useDeferredValue(current.waivers),
+  };
+  const roadmapStale = roadmapIsStale(roadmapInput, current);
   const majorId = major?.id ?? null;
   const roadmapState = useMemo<RoadmapState>(() => {
     if (!roadmapOpen || !majorId || degree.kind !== "audited") return { kind: "closed" };
+    const lines = (text: string) => (text ? text.split("\n") : []);
     const plan = {
       statuses: roadmapInput.statuses,
       transcript: roadmapInput.transcript,
-      manualCredit: new Set(roadmapInput.manualCredit ? roadmapInput.manualCredit.split("\n") : []),
-      planned: new Set(roadmapInput.tray ? roadmapInput.tray.split("\n") : []),
+      manualCredit: new Set(lines(roadmapInput.manualCredit)),
+      planned: new Set(lines(roadmapInput.tray)),
     };
+    const waivers = new Map(lines(roadmapInput.waivers).map((line) => line.split(">") as [string, string]));
     try {
-      const roadmap = buildRoadmap(profile, plan, { id: majorId }, roadmapInput.limit);
+      const roadmap = buildRoadmap(profile, plan, { id: majorId }, roadmapInput.limit, waivers);
       return roadmap ? { kind: "ready", roadmap } : { kind: "closed" };
     } catch (error) {
       // planRoadmap fails loudly on data it can't read; the group says so and the rest of Courses still works.
       return { kind: "error", message: error instanceof Error ? error.message : String(error) };
     }
-  }, [profile, roadmapOpen, majorId, degree.kind, roadmapInput.statuses, roadmapInput.transcript, roadmapInput.manualCredit, roadmapInput.tray, roadmapInput.limit]);
+  }, [profile, roadmapOpen, majorId, degree.kind, roadmapInput.statuses, roadmapInput.transcript, roadmapInput.manualCredit, roadmapInput.tray, roadmapInput.limit, roadmapInput.waivers]);
   // The row that opened the detail. With the roadmap open a course can show twice, so focus returns to the one pressed.
   const opener = useRef<HTMLElement | null>(null);
 

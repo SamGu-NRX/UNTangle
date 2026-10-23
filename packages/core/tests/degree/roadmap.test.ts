@@ -450,3 +450,100 @@ describe("determinism and errors", () => {
     expect(() => plan({ ...base, programs: [] })).toThrow("The roadmap needs at least one program.");
   });
 });
+
+/** UNT's letter scale for these tests: A highest, F lowest; anything else is unknown. */
+const LETTERS = ["F", "D", "C", "B", "A"];
+const meetsMinimum = (grade: string, minimum: string) => (LETTERS.includes(grade) && LETTERS.includes(minimum) ? LETTERS.indexOf(grade) >= LETTERS.indexOf(minimum) : undefined);
+const atLeast = (code: string, minGrade: string): Requires => ({ kind: "course", code, minGrade });
+
+describe("grade minimums", () => {
+  test("a D on record doesn't meet \"C or better\": the course is retaken before what needs it", () => {
+    const roadmap = plan({
+      programs: [program([all("Major", "B 2000")])],
+      catalog: catalogOf(course("A 1000"), course("B 2000", atLeast("A 1000", "C"))),
+      record: [done("A 1000", "D")],
+      meetsMinimum,
+    });
+    expect(layout(roadmap)).toEqual(["spring 2027: A 1000", "fall 2027: B 2000"]);
+    expect(placed(roadmap, "A 1000")?.why).toEqual({ kind: "prerequisite", for: ["B 2000"] });
+    expect(placed(roadmap, "A 1000")?.retake).toBe(true);
+    expect(placed(roadmap, "B 2000")?.retake).toBe(false);
+  });
+
+  test("the best attempt counts: a C after a D meets it, and a D meets a rule with no minimum", () => {
+    const catalog = catalogOf(course("A 1000"), course("B 2000", atLeast("A 1000", "C")), course("N 2000", needs("A 1000")));
+    const retaken = plan({ programs: [program([all("Major", "B 2000")])], catalog, record: [done("A 1000", "D"), { ...done("A 1000", "C"), term: 2 }], meetsMinimum });
+    expect(layout(retaken)).toEqual(["spring 2027: B 2000"]);
+    const plain = plan({ programs: [program([all("Major", "N 2000")])], catalog, record: [done("A 1000", "D")], meetsMinimum });
+    expect(layout(plain)).toEqual(["spring 2027: N 2000"]);
+  });
+
+  test("a course in progress meets a minimum: the roadmap assumes it passes", () => {
+    const roadmap = plan({ programs: [program([all("Major", "B 2000")])], catalog: catalogOf(course("A 1000"), course("B 2000", atLeast("A 1000", "C"))), record: [taking("A 1000")], meetsMinimum });
+    expect(layout(roadmap)).toEqual(["spring 2027: B 2000"]);
+  });
+
+  test("a catalog with minimums and no way to compare grades fails loudly", () => {
+    expect(() => plan({ programs: [program([all("Major", "B 2000")])], catalog: catalogOf(course("A 1000"), course("B 2000", atLeast("A 1000", "C"))) })).toThrow(
+      "B 2000's rule has a grade minimum, so the roadmap needs meetsMinimum to compare grades.",
+    );
+  });
+});
+
+describe("the record, as the audit reads it", () => {
+  test("a course marked done doesn't count when the transcript holds an attempt at it, even a failed one", () => {
+    const roadmap = plan({
+      programs: [program([all("Major", "A 1000", "B 2000")])],
+      catalog: catalogOf(course("A 1000"), course("B 2000", needs("A 1000"))),
+      record: [done("A 1000", "F"), claimed("A 1000")],
+    });
+    expect(layout(roadmap)).toEqual(["spring 2027: A 1000", "fall 2027: B 2000"]);
+  });
+});
+
+describe("nothing is dropped silently", () => {
+  test("a requirement the roadmap's courses still leave unmet comes back open", () => {
+    // P fills the choose first (tree order), so "all [P]" can't have it; the roadmap has nothing else to give.
+    const pickOne: RequirementNode = { kind: "choose", name: "Pick one", citation, count: 1, items: singles("P 1000", "Q 1000") };
+    const roadmap = plan({ programs: [program([pickOne, all("Needs P", "P 1000")])], catalog: catalogOf(course("P 1000"), course("Q 1000")) });
+    expect(roadmap.open.map((item) => [item.key, item.name])).toEqual([["major.1", "Needs P"]]);
+  });
+
+  test("an \"or\" whose cheaper alternative loops back takes the other one", () => {
+    // X needs Y or Z; Y needs X (a loop), Z needs W. Y looks cheaper, one course against two, but can never go first.
+    const roadmap = plan({
+      programs: [program([all("Major", "X 3000")])],
+      catalog: catalogOf(course("X 3000", either(needs("Y 2000"), needs("Z 2000"))), course("Y 2000", needs("X 3000")), course("Z 2000", needs("W 1000")), course("W 1000")),
+    });
+    expect(layout(roadmap)).toEqual(["spring 2027: W 1000", "fall 2027: Z 2000", "spring 2028: X 3000"]);
+    expect(roadmap.unplaced).toEqual([]);
+  });
+
+  test("a course the record covers as a prerequisite stays out of every term, and what needs it still goes in", () => {
+    const roadmap = plan({
+      programs: [program([all("Major", "C 1030", "C 2000")])],
+      catalog: catalogOf(course("C 1030"), course("C 2000", needs("C 1030"))),
+      covered: new Map([["C 1030", "C 1040"]]),
+    });
+    expect(layout(roadmap)).toEqual(["spring 2027: C 2000"]);
+    expect(roadmap.unplaced.map((entry) => [entry.code, entry.reason])).toEqual([["C 1030", { kind: "covered", by: "C 1040" }]]);
+  });
+});
+
+describe("electives", () => {
+  test("with full terms counted, each term says how many credits electives fill", () => {
+    const roadmap = plan({
+      programs: [program([all("Major", "A 1000", "S 4000")])],
+      catalog: catalogOf(course("A 1000"), course("S 4000", { kind: "credits", min: 30 })),
+      fullTermsForStanding: true,
+    });
+    expect(roadmap.terms.map((entry) => [entry.credits, entry.electives])).toEqual([
+      [3, 12],
+      [0, 15],
+      [3, 12],
+    ]);
+    // Without the assumption no term claims electives.
+    const plain = plan({ programs: [program([all("Major", "A 1000")])], catalog: catalogOf(course("A 1000")) });
+    expect(plain.terms.map((entry) => entry.electives)).toEqual([0]);
+  });
+});

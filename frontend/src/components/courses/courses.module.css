@@ -311,6 +311,10 @@
 .row[data-kind="roadmap"] > .rowOpen {
   padding-right: 0;
 }
+/* A term's elective credits: a placeholder for courses the student picks, quieter than the named ones. */
+.row[data-elective] .reqName {
+  color: var(--ink-2);
+}
 /* A row with no detail to open (no catalog data) reads as text, not a target. */
 :is(.rowOpen, .reqOpen)[data-static] {
   cursor: default;

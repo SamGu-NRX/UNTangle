@@ -3,6 +3,9 @@ import { auditProgram, type AuditCourse, type ClaimedCourse } from "@untangle/co
 import { planRoadmap, type Roadmap } from "@untangle/core/degree/roadmap";
 import type { ProgramData } from "@untangle/core/degree/types";
 import { auditCourses } from "@/components/courses/model/degree";
+import { buildCourseModel } from "@/components/courses/model/course-model";
+import * as roadmapModel from "@/components/courses/model/roadmap";
+import { checkDegree } from "@/components/courses/model/degree";
 import { buildRoadmap, CREDIT_LIMITS, parseTerm, planCatalog, plannedFact, requiresOf, roadmapNote, roadmapSummary, unplacedFact } from "@/components/courses/model/roadmap";
 import { sampleTranscript } from "@/components/courses/model/sample-transcript";
 import { untProfile } from "@/components/courses/school";
@@ -28,21 +31,41 @@ function snapshot(transcript: readonly TranscriptCourseRecord[], planned: string
   return { statuses, transcript, manualCredit: new Set<string>(), planned: new Set(planned) };
 }
 
-const RECORDS = { empty: auditCourses(profile, snapshot([])), sample: auditCourses(profile, snapshot(sampleTranscript)) };
+/** The sample with a D in CSCE 1040, which CSCE 2100 and CSCE 2110 need with a C or better. */
+const lowSample = sampleTranscript.map((record) => (record.code === "CSCE 1040" ? { ...record, grade: "D" } : record));
+const RECORDS = { empty: auditCourses(profile, snapshot([])), sample: auditCourses(profile, snapshot(sampleTranscript)), low: auditCourses(profile, snapshot(lowSample)) };
+const meetsMinimum = (grade: string, minimum: string) => untAdapter.meetsMinimumGrade(grade, minimum);
 
-/** The engine's rule for a course, met by courses done before the term (and, inside a corequisite, in it). */
-function holds(node: Prerequisite, before: ReadonlySet<string>, sameTerm: ReadonlySet<string>, earned: number, concurrent = false): boolean {
+/** What Courses passes the roadmap for a record: the courses the record covers that the degree still lists. */
+function waiversFor(transcript: readonly TranscriptCourseRecord[]) {
+  const plan = { ...snapshot(transcript), autoPlanned: new Set<string>() };
+  const degree = checkDegree(profile, plan, buildCourseModel(profile, plan), { id: "cs" });
+  return degree.kind === "audited" ? degree.waivers : new Map<string, string>();
+}
+
+type Done = { placed: ReadonlySet<string>; grades: ReadonlyMap<string, readonly (string | null)[]>; covered: ReadonlySet<string> };
+
+/**
+ * The engine's rule for a course, met by courses done before the term (and,
+ * inside a corequisite, in it). A course on the record meets a grade
+ * minimum only with a grade that does; one in progress, marked done or on
+ * the roadmap is assumed to.
+ */
+function holds(node: Prerequisite, done: Done, sameTerm: ReadonlySet<string>, earned: number, concurrent = false, minimum: string | null = null): boolean {
   switch (node.kind) {
-    case "course":
-      return before.has(node.courseId) || (concurrent && sameTerm.has(node.courseId));
+    case "course": {
+      const grades = done.grades.get(node.courseId);
+      const onRecord = grades !== undefined && (minimum === null || grades.some((grade) => grade === null || untAdapter.meetsMinimumGrade(grade, minimum) !== false));
+      return done.placed.has(node.courseId) || done.covered.has(node.courseId) || onRecord || (concurrent && sameTerm.has(node.courseId));
+    }
     case "and":
-      return node.children.every((child) => holds(child, before, sameTerm, earned, concurrent));
+      return node.children.every((child) => holds(child, done, sameTerm, earned, concurrent, minimum));
     case "or":
-      return node.children.some((child) => holds(child, before, sameTerm, earned, concurrent));
+      return node.children.some((child) => holds(child, done, sameTerm, earned, concurrent, minimum));
     case "minGrade":
-      return holds(node.requirement, before, sameTerm, earned, concurrent);
+      return holds(node.requirement, done, sameTerm, earned, concurrent, node.grade);
     case "corequisite":
-      return holds(node.requirement, before, sameTerm, earned, true);
+      return holds(node.requirement, done, sameTerm, earned, true, minimum);
     case "standing": {
       const hours = untAdapter.minimumHours?.(node.minimum);
       return hours === undefined || earned >= hours;
@@ -53,22 +76,28 @@ function holds(node: Prerequisite, before: ReadonlySet<string>, sameTerm: Readon
   }
 }
 
-function onRecord(record: readonly (AuditCourse | ClaimedCourse)[]): { codes: Set<string>; earned: number } {
+/** The record's counted courses with every counted grade (null in progress or marked done); a mark on an attempted code doesn't count. */
+function onRecord(record: readonly (AuditCourse | ClaimedCourse)[]): { codes: Set<string>; grades: Map<string, (string | null)[]>; earned: number } {
+  const attempted = new Set(record.filter((course) => course.sourceKind !== "claimed").map((course) => course.code));
   const credits = new Map<string, number>();
+  const grades = new Map<string, (string | null)[]>();
   for (const course of record) {
+    if (course.sourceKind === "claimed" && attempted.has(course.code)) continue;
     const counts = course.sourceKind === "claimed" || course.inProgress || !["F", "W", "I", "NP", "Z"].includes(course.grade ?? "");
-    if (counts) credits.set(course.code, Math.max(credits.get(course.code) ?? 0, course.credits ?? 0));
+    if (!counts) continue;
+    credits.set(course.code, Math.max(credits.get(course.code) ?? 0, course.credits ?? 0));
+    grades.set(course.code, [...(grades.get(course.code) ?? []), course.sourceKind === "claimed" || course.inProgress ? null : course.grade]);
   }
-  return { codes: new Set(credits.keys()), earned: [...credits.values()].reduce((sum, value) => sum + value, 0) };
+  return { codes: new Set(credits.keys()), grades, earned: [...credits.values()].reduce((sum, value) => sum + value, 0) };
 }
 
 const ruleOf = (code: string) => profile.catalog.find((course) => course.id === code)!.prerequisite;
 
 /** Every way a roadmap can be wrong for its input, as readable lines; an empty list is a valid roadmap. */
-function violations(roadmap: Roadmap, programs: readonly ProgramData[], record: readonly (AuditCourse | ClaimedCourse)[], limit: number): string[] {
+function violations(roadmap: Roadmap, programs: readonly ProgramData[], record: readonly (AuditCourse | ClaimedCourse)[], limit: number, covered: ReadonlySet<string> = new Set()): string[] {
   const problems: string[] = [];
-  const { codes: done, earned: earnedOnRecord } = onRecord(record);
-  const before = new Set(done);
+  const { codes: done, grades, earned: earnedOnRecord } = onRecord(record);
+  const placedSoFar = new Set<string>();
   let earned = earnedOnRecord;
   const seen = new Set<string>();
   for (const entry of roadmap.terms) {
@@ -79,11 +108,13 @@ function violations(roadmap: Roadmap, programs: readonly ProgramData[], record: 
     const sameTerm = new Set(entry.courses.map((course) => course.code));
     for (const course of entry.courses) {
       if (seen.has(course.code)) problems.push(`${course.code} is placed twice`);
-      if (done.has(course.code)) problems.push(`${course.code} is on the record but placed in ${label}`);
+      // A course on the record goes in again only as a retake, for a course that needs a better grade in it.
+      if (done.has(course.code) && course.why.kind !== "prerequisite") problems.push(`${course.code} is on the record but placed in ${label}`);
+      if (covered.has(course.code)) problems.push(`${course.code} is covered, for an advisor to decide, but placed in ${label}`);
       seen.add(course.code);
-      if (!holds(ruleOf(course.code), before, sameTerm, earned)) problems.push(`${course.code} is in ${label} before its prerequisites`);
+      if (!holds(ruleOf(course.code), { placed: placedSoFar, grades, covered }, sameTerm, earned)) problems.push(`${course.code} is in ${label} before its prerequisites`);
     }
-    for (const code of sameTerm) before.add(code);
+    for (const code of sameTerm) placedSoFar.add(code);
     // The app counts full terms toward standing (buildRoadmap), so the check does too.
     earned += Math.max(entry.credits, limit);
   }
@@ -114,7 +145,7 @@ describe("every major on alpha", () => {
     for (const [recordName, record] of Object.entries(RECORDS)) {
       for (const limit of CREDIT_LIMITS) {
         test(`${program.id}, ${recordName} record, ${limit} credits: a valid roadmap`, () => {
-          const input = { programs: [program, core], record, catalog: planCatalog(profile), start: START, creditLimit: limit, fullTermsForStanding: true };
+          const input = { programs: [program, core], record, catalog: planCatalog(profile), start: START, creditLimit: limit, fullTermsForStanding: true, meetsMinimum };
           const roadmap = planRoadmap(input);
           expect(violations(roadmap, input.programs, record, limit)).toEqual([]);
           // Most of each degree is placeable from UNTangle's catalog.
@@ -127,7 +158,7 @@ describe("every major on alpha", () => {
 
   test("the check above catches a roadmap out of order, over its limit, or hiding an open requirement", () => {
     const programs = [majors[0]!, core];
-    const roadmap = planRoadmap({ programs, record: RECORDS.empty, catalog: planCatalog(profile), start: START, creditLimit: 15, fullTermsForStanding: true });
+    const roadmap = planRoadmap({ programs, record: RECORDS.empty, catalog: planCatalog(profile), start: START, creditLimit: 15, fullTermsForStanding: true, meetsMinimum });
     expect(violations({ ...roadmap, terms: [...roadmap.terms].reverse() }, programs, RECORDS.empty, 15).some((line) => line.includes("before its prerequisites"))).toBe(true);
     expect(violations(roadmap, programs, RECORDS.empty, 12).some((line) => line.includes("over 12"))).toBe(true);
     expect(roadmap.open.length).toBeGreaterThan(0);
@@ -136,7 +167,7 @@ describe("every major on alpha", () => {
 
   test("a lower limit never finishes sooner", () => {
     for (const program of majors) {
-      const lengths = CREDIT_LIMITS.map((limit) => planRoadmap({ programs: [program, core], record: RECORDS.empty, catalog: planCatalog(profile), start: START, creditLimit: limit, fullTermsForStanding: true }).terms.length);
+      const lengths = CREDIT_LIMITS.map((limit) => planRoadmap({ programs: [program, core], record: RECORDS.empty, catalog: planCatalog(profile), start: START, creditLimit: limit, fullTermsForStanding: true, meetsMinimum }).terms.length);
       expect(lengths).toEqual([...lengths].sort((a, b) => b - a));
     }
   });
@@ -158,6 +189,46 @@ describe("buildRoadmap", () => {
     const termOf = (code: string) => roadmap.terms.findIndex((entry) => entry.courses.some((course) => course.code === code));
     expect(termOf("CSCE 4901")).toBeGreaterThan(0);
     expect(termOf("CSCE 4902")).toBe(termOf("CSCE 4901") + 1);
+  });
+
+  test("a D in CSCE 1040 is retaken before CSCE 2100 and CSCE 2110, which need a C or better", () => {
+    const roadmap = buildRoadmap(profile, snapshot(lowSample), { id: "cs" }, 15)!;
+    const termOf = (code: string) => roadmap.terms.findIndex((entry) => entry.courses.some((course) => course.code === code));
+    // The retake goes after CSCE 1030, which its own rule needs, and before both courses that need the C.
+    expect(termOf("CSCE 1040")).toBeGreaterThan(termOf("CSCE 1030"));
+    expect(termOf("CSCE 2100")).toBeGreaterThan(termOf("CSCE 1040"));
+    expect(termOf("CSCE 2110")).toBeGreaterThan(termOf("CSCE 1040"));
+    const retake = roadmap.terms.flatMap((entry) => entry.courses).find((course) => course.code === "CSCE 1040")!;
+    expect(retake.why).toEqual({ kind: "prerequisite", for: ["CSCE 2100", "CSCE 2110"] });
+    expect(plannedFact(retake)).toBe("Retake for CSCE 2100 and 1 more");
+    expect(roadmapNote("CSCE 1040", roadmap, planCatalog(profile))).toContain("You have it on record, but CSCE 2100 and CSCE 2110 need a better grade in it");
+    expect(violations(roadmap, [majors[0]!, core], RECORDS.low, 15)).toEqual([]);
+  });
+
+  test("CSCE 1030, covered by CSCE 1040 but still listed, waits for an advisor instead of going in a term", () => {
+    const waivers = waiversFor(sampleTranscript);
+    expect([...waivers]).toEqual([["CSCE 1030", "CSCE 1040"]]);
+    const roadmap = buildRoadmap(profile, snapshot(sampleTranscript), { id: "cs" }, 15, waivers)!;
+    expect(roadmap.terms.flatMap((entry) => entry.courses.map((course) => course.code))).not.toContain("CSCE 1030");
+    const held = roadmap.unplaced.find((course) => course.code === "CSCE 1030")!;
+    expect(held.reason).toEqual({ kind: "covered", by: "CSCE 1040" });
+    expect(unplacedFact(held)).toBe("Ask an advisor");
+    expect(violations(roadmap, [majors[0]!, core], RECORDS.sample, 15, new Set(waivers.keys()))).toEqual([]);
+  });
+
+  test("with courses it can't place, the summary counts them and promises no last term", () => {
+    const roadmap = buildRoadmap(profile, snapshot([]), { id: "ce" }, 12)!;
+    expect(roadmap.unplaced.length).toBeGreaterThan(0);
+    const summary = roadmapSummary(roadmap);
+    expect(summary).not.toContain("through");
+    expect(summary).toBe(`${roadmap.terms.length} terms so far, and ${roadmap.unplaced.length} courses and ${roadmap.open.length} requirement${roadmap.open.length === 1 ? "" : "s"} not in a term yet`);
+  });
+
+  test("marking a course done makes the roadmap on screen stale", () => {
+    const shown = { statuses: {}, transcript: [], manualCredit: "", tray: "", limit: 15, waivers: "" };
+    expect(roadmapModel.roadmapIsStale(shown, { ...shown })).toBe(false);
+    expect(roadmapModel.roadmapIsStale(shown, { ...shown, manualCredit: "CSCE 1030" })).toBe(true);
+    expect(roadmapModel.roadmapIsStale(shown, { ...shown, limit: 12 })).toBe(true);
   });
 
   test("a term label the roadmap can't read fails loudly", () => {
@@ -182,13 +253,22 @@ describe("the catalog the roadmap reads", () => {
     expect(requiresOf(rule, untAdapter)).toEqual({
       kind: "and",
       children: [
-        { kind: "course", code: "CSCE 1040" },
+        { kind: "course", code: "CSCE 1040", minGrade: "C" },
         { kind: "concurrent", requirement: { kind: "course", code: "MATH 1710" } },
         { kind: "credits", min: 90 },
         { kind: "check", text: "consent of department" },
         { kind: "check", text: "for CSE majors only" },
       ],
     });
+  });
+
+  test("a minimum inside a minimum keeps the stricter grade", () => {
+    const rule = node("B or better in (C or better in CSCE 1030)", {
+      kind: "minGrade",
+      grade: "B",
+      requirement: node("C or better in CSCE 1030", { kind: "minGrade", grade: "C", requirement: node("CSCE 1030", { kind: "course", courseId: "CSCE 1030" }) }),
+    });
+    expect(requiresOf(rule, untAdapter)).toEqual({ kind: "course", code: "CSCE 1030", minGrade: "B" });
   });
 
   test("a standing the school has no hours for becomes an advisor check", () => {
@@ -243,8 +323,10 @@ describe("the roadmap's sentences", () => {
     ]);
   });
 
-  test("the summary counts the terms and names the last", () => {
-    expect(roadmapSummary(roadmap)).toBe("2 terms, through Fall 2027");
+  test("the summary names the last term only when everything is in a term", () => {
+    expect(roadmapSummary(roadmap)).toBe("2 terms so far, and 2 courses not in a term yet");
+    expect(roadmapSummary({ ...roadmap, unplaced: [], open: [] })).toBe("2 terms, through Fall 2027");
     expect(roadmapSummary({ ...roadmap, terms: [], unplaced: [], open: [] })).toBe("Nothing left");
+    expect(roadmapSummary({ ...roadmap, terms: [] })).toBe("2 courses not in a term yet");
   });
 });

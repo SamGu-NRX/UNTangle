@@ -31,7 +31,7 @@ async function render(overrides: Record<string, unknown>) {
   );
 }
 
-async function sampleRoadmap() {
+async function sampleRoadmap(extra: Record<string, unknown> = {}) {
   const { planRoadmap } = await import("@untangle/core/degree/roadmap");
   const citation = { page: "p.html", url: "https://example.test", anchor: null, heading: "Major" };
   const items = ["A 1000", "B 2000", "GONE 1000"].map((code) => ({ alternatives: [{ must: [code] }] }));
@@ -44,6 +44,7 @@ async function sampleRoadmap() {
     ]),
     start: { season: "spring", year: 2027 },
     creditLimit: 15,
+    ...extra,
   });
 }
 
@@ -57,7 +58,7 @@ describe("the roadmap group", () => {
 
   test("ready, it shows each term with its credits, the limit control, and what isn't in a term", async () => {
     const html = await render({ state: { kind: "ready", roadmap: await sampleRoadmap() } });
-    expect(html).toContain("At 15 credits a term: 2 terms, through Fall 2027.");
+    expect(html).toContain("At 15 credits a term: 2 terms so far, and 1 course and 1 requirement not in a term yet.");
     expect(html).toContain('role="radiogroup" aria-label="Credits a term"');
     expect(html).toContain("Spring 2027");
     expect(html).toContain("Fall 2027");
@@ -70,6 +71,14 @@ describe("the roadmap group", () => {
     expect(html).toContain("Electives");
     expect(html).toContain("6 credits to choose");
     expect(html).not.toContain("Replanning");
+  });
+
+  test("with full terms counted, each term shows the electives that fill it", async () => {
+    const html = await render({ state: { kind: "ready", roadmap: await sampleRoadmap({ fullTermsForStanding: true }) } });
+    expect(html).toContain("Electives you choose");
+    expect(html).toContain("12 credits");
+    const plain = await render({ state: { kind: "ready", roadmap: await sampleRoadmap() } });
+    expect(plain).not.toContain("Electives you choose");
   });
 
   test("waiting on a replan, it says so (shown after 400ms by CSS) and marks the terms busy", async () => {

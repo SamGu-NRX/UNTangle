@@ -158,14 +158,16 @@ function RoadmapBody({ roadmap, stale, titleOf, canOpen, canOpenRequirement, onO
               <span className={styles.termLoad} aria-hidden="true" data-over={over || undefined}>
                 <i style={{ "--load": Math.min(1, entry.credits / roadmap.creditLimit) } as CSSProperties} />
               </span>
-              {entry.courses.length > 0 ? (
+              {entry.courses.length > 0 || entry.electives > 0 ? (
                 <ul className={styles.rows}>
                   {entry.courses.map((course) => (
                     <PlannedRow key={course.code} course={course} title={titleOf(course.code)} openable={canOpen(course.code)} selected={selectedId === course.code} onOpen={onOpen} />
                   ))}
+                  {/* The credits standing counts in this term beyond its courses: shown, so the assumption isn't only in a footnote. */}
+                  {entry.electives > 0 ? <ElectivesRow credits={entry.electives} /> : null}
                 </ul>
               ) : (
-                <p className={styles.termEmpty}>Nothing the roadmap names fits this term yet. Electives fill it.</p>
+                <p className={styles.termEmpty}>Nothing the roadmap names fits this term yet.</p>
               )}
             </li>
           );
@@ -186,7 +188,7 @@ function RoadmapBody({ roadmap, stale, titleOf, canOpen, canOpenRequirement, onO
           </ul>
         </section>
       ) : null}
-      <p className={styles.roadmapNote}>One way to finish, if you pass each course in its term. A term&apos;s spare credits go to electives you choose, and count toward standing.</p>
+      <p className={styles.roadmapNote}>One way to finish, if you pass each course in its term. Elective credits count toward standing, so courses like the capstone can go in once you have enough.</p>
     </>
   );
 }
@@ -244,6 +246,22 @@ const UnplacedRow = memo(function UnplacedRow({ course, title, openable, selecte
     </li>
   );
 });
+
+/** A term's elective credits: no course to open, so the row is text. */
+function ElectivesRow({ credits }: { credits: number }) {
+  return (
+    <li className={styles.row} data-kind="requirement" data-elective="">
+      <div className={styles.reqOpen} data-static="">
+        <span className={styles.lead} aria-hidden="true" />
+        <span className={styles.reqName}>Electives you choose</span>
+        <span className={styles.fact}>
+          <span className={styles.srOnly}>, </span>
+          {creditsText(credits)}
+        </span>
+      </div>
+    </li>
+  );
+}
 
 const OpenRow = memo(function OpenRow({ item, openable, selected, onOpen }: { item: OpenRequirement; openable: boolean; selected: boolean; onOpen: (key: string, opener: HTMLElement) => void }) {
   const content = (
