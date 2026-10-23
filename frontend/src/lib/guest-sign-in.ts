@@ -15,13 +15,15 @@
  * - preferences: carried over when the account has only the defaults, asked
  *   about when both differ.
  * A schedule or courses the student doesn't choose from this browser are
- * kept as a saved copy (`dropsGuestWork`). Saved copies hold no preferences,
- * so preferences not chosen are replaced, and the sheet says so.
+ * kept as a saved copy (`dropsGuestWork`). Preferences that signing in
+ * replaces go on that copy too, which is made for them alone if needed
+ * (`replacedPreferences`).
  */
 import { equal, type AcademicQuestion } from "@untangle/sync";
 import { defaultSchedulePreferences, getInitialPlannerState } from "@/lib/planner";
 import { joinPlanner, splitPlanner, type PlannerBodies, type StoredBodies } from "@/lib/planner-documents";
 import { academicQuestions, answerAcademicQuestions, questionKey, scheduleDifference } from "@/lib/sync/planner-sync";
+import type { SavedPlanPreferences } from "@/lib/plan-library/snapshot-types";
 import type { ClassDay, PlannerState, SchedulePreferences } from "@/lib/types";
 
 export type GuestWork = { state: PlannerState; preferences: SchedulePreferences };
@@ -129,9 +131,20 @@ export function applyGuestSignIn(signIn: GuestSignIn, choice: GuestChoice, curre
   );
 }
 
-/** True when this browser has a schedule or courses worth a saved copy; a saved copy can't hold preferences. */
+/** True when this browser has a schedule or courses worth a saved copy. */
 export function hasCopyableWork(signIn: GuestSignIn): boolean {
   return !equal(signIn.guest.schedule, signIn.empty.schedule) || !equal(signIn.guest["academic-record"], signIn.empty["academic-record"]);
+}
+
+/** This browser's preferences as a saved copy keeps them. */
+export function guestPreferences(signIn: GuestSignIn): SavedPlanPreferences {
+  const { goal, constraints, weights, calendars } = signIn.guest.preferences;
+  return { goal, constraints, weights, ...(calendars ? { calendars } : {}) };
+}
+
+/** This browser's preferences when the choice replaces them with the account's, for the saved copy; null otherwise. */
+export function replacedPreferences(signIn: GuestSignIn, choice: GuestChoice): SavedPlanPreferences | null {
+  return signIn.preferences === "ask" && choice.preferences === "account" ? guestPreferences(signIn) : null;
 }
 
 const PREFERENCE_GROUPS: Array<[string, (p: PlannerBodies["preferences"]) => unknown]> = [

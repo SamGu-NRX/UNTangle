@@ -1,6 +1,7 @@
+import { equal } from "@untangle/sync";
 import type { SchedulePreferences } from "@/lib/types";
 import { buildSavedPlanSnapshot, resolveSectionReferences } from "@/lib/plan-library/snapshot";
-import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
+import type { SavedPlanPreferences, SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import type { SectionCatalog } from "@/lib/planner-sections";
 import { dispatchRestore, workingStateFingerprint, type RestorePlannerApi } from "@/lib/saved-plans/restore-adapter";
 
@@ -56,6 +57,48 @@ export function undoAdoption(planner: AdoptPlanner, adoption: Adoption): boolean
   dispatchRestore(planner, adoption.before, resolveSectionReferences(adoption.before.state, planner.sectionCatalog));
   // The restore set the goal's preset weights; the student's own come back after it.
   planner.setSchedulePreferences(() => adoption.preferences);
+  return true;
+}
+
+/** What "Use these preferences" and its Undo read and write. */
+export type PreferencesPlanner = Pick<AdoptPlanner, "plannerState" | "schedulePreferences" | "setSchedulePreferences"> & {
+  /** The provider's: sets the given sections and goal, and releases no pick. */
+  applySchedule: (byCourse: Record<string, string>, goal?: AdoptPlanner["plannerState"]["optimization"] | null) => void;
+};
+
+/** One "Use these preferences": the set it replaced, and the set it left, which Undo checks is still there. */
+export type PreferencesUse = { before: SavedPlanPreferences; after: SavedPlanPreferences };
+
+/** The planner's preferences as a saved copy keeps them: the goal (held in the plan) and SchedulePreferences. */
+function preferencesOf(planner: Pick<PreferencesPlanner, "plannerState" | "schedulePreferences">): SavedPlanPreferences {
+  const { constraints, weights, calendars } = planner.schedulePreferences;
+  return { goal: planner.plannerState.optimization, constraints, weights, ...(calendars ? { calendars } : {}) };
+}
+
+function setPreferences(planner: PreferencesPlanner, next: SavedPlanPreferences) {
+  // setOptimization would release Main's unlocked picks so the new goal re-plans them, and Undo couldn't bring
+  // them back. This only replaces preferences, so the goal goes in through applySchedule with no section
+  // changes, which leaves every pick as it is. The set's own weights are written right after.
+  if (planner.plannerState.optimization !== next.goal) planner.applySchedule({}, next.goal);
+  const { constraints, weights, calendars } = next;
+  planner.setSchedulePreferences(() => ({ constraints, weights, ...(calendars ? { calendars } : {}) }));
+}
+
+/** Replaces the goal and preferences with a copy's kept set, leaving Main's plan; returns what Undo needs. */
+export function applyCopyPreferences(planner: PreferencesPlanner, kept: SavedPlanPreferences): PreferencesUse {
+  const use = { before: preferencesOf(planner), after: kept };
+  setPreferences(planner, kept);
+  return use;
+}
+
+/**
+ * Puts the replaced preferences back, but only while they are exactly the set
+ * "Use these preferences" left: an edit since, here or from another tab,
+ * refuses it, as Undo on "Use in Main" does. Returns whether it undid.
+ */
+export function undoCopyPreferences(planner: PreferencesPlanner, use: PreferencesUse): boolean {
+  if (!equal(preferencesOf(planner), use.after)) return false;
+  setPreferences(planner, use.before);
   return true;
 }
 

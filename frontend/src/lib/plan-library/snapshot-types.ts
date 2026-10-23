@@ -1,3 +1,4 @@
+import type { PreferencesBody } from "../../../../packages/contracts/src/documents";
 import type { MajorId, OptimizationKey, PlannerState } from "@/lib/types";
 
 /**
@@ -66,4 +67,13 @@ export type SavedPlanSnapshot = {
   /** The planner state, in the planner's own shape, preserved verbatim. */
   state: PlannerState;
   assumptions: SavedPlanAssumptions;
+  /**
+   * Preferences kept with the copy, when signing in replaced this browser's
+   * (docs/architecture/guest-sync.md). Absent on every other copy, so copies
+   * saved before this field existed read the same.
+   */
+  preferences?: SavedPlanPreferences;
 };
+
+/** A preferences document's body without its institution: the goal, constraints, weights and calendars. */
+export type SavedPlanPreferences = Omit<PreferencesBody, "institutionId">;

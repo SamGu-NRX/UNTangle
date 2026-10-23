@@ -33,8 +33,9 @@ function PreferencesQuestion({ signIn, value, onChange }: { signIn: GuestSignIn;
           <span>{label}</span>
         </label>
       ))}
+      {/* Only this browser's set gets a copy; picking it replaces the account's set (guest-sync.md). */}
       <p className="guest-sign-in__lead">
-        {differ.length ? `They differ in ${inWords(differ)}. ` : ""}The set you don&apos;t choose is replaced.
+        {differ.length ? `They differ in ${inWords(differ)}. ` : ""}This browser&apos;s set is kept in Schedules if you don&apos;t choose it.
       </p>
     </fieldset>
   );

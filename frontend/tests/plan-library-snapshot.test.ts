@@ -63,6 +63,28 @@ describe("saved-plan snapshot contract", () => {
     expect(validation.snapshot.planId).toBe("33333333-3333-4333-8333-333333333333");
   });
 
+  it("keeps preferences when a copy has them, reads one without them unchanged, and refuses a set the preferences document would refuse", () => {
+    const base = { state: stateWith({}), name: "Kept", source: { kind: "workingState", detail: "test" } as const, now: new Date(capturedAt) };
+    const preferences = {
+      goal: "clusterNight" as const,
+      constraints: { earliestStart: 600, latestEnd: null, daysOff: ["Fri" as const], blocked: [], maxCredits: null, walkingBufferMinutes: null, excludedSections: [], openSeatsOnly: false, otherSites: false },
+      weights: { fewerDays: 1, compact: 2, mornings: 0, evenings: 4, walking: 1, rating: 2 },
+    };
+    const kept = validateSavedPlanPayload(JSON.parse(JSON.stringify(buildSavedPlanSnapshot({ ...base, preferences }))));
+    expect(kept.ok && kept.snapshot.preferences).toEqual(preferences);
+
+    const plain = validateSavedPlanPayload(JSON.parse(JSON.stringify(buildSavedPlanSnapshot(base))));
+    expect(plain.ok && "preferences" in plain.snapshot).toBe(false);
+
+    const tooEarly = { ...preferences, constraints: { ...preferences.constraints, latestEnd: 540 } };
+    const refused = validateSavedPlanPayload({ ...buildSavedPlanSnapshot(base), preferences: tooEarly });
+    expect(refused.ok ? null : refused.reason).toBe(
+      "The preferences kept with the saved plan are invalid at constraints.latestEnd: The latest end is after the earliest start.",
+    );
+    const extra = validateSavedPlanPayload({ ...buildSavedPlanSnapshot(base), preferences: { ...preferences, institutionId: "unt" } });
+    expect(extra.ok).toBe(false);
+  });
+
   it("rejects an unsupported schema version with an explicit reason", () => {
     const validation = validateSavedPlanPayload(invalidVersionFixture);
     expect(validation.ok).toBe(false);
