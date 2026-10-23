@@ -136,6 +136,35 @@ describe("GET /api/v1/programs/[id]/audit", () => {
     for (const id of ["chem-ms", "math-bsmth", "biology-bsbio"]) expect((await audit(id)).status).toBe(404);
   });
 
+  test("audits every program advertised by the public index", async () => {
+    serve(recordBody(savedRows()));
+    const response = await programsRoute.GET(new Request("http://localhost:3000/api/v1/programs"));
+    const index = (await response.json()) as { programs: { id: string }[] };
+    expect(response.status).toBe(200);
+    expect(index.programs.length).toBeGreaterThan(0);
+    for (const { id } of index.programs) {
+      const { status, body } = await audit(id);
+      expect(status).toBe(200);
+      expect(body.program.id).toBe(id);
+      expect(body.program.catalogId).toBe("unt-2026-27");
+      expect(body.audit.requirements.length).toBeGreaterThan(0);
+      if (id === "core") expect(body.core).toBeNull();
+      else expect(find(body.core!.requirements, "Communication, 6 hours").children?.[0]).toMatchObject({ status: "satisfied" });
+    }
+  });
+
+  for (const id of ["it-bs", "cybersecurity-bs", "ee-bs"]) {
+    test(`${id} audits transcript credit and includes the University Core`, async () => {
+      serve(recordBody(savedRows()));
+      const { status, body } = await audit(id);
+      expect(status).toBe(200);
+      expect(body.program.id).toBe(id);
+      expect(body.catalogYear).toBe("2026-2027");
+      expect(find(body.audit.policies, "Overall GPA")).toMatchObject({ status: "unverifiable" });
+      expect(find(body.core!.requirements, "Communication, 6 hours").children?.[0]).toMatchObject({ status: "satisfied" });
+    });
+  }
+
   test("returns 404 when no academic record is synced", async () => {
     getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
     const { status, body } = await audit("cs-bs");
