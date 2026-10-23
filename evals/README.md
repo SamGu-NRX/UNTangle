@@ -50,7 +50,11 @@ healthy and the runner has produced a validated scorecard.
    | `playwright-launch` | headless chromium loads the app |
 2. **Suites run** (`run.ts`): each discovered suite is loaded, its
    `describe()` case list is expanded, and every case runs with a per-case
-   timeout (default 120 s; a suite can override via `caseTimeoutMs`).
+   timeout (default 120 s; a suite can override via `caseTimeoutMs`). On
+   timeout the runner aborts `ctx.signal` and waits up to 30 s
+   (`UNTANGLE_EVAL_DRAIN_GRACE_MS` overrides) for the case to settle. A case
+   still running after that fails with the note `timed out after …, not drained`, and the
+   rest of its suite fails as not run; later suites still run.
 3. **Scorecard** (`scorecard.ts`, schema in `SCHEMA.md`): assembled from
    observed facts, validated, written to `--out`, re-read and re-validated.
    A markdown summary lands next to it.
