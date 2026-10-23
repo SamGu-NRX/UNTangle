@@ -4,9 +4,9 @@ import { DEGREE_DATA } from "@/lib/degree/programs.generated";
 
 export const runtime = "nodejs";
 
-// CS BS, CE BS and the University Core: the core is audited directly
-// through /api/v1/programs/core/audit, and every major audit returns the
-// core audit beside it, so the index lists everything that can be audited.
+// Every generated program can be audited. The University Core is audited
+// directly through /api/v1/programs/core/audit, and every major audit also
+// returns the core audit beside it.
 
 /**
  * The public program index for the degree audit: what can be audited and
