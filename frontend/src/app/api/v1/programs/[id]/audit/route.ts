@@ -11,14 +11,10 @@ import { DEGREE_DATA } from "@/lib/degree/programs.generated";
 
 export const runtime = "nodejs";
 
-// The served set: CS BS, CE BS and the University Core, all from the
-// 2026-2027 catalog. Every major audit returns the core audit beside it.
-const AUDITABLE_PROGRAM_IDS = ["cs-bs", "ce-bs", "core"];
-
+// The public index and audit route both expose every program in the generated
+// catalog data. Every major audit returns the core audit beside it.
 function findProgram(id: string): ProgramData | null {
-  if (!AUDITABLE_PROGRAM_IDS.includes(id)) return null;
-  const programs: ProgramData[] = DEGREE_DATA.programs;
-  return programs.find((program) => program.id === id) ?? null;
+  return DEGREE_DATA.programs.find((program) => program.id === id) ?? null;
 }
 
 /**
