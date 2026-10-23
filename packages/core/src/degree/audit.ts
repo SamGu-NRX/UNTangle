@@ -209,6 +209,12 @@ function levelOf(code: string): number {
   return match ? Number(match[1]) : 0;
 }
 
+/** "Advanced-hour credit is earned for courses taken at the 3000- or 4000-level" (degree-requirements.html), so a graduate course doesn't count. */
+function isAdvanced(code: string): boolean {
+  const level = levelOf(code);
+  return level >= 3000 && level < 5000;
+}
+
 function subjectOf(code: string): string {
   return code.split(/\s+/)[0] ?? "";
 }
@@ -700,12 +706,12 @@ function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied:
       return { ...base, status: hours >= p.hours ? "satisfied" : "unsatisfied", detail: `${hours} completed hours of ${p.hours}${note}` };
     }
     case "advancedHours": {
-      const { hours, unknown } = creditedHours(credited.filter((entry) => levelOf(entry.code) >= 3000));
+      const { hours, unknown } = creditedHours(credited.filter((entry) => isAdvanced(entry.code)));
       if (hours === null) return { ...base, detail: `${policy.quote} — credit hours unknown for ${unknown.join(", ")}; cannot verify.` };
       return { ...base, status: hours >= p.hours ? "satisfied" : "unsatisfied", detail: `${hours} advanced hours of ${p.hours}` };
     }
     case "advancedHoursAtUnt": {
-      const advanced = (p.courseScope ? evidenceInScope(p.courseScope, credited, applied) : credited).filter((entry) => levelOf(entry.code) >= 3000);
+      const advanced = (p.courseScope ? evidenceInScope(p.courseScope, credited, applied) : credited).filter((entry) => isAdvanced(entry.code));
       const atUnt = advanced.filter((entry) => entry.credit?.sourceKind === "unt");
       const elsewhere = advanced.length - atUnt.length;
       const { hours, unknown } = creditedHours(atUnt);
@@ -714,7 +720,7 @@ function evaluatePolicy(policy: PolicyNode, evidence: CourseEvidence[], applied:
       // candidates; an unclaimed advanced UNT course may be the elective that
       // closes the gap, so a short total cannot read unsatisfied then.
       const poolAtUnt = p.courseScope?.kind === "applied" && hours < p.hours
-        ? [...new Set(pools.flatMap(({ codes }) => codes))].filter((code) => credited.some((entry) => entry.code === code && entry.credit?.sourceKind === "unt" && levelOf(code) >= 3000))
+        ? [...new Set(pools.flatMap(({ codes }) => codes))].filter((code) => credited.some((entry) => entry.code === code && entry.credit?.sourceKind === "unt" && isAdvanced(code)))
         : [];
       if (poolAtUnt.length > 0) return { ...base, detail: `${hours} advanced UNT hours of ${p.hours} from courses the audit placed; ${poolAtUnt.join(", ")} may count as major electives too. Cannot verify.` };
       return {

@@ -41,6 +41,22 @@ const node = (result: AuditResult, name: string): NodeOutcome => {
 };
 const policyOutcome = (result: AuditResult, name: string) => result.policies.find((outcome) => outcome.name === name)!;
 
+describe("advanced hours count 3000- and 4000-level courses only (degree-requirements.html, Advanced-Hour Credit)", () => {
+  const tree = program([all("Required", "CSCE 1030"), policy("Advanced", { type: "advancedHours", hours: 6 }), policy("Advanced at UNT", { type: "advancedHoursAtUnt", hours: 6 })]);
+
+  test("a 5000-level course adds no advanced hours", () => {
+    const result = auditProgram(tree, [done("CSCE 1030"), done("CSCE 4010"), done("CSCE 5150")], COMPLETE);
+    expect(policyOutcome(result, "Advanced")).toMatchObject({ status: "unsatisfied", detail: "3 advanced hours of 6" });
+    expect(policyOutcome(result, "Advanced at UNT").status).toBe("unsatisfied");
+  });
+
+  test("3000- and 4000-level courses reach the total", () => {
+    const result = auditProgram(tree, [done("CSCE 1030"), done("CSCE 3600"), done("CSCE 4010")], COMPLETE);
+    expect(policyOutcome(result, "Advanced")).toMatchObject({ status: "satisfied", detail: "6 advanced hours of 6" });
+    expect(policyOutcome(result, "Advanced at UNT").status).toBe("satisfied");
+  });
+});
+
 describe("in progress means met once in-progress courses earn credit, for every node kind", () => {
   const tree = program([all("Required", "CSCE 1030", "CSCE 1040"), hours("Core", 6, "CSCE 3530", "CSCE 4115", "CSCE 4430"), choose("Lab", 2, singles("PHYS 1710", "PHYS 2220", "GEOL 1610"))]);
 
