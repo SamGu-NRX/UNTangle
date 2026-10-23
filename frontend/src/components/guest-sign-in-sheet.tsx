@@ -41,6 +41,37 @@ function PreferencesQuestion({ signIn, value, onChange }: { signIn: GuestSignIn;
   );
 }
 
+function relativeTime(writtenAt: number | null): string {
+  if (writtenAt === null) return "at an unknown time";
+  const minutes = Math.max(1, Math.round((Date.now() - writtenAt) / 60000));
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? "minute" : "minutes"} ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} ${days === 1 ? "day" : "days"} ago`;
+}
+
+function HandoverSheet({ writtenAt, open }: { writtenAt: number | null; open: boolean }) {
+  const { settleGuestHandover } = usePlanner();
+  const leave = () => settleGuestHandover("leave");
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => (next ? undefined : leave())}
+      title="Bring this browser's guest work into your account?"
+      description={`Someone used UNTangle as a guest here ${relativeTime(writtenAt)}. Only bring it in if it's yours.`}
+      width={520}
+      focusTitle
+      footer={
+        <>
+          <Button variant="secondary" onClick={leave}>Leave it here</Button>
+          <Button onClick={() => settleGuestHandover("bring")}>Bring it in</Button>
+        </>
+      }
+    />
+  );
+}
+
 function Sheet({ signIn, open }: { signIn: GuestSignIn; open: boolean }) {
   const { settleGuestSignIn } = usePlanner();
   const [answers, setAnswers] = useState<Record<string, "latest" | "mine">>({});
@@ -108,10 +139,15 @@ function Sheet({ signIn, open }: { signIn: GuestSignIn; open: boolean }) {
  * question stays rendered while the dialog plays its exit.
  */
 export function GuestSignInSheet() {
-  const { guestSignIn } = usePlanner();
+  const { guestSignIn, guestHandover } = usePlanner();
   const [shown, setShown] = useState(guestSignIn);
   if (guestSignIn && guestSignIn !== shown) setShown(guestSignIn);
-  return shown ? <Sheet key={questionsKey(shown)} signIn={shown} open={guestSignIn !== null} /> : null;
+  return (
+    <>
+      {guestHandover ? <HandoverSheet writtenAt={guestHandover.writtenAt} open /> : null}
+      {shown ? <Sheet key={questionsKey(shown)} signIn={shown} open={guestSignIn !== null} /> : null}
+    </>
+  );
 }
 
 /** A new set of questions starts with fresh answers. */
