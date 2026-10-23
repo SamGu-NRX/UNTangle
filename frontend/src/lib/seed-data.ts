@@ -50,6 +50,27 @@ export const majors: Major[] = [
     coreCourseCodes: ["CSCE 1030", "CSCE 1040", "MATH 1710", "MATH 1720", "PHYS 2220"],
   },
   {
+    id: "it",
+    name: "Information Technology",
+    department: "CSCE",
+    icon: "IT",
+    coreCourseCodes: ["TECM 2700", "MATH 1710", "CSCE 2100", "CSCE 3600"],
+  },
+  {
+    id: "cybersecurity",
+    name: "Cybersecurity",
+    department: "CSCE",
+    icon: "SEC",
+    coreCourseCodes: ["CSCE 1030", "CSCE 1040", "CSCE 2100", "CSCE 3600"],
+  },
+  {
+    id: "ee",
+    name: "Electrical Engineering",
+    department: "EENG",
+    icon: "EE",
+    coreCourseCodes: ["EENG 1910", "EENG 2610", "EENG 2710", "EENG 3510"],
+  },
+  {
     id: "math",
     name: "Mathematics",
     department: "MATH",

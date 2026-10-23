@@ -289,7 +289,7 @@ describe("rules and claims shared or overruled", () => {
 });
 
 describe("a major the audit does not cover", () => {
-  test("keeps the sample core list: Auto plans from it, and the check says it covers CS and CE only", () => {
+  test("keeps the sample core list: Auto plans from it, and the check names the audited majors", () => {
     const plan = plannerWith(journeyTranscript, "math");
     const snapshot = snapshotOf(plan);
     expect(checkDegree(profile, snapshot, buildCourseModel(profile, snapshot), getMajorById("math")!)).toEqual({ kind: "unaudited" });
