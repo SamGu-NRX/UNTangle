@@ -312,7 +312,7 @@ async function runSuite(
   bars: BarsFile,
   only: readonly string[],
   graceMs: number,
-): Promise<CaseRecord[]> {
+): Promise<{ records: CaseRecord[]; undrained: boolean }> {
   const specs = await suite.describe();
   // Validated pre-boot in main(); here it is a pure filter. Suites with no
   // matching id (the --suite all path) simply contribute no cases.
@@ -320,6 +320,7 @@ async function runSuite(
   const ctx = suiteContext(stack);
   const suiteBar = bars.bars[suite.name]?.bar;
   const records: CaseRecord[] = [];
+  let undrained = false;
   for (const [index, spec] of selected.entries()) {
     console.error(`[run] ${suite.name}/${spec.id} ...`);
     const { outcome, note, drained } = await runCase(suite, spec.id, ctx, graceMs);
@@ -335,6 +336,7 @@ async function runSuite(
     records.push(record);
     console.error(`[run] ${suite.name}/${spec.id} → ${record.status}${record.note ? ` (${record.note})` : ""}`);
     if (!drained) {
+      undrained = true;
       // The abandoned case may still hold this suite's shared state (its
       // browser, memoized results, module-level sets), so later cases in the
       // suite would measure that interference rather than the app.
@@ -352,7 +354,7 @@ async function runSuite(
       break;
     }
   }
-  return records;
+  return { records, undrained };
 }
 
 interface BuildOptions {
@@ -781,9 +783,25 @@ async function main(): Promise<number> {
 
   try {
     const cases: CaseRecord[] = crashCtx.cases;
+    let undrainedSuite: string | null = null;
     for (const { suite } of loaded) {
+      if (undrainedSuite) {
+        const skipped = (await suite.describe()).filter((spec) => args.only.length === 0 || args.only.includes(spec.id));
+        cases.push(...skipped.map((spec) => ({
+          suite: suite.name,
+          id: spec.id,
+          status: "fail" as const,
+          measured: null,
+          bar: bars.bars[suite.name]?.bar,
+          note: `not run: ${suite.name} was skipped because ${undrainedSuite} had an undrained case`,
+        })));
+        console.error(`[run] ${suite.name}: ${skipped.length} case(s) failed as not run after ${undrainedSuite} was not drained`);
+        continue;
+      }
       try {
-        cases.push(...(await runSuite(suite, stack, bars, args.only, graceMs)));
+        const result = await runSuite(suite, stack, bars, args.only, graceMs);
+        cases.push(...result.records);
+        if (result.undrained) undrainedSuite = suite.name;
       } catch (error) {
         console.error(`[run] suite ${suite.name} crashed: ${(error as Error).message}`);
         cases.push({
