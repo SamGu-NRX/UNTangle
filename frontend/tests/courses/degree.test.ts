@@ -193,14 +193,16 @@ describe("the final term: 105 credits finished, 15 in progress that print 0.000 
       "The 2026-2027 catalog asks 120 credits for Computer Science, BS.",
       "CSCE 4230, CSCE 4240, CSCE 4902 and PSCI 2305 count at catalog credits until grades post.",
       "UNTangle doesn't know the credits for AGER 2250, so fewer may be left.",
+      // Nothing is left as needed (below), so the advisor's list is all that stands before applying.
+      "Before you apply to graduate, go over the list below with an advisor.",
     ]);
   });
 
   test("what this term finishes reads in progress, not needed", () => {
-    // The audit's rules read finished courses only, so 39 of 42 advanced credits is not met until this term's grades post.
+    // With CSCE 4230 at catalog credits on edge, this term's courses reach the 42 advanced credits (#193).
     expect(rows(degree, "major")).toEqual([
-      ["Advanced credits: 42", "needed", "Not met yet"],
       ["Required courses", "inProgress", "Taking now"],
+      ["Advanced credits: 42", "inProgress", "Taking now"],
     ]);
     expect(rows(degree, "core")).toEqual([["Government/Political Science", "inProgress", "Taking now"]]);
     expect(degree.needed.size).toBe(0);
