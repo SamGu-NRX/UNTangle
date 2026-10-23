@@ -23,7 +23,7 @@ async function realCourse(): Promise<RealCourseSections> {
 describe("saved choice availability", () => {
   test("returns the exact saved choice, linked seats, and both source timestamps", async () => {
     const result = await realCourse();
-    expect(checkCourseAvailability(courseCode, selectedId, result)).toEqual({
+    expect(checkCourseAvailability({ courseCode, selectedSectionId: selectedId, result })).toEqual({
       courseCode, selectedSectionId: selectedId, state: "open",
       evidence: { checkedAt: "2026-10-22T06:00:00.000Z", provenance: {
         kind: "real", source: "vsb.untgrades.app", updatedAt: fixture.updated_at, note: fixture.note,
@@ -63,25 +63,25 @@ describe("saved choice availability", () => {
   test("does not replace a missing choice by another with the same section label", async () => {
     const result = await realCourse();
     result.sections[0].id = "vsb:spring-2027:MATH 1680:6862+9999";
-    expect(checkCourseAvailability(courseCode, selectedId, result)).toMatchObject({ state: "missing", section: null });
+    expect(checkCourseAvailability({ courseCode, selectedSectionId: selectedId, result })).toMatchObject({ state: "missing", section: null });
     result.sections[0].id = selectedId;
-    expect(checkCourseAvailability(courseCode, selectedId, result)).toMatchObject({ state: "open", section: { id: selectedId } });
+    expect(checkCourseAvailability({ courseCode, selectedSectionId: selectedId, result })).toMatchObject({ state: "open", section: { id: selectedId } });
   });
 
   test("stale evidence claims neither current seats nor current removal", async () => {
     const result = await realCourse();
     const stale = { ...result, status: "stale" as const };
-    expect(checkCourseAvailability(courseCode, selectedId, stale)).toMatchObject({ state: "stale", section: { seats: "open" } });
-    expect(checkCourseAvailability(courseCode, "gone", stale)).toMatchObject({ state: "stale", section: null });
-    expect(checkCourseAvailability(courseCode, "gone", { ...result, availability: "no_classes", sections: [] })).toMatchObject({ state: "missing", section: null });
+    expect(checkCourseAvailability({ courseCode, selectedSectionId: selectedId, result: stale })).toMatchObject({ state: "stale", section: { seats: "open" } });
+    expect(checkCourseAvailability({ courseCode, selectedSectionId: "gone", result: stale })).toMatchObject({ state: "stale", section: null });
+    expect(checkCourseAvailability({ courseCode, selectedSectionId: "gone", result: { ...result, availability: "no_classes", sections: [] } })).toMatchObject({ state: "missing", section: null });
   });
 
   test("synthetic options and outages cannot confirm real availability", async () => {
     const result = await realCourse();
     const sample = { term: "spring-2027", courseCode, status: "unavailable" as const, availability: "sample" as const,
       provenance: { kind: "sample" as const, source: "bundled", note: "Synthetic" }, diagnostic: null, sections: result.sections };
-    expect(checkCourseAvailability(courseCode, selectedId, sample)).toMatchObject({ state: "sample", evidence: null, section: null });
-    expect(checkCourseAvailability(courseCode, "gone", sample)).toMatchObject({ state: "unavailable", evidence: null, section: null });
+    expect(checkCourseAvailability({ courseCode, selectedSectionId: selectedId, result: sample })).toMatchObject({ state: "sample", evidence: null, section: null });
+    expect(checkCourseAvailability({ courseCode, selectedSectionId: "gone", result: sample })).toMatchObject({ state: "unavailable", evidence: null, section: null });
   });
 });
 

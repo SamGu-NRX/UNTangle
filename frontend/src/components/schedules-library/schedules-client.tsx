@@ -17,7 +17,7 @@ import { PHONE_QUERY, useMediaQuery } from "@/components/ui/use-media-query";
 import { useFieldError } from "@/components/use-field-error";
 import { replaceWith, undoReplace, type Replaced } from "@/lib/plan-library/versions";
 import { eventsOf, usesSampleSections, weekBlocks, weekColors, type WeekBlock } from "@/lib/plan-library/week";
-import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
+import type { SavedPlanPreferences, SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import { PLANNING_TERM } from "@/lib/terms";
 import { createSavedPlanStore, exportPlanJson, subscribeSavedPlans, type SavedPlanStoreFailure, type StoreReadResult } from "@/lib/saved-plans/store";
 import { getInitialPlannerState } from "@/lib/planner";
@@ -25,7 +25,7 @@ import type { PlannerState } from "@/lib/types";
 import type { PlanStamp } from "@/lib/planner-transaction";
 import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
 import { saveOutcome } from "@/lib/connect/review";
-import { adoptCopy, announcementStep, noteLanded, undoAdoption, type Adoption } from "./adopt";
+import { adoptCopy, announcementStep, applyCopyPreferences, noteLanded, undoAdoption, undoCopyPreferences, type Adoption } from "./adopt";
 import { CompareView, MAX_COMPARED, type CompareSide } from "./compare-view";
 import { PushView } from "./push-view";
 import { ScheduleDetail } from "./schedule-detail";
@@ -299,6 +299,21 @@ export function SchedulesClient() {
     announce.current = { kind: "adoption", name: entry.name, adoption };
   }
 
+  /** "Use these preferences" on a copy that kept them (a sign-in replaced them), with Undo while they're unchanged. */
+  async function applyPlanPreferences(plan: SavedPlanSnapshot, kept: SavedPlanPreferences) {
+    // As "Use in Main" does: the stored preferences load first, so they can't land over this.
+    await planner.afterHydration();
+    const use = applyCopyPreferences(plannerNow.current, kept);
+    toast({
+      message: `Now using the preferences from “${plan.name}”`,
+      action: {
+        label: "Undo",
+        onClick: () =>
+          toast(undoCopyPreferences(plannerNow.current, use) ? "Your preferences are back to how they were" : "Your preferences have changed since, so they were left as they are."),
+      },
+    });
+  }
+
   /** Shows a "nameClash" refusal under the field and keeps the dialog open; true when it did. */
   function refuseName(result: { ok: boolean; failure?: SavedPlanStoreFailure }): boolean {
     if (result.ok || result.failure?.kind !== "nameClash") return false;
@@ -381,7 +396,9 @@ export function SchedulesClient() {
         { id: "export", label: "Export file", onSelect: () => exportPlan(plan) },
       ];
     }
+    const kept = plan.preferences;
     return [
+      ...(kept ? [{ id: "use-preferences", label: "Use these preferences", onSelect: () => void applyPlanPreferences(plan, kept) }] : []),
       { id: "rename", label: "Rename", onSelect: () => (setNameValue(plan.name), clearNameError(), setNaming({ kind: "rename", planId: plan.planId })) },
       { id: "duplicate", label: "Duplicate", onSelect: () => report(store.duplicatePlan(plan.planId), `Duplicated “${plan.name}”`) },
       { id: "export", label: "Export file", onSelect: () => exportPlan(plan) },

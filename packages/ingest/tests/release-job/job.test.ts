@@ -292,25 +292,71 @@ describe("runReleaseJob, one run at a time", () => {
     const before = readFileSync(pointerPath, "utf8");
 
     const report = await job();
-    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified"]);
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["not-modified", "not-modified"]);
     expect(report.outcome).toBe("unchanged");
-    expect(report.subjects).toEqual([{ subject: "MATH", applied: true, detail: "kept from the published release, from the cached body" }]);
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: true, detail: "kept from the published release, confirmed unchanged" }]);
     expect(readFileSync(pointerPath, "utf8")).toBe(before);
     expect(publishedCourses((JSON.parse(before) as { file: string }).file).get("MATH 1680")).toBe(7);
   });
 
-  test("a 304 that cannot reapply a published subject file publishes nothing", async () => {
+  test("a 200 rebuild refetches a recorded subject and applies its newer body", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+
+    files["/data/spring-2027.json"] = { body: editTerm(raw => {
+      raw.courses["ACCT 5120"].sections[0].linked_sections[0].open_seats = 42;
+    }), etag: '"v2"' };
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 9 }), etag: '"m2"' };
+    const report = await job();
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["fetched", "fetched"]);
+    expect(report.outcome).toBe("published");
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: true }]);
+    expect(publishedCourses(report.file).get("MATH 1680")).toBe(9);
+    expect(publishedCourses(report.file).get("ACCT 5120")).toBe(42);
+  });
+
+  test("a 200 rebuild applies a recorded subject body confirmed unchanged by a 304", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+
+    files["/data/spring-2027.json"] = { body: editTerm(raw => {
+      raw.courses["MATH 1680"].sections[0].linked_sections[0].open_seats = 99;
+      raw.courses["ACCT 5120"].sections[0].linked_sections[0].open_seats = 42;
+    }), etag: '"v2"' };
+    const report = await job();
+    expect(report.fetched.map(entry => entry.kind)).toEqual(["fetched", "not-modified"]);
+    expect(report.outcome).toBe("published");
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: true, detail: "kept from the published release, confirmed unchanged" }]);
+    expect(publishedCourses(report.file).get("MATH 1680")).toBe(7);
+  });
+
+  test("a recorded subject fetch error with no cache is subject-unavailable", async () => {
     files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
     expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
     const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
     const before = readFileSync(pointerPath, "utf8");
     const mathUrl = `${stub.url}/data/spring-2027/MATH.json`;
     rmSync(path.join(outDir, "bodies", `${createHash("sha256").update(mathUrl).digest("hex")}.json`));
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m2"', status: 503 };
 
     const report = await job();
     expect(report.outcome).toBe("error");
     expect(report.reason).toBe("subject-unavailable");
-    expect(report.subjects).toEqual([{ subject: "MATH", applied: false, detail: "in the published release, but no cached body" }]);
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: false, detail: "not fetched (error) and no cached body" }]);
+    expect(readFileSync(pointerPath, "utf8")).toBe(before);
+  });
+
+  test("a recorded subject whose new body is invalid stops the run instead of dropping its overlay", async () => {
+    files["/data/spring-2027/MATH.json"] = { body: mathFile({ "MATH 1680": 7 }), etag: '"m1"' };
+    expect((await job({ subjects: ["MATH"] })).outcome).toBe("published");
+    const pointerPath = path.join(outDir, "pointers", "spring-2027.json");
+    const before = readFileSync(pointerPath, "utf8");
+    files["/data/spring-2027/MATH.json"] = { body: '{"schema_version":1}', etag: '"m2"' };
+
+    const report = await job();
+    expect(report.outcome).toBe("error");
+    expect(report.reason).toBe("subject-unavailable");
+    expect(report.subjects).toEqual([{ subject: "MATH", applied: false, detail: "MATH.json: schema_version 1 is not 2" }]);
     expect(readFileSync(pointerPath, "utf8")).toBe(before);
   });
 
@@ -332,7 +378,7 @@ describe("runReleaseJob, one run at a time", () => {
     expect((await job({ subjects: ["MATH"] })).outcome).toBe("unchanged");
     const kept = await job();
     expect(kept.outcome).toBe("unchanged");
-    expect(kept.subjects).toEqual([{ subject: "MATH", applied: true, detail: "kept from the published release, from the cached body" }]);
+    expect(kept.subjects).toEqual([{ subject: "MATH", applied: true, detail: "kept from the published release, confirmed unchanged" }]);
     expect(readFileSync(pointerPath, "utf8")).toBe(before);
   });
 

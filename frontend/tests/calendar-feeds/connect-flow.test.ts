@@ -48,7 +48,7 @@ const isolatedRateLimit: typeof realRateLimitServer.withRateLimit = (route, hand
   createRateLimitWrapper({
     store: memoryStore(),
     secret: "isolated test rate limit",
-    session: async () => ((await import("@/lib/auth-server")) as { getServerSession: () => Promise<never> }).getServerSession(),
+    session: async (request) => (await import("@/lib/auth-server")).getServerSession(request),
   })(route, handler);
 
 const fakeRateLimit = createRateLimitWrapper({

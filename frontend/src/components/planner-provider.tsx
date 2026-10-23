@@ -65,8 +65,10 @@ import {
   applyGuestSignIn,
   asksStudent,
   dropsGuestWork,
+  guestPreferences,
   hasCopyableWork,
   planGuestSignIn,
+  replacedPreferences,
   sameQuestions,
   type GuestChoice,
   type GuestSignIn,
@@ -1384,7 +1386,8 @@ function IdentityPlannerProvider({
       if (!guestWorkIsThisSession()) return;
       const library = createSavedPlanStore(storage, userId);
       const stamp = shortDate(new Date());
-      const copies: { guest?: ReturnType<typeof library.savePlan>; account?: ReturnType<typeof library.savePlan> } = {};
+      // A guest copy with preferences is a different copy from one without, so a retry that now drops them doesn't reuse one that lacks them.
+      const copies: Partial<Record<"guest" | "guestWithPreferences" | "account", ReturnType<typeof library.savePlan>>> = {};
 
       /** This browser's guest work against the account as it is now; null once nothing is left to settle. */
       /**
@@ -1423,15 +1426,19 @@ function IdentityPlannerProvider({
       const apply = async (found: NonNullable<ReturnType<typeof read>>, choice: GuestChoice): Promise<boolean> => {
         const { signIn, state } = found;
         // A copy made on an attempt that then failed is reused, so trying again doesn't save it twice.
-        const keep = (which: "guest" | "account", save: () => ReturnType<typeof library.savePlan>) => {
+        const keep = (which: keyof typeof copies, save: () => ReturnType<typeof library.savePlan>) => {
           const made = copies[which];
           if (made) return made;
           const saved = save();
           if (saved.ok) copies[which] = saved;
           return saved;
         };
+        // Replaced preferences are kept on the guest copy, which is made for them alone when there's no schedule or courses.
+        const preferences = replacedPreferences(signIn, choice) ?? undefined;
         const keptGuest =
-          dropsGuestWork(signIn, choice) && hasCopyableWork(signIn) ? keep("guest", () => library.savePlan({ state, name: `From this browser, ${stamp}` })) : null;
+          (dropsGuestWork(signIn, choice) && hasCopyableWork(signIn)) || preferences
+            ? keep(preferences ? "guestWithPreferences" : "guest", () => library.savePlan({ state, name: `From this browser, ${stamp}`, preferences }))
+            : null;
         const keptAccount =
           signIn.schedule === "ask" && choice.schedule === "guest"
             ? keep("account", () => library.savePlan({ state: stateRef.current, name: `Main from your account, ${stamp}` }))
@@ -1450,7 +1457,9 @@ function IdentityPlannerProvider({
         }
         found.clear();
         toast(
-          keptAccount?.ok
+          keptAccount?.ok && keptGuest?.ok
+            ? `Using this browser's schedule. Your account's Main is in Schedules as "${keptAccount.value.name}", and this browser's version as "${keptGuest.value.name}"`
+            : keptAccount?.ok
             ? `Using this browser's schedule. Your account's Main is in Schedules as "${keptAccount.value.name}"`
             : keptGuest?.ok
               ? `Kept this browser's version in Schedules as "${keptGuest.value.name}"`
@@ -1526,8 +1535,10 @@ function IdentityPlannerProvider({
             onClick: () => {
               if (!current()) return;
               // The carried parts go back to how the account had them; other parts keep any edits made since.
-              const kept = hasCopyableWork(signIn) ? library.savePlan({ state, name: `From this browser, ${stamp}` }) : null;
-              if (kept?.ok === false) {
+              // Everything carried is kept in Schedules first: a schedule or courses, and preferences on the same copy.
+              const preferences = signIn.preferences === "save" ? guestPreferences(signIn) : undefined;
+              const kept = library.savePlan({ state, name: `From this browser, ${stamp}`, preferences });
+              if (!kept.ok) {
                 toast({ message: "Couldn't keep this browser's work in Schedules, so nothing changed.", tone: "error" });
                 return;
               }
@@ -1536,9 +1547,9 @@ function IdentityPlannerProvider({
               showDocuments(joinPlanner(restored, stateRef.current.activeDay), false);
               void runSync((s) => s.save(readPlanner), { saving: true }).then(() => runSync((s) => s.drain()));
               toast(
-                kept?.ok
+                hasCopyableWork(signIn)
                   ? `Your account is back to how it was. This browser's work is in Schedules as "${kept.value.name}"`
-                  : "Your account's preferences are back to how they were",
+                  : `Your account's preferences are back to how they were. This browser's are in Schedules as "${kept.value.name}"`,
               );
             },
           },
