@@ -119,12 +119,8 @@ function catalogCredits(profile: SchoolProfile, code: string): number | null {
   return id === null ? null : (profile.entries.get(id)?.credits ?? null);
 }
 
-/**
- * Both audits for one record. `planned` courses join as in-progress
- * attempts at their catalog credits, so Auto can ask what is still needed
- * once its picks pass. Courses the student marked done join as claims.
- */
-function runAudits(profile: SchoolProfile, record: AuditRecord, programId: string, planned: readonly string[] = []) {
+/** The record as the audit reads it: transcript attempts, and the courses the student marked done as claims. */
+function readRecord(profile: SchoolProfile, record: AuditRecord) {
   // The planner's record names no catalog year, so it is audited against the one year the data has; the
   // page says which. auditInput's warnings are not shown: the catalog year is that note, and rows waiting
   // for review already wait in To check, counting for nothing, as they do here.
@@ -134,6 +130,28 @@ function runAudits(profile: SchoolProfile, record: AuditRecord, programId: strin
   });
   // Unreachable while the record names no catalog year; loud if a caller ever passes one the data lacks.
   if (!input.ok) throw new Error(input.error);
+  return input;
+}
+
+/** The record's courses in the audit's shapes, for the roadmap, which audits the same record. */
+export function auditCourses(profile: SchoolProfile, record: AuditRecord): (AuditCourse | ClaimedCourse)[] {
+  const input = readRecord(profile, record);
+  return [...input.attempts, ...input.claims];
+}
+
+/** The major's program and the University Core, in the order the roadmap audits them; null for a major the audit doesn't cover. */
+export function degreePrograms(major: Pick<Major, "id">): ProgramData[] | null {
+  const programId = AUDITED[major.id];
+  return programId ? [programById(programId), programById(CORE_ID)] : null;
+}
+
+/**
+ * Both audits for one record. `planned` courses join as in-progress
+ * attempts at their catalog credits, so Auto can ask what is still needed
+ * once its picks pass. Courses the student marked done join as claims.
+ */
+function runAudits(profile: SchoolProfile, record: AuditRecord, programId: string, planned: readonly string[] = []) {
+  const input = readRecord(profile, record);
   const attempts: (AuditCourse | ClaimedCourse)[] = [
     ...input.attempts,
     ...input.claims,
