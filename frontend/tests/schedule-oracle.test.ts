@@ -295,8 +295,8 @@ describe("schedule oracle vs planner: reference cases", () => {
     expect(tally.cases).toBeGreaterThan(0);
     expect(tally.cases).toBe(tally.agreements + tally.disagreements);
     // Pinned exact totals (deterministic: fixed seeds, fixed catalog):
-    expect(tally.cases).toBe(8663);
-    expect(tally.agreements).toBe(8662);
+    expect(tally.cases).toBe(14958);
+    expect(tally.agreements).toBe(14957);
     expect(tally.disagreements).toBe(1);
     expect(tally.disagreements_detail[0]).toContain("hand-built duplicate course");
   });

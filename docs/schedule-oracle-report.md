@@ -26,8 +26,8 @@ selection credits verdict.
 
 | Metric | Count |
 | --- | --- |
-| Cases (N) | **8663** |
-| Agreements (M) | **8662** |
+| Cases (N) | **14958** |
+| Agreements (M) | **14957** |
 | Disagreements (K) | **1** |
 
 Case categories:
