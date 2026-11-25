@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatusMark } from "@/components/ui/StatusMark";
 import { StaggerGroup } from "@/components/ui/StaggerGroup";
+import { CountChip } from "@/components/ui/CountChip";
 import { usePlanner, useToast } from "@/components/planner-provider";
 import { courses } from "@/lib/seed-data";
 import {
@@ -69,6 +70,19 @@ export function CoursesClient() {
   const coreCodes = useMemo(() => new Set(coreCourses.map((c) => c.code)), [coreCourses]);
   const progress = summarizeMajorProgress(plannerState);
 
+  const counts = useMemo(() => {
+    let done = 0;
+    let progressing = 0;
+    let want = 0;
+    for (const course of courses) {
+      const s = plannerState.courseStatuses[course.code] ?? "notTaken";
+      if (s === "completed") done += 1;
+      else if (s === "inProgress") progressing += 1;
+      else want += 1;
+    }
+    return { done, progressing, want };
+  }, [plannerState.courseStatuses]);
+
   const filtered = useMemo(() => {
     const q = deferredQuery.toLowerCase().trim();
     return courses.filter((course) => {
@@ -99,25 +113,27 @@ export function CoursesClient() {
       step={0}
       next={{ href: "/schedule", label: "Optimize schedule" }}
     >
-      <div style={{ display: "grid", gap: 18 }}>
-        <header>
-          <p className="editorial-label">Step 1 — Previous courses</p>
+      <div style={{ display: "grid", gap: 14 }}>
+        <header style={{ display: "grid", gap: 8 }}>
+          <p className="editorial-label">Step 01 — Previous courses</p>
           <h1
             className="font-display"
             style={{
-              marginTop: 4,
-              fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)",
+              fontSize: "clamp(1.4rem, 2.4vw, 1.85rem)",
               fontWeight: 800,
               color: "var(--brand-900)",
-              letterSpacing: "-0.03em",
-              lineHeight: 1.05,
+              letterSpacing: "-0.025em",
+              lineHeight: 1.1,
+              margin: 0,
             }}
           >
-            Mark the courses you have already handled.
+            Mark the courses you&apos;ve already handled.
           </h1>
-          <p style={{ marginTop: 6, fontSize: "0.92rem", color: "var(--copy)", maxWidth: 720 }}>
-            Search, set each one to Done, Taking, or Not taken. Locked courses unlock as you complete prerequisites.
-          </p>
+          <div className="count-chips">
+            <CountChip count={counts.done} label="Done" tone="done" />
+            <CountChip count={counts.progressing} label="Taking" tone="progress" />
+            <CountChip count={counts.want} label="Want" />
+          </div>
         </header>
 
         {major ? (

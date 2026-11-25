@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { NavShell } from "@/components/nav-shell";
 import { Modal } from "@/components/ui/Modal";
 import { ConflictBanner } from "@/components/ui/ConflictBanner";
 import { StatusMark } from "@/components/ui/StatusMark";
 import { StaggerGroup } from "@/components/ui/StaggerGroup";
+import { RmpPopover, RatingTrigger, type RmpData } from "@/components/ui/RmpPopover";
 import { usePlanner, useToast } from "@/components/planner-provider";
 import { sections } from "@/lib/seed-data";
 import {
@@ -65,6 +66,56 @@ export function ScheduleClient() {
   const { toast } = useToast();
   const [pickerCourseCode, setPickerCourseCode] = useState<string | null>(null);
   const [pickerOrigin, setPickerOrigin] = useState<{ x: number; y: number } | null>(null);
+
+  // RMP popover state (origin-aware, anchored to clicked star)
+  const [rmpAnchor, setRmpAnchor] = useState<{
+    origin: { x: number; y: number };
+    data: RmpData;
+    name: string;
+  } | null>(null);
+
+  // FLIP re-flow on optimization change — the peak interaction moment.
+  const eventNodesRef = useRef<Map<string, HTMLElement>>(new Map());
+  const lastRectsRef = useRef<Map<string, DOMRect>>(new Map());
+  const lastOptRef = useRef(plannerState.optimization);
+
+  useLayoutEffect(() => {
+    if (lastOptRef.current === plannerState.optimization) {
+      // Just record positions for the next change.
+      const next = new Map<string, DOMRect>();
+      eventNodesRef.current.forEach((el, key) => {
+        next.set(key, el.getBoundingClientRect());
+      });
+      lastRectsRef.current = next;
+      return;
+    }
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reduceMotion) {
+      eventNodesRef.current.forEach((el, key) => {
+        const prev = lastRectsRef.current.get(key);
+        if (!prev) return;
+        const next = el.getBoundingClientRect();
+        const dx = prev.left - next.left;
+        const dy = prev.top - next.top;
+        if (dx === 0 && dy === 0) return;
+        el.animate(
+          [
+            { transform: `translate(${dx}px, ${dy}px)` },
+            { transform: "translate(0, 0)" },
+          ],
+          { duration: 220, easing: "cubic-bezier(0.645, 0.045, 0.355, 1)", fill: "both" },
+        );
+      });
+    }
+    const next = new Map<string, DOMRect>();
+    eventNodesRef.current.forEach((el, key) => {
+      next.set(key, el.getBoundingClientRect());
+    });
+    lastRectsRef.current = next;
+    lastOptRef.current = plannerState.optimization;
+  }, [plannerState.optimization, scheduleEvents]);
 
   const selectedSections = useMemo(
     () =>
@@ -130,22 +181,12 @@ export function ScheduleClient() {
       back={{ href: "/courses", label: "Courses" }}
       next={{ href: "/map", label: "Generate map" }}
     >
-      <div style={{ display: "grid", gap: 18 }}>
-        <header>
-          <p className="editorial-label">Step 2 — Schedule</p>
-          <h1
-            className="font-display"
-            style={{
-              marginTop: 4,
-              fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)",
-              fontWeight: 800,
-              color: "var(--brand-900)",
-              letterSpacing: "-0.03em",
-              lineHeight: 1.05,
-            }}
-          >
-            Shape the semester around one planning goal.
-          </h1>
+      <div style={{ display: "grid", gap: 14 }}>
+        <header style={{ display: "grid", gap: 6 }}>
+          <p className="editorial-label">Step 02 — Schedule</p>
+          <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--copy)" }}>
+            Pick one optimization goal. Click any event to swap sections.
+          </p>
         </header>
 
         {conflicts.length > 0 ? (
@@ -274,9 +315,15 @@ export function ScheduleClient() {
                     .filter((e) => e.day === day)
                     .map((event) => {
                       const layout = eventLayout(event);
+                      const key = event.sectionId + day + event.start;
                       return (
                         <button
-                          key={event.sectionId + day + event.start}
+                          key={key}
+                          ref={(el) => {
+                            const map = eventNodesRef.current;
+                            if (el) map.set(key, el);
+                            else map.delete(key);
+                          }}
                           type="button"
                           className="cal-event"
                           style={{
@@ -369,7 +416,16 @@ export function ScheduleClient() {
                       </p>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
-                      <StatusMark label={`${section.rating.toFixed(1)} ★`} tone="review" />
+                      <RatingTrigger
+                        rating={section.rating}
+                        onOpen={(origin) =>
+                          setRmpAnchor({
+                            origin,
+                            data: { rating: section.rating },
+                            name: section.professor,
+                          })
+                        }
+                      />
                       {conflict ? <StatusMark label="Conflict" tone="danger" /> : null}
                     </div>
                   </div>
@@ -379,6 +435,14 @@ export function ScheduleClient() {
           </StaggerGroup>
         </div>
       </Modal>
+
+      <RmpPopover
+        open={rmpAnchor !== null}
+        onClose={() => setRmpAnchor(null)}
+        origin={rmpAnchor?.origin ?? null}
+        data={rmpAnchor?.data ?? null}
+        instructorName={rmpAnchor?.name}
+      />
     </NavShell>
   );
 }

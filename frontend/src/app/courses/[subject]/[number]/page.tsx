@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { GradeChart } from "@/components/grade-chart";
 import { GpaBadge } from "@/components/gpa-badge";
 import { NavShell } from "@/components/nav-shell";
+import { PrereqPathway } from "@/components/ui/PrereqPathway";
 import { getCourseGradeDetail } from "@/lib/backend-api";
 import { formatGpa } from "@/lib/grades";
 
@@ -56,6 +57,14 @@ export default async function CourseDetailsPage({
             <p>{terms.length ? terms.join(", ") : "No terms available"}</p>
           </div>
           <GradeChart data={aggregate.grades} height={300} />
+        </section>
+
+        <section className="detail-section">
+          <div className="detail-section__head">
+            <h2>Prereq pathway</h2>
+            <p>What you need before enrolling.</p>
+          </div>
+          <PrereqPathway courseCode={`${course.subject} ${course.number}`} />
         </section>
 
         <section className="detail-grid detail-grid--two">

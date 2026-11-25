@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { authClient } from "@/lib/auth-client";
 
 const STEPS = [
@@ -28,91 +28,63 @@ export function NavShell({
   const router = useRouter();
   const user = sessionResult.data?.user;
 
+  const navRef = useRef<HTMLElement | null>(null);
+  const pillRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const pill = pillRefs.current[step];
+    const nav = navRef.current;
+    if (!pill || !nav) return;
+    const navRect = nav.getBoundingClientRect();
+    const pillRect = pill.getBoundingClientRect();
+    setIndicator({
+      left: pillRect.left - navRect.left,
+      width: pillRect.width,
+    });
+  }, [step]);
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
-      <header
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-          background: "rgba(244, 246, 244, 0.85)",
-          backdropFilter: "blur(8px)",
-          borderBottom: "1px solid var(--line)",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 1280,
-            margin: "0 auto",
-            padding: "0.85rem 1.25rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "1.25rem",
-            flexWrap: "wrap",
-          }}
-        >
-          <Link
-            href="/"
-            className="font-display"
-            style={{
-              fontSize: "1.4rem",
-              fontWeight: 800,
-              color: "var(--brand-900)",
-              letterSpacing: "-0.04em",
-            }}
-          >
-            UNTangle
+    <div className="j-shell">
+      <header className="j-header">
+        <div className="j-header__inner">
+          <Link href="/" className="j-logo" aria-label="UNTangle home">
+            Un<span className="j-logo__second">Tangle</span>
           </Link>
 
-          <nav
-            style={{
-              display: "flex",
-              gap: 4,
-              padding: 4,
-              border: "1px solid var(--line)",
-              borderRadius: "var(--r-md)",
-              background: "var(--surface-muted)",
-            }}
-          >
+          <nav className="j-nav" ref={navRef} aria-label="Planning steps">
+            {indicator ? (
+              <span
+                aria-hidden="true"
+                className="j-nav__indicator"
+                style={{
+                  transform: `translateX(${indicator.left - 4}px)`,
+                  width: indicator.width,
+                }}
+              />
+            ) : null}
             {STEPS.map((s, i) => {
-              const active = i === step;
-              const done = i < step;
+              const state = i === step ? "active" : i < step ? "done" : "todo";
               return (
                 <Link
                   key={s.href}
                   href={s.href}
-                  style={{
-                    padding: "0.42rem 0.85rem",
-                    borderRadius: "var(--r-sm)",
-                    fontSize: "0.78rem",
-                    fontWeight: 700,
-                    letterSpacing: "0.04em",
-                    color: active ? "#fff" : done ? "var(--brand-700)" : "var(--copy)",
-                    background: active ? "var(--brand-900)" : "transparent",
-                    transition: "background-color var(--d-hover) var(--ease), color var(--d-hover) var(--ease)",
+                  ref={(el) => {
+                    pillRefs.current[i] = el;
                   }}
+                  className="j-nav__pill"
+                  data-state={state}
+                  aria-current={state === "active" ? "step" : undefined}
                 >
-                  <span style={{ marginRight: 6, fontVariantNumeric: "tabular-nums" }}>0{i + 1}</span>
+                  <span className="j-nav__num">0{i + 1}</span>
                   {s.label}
                 </Link>
               );
             })}
           </nav>
 
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-            <span
-              style={{
-                fontSize: "0.75rem",
-                color: "var(--copy)",
-                fontWeight: 600,
-                padding: "0.25rem 0.65rem",
-                border: "1px solid var(--line)",
-                borderRadius: 999,
-                background: "var(--surface)",
-              }}
-            >
-              {user ? user.email : "Guest"}
-            </span>
+          <div className="j-spacer">
+            <span className="j-chip">{user ? user.email : "Guest"}</span>
             {user ? (
               <button
                 type="button"
@@ -140,33 +112,15 @@ export function NavShell({
           maxWidth: 1280,
           width: "100%",
           margin: "0 auto",
-          padding: "1.5rem 1.25rem 5rem",
+          padding: "1.5rem 1.25rem 2.5rem",
         }}
       >
         {children}
       </main>
 
       {back || next ? (
-        <footer
-          style={{
-            position: stickyFooter ? "sticky" : "static",
-            bottom: 0,
-            background: "rgba(244, 246, 244, 0.85)",
-            backdropFilter: "blur(8px)",
-            borderTop: "1px solid var(--line)",
-          }}
-        >
-          <div
-            style={{
-              maxWidth: 1280,
-              margin: "0 auto",
-              padding: "0.8rem 1.25rem",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
+        <footer className="j-footer" data-sticky={stickyFooter ? "true" : "false"}>
+          <div className="j-footer__inner">
             {back ? (
               <Link href={back.href} className="btn-ghost">
                 ← {back.label}

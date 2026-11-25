@@ -1,49 +1,30 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { StepBar } from "@/components/ui/StepBar";
+import { PhaseStepper } from "@/components/ui/PhaseStepper";
 
 export function AuthShell({
   step = 0,
   totalSteps = 4,
+  tagline = "Plan UNT semesters.",
   children,
 }: {
   step?: number;
   totalSteps?: number;
+  tagline?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
-      <main
-        className="animate-content-enter"
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "2rem 1rem",
-        }}
-      >
-        <div className="surface-card" style={{ width: "100%", maxWidth: 420, padding: "1.75rem 1.6rem" }}>
-          <div style={{ marginBottom: 18 }}>
-            <Link
-              href="/"
-              className="font-display"
-              style={{
-                fontSize: "1.6rem",
-                fontWeight: 800,
-                color: "var(--brand-900)",
-                letterSpacing: "-0.04em",
-              }}
-            >
-              UNTangle
-            </Link>
-            <div style={{ marginTop: 12 }}>
-              <StepBar total={totalSteps} current={step} />
-            </div>
-          </div>
-          {children}
-        </div>
-      </main>
+    <div className="auth-shell animate-content-enter">
+      <div className="auth-card">
+        <Link href="/" aria-label="UNTangle home">
+          <span className="auth-card__brand">
+            Un<span className="auth-card__brand-second">Tangle</span>
+          </span>
+        </Link>
+        {tagline ? <p className="auth-card__tagline">{tagline}</p> : null}
+        <PhaseStepper current={step} total={totalSteps} />
+        {children}
+      </div>
     </div>
   );
 }
